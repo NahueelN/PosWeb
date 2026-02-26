@@ -1,85 +1,239 @@
-# PosWeb
+🧾 PosWeb – Backend POS (ASP.NET Core)
 
-Proyecto **POS (Point of Sale)** desarrollado en **.NET**, con foco en:
-- dominio fuerte
-- reglas de negocio explícitas
-- tests unitarios completos
-- arquitectura limpia y escalable
+Backend para sistema POS con manejo de productos, sucursales y ventas.
+Arquitectura por capas: Domain / Application / Data / API.
 
----
+Estado actual:
+✅ Productos
+✅ Sucursales
+✅ Ventas
+❌ Caja / pagos (todavía no)
 
-## 🧱 Arquitectura
+🧱 Entidades principales
+📦 Producto
 
-El proyecto sigue una separación clara por capas:
+Representa un artículo vendible.
 
-- **Domain**
-  - Entidades de negocio (`Producto`, `Venta`, `Sucursal`, `RenglonVenta`)
-  - Reglas de negocio encapsuladas
-  - Excepciones de dominio específicas
-  - Sin dependencias de UI, HTTP o persistencia
+Campo	Tipo	Descripción
+ID_PRODUCTO	int	ID interno (lo genera el sistema)
+CODIGO_BARRA	string	Código de barras único
+NOMBRE	string	Nombre del producto
+PRECIO	decimal	Precio de venta
+COSTO	decimal	Costo interno
+STOCK	int	Stock disponible
+Activo	bool	Habilitado para vender
+🏬 Sucursal
 
-- **Domain.Test**
-  - Tests unitarios del dominio
-  - Cobertura completa de reglas y errores
-  - Helpers para simular comportamiento de EF Core
+Representa un local físico.
 
-Las capas superiores (Application / API) consumen el dominio, pero **el dominio no depende de ellas**.
+Campo	Tipo	Descripción
+ID_SUCURSAL	int	ID interno
+NUMERO	int	Número de sucursal (1, 2, 3…)
+CODIGO	string	Código corto (ej: CENTRO)
+NOMBRE	string	Nombre descriptivo
+ACTIVO	bool	Habilitada
+🧾 Venta
 
----
+Venta realizada en una sucursal.
 
-## 🧠 Principios aplicados
+Campo	Tipo	Descripción
+ID_VENTA	int	ID interno
+ID_SUCURSAL	int	Sucursal donde se vende
+FECHA	datetime	Fecha y hora
+TOTAL	decimal	Total calculado
+RENGLONES	list	Detalle de productos
+📄 Renglón de Venta
 
-- Domain Driven Design (DDD liviano)
-- Entidades ricas (no anémicas)
-- Invariantes protegidas
-- Excepciones de negocio tipadas
-- Operaciones atómicas (una venta entra completa o no entra)
-- Tests como contrato del dominio
+Detalle de un producto vendido.
 
----
+Campo	Tipo
+ID_RENGLON_VENTA	int
+ID_PRODUCTO	int
+CANTIDAD	int
+PRECIO_UNITARIO	decimal
+SUBTOTAL	decimal
+🌐 API – Endpoints
+📦 Productos
+🔹 Obtener productos activos
 
-## ⚠️ Manejo de errores
+GET
 
-Las reglas de negocio lanzan **excepciones de dominio** (`DomainException`):
+/api/productos
 
-- `StockInsuficienteException`
-- `CantidadInvalidaException`
-- `ProductoInvalidoException`
-- `SucursalInvalidaException`
-- etc.
+Respuesta:
 
-El dominio **describe el error**,  
-las capas superiores **deciden qué hacer** con él.
+[
+  {
+    "id": 1,
+    "codigoBarra": "7790001000011",
+    "nombre": "Coca-Cola 2.25L",
+    "precio": 2800,
+    "costo": 2100,
+    "stock": 20,
+    "activo": true
+  }
+]
+🔹 Crear producto
 
----
+POST
 
-## 🧪 Tests
+/api/productos
 
-- Todos los `if` del dominio están cubiertos
-- Los tests validan:
-  - comportamiento correcto
-  - errores de negocio
-- No se testea infraestructura ni frameworks
-- Los tests no dependen de textos, sino de tipos de excepción
+Body:
 
----
+{
+  "codigoBarra": "7790001000011",
+  "nombre": "Coca-Cola 2.25L",
+  "precio": 2800,
+  "costo": 2100,
+  "stock": 20
+}
 
-## 🎯 Objetivo del proyecto
+Errores posibles:
 
-Servir como base sólida para un sistema POS real:
-- ventas
-- stock
-- sucursales
-- extensible a pagos, clientes, reportes, etc.
+código duplicado
 
-Pensado para crecer sin reescribir el dominio.
+datos inválidos
 
----
+🔹 Buscar producto por código de barras
 
-## 🚀 Próximos pasos
+GET
 
-- Application layer (Services)
-- Persistencia con EF Core
-- Middleware global de errores
-- API REST
-- Autenticación y permisos
+/api/productos/barra/{codigoBarra}
+
+Ejemplo:
+
+/api/productos/barra/7790001000011
+🔹 Eliminar (desactivar) producto
+
+DELETE
+
+/api/productos/{id}
+
+Ejemplo:
+
+/api/productos/1
+🏬 Sucursales
+🔹 Obtener sucursales activas
+
+GET
+
+/api/sucursales
+🔹 Crear sucursal
+
+POST
+
+/api/sucursales
+
+Body:
+
+{
+  "numero": 1,
+  "codigo": "CENTRO",
+  "nombre": "Sucursal Centro"
+}
+
+Errores:
+
+número duplicado
+
+🔹 Obtener sucursal por ID
+
+GET
+
+/api/sucursales/{id}
+🔹 Eliminar (desactivar) sucursal
+
+DELETE
+
+/api/sucursales/{id}
+🧾 Ventas
+🔹 Crear venta
+
+POST
+
+/api/ventas
+
+Body:
+
+{
+  "sucursalId": 1,
+  "items": [
+    {
+      "productoId": 1,
+      "cantidad": 2
+    },
+    {
+      "productoId": 3,
+      "cantidad": 1
+    }
+  ]
+}
+
+Respuesta:
+
+{
+  "ventaId": 10,
+  "fecha": "2026-02-26T14:32:00",
+  "total": 8400
+}
+
+Errores posibles:
+
+venta sin items
+
+sucursal inexistente o inactiva
+
+producto inexistente o inactivo
+
+stock insuficiente
+
+⚠️ Reglas importantes para frontend
+
+❌ No mandar IDs en crear
+
+❌ No calcular totales
+
+❌ No manejar stock
+
+✅ Backend valida todo
+
+✅ Backend descuenta stock
+
+✅ Backend calcula total
+
+🚧 Pendiente (no implementado aún)
+
+Caja (apertura / cierre)
+
+Pagos (efectivo, tarjeta, etc.)
+
+Clientes
+
+Usuarios / roles
+
+Reportes
+
+🧪 Testing
+
+Tests de dominio
+
+Tests de servicios (Application)
+
+EF Core InMemory
+
+Cobertura de excepciones
+
+▶️ Cómo correr el proyecto
+
+Clonar repo
+
+Restaurar paquetes
+
+Ejecutar migraciones:
+
+Update-Database
+
+Ejecutar API
+
+Usar Swagger
