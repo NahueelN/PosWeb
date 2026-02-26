@@ -24,40 +24,19 @@ public class ProductosController : ControllerBase
     [HttpGet("barra/{codigoBarra}")]
     public IActionResult GetPorCodigoBarra(string codigoBarra)
     {
-        try
-        {
-            return Ok(_productoService.ObtenerPorCodigoBarra(codigoBarra));
-        }
-        catch (Exception ex)
-        {
-            return NotFound(ex.Message);
-        }
+        return Ok(_productoService.ObtenerPorCodigoBarra(codigoBarra));
     }
 
     [HttpPost]
     public IActionResult Post(ProductoDto dto)
     {
-        try
-        {
-            return Ok(_productoService.Crear(dto));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        return Ok(_productoService.Crear(dto));
     }
 
     [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
-        try
-        {
-            _productoService.Eliminar(id);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        _productoService.Eliminar(id);
+        return NoContent();
     }
 }

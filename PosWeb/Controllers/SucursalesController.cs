@@ -24,27 +24,13 @@ public class SucursalesController : ControllerBase
     [HttpPost]
     public IActionResult Post(SucursalDto dto)
     {
-        try
-        {
-            return Ok(_sucursalService.Crear(dto));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        return Ok(_sucursalService.Crear(dto));
     }
 
     [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
-        try
-        {
-            _sucursalService.Eliminar(id);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        _sucursalService.Eliminar(id);
+        return NoContent();
     }
 }

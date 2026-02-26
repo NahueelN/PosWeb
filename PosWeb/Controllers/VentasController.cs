@@ -18,14 +18,6 @@ public class VentasController : ControllerBase
     [HttpPost]
     public IActionResult Post(VentaDto dto)
     {
-        try
-        {
-            VentaResultadoDto resultado = _ventaService.CrearVenta(dto);
-            return Ok(resultado);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
+        return Ok(_ventaService.CrearVenta(dto));
     }
 }

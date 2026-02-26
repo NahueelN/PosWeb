@@ -1,9 +1,11 @@
 ﻿using PosWeb.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace PosWeb.Domain;
 
 public class Sucursal
 {
+    [Key]
     public int ID_SUCURSAL { get; private set; }
 
     public int NUMERO { get; private set; }

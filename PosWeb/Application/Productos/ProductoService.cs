@@ -1,4 +1,5 @@
-﻿using PosWeb.Contracts;
+﻿using PosWeb.Application.Exceptions;
+using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
 
@@ -38,7 +39,7 @@ public class ProductoService
 
         if (codigoExiste)
         {
-            throw new ArgumentException("Ya existe un producto con ese código de barras");
+            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
         }
 
         Producto producto = new Producto(
@@ -52,23 +53,14 @@ public class ProductoService
         _context.Productos.Add(producto);
         _context.SaveChanges();
 
-        return new ProductoDto
-        {
-            Id = producto.ID_PRODUCTO,
-            CodigoBarra = producto.CODIGO_BARRA,
-            Nombre = producto.NOMBRE,
-            Precio = producto.PRECIO,
-            Costo = producto.COSTO,
-            Stock = producto.STOCK,
-            Activo = producto.Activo
-        };
+        return MapToDto(producto);
     }
 
     public ProductoDto ObtenerPorCodigoBarra(string codigoBarra)
     {
         if (string.IsNullOrWhiteSpace(codigoBarra))
         {
-            throw new ArgumentException("El código de barras es obligatorio");
+            throw new CodigoBarraRequeridoException();
         }
 
         Producto? producto = _context.Productos
@@ -76,19 +68,10 @@ public class ProductoService
 
         if (producto == null)
         {
-            throw new ArgumentException("Producto no encontrado");
+            throw new ProductoNoEncontradoException(codigoBarra);
         }
 
-        return new ProductoDto
-        {
-            Id = producto.ID_PRODUCTO,
-            CodigoBarra = producto.CODIGO_BARRA,
-            Nombre = producto.NOMBRE,
-            Precio = producto.PRECIO,
-            Costo = producto.COSTO,
-            Stock = producto.STOCK,
-            Activo = producto.Activo
-        };
+        return MapToDto(producto);
     }
 
     public void Eliminar(int id)
@@ -97,10 +80,24 @@ public class ProductoService
 
         if (producto == null)
         {
-            throw new ArgumentException("Producto inexistente");
+            throw new ProductoNoEncontradoException(id);
         }
 
         producto.Desactivar();
         _context.SaveChanges();
+    }
+
+    private static ProductoDto MapToDto(Producto producto)
+    {
+        return new ProductoDto
+        {
+            Id = producto.ID_PRODUCTO,
+            CodigoBarra = producto.CODIGO_BARRA,
+            Nombre = producto.NOMBRE,
+            Precio = producto.PRECIO,
+            Costo = producto.COSTO,
+            Stock = producto.STOCK,
+            Activo = producto.Activo
+        };
     }
 }

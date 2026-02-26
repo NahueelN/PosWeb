@@ -3,13 +3,19 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb", "PosWeb\PosWeb.csproj", "{1AA046B1-32F3-4F2C-894C-91A0E7043919}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PosWeb", "PosWeb\PosWeb.csproj", "{1AA046B1-32F3-4F2C-894C-91A0E7043919}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb.Domain", "PosWeb.Domain\PosWeb.Domain.csproj", "{D250B3DD-B4B5-47FA-A01C-758A32B458CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PosWeb.Domain", "PosWeb.Domain\PosWeb.Domain.csproj", "{D250B3DD-B4B5-47FA-A01C-758A32B458CA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb.Contracts", "PosWeb.Contracts\PosWeb.Contracts.csproj", "{E1811CD0-D75D-4EFF-804B-57262CFA8A53}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PosWeb.Contracts", "PosWeb.Contracts\PosWeb.Contracts.csproj", "{E1811CD0-D75D-4EFF-804B-57262CFA8A53}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb.Domain.Test", "PosWeb.Domain.Test\PosWeb.Domain.Test.csproj", "{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PosWeb.Domain.Test", "PosWeb.Domain.Test\PosWeb.Domain.Test.csproj", "{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb.Application.Test", "PosWeb.Application.Test\PosWeb.Application.Test.csproj", "{6B84F766-AF8F-40EB-AD2D-DC649249496D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PosWeb.Testing", "PosWeb.Testing\PosWeb.Testing.csproj", "{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{6E0B7AF0-E068-49C2-BA32-1F08EA03C203}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,9 +39,22 @@ Global
 		{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B84F766-AF8F-40EB-AD2D-DC649249496D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B84F766-AF8F-40EB-AD2D-DC649249496D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B84F766-AF8F-40EB-AD2D-DC649249496D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B84F766-AF8F-40EB-AD2D-DC649249496D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{5DBCA475-831E-4FC5-8EF1-7AD7CB96BAEE} = {6E0B7AF0-E068-49C2-BA32-1F08EA03C203}
+		{6B84F766-AF8F-40EB-AD2D-DC649249496D} = {6E0B7AF0-E068-49C2-BA32-1F08EA03C203}
+		{6FC830CA-8C21-485C-B6A3-F3B98DF38AB1} = {6E0B7AF0-E068-49C2-BA32-1F08EA03C203}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D552C3AB-4179-4CAC-B3DE-E72C0A184DD8}

@@ -1,4 +1,5 @@
-﻿using PosWeb.Contracts;
+﻿using PosWeb.Application.Exceptions;
+using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
 
@@ -17,14 +18,19 @@ public class VentaService
     {
         if (dto.Items == null || dto.Items.Count == 0)
         {
-            throw new ArgumentException("La venta debe tener al menos un producto");
+            throw new VentaSinItemsException();
         }
 
         Sucursal? sucursal = _context.Sucursales.Find(dto.SucursalId);
 
-        if (sucursal == null || !sucursal.ACTIVO)
+        if (sucursal == null)
         {
-            throw new ArgumentException("Sucursal inválida");
+            throw new SucursalNoExisteException(dto.SucursalId);
+        }
+
+        if (!sucursal.ACTIVO)
+        {
+            throw new SucursalInactivaException(dto.SucursalId);
         }
 
         Venta venta = new Venta(dto.SucursalId);
@@ -33,9 +39,14 @@ public class VentaService
         {
             Producto? producto = _context.Productos.Find(item.ProductoId);
 
-            if (producto == null || !producto.Activo)
+            if (producto == null)
             {
-                throw new ArgumentException($"Producto inválido: {item.ProductoId}");
+                throw new ProductoNoExisteException(item.ProductoId);
+            }
+
+            if (!producto.Activo)
+            {
+                throw new ProductoInactivoException(item.ProductoId);
             }
 
             venta.AgregarRenglon(producto, item.Cantidad);

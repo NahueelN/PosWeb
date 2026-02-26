@@ -21,4 +21,8 @@
     <ProjectReference Include="..\PosWeb.Domain\PosWeb.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Test\" />
+  </ItemGroup>
+
 </Project>

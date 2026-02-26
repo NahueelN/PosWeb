@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace PosWeb.Domain.Test;
+namespace PosWeb.Testing;
 
 public static class TestHelpers
 {

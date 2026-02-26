@@ -3,6 +3,7 @@ using PosWeb.Application.Productos;
 using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Data;
+using PosWeb.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllers();
 

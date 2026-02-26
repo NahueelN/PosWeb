@@ -1,4 +1,5 @@
-﻿using PosWeb.Contracts;
+﻿using PosWeb.Application.Exceptions;
+using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
 
@@ -36,7 +37,7 @@ public class SucursalService
 
         if (numeroExiste)
         {
-            throw new ArgumentException("Ya existe una sucursal con ese número");
+            throw new SucursalNumeroDuplicadoException(dto.Numero);
         }
 
         Sucursal sucursal = new Sucursal(
@@ -58,13 +59,33 @@ public class SucursalService
         };
     }
 
+    public SucursalDto ObtenerPorId(int id)
+    {
+        Sucursal? sucursal = _context.Sucursales
+            .FirstOrDefault(s => s.ID_SUCURSAL == id && s.ACTIVO);
+
+        if (sucursal == null)
+        {
+            throw new SucursalNoExisteException(id);
+        }
+
+        return new SucursalDto
+        {
+            Id = sucursal.ID_SUCURSAL,
+            Numero = sucursal.NUMERO,
+            Codigo = sucursal.CODIGO,
+            Nombre = sucursal.NOMBRE,
+            Activo = sucursal.ACTIVO
+        };
+    }
+
     public void Eliminar(int id)
     {
         Sucursal? sucursal = _context.Sucursales.Find(id);
 
         if (sucursal == null)
         {
-            throw new ArgumentException("Sucursal inexistente");
+            throw new SucursalNoExisteException(id);
         }
 
         sucursal.Desactivar();

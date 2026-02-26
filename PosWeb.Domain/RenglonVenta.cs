@@ -1,9 +1,11 @@
 ﻿using PosWeb.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace PosWeb.Domain;
 
 public class RenglonVenta
 {
+    [Key]
     public int ID_RENGLON_VENTA { get; private set; }
 
     public int ID_PRODUCTO { get; private set; }

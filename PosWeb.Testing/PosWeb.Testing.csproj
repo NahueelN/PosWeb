@@ -17,11 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PosWeb.Domain\PosWeb.Domain.csproj" />
-    <ProjectReference Include="..\PosWeb.Testing\PosWeb.Testing.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

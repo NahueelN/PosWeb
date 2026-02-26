@@ -1,6 +1,5 @@
-﻿using PosWeb.Domain;
-using PosWeb.Domain.Exceptions;
-using Xunit;
+﻿using PosWeb.Domain.Exceptions;
+using PosWeb.Testing;
 
 namespace PosWeb.Domain.Test;
 
