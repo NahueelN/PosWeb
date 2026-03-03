@@ -46,7 +46,7 @@ public class PosDbContext : DbContext
             entity.Property(p => p.STOCK)
                 .HasColumnName("STOCK");
 
-            entity.Property(p => p.Activo)
+            entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
 
             entity.HasIndex(p => p.CODIGO_BARRA);

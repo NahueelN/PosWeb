@@ -17,17 +17,17 @@ public class ProductoService
     public List<ProductoDto> ObtenerActivos()
     {
         return _context.Productos
-            .Where(p => p.Activo)
+            .Where(p => p.ACTIVO)
             .OrderBy(p => p.NOMBRE)
             .Select(p => new ProductoDto
             {
-                Id = p.ID_PRODUCTO,
-                CodigoBarra = p.CODIGO_BARRA,
-                Nombre = p.NOMBRE,
-                Precio = p.PRECIO,
-                Costo = p.COSTO,
-                Stock = p.STOCK,
-                Activo = p.Activo
+                ID_PRODUCTO = p.ID_PRODUCTO,
+                CODIGO_BARRA = p.CODIGO_BARRA,
+                NOMBRE = p.NOMBRE,
+                PRECIO = p.PRECIO,
+                COSTO = p.COSTO,
+                STOCK = p.STOCK,
+                ACTIVO = p.ACTIVO
             })
             .ToList();
     }
@@ -35,19 +35,19 @@ public class ProductoService
     public ProductoDto Crear(ProductoDto dto)
     {
         bool codigoExiste = _context.Productos
-            .Any(p => p.CODIGO_BARRA == dto.CodigoBarra && p.Activo);
+            .Any(p => p.CODIGO_BARRA == dto.CODIGO_BARRA && p.ACTIVO);
 
         if (codigoExiste)
         {
-            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
+            throw new ProductoCodigoDuplicadoException(dto.CODIGO_BARRA);
         }
 
         Producto producto = new Producto(
-            dto.CodigoBarra,
-            dto.Nombre,
-            dto.Precio,
-            dto.Costo,
-            dto.Stock
+            dto.CODIGO_BARRA,
+            dto.NOMBRE,
+            dto.PRECIO,
+            dto.COSTO,
+            dto.STOCK
         );
 
         _context.Productos.Add(producto);
@@ -64,7 +64,7 @@ public class ProductoService
         }
 
         Producto? producto = _context.Productos
-            .FirstOrDefault(p => p.CODIGO_BARRA == codigoBarra && p.Activo);
+            .FirstOrDefault(p => p.CODIGO_BARRA == codigoBarra && p.ACTIVO);
 
         if (producto == null)
         {
@@ -91,13 +91,43 @@ public class ProductoService
     {
         return new ProductoDto
         {
-            Id = producto.ID_PRODUCTO,
-            CodigoBarra = producto.CODIGO_BARRA,
-            Nombre = producto.NOMBRE,
-            Precio = producto.PRECIO,
-            Costo = producto.COSTO,
-            Stock = producto.STOCK,
-            Activo = producto.Activo
+            ID_PRODUCTO = producto.ID_PRODUCTO,
+            CODIGO_BARRA = producto.CODIGO_BARRA,
+            NOMBRE = producto.NOMBRE,
+            PRECIO = producto.PRECIO,
+            COSTO = producto.COSTO,
+            STOCK = producto.STOCK,
+            ACTIVO = producto.ACTIVO
         };
+    }
+
+    public ProductoDto Modificar(int id, ProductoDto dto)
+    {
+        Producto? producto = _context.Productos.Find(id);
+
+        if (producto == null)
+        {
+            throw new ProductoNoEncontradoException(id);
+        }
+
+        bool codigoDuplicado = _context.Productos
+            .Any(p => p.CODIGO_BARRA == dto.CODIGO_BARRA
+                      && p.ID_PRODUCTO != id
+                      && p.ACTIVO);
+
+        if (codigoDuplicado)
+        {
+            throw new ProductoCodigoDuplicadoException(dto.CODIGO_BARRA);
+        }
+
+        producto.CambiarCodigoBarra(dto.CODIGO_BARRA);
+        producto.CambiarNombre(dto.NOMBRE);
+        producto.CambiarPrecio(dto.PRECIO);
+        producto.CambiarCosto(dto.COSTO);
+        producto.CambiarStock(dto.STOCK);
+
+        _context.SaveChanges();
+
+        return MapToDto(producto);
     }
 }

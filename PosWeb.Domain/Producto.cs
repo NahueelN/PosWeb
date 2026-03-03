@@ -18,7 +18,7 @@ public class Producto
 
     public int STOCK { get; private set; }
 
-    public bool Activo { get; private set; }
+    public bool ACTIVO { get; private set; }
 
     public Producto(
         string codigoBarra,
@@ -33,7 +33,7 @@ public class Producto
         CambiarCosto(costo);
         CambiarStock(stock);
 
-        Activo = true;
+        ACTIVO = true;
     }
 
     protected Producto()
@@ -121,11 +121,11 @@ public class Producto
 
     public void Activar()
     {
-        Activo = true;
+        ACTIVO = true;
     }
 
     public void Desactivar()
     {
-        Activo = false;
+        ACTIVO = false;
     }
 }

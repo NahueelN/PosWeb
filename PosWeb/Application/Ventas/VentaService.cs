@@ -44,7 +44,7 @@ public class VentaService
                 throw new ProductoNoExisteException(item.ProductoId);
             }
 
-            if (!producto.Activo)
+            if (!producto.ACTIVO)
             {
                 throw new ProductoInactivoException(item.ProductoId);
             }

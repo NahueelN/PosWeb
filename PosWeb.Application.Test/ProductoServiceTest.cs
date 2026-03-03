@@ -66,7 +66,7 @@ public class ProductoServiceTest
         List<ProductoDto> resultado = service.ObtenerActivos();
 
         Assert.Single(resultado);
-        Assert.Equal("Activo", resultado[0].Nombre);
+        Assert.Equal("Activo", resultado[0].NOMBRE);
     }
 
     [Fact]
@@ -80,8 +80,8 @@ public class ProductoServiceTest
 
         List<ProductoDto> resultado = service.ObtenerActivos();
 
-        Assert.Equal("Alfa", resultado[0].Nombre);
-        Assert.Equal("Zeta", resultado[1].Nombre);
+        Assert.Equal("Alfa", resultado[0].NOMBRE);
+        Assert.Equal("Zeta", resultado[1].NOMBRE);
     }
 
     [Fact]
@@ -92,18 +92,18 @@ public class ProductoServiceTest
 
         ProductoDto dto = new ProductoDto
         {
-            CodigoBarra = "123",
-            Nombre = "Producto Test",
-            Precio = 100,
-            Costo = 80,
-            Stock = 10
+            CODIGO_BARRA = "123",
+            NOMBRE = "Producto Test",
+            PRECIO = 100,
+            COSTO = 80,
+            STOCK = 10
         };
 
         ProductoDto resultado = service.Crear(dto);
 
-        Assert.Equal("123", resultado.CodigoBarra);
-        Assert.Equal("Producto Test", resultado.Nombre);
-        Assert.True(resultado.Activo);
+        Assert.Equal("123", resultado.CODIGO_BARRA);
+        Assert.Equal("Producto Test", resultado.NOMBRE);
+        Assert.True(resultado.ACTIVO);
         Assert.Equal(1, context.Productos.Count());
     }
 
@@ -117,11 +117,11 @@ public class ProductoServiceTest
 
         ProductoDto dto = new ProductoDto
         {
-            CodigoBarra = "123",
-            Nombre = "Nuevo",
-            Precio = 100,
-            Costo = 80,
-            Stock = 5
+            CODIGO_BARRA = "123",
+            NOMBRE = "Nuevo",
+            PRECIO = 100,
+            COSTO = 80,
+            STOCK = 5
         };
 
         Assert.Throws<ProductoCodigoDuplicadoException>(() =>
@@ -140,7 +140,7 @@ public class ProductoServiceTest
 
         ProductoDto resultado = service.ObtenerPorCodigoBarra("ABC");
 
-        Assert.Equal("Producto ABC", resultado.Nombre);
+        Assert.Equal("Producto ABC", resultado.NOMBRE);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class ProductoServiceTest
 
         Producto resultado = context.Productos.First();
 
-        Assert.False(resultado.Activo);
+        Assert.False(resultado.ACTIVO);
     }
 
     [Fact]

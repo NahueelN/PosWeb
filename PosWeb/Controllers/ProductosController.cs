@@ -39,4 +39,10 @@ public class ProductosController : ControllerBase
         _productoService.Eliminar(id);
         return NoContent();
     }
+
+    [HttpPut]
+    public IActionResult Put(int id, ProductoDto dto)
+    {
+        return Ok(_productoService.Modificar(id, dto));
+    }
 }
