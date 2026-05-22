@@ -14,6 +14,7 @@ public class PosDbContext : DbContext
     public DbSet<Sucursal> Sucursales { get; set; }
     public DbSet<Venta> Ventas { get; set; }
     public DbSet<RenglonVenta> RenglonesVenta { get; set; }
+    public DbSet<StockSucursal> StockSucursales { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +128,36 @@ public class PosDbContext : DbContext
             entity.HasOne<Venta>()
                 .WithMany(v => v.RENGLONES)
                 .HasForeignKey("ID_VENTA");
+        });
+
+        // STOCK POR SUCURSAL
+        modelBuilder.Entity<StockSucursal>(entity =>
+        {
+            entity.ToTable("STOCK_POR_SUCURSAL");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Id)
+                .HasColumnName("ID_STOCK_SUCURSAL");
+
+            entity.Property(x => x.IdProducto)
+                .HasColumnName("ID_PRODUCTO");
+
+            entity.Property(x => x.IdSucursal)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(x => x.Stock)
+                .HasColumnName("STOCK");
+
+            entity.HasIndex(x => new { x.IdProducto, x.IdSucursal }).IsUnique();
+
+            entity.HasOne(x => x.Producto)
+                .WithMany()
+                .HasForeignKey(x => x.IdProducto);
+
+            entity.HasOne(x => x.Sucursal)
+                .WithMany()
+                .HasForeignKey(x => x.IdSucursal);
         });
     }
 }
