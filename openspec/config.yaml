@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=./schema.json
 mode: openspec
 project: posweb
+detected_at: 2026-05-24
 stack:
   frontend:
     framework: React 19.2.6
@@ -21,13 +22,24 @@ stack:
     test_framework: xUnit (modern) + legacy MSTest
     coverage: coverlet.collector 6.0.0
     test_utils: PosWeb.Testing (shared test helpers)
+  ci:
+    provider: GitHub Actions (Azure Web App deploy)
+    backend_test_step: MISSING — workflow builds only, no `dotnet test`
+    frontend_build_step: MISSING — no frontend build/lint in CI
+    workflow_file: .github/workflows/master_posweb.yml
 
+# Strict TDD: disabled because frontend has zero test infrastructure (no test runner,
+# no test files, no test scripts). Backend has xUnit + MSTest + coverlet but enforcing
+# TDD project-wide would block frontend-only changes. Consider per-layer strict_tdd
+# if backend-only changes dominate.
 strict_tdd: false
 
 testing:
   frontend:
     runner: none
-    reason: No test framework installed in package.json dependencies
+    reason: No test framework installed in package.json dependencies (no vitest, jest, playwright, cypress)
+    test_files: 0
+    test_scripts: none
     type_checker:
       command: npx tsc -b
     linter:
@@ -37,7 +49,8 @@ testing:
   backend:
     runner:
       command: dotnet test
-      framework: xUnit (modern) + MSTest (legacy PosWeb.Domain.Tests)
+      framework: xUnit (modern, 3 projects: PosWeb.Domain.Test, PosWeb.Application.Test, PosWeb.Testing) + MSTest (legacy PosWeb.Domain.Tests targeting .NET Framework 4.7.2)
+      test_files: 9 (4 domain + 4 application service + 1 legacy)
     integration:
       available: true
       tool: EF Core InMemory (in PosWeb.Application.Test)
@@ -83,5 +96,8 @@ phases:
     strict_tdd: false
   verify:
     require_tests: false
+    backend_command: dotnet test
+    backend_coverage_command: dotnet test --collect:"XPlat Code Coverage"
+    frontend_command: npm run lint && npx tsc -b  # type-check + lint only (no tests)
   archive:
     auto_archive: true
