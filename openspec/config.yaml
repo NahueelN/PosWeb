@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=./schema.json
+mode: openspec
+project: posweb
+stack:
+  frontend:
+    framework: React 19.2.6
+    bundler: Vite 8.0.12
+    language: TypeScript 6.0.2
+    styling: Tailwind CSS 4.3.0
+    routing: react-router-dom 7.15.1
+    desktop: Tauri v2 (Rust 2021 edition)
+    test_framework: none
+    linter: ESLint 10.x
+    type_checker: tsc (via build)
+    formatter: none
+  backend:
+    runtime: .NET 8.0 (ASP.NET Core)
+    orm: Entity Framework Core 8.0.2 + SQLite
+    api_docs: Swashbuckle / Swagger 6.4.0
+    architecture: Layered (Domain → Contracts → Application → API)
+    test_framework: xUnit (modern) + legacy MSTest
+    coverage: coverlet.collector 6.0.0
+    test_utils: PosWeb.Testing (shared test helpers)
+
+strict_tdd: false
+
+testing:
+  frontend:
+    runner: none
+    reason: No test framework installed in package.json dependencies
+    type_checker:
+      command: npx tsc -b
+    linter:
+      command: npm run lint
+      framework: ESLint 10.x
+    formatter: none
+  backend:
+    runner:
+      command: dotnet test
+      framework: xUnit (modern) + MSTest (legacy PosWeb.Domain.Tests)
+    integration:
+      available: true
+      tool: EF Core InMemory (in PosWeb.Application.Test)
+    coverage:
+      available: true
+      command: dotnet test --collect:"XPlat Code Coverage"
+      tool: coverlet.collector 6.0.0
+    layers:
+      unit: true
+      integration: true
+      e2e: false
+
+conventions:
+  naming:
+    domain_entities: Spanish (Pago, Venta, Producto, Sucursal)
+    properties: SCREAMING_SNAKE_CASE (ID_VENTA, MONTO) — legacy DB-style
+    dtos: PascalCase with camelCase JSON serialization
+    code: English for structure/functions, Spanish for domain concepts
+  architecture:
+    pattern: Layered (Domain → Application → Controllers)
+    api_prefix: /api
+    proxy: Vite dev server proxies /api → localhost:5196
+    db: SQLite via EF Core
+  frontend:
+    routing: React Router v7 with Layout outlet pattern
+    state: useState / useReducer (no external state lib)
+    api_client: fetch wrapper in src/api/client.ts
+  desktop:
+    window: 1024x768, min 800x600, centered, resizable
+    build: npm run build → Tauri bundles
+
+phases:
+  propose:
+    require_approval: true
+  spec:
+    require_approval: true
+  design:
+    require_approval: true
+  tasks:
+    require_approval: true
+  apply:
+    require_tests: false
+    strict_tdd: false
+  verify:
+    require_tests: false
+  archive:
+    auto_archive: true

@@ -17,6 +17,225 @@ namespace PosWeb.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
 
+            modelBuilder.Entity("PosWeb.Domain.Caja", b =>
+                {
+                    b.Property<int>("ID_CAJA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CAJA");
+
+                    b.Property<decimal?>("DIFERENCIA")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("DIFERENCIA");
+
+                    b.Property<string>("ESTADO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ESTADO");
+
+                    b.Property<DateTime>("FECHA_APERTURA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_APERTURA");
+
+                    b.Property<DateTime?>("FECHA_CIERRE")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_CIERRE");
+
+                    b.Property<int>("ID_SUCURSAL")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SUCURSAL");
+
+                    b.Property<int>("ID_USUARIO_APERTURA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_APERTURA");
+
+                    b.Property<int?>("ID_USUARIO_CIERRE")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_CIERRE");
+
+                    b.Property<decimal?>("MONTO_CONTADO_EFECTIVO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO_CONTADO_EFECTIVO");
+
+                    b.Property<decimal?>("MONTO_CONTADO_TARJETAS")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO_CONTADO_TARJETAS");
+
+                    b.Property<decimal>("MONTO_GASTOS")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("MONTO_INICIAL")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO_INICIAL");
+
+                    b.HasKey("ID_CAJA");
+
+                    b.HasIndex("ID_USUARIO_APERTURA");
+
+                    b.HasIndex("ID_USUARIO_CIERRE");
+
+                    b.ToTable("CAJAS", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Cliente", b =>
+                {
+                    b.Property<int>("ID_CLIENTE")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CLIENTE");
+
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ACTIVO");
+
+                    b.Property<string>("DOMICILIO")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DOMICILIO");
+
+                    b.Property<string>("IVA_CONDICION")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("IVA_CONDICION");
+
+                    b.Property<string>("NOMBRE")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NOMBRE");
+
+                    b.Property<string>("NUMERO_DOCUMENTO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NUMERO_DOCUMENTO");
+
+                    b.Property<string>("TELEFONO")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TELEFONO");
+
+                    b.Property<string>("TIPO_DOCUMENTO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TIPO_DOCUMENTO");
+
+                    b.HasKey("ID_CLIENTE");
+
+                    b.HasIndex("TIPO_DOCUMENTO", "NUMERO_DOCUMENTO")
+                        .IsUnique();
+
+                    b.ToTable("CLIENTES", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
+                {
+                    b.Property<int>("ID_MEDIO_PAGO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_MEDIO_PAGO");
+
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ACTIVO");
+
+                    b.Property<string>("NOMBRE")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NOMBRE");
+
+                    b.Property<bool>("PAGA_VUELTO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("PAGA_VUELTO");
+
+                    b.HasKey("ID_MEDIO_PAGO");
+
+                    b.ToTable("MEDIOS_PAGO", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            ID_MEDIO_PAGO = 1,
+                            ACTIVO = true,
+                            NOMBRE = "Efectivo",
+                            PAGA_VUELTO = true
+                        },
+                        new
+                        {
+                            ID_MEDIO_PAGO = 2,
+                            ACTIVO = true,
+                            NOMBRE = "Tarjeta Débito",
+                            PAGA_VUELTO = false
+                        },
+                        new
+                        {
+                            ID_MEDIO_PAGO = 3,
+                            ACTIVO = true,
+                            NOMBRE = "Tarjeta Crédito",
+                            PAGA_VUELTO = false
+                        },
+                        new
+                        {
+                            ID_MEDIO_PAGO = 4,
+                            ACTIVO = true,
+                            NOMBRE = "Transferencia",
+                            PAGA_VUELTO = false
+                        },
+                        new
+                        {
+                            ID_MEDIO_PAGO = 5,
+                            ACTIVO = true,
+                            NOMBRE = "Cuenta Corriente",
+                            PAGA_VUELTO = false
+                        });
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PagoVenta", b =>
+                {
+                    b.Property<int>("ID_PAGO_VENTA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_PAGO_VENTA");
+
+                    b.Property<decimal>("CAMBIO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("CAMBIO");
+
+                    b.Property<decimal?>("CON_CAMBIO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("CON_CAMBIO");
+
+                    b.Property<int>("ID_MEDIO_PAGO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_MEDIO_PAGO");
+
+                    b.Property<int>("ID_USUARIO_REGISTRA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_REGISTRA");
+
+                    b.Property<int>("ID_VENTA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_VENTA");
+
+                    b.Property<decimal>("MONTO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO");
+
+                    b.HasKey("ID_PAGO_VENTA");
+
+                    b.HasIndex("ID_MEDIO_PAGO");
+
+                    b.HasIndex("ID_USUARIO_REGISTRA");
+
+                    b.HasIndex("ID_VENTA");
+
+                    b.ToTable("PAGOS_VENTA", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Producto", b =>
                 {
                     b.Property<int>("ID_PRODUCTO")
@@ -151,6 +370,60 @@ namespace PosWeb.Migrations
                     b.ToTable("SUCURSALES", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.Usuario", b =>
+                {
+                    b.Property<int>("ID_USUARIO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ACTIVO");
+
+                    b.Property<int?>("ID_SUCURSAL_DEFAULT")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SUCURSAL_DEFAULT");
+
+                    b.Property<string>("NOMBRE_USUARIO")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NOMBRE_USUARIO");
+
+                    b.Property<string>("PASSWORD_HASH")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PASSWORD_HASH");
+
+                    b.Property<string>("PIN_HASH")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PIN_HASH");
+
+                    b.Property<string>("ROL")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ROL");
+
+                    b.HasKey("ID_USUARIO");
+
+                    b.HasIndex("NOMBRE_USUARIO")
+                        .IsUnique();
+
+                    b.ToTable("USUARIOS", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            ID_USUARIO = 1,
+                            ACTIVO = true,
+                            NOMBRE_USUARIO = "admin",
+                            PASSWORD_HASH = "$2a$11$K4YfGqJ1e4YHIpQqJ1e4Y.ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                            ROL = "Admin"
+                        });
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Venta", b =>
                 {
                     b.Property<int>("ID_VENTA")
@@ -162,9 +435,21 @@ namespace PosWeb.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("FECHA");
 
+                    b.Property<int?>("ID_CAJA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CAJA");
+
+                    b.Property<int?>("ID_CLIENTE")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CLIENTE");
+
                     b.Property<int>("ID_SUCURSAL")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUCURSAL");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
 
                     b.Property<decimal>("TOTAL")
                         .HasColumnType("TEXT")
@@ -172,9 +457,48 @@ namespace PosWeb.Migrations
 
                     b.HasKey("ID_VENTA");
 
+                    b.HasIndex("ID_CLIENTE");
+
                     b.HasIndex("ID_SUCURSAL");
 
+                    b.HasIndex("ID_USUARIO");
+
                     b.ToTable("VENTAS", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Caja", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO_APERTURA")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO_CIERRE")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PagoVenta", b =>
+                {
+                    b.HasOne("PosWeb.Domain.MedioPago", null)
+                        .WithMany()
+                        .HasForeignKey("ID_MEDIO_PAGO")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO_REGISTRA")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("PosWeb.Domain.Venta", null)
+                        .WithMany()
+                        .HasForeignKey("ID_VENTA")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonVenta", b =>
@@ -205,11 +529,21 @@ namespace PosWeb.Migrations
 
             modelBuilder.Entity("PosWeb.Domain.Venta", b =>
                 {
+                    b.HasOne("PosWeb.Domain.Cliente", null)
+                        .WithMany()
+                        .HasForeignKey("ID_CLIENTE")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PosWeb.Domain.Sucursal", null)
                         .WithMany()
                         .HasForeignKey("ID_SUCURSAL")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Venta", b =>

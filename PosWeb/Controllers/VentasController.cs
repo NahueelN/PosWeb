@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Ventas;
 using PosWeb.Contracts;
 
@@ -16,9 +18,18 @@ public class VentasController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public IActionResult Post(VentaDto dto)
     {
-        return Ok(_ventaService.CrearVenta(dto));
+        var userId = GetUserId();
+        return Ok(_ventaService.CrearVenta(dto, userId));
+    }
+
+    private int? GetUserId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (claim == null) return null;
+        return int.TryParse(claim.Value, out var id) ? id : null;
     }
 
     [HttpGet]
@@ -40,7 +51,7 @@ public class VentasController : ControllerBase
         }
 
         fechaDesde ??= DateTime.Today.AddDays(-30);
-        fechaHasta ??= DateTime.Today.AddDays(1);
+        fechaHasta = fechaHasta?.Date.AddDays(1) ?? DateTime.Today.AddDays(1);
 
         var filtro = new VentaHistorialFiltro
         {

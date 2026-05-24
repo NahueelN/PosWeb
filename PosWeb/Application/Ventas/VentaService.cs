@@ -18,7 +18,7 @@ public class VentaService
         _stockSucursalService = stockSucursalService;
     }
 
-    public VentaResultadoDto CrearVenta(VentaDto dto)
+    public VentaResultadoDto CrearVenta(VentaDto dto, int? usuarioId = null)
     {
         if (dto.Items == null || dto.Items.Count == 0)
         {
@@ -37,7 +37,57 @@ public class VentaService
             throw new SucursalInactivaException(dto.SucursalId);
         }
 
-        Venta venta = new Venta(dto.SucursalId);
+        // Check active caja
+        Caja? cajaActiva = _context.Cajas
+            .FirstOrDefault(c => c.ID_SUCURSAL == dto.SucursalId && c.ESTADO == "Abierta");
+
+        if (cajaActiva == null)
+        {
+            throw new VentaSinCajaActivaException(dto.SucursalId);
+        }
+
+        // Validate pagos
+        if (dto.Pagos == null)
+        {
+            throw new PagosVaciosException();
+        }
+
+        decimal totalPagos = 0;
+        List<(int medioPagoId, decimal monto, decimal? conCambio)> pagosData = new();
+
+        if (dto.Pagos.Count > 0)
+        {
+            foreach (var pago in dto.Pagos)
+            {
+                if (pago.Monto <= 0)
+                {
+                    throw new MedioPagoInvalidoException("Monto inválido");
+                }
+
+                MedioPago? medio = _context.MediosPago.Find(pago.MedioPagoId);
+                if (medio == null)
+                {
+                    throw new MedioPagoInvalidoException(pago.MedioPagoId);
+                }
+
+                if (!medio.ACTIVO)
+                {
+                    throw new MedioPagoInvalidoException($"Medio de pago inactivo (ID: {pago.MedioPagoId})");
+                }
+
+                if (pago.ConCambio.HasValue && pago.ConCambio.Value < pago.Monto)
+                {
+                    throw new MedioPagoInvalidoException("El monto recibido debe ser mayor o igual al monto del pago");
+                }
+
+                totalPagos += pago.Monto;
+                pagosData.Add((pago.MedioPagoId, pago.Monto, pago.ConCambio));
+            }
+        }
+
+        Venta venta = new Venta(dto.SucursalId, usuarioId);
+        venta.AsignarCaja(cajaActiva.ID_CAJA);
+        venta.AsignarCliente(dto.ClienteId);
 
         foreach (VentaItemDto item in dto.Items)
         {
@@ -73,14 +123,94 @@ public class VentaService
             venta.AgregarRenglon(producto, item.Cantidad);
         }
 
+        // Validate payment total against sale total
+        if (dto.Pagos.Count > 0)
+        {
+            decimal totalVenta = venta.TOTAL;
+            if (Math.Abs(totalPagos - totalVenta) > 0.01m)
+            {
+                // Check if it's a cash payment with extra (change scenario)
+                bool hasCashExtra = pagosData.Any(p =>
+                {
+                    var medio = _context.MediosPago.Find(p.medioPagoId);
+                    return medio?.PAGA_VUELTO == true && p.conCambio.HasValue && p.conCambio > p.monto;
+                });
+
+                if (!hasCashExtra)
+                {
+                    throw new PagoSumaInvalidaException(totalPagos, totalVenta);
+                }
+
+                // Recalculate: cash overpayment is OK as long as the "real" payment covers the total
+                decimal realPayment = pagosData.Sum(p =>
+                {
+                    var medio = _context.MediosPago.Find(p.medioPagoId);
+                    if (medio?.PAGA_VUELTO == true && p.conCambio.HasValue)
+                    {
+                        return p.conCambio.Value;
+                    }
+                    return p.monto;
+                });
+
+                if (realPayment < totalVenta)
+                {
+                    throw new PagoSumaInvalidaException(realPayment, totalVenta);
+                }
+            }
+        }
+        else
+        {
+            throw new PagosVaciosException();
+        }
+
         _context.Ventas.Add(venta);
         _context.SaveChanges();
+
+        // Persist PagoVenta records
+        decimal cambioTotal = 0;
+        var pagosResult = new List<PagoVentaResultDto>();
+
+        if (dto.Pagos != null && pagosData.Count > 0)
+        {
+            foreach (var (medioPagoId, monto, conCambio) in pagosData)
+            {
+                var pagoVenta = new PagoVenta(
+                    venta.ID_VENTA,
+                    medioPagoId,
+                    monto,
+                    usuarioId ?? 0,
+                    conCambio
+                );
+
+                _context.PagosVenta.Add(pagoVenta);
+
+                string medioNombre = _context.MediosPago
+                    .Where(m => m.ID_MEDIO_PAGO == medioPagoId)
+                    .Select(m => m.NOMBRE)
+                    .FirstOrDefault() ?? "";
+
+                cambioTotal += pagoVenta.CAMBIO;
+
+                pagosResult.Add(new PagoVentaResultDto
+                {
+                    MedioPagoId = medioPagoId,
+                    MedioPagoNombre = medioNombre,
+                    Monto = pagoVenta.MONTO,
+                    ConCambio = pagoVenta.CON_CAMBIO,
+                    Cambio = pagoVenta.CAMBIO
+                });
+            }
+
+            _context.SaveChanges();
+        }
 
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
             Fecha = venta.FECHA,
-            Total = venta.TOTAL
+            Total = venta.TOTAL,
+            Pagos = pagosResult,
+            Cambio = cambioTotal
         };
     }
 

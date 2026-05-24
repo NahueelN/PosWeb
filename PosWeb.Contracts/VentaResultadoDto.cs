@@ -7,4 +7,8 @@ public class VentaResultadoDto
     public DateTime Fecha { get; set; }
 
     public decimal Total { get; set; }
+
+    public List<PagoVentaResultDto> Pagos { get; set; } = new();
+
+    public decimal Cambio { get; set; }
 }

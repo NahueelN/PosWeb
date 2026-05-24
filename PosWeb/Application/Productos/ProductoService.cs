@@ -2,6 +2,7 @@
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace PosWeb.Application.Productos;
 
@@ -21,33 +22,33 @@ public class ProductoService
             .OrderBy(p => p.NOMBRE)
             .Select(p => new ProductoDto
             {
-                ID_PRODUCTO = p.ID_PRODUCTO,
-                CODIGO_BARRA = p.CODIGO_BARRA,
-                NOMBRE = p.NOMBRE,
-                PRECIO = p.PRECIO,
-                COSTO = p.COSTO,
-                STOCK = p.STOCK,
-                ACTIVO = p.ACTIVO
+                Id = p.ID_PRODUCTO,
+                CodigoBarra = p.CODIGO_BARRA,
+                Nombre = p.NOMBRE,
+                Precio = p.PRECIO,
+                Costo = p.COSTO,
+                Stock = p.STOCK,
+                Activo = p.ACTIVO
             })
             .ToList();
     }
 
-    public ProductoDto Crear(ProductoDto dto)
+    public ProductoDto Crear(ProductoUpsertDto dto)
     {
         bool codigoExiste = _context.Productos
-            .Any(p => p.CODIGO_BARRA == dto.CODIGO_BARRA && p.ACTIVO);
+            .Any(p => p.CODIGO_BARRA == dto.CodigoBarra && p.ACTIVO);
 
         if (codigoExiste)
         {
-            throw new ProductoCodigoDuplicadoException(dto.CODIGO_BARRA);
+            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
         }
 
         Producto producto = new Producto(
-            dto.CODIGO_BARRA,
-            dto.NOMBRE,
-            dto.PRECIO,
-            dto.COSTO,
-            dto.STOCK
+            dto.CodigoBarra,
+            dto.Nombre,
+            dto.Precio,
+            dto.Costo,
+            0
         );
 
         _context.Productos.Add(producto);
@@ -91,43 +92,93 @@ public class ProductoService
     {
         return new ProductoDto
         {
-            ID_PRODUCTO = producto.ID_PRODUCTO,
-            CODIGO_BARRA = producto.CODIGO_BARRA,
-            NOMBRE = producto.NOMBRE,
-            PRECIO = producto.PRECIO,
-            COSTO = producto.COSTO,
-            STOCK = producto.STOCK,
-            ACTIVO = producto.ACTIVO
+            Id = producto.ID_PRODUCTO,
+            CodigoBarra = producto.CODIGO_BARRA,
+            Nombre = producto.NOMBRE,
+            Precio = producto.PRECIO,
+            Costo = producto.COSTO,
+            Stock = producto.STOCK,
+            Activo = producto.ACTIVO
         };
     }
 
-    public ProductoDto Modificar(int id, ProductoDto dto)
+    public ProductoDto Modificar(int id, ProductoUpsertDto dto)
     {
         Producto? producto = _context.Productos.Find(id);
-
+        
         if (producto == null)
         {
             throw new ProductoNoEncontradoException(id);
         }
-
+        
         bool codigoDuplicado = _context.Productos
-            .Any(p => p.CODIGO_BARRA == dto.CODIGO_BARRA
+            .Any(p => p.CODIGO_BARRA == dto.CodigoBarra
                       && p.ID_PRODUCTO != id
                       && p.ACTIVO);
 
         if (codigoDuplicado)
         {
-            throw new ProductoCodigoDuplicadoException(dto.CODIGO_BARRA);
+            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
         }
 
-        producto.CambiarCodigoBarra(dto.CODIGO_BARRA);
-        producto.CambiarNombre(dto.NOMBRE);
-        producto.CambiarPrecio(dto.PRECIO);
-        producto.CambiarCosto(dto.COSTO);
-        producto.CambiarStock(dto.STOCK);
-
+        producto.CambiarCodigoBarra(dto.CodigoBarra);
+        producto.CambiarNombre(dto.Nombre);
+        producto.CambiarPrecio(dto.Precio);
+        producto.CambiarCosto(dto.Costo);
+        
         _context.SaveChanges();
-
+        
         return MapToDto(producto);
+    }
+
+    public List<ProductoDto> BuscarPorNombre(string term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            return new List<ProductoDto>();
+        }
+
+        return _context.Productos
+            .Where(p => p.ACTIVO && EF.Functions.Like(p.NOMBRE, $"%{term}%"))
+            .OrderBy(p => p.NOMBRE)
+            .Select(p => new ProductoDto
+            {
+                Id = p.ID_PRODUCTO,
+                CodigoBarra = p.CODIGO_BARRA,
+                Nombre = p.NOMBRE,
+                Precio = p.PRECIO,
+                Costo = p.COSTO,
+                Stock = p.STOCK,
+                Activo = p.ACTIVO
+            })
+            .ToList();
+    }
+
+    public List<ProductoDto> BuscarParaVenta(string term, int sucursalId)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            return new List<ProductoDto>();
+        }
+
+        string pattern = $"%{term}%";
+
+        return _context.Productos
+            .Where(p => p.ACTIVO && (EF.Functions.Like(p.NOMBRE, pattern) || EF.Functions.Like(p.CODIGO_BARRA, pattern)))
+            .OrderBy(p => p.NOMBRE)
+            .Select(p => new ProductoDto
+            {
+                Id = p.ID_PRODUCTO,
+                CodigoBarra = p.CODIGO_BARRA,
+                Nombre = p.NOMBRE,
+                Precio = p.PRECIO,
+                Costo = p.COSTO,
+                Stock = _context.StockSucursales
+                    .Where(s => s.IdProducto == p.ID_PRODUCTO && s.IdSucursal == sucursalId)
+                    .Select(s => s.Stock)
+                    .FirstOrDefault(),
+                Activo = p.ACTIVO
+            })
+            .ToList();
     }
 }

@@ -18,4 +18,7 @@ public class StockSucursalDto
 
     [JsonPropertyName("stock")]
     public int Stock { get; set; }
+
+    [JsonPropertyName("inicializado")]
+    public bool Inicializado { get; set; }
 }

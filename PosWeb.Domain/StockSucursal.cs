@@ -30,7 +30,7 @@ public class StockSucursal
         if (cantidad <= 0)
             throw new CantidadInvalidaException(cantidad);
         if (Stock < cantidad)
-            throw new StockInsuficienteException("", Stock, cantidad);
+            throw new StockInsuficienteException("", Stock, cantidad, IdSucursal);
 
         Stock -= cantidad;
     }
