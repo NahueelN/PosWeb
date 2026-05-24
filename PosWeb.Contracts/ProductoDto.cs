@@ -2,15 +2,16 @@
 
 public class ProductoDto
 {
-    public int ID_PRODUCTO { get; set; }
+    public int Id { get; set; }
 
-    public string CODIGO_BARRA { get; set; } = string.Empty;
-    public string NOMBRE { get; set; } = string.Empty;
+    public string CodigoBarra { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
 
-    public decimal PRECIO { get; set; }
-    public decimal COSTO { get; set; }
+    public decimal Precio { get; set; }
+    public decimal Costo { get; set; }
 
-    public int STOCK { get; set; }
+    // Compatibility-only while the app finishes moving stock behavior to branch-level flows.
+    public int Stock { get; set; }
 
-    public bool ACTIVO { get; set; }
+    public bool Activo { get; set; }
 }

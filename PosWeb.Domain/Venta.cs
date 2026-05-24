@@ -14,15 +14,22 @@ public class Venta
 
     public decimal TOTAL { get; private set; }
 
+    public int? ID_USUARIO { get; private set; }
+
+    public int? ID_CAJA { get; private set; }
+
+    public int? ID_CLIENTE { get; private set; }
+
     private readonly List<RenglonVenta> _RENGLONES = new();
 
     public IReadOnlyCollection<RenglonVenta> RENGLONES => _RENGLONES;
 
-    public Venta(int sucursalId)
+    public Venta(int sucursalId, int? usuarioId = null)
     {
         ID_SUCURSAL = SetSucursalId(sucursalId);
         FECHA = DateTime.Now;
         TOTAL = 0;
+        ID_USUARIO = usuarioId;
     }
 
     protected Venta()
@@ -51,8 +58,6 @@ public class Venta
             throw new CantidadInvalidaException(cantidad);
         }
 
-        producto.DescontarStock(cantidad);
-
         RenglonVenta renglon = new RenglonVenta(
             producto.ID_PRODUCTO,
             cantidad,
@@ -62,6 +67,21 @@ public class Venta
         _RENGLONES.Add(renglon);
 
         RecalcularTotal();
+    }
+
+    public void AsignarCaja(int cajaId)
+    {
+        if (cajaId <= 0)
+        {
+            throw new ArgumentException("Caja inválida");
+        }
+
+        ID_CAJA = cajaId;
+    }
+
+    public void AsignarCliente(int? clienteId)
+    {
+        ID_CLIENTE = clienteId;
     }
 
     private void RecalcularTotal()

@@ -27,8 +27,40 @@ public class ProductosController : ControllerBase
         return Ok(_productoService.ObtenerPorCodigoBarra(codigoBarra));
     }
 
+    [HttpGet("buscar")]
+    public IActionResult Buscar([FromQuery] string q, [FromQuery] int? sucursalId = null)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return Ok(new List<ProductoDto>());
+        }
+
+        if (sucursalId.HasValue)
+        {
+            return Ok(_productoService.BuscarParaVenta(q.Trim(), sucursalId.Value));
+        }
+
+        return Ok(_productoService.BuscarPorNombre(q.Trim()));
+    }
+
+    [HttpGet("buscar-venta")]
+    public IActionResult BuscarParaVenta([FromQuery] string q, [FromQuery] int sucursalId)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return Ok(new List<ProductoDto>());
+        }
+
+        if (sucursalId <= 0)
+        {
+            return BadRequest("sucursalId es requerido");
+        }
+
+        return Ok(_productoService.BuscarParaVenta(q.Trim(), sucursalId));
+    }
+
     [HttpPost]
-    public IActionResult Post(ProductoDto dto)
+    public IActionResult Post([FromBody] ProductoUpsertDto dto)
     {
         return Ok(_productoService.Crear(dto));
     }
@@ -40,8 +72,8 @@ public class ProductosController : ControllerBase
         return NoContent();
     }
 
-    [HttpPut]
-    public IActionResult Put(int id, ProductoDto dto)
+    [HttpPut("{id}")]
+    public IActionResult Put(int id, [FromBody] ProductoUpsertDto dto)
     {
         return Ok(_productoService.Modificar(id, dto));
     }

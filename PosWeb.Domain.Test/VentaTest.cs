@@ -65,17 +65,6 @@ public class VentaTest
     }
 
     [Fact]
-    public void AgregarRenglon_DescuentaStock()
-    {
-        Producto producto = CrearProducto(id: 1, precio: 100, stock: 10);
-        Venta venta = CrearVenta();
-
-        venta.AgregarRenglon(producto, 3);
-
-        Assert.Equal(7, producto.STOCK);
-    }
-
-    [Fact]
     public void CrearVenta_SucursalInvalida_LanzaExcepcion()
     {
         Assert.Throws<SucursalInvalidaException>(() =>
@@ -119,15 +108,4 @@ public class VentaTest
         });
     }
 
-    [Fact]
-    public void AgregarRenglon_StockInsuficiente_LanzaExcepcion()
-    {
-        Producto producto = CrearProducto(id: 1, precio: 100, stock: 2);
-        Venta venta = CrearVenta();
-
-        Assert.Throws<StockInsuficienteException>(() =>
-        {
-            venta.AgregarRenglon(producto, 5);
-        });
-    }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Contracts;
 using PosWeb.Data;
@@ -23,7 +24,8 @@ public class VentaServiceTest
 
     private static VentaService CrearService(PosDbContext context)
     {
-        return new VentaService(context);
+        StockSucursalService stockService = new StockSucursalService(context);
+        return new VentaService(context, stockService);
     }
 
     private static void AgregarSucursal(
@@ -74,14 +76,59 @@ public class VentaServiceTest
         context.SaveChanges();
     }
 
+    private static void AgregarUsuario(PosDbContext context, int id)
+    {
+        Usuario usuario = new Usuario(id, "test_user", "$2a$11$dummyhash", "Vendedor");
+        context.Usuarios.Add(usuario);
+        context.SaveChanges();
+    }
+
+    private static void AgregarCajaActiva(PosDbContext context, int sucursalId)
+    {
+        if (!context.Usuarios.Any())
+        {
+            AgregarUsuario(context, 1);
+        }
+        if (!context.MediosPago.Any())
+        {
+            AgregarMedioPago(context, 1, "Efectivo", true);
+        }
+        int userId = context.Usuarios.First().ID_USUARIO;
+        Caja caja = new Caja(sucursalId, 1000, userId);
+        TestHelpers.SetId(caja, 1, "ID_CAJA");
+        context.Cajas.Add(caja);
+        context.SaveChanges();
+    }
+
+    private static void AgregarStockSucursal(
+        PosDbContext context,
+        int id,
+        int productoId,
+        int sucursalId,
+        int stock)
+    {
+        StockSucursal stockSuc = new StockSucursal(productoId, sucursalId, stock);
+        TestHelpers.SetId(stockSuc, id, "Id");
+        context.StockSucursales.Add(stockSuc);
+        context.SaveChanges();
+    }
+
+    private static void AgregarMedioPago(PosDbContext context, int id, string nombre, bool pagaVuelto)
+    {
+        context.MediosPago.Add(new MedioPago(id, nombre, pagaVuelto));
+        context.SaveChanges();
+    }
+
     private static VentaDto CrearVentaDto(
         int sucursalId,
-        params VentaItemDto[] items)
+        VentaItemDto[] items,
+        List<PagoVentaDto>? pagos = null)
     {
         return new VentaDto
         {
             SucursalId = sucursalId,
-            Items = items.ToList()
+            Items = items.ToList(),
+            Pagos = pagos
         };
     }
 
@@ -93,10 +140,13 @@ public class VentaServiceTest
 
         AgregarSucursal(context, 1, 1);
         AgregarProducto(context, 1, 10);
+        AgregarStockSucursal(context, 1, 1, 1, 10);
+        AgregarCajaActiva(context, 1);
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 1, Cantidad = 2 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 2 } },
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 200 } }
         );
 
         VentaResultadoDto resultado = service.CrearVenta(dto);
@@ -132,7 +182,7 @@ public class VentaServiceTest
 
         VentaDto dto = CrearVentaDto(
             99,
-            new VentaItemDto { ProductoId = 1, Cantidad = 1 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } }
         );
 
         Assert.Throws<SucursalNoExisteException>(() =>
@@ -151,7 +201,7 @@ public class VentaServiceTest
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 1, Cantidad = 1 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } }
         );
 
         Assert.Throws<SucursalInactivaException>(() =>
@@ -167,10 +217,12 @@ public class VentaServiceTest
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
+        AgregarCajaActiva(context, 1);
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 99, Cantidad = 1 }
+            new[] { new VentaItemDto { ProductoId = 99, Cantidad = 1 } },
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 100 } }
         );
 
         Assert.Throws<ProductoNoExisteException>(() =>
@@ -187,10 +239,12 @@ public class VentaServiceTest
 
         AgregarSucursal(context, 1, 1);
         AgregarProducto(context, 1, 10, false);
+        AgregarCajaActiva(context, 1);
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 1, Cantidad = 1 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } },
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 100 } }
         );
 
         Assert.Throws<ProductoInactivoException>(() =>
@@ -200,43 +254,50 @@ public class VentaServiceTest
     }
 
     [Fact]
-    public void CrearVenta_StockInsuficiente_LanzaExcepcion()
+    public void CrearVenta_StockSucursalInsuficiente_LanzaExcepcion()
     {
         using PosDbContext context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
-        AgregarProducto(context, 1, 1);
+        AgregarProducto(context, 1, 100);
+        // Per-sucursal stock is insufficient
+        AgregarStockSucursal(context, 1, 1, 1, 2);
+        AgregarCajaActiva(context, 1);
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 1, Cantidad = 5 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 5 } },
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 500 } }
         );
 
-        Assert.Throws<StockInsuficienteException>(() =>
+        Assert.Throws<StockSucursalInsuficienteException>(() =>
         {
             service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_DescuentaStockCorrectamente()
+    public void CrearVenta_DescuentaStockSucursalCorrectamente()
     {
         using PosDbContext context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
         AgregarProducto(context, 1, 10);
+        AgregarStockSucursal(context, 1, 1, 1, 10);
+        AgregarCajaActiva(context, 1);
 
         VentaDto dto = CrearVentaDto(
             1,
-            new VentaItemDto { ProductoId = 1, Cantidad = 3 }
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 3 } },
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 300 } }
         );
 
         service.CrearVenta(dto);
 
-        Producto producto = context.Productos.First();
+        StockSucursal stockSuc = context.StockSucursales.First();
 
-        Assert.Equal(7, producto.STOCK);
+        Assert.Equal(7, stockSuc.Stock);
     }
 }
