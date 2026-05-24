@@ -11,12 +11,14 @@ interface Item {
 interface PaymentEntry {
   medioPagoId: number
   medioPagoNombre: string
-  monto: string
-  conCambio: string
+  monto: number
+  conCambio?: number
   pagaVuelto: boolean
 }
 
 type Step = 'sucursal' | 'venta' | 'resultado'
+
+const SUGGESTION_KEYS = ['ArrowDown', 'ArrowUp', 'Enter'] as const
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -28,35 +30,46 @@ export default function VentasPage() {
   const [items, setItems] = useState<Item[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [error, setError] = useState('')
+  const confirmBtnRef = useRef<HTMLButtonElement>(null!)
 
-  // Caja state
+  // Caja
   const [cajaActiva, setCajaActiva] = useState<boolean | null>(null)
   const [cajaLoading, setCajaLoading] = useState(true)
 
-  // Payment state
+  // Payments
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
-  const [pago, setPago] = useState<PaymentEntry | null>(null)
+  const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([])
+  const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
+  const [pagoMonto, setPagoMonto] = useState('')
+  const [pagoConCambio, setPagoConCambio] = useState('')
 
+  // Search
   const [query, setQuery] = useState('')
   const [sugerencias, setSugerencias] = useState<ProductoDto[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [buscandoSugerencias, setBuscandoSugerencias] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(-1)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const sugerenciasRef = useRef<HTMLDivElement>(null!)
+  const searchInputRef = useRef<HTMLInputElement>(null!)
+  const pagoMontoRef = useRef<HTMLInputElement>(null!)
 
+  const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
+  const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
+  const totalPagado = paymentEntries.reduce((s, e) => s + e.monto, 0)
+  const restante = Math.max(0, total - totalPagado)
+
+  // --- Load data ---
   useEffect(() => {
     if (step === 'sucursal') {
       api.sucursales.listar().then(setSucursales).catch(() => {})
     }
     if (step === 'venta' && ctxSucursal) {
-      // Load caja status
       setCajaLoading(true)
       api.cajas.activa(ctxSucursal.id)
         .then(res => setCajaActiva(res.activa))
         .catch(() => setCajaActiva(false))
         .finally(() => setCajaLoading(false))
-
-      // Load medios de pago
       api.mediosPago.listar()
         .then(mp => setMediosPago(mp))
         .catch(() => {})
@@ -64,12 +77,8 @@ export default function VentasPage() {
   }, [step, ctxSucursal])
 
   useEffect(() => {
-    if (ctxSucursal && step === 'sucursal') {
-      setStep('venta')
-    }
-    if (!ctxSucursal && step !== 'sucursal') {
-      setStep('sucursal')
-    }
+    if (ctxSucursal && step === 'sucursal') setStep('venta')
+    if (!ctxSucursal && step !== 'sucursal') setStep('sucursal')
   }, [ctxSucursal, step])
 
   useEffect(() => {
@@ -82,17 +91,20 @@ export default function VentasPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  // Reset highlight when suggestions change
+  useEffect(() => { setHighlightIdx(-1) }, [sugerencias])
+
   function seleccionarSucursal(s: SucursalDto) {
     localStorage.setItem('sucursalActiva', JSON.stringify(s))
     setStep('venta')
-    // Recargar para que Layout tome la nueva sucursal
     window.location.reload()
   }
 
-  // --- Typeahead ---
+  // --- Search / suggestions ---
   function handleQueryChange(value: string) {
     setQuery(value)
     setMostrarSugerencias(true)
+    setHighlightIdx(-1)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (!value.trim()) { setSugerencias([]); setBuscandoSugerencias(false); return }
     setBuscandoSugerencias(true)
@@ -120,13 +132,23 @@ export default function VentasPage() {
     setQuery('')
     setSugerencias([])
     setMostrarSugerencias(false)
-    setTimeout(() => document.getElementById('search-producto')?.focus(), 0)
+    setHighlightIdx(-1)
+    searchInputRef.current?.focus()
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (SUGGESTION_KEYS.includes(e.key as any)) {
       e.preventDefault()
-      if (sugerencias.length > 0) agregarProducto(sugerencias[0])
+      if (!mostrarSugerencias || sugerencias.length === 0) return
+
+      if (e.key === 'ArrowDown') {
+        setHighlightIdx(prev => Math.min(prev + 1, sugerencias.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        setHighlightIdx(prev => Math.max(prev - 1, 0))
+      } else if (e.key === 'Enter') {
+        const idx = highlightIdx >= 0 ? highlightIdx : 0
+        agregarProducto(sugerencias[idx])
+      }
     }
   }
 
@@ -144,27 +166,75 @@ export default function VentasPage() {
     setItems((prev) => prev.filter((i) => i.producto.id !== productoId))
   }
 
-  function getPagoDto(): PagoVentaDto | null {
-    if (!pago) return null
-    const monto = parseFloat(pago.monto)
-    if (monto <= 0) return null
-    const dto: PagoVentaDto = {
-      medioPagoId: pago.medioPagoId,
+  // --- Payment ---
+  function selectMedio(mp: MedioPagoDto) {
+    setSelectedMedio(mp)
+    setPagoMonto(restante > 0 ? restante.toFixed(2) : '')
+    setPagoConCambio('')
+    setTimeout(() => pagoMontoRef.current?.focus(), 50)
+  }
+
+  function agregarPago() {
+    if (!selectedMedio) return
+    const monto = parseFloat(pagoMonto)
+    if (isNaN(monto) || monto <= 0) return
+    if (monto > restante) return
+
+    const entry: PaymentEntry = {
+      medioPagoId: selectedMedio.id,
+      medioPagoNombre: selectedMedio.nombre,
       monto,
+      pagaVuelto: selectedMedio.pagaVuelto,
     }
-    if (pago.pagaVuelto && pago.conCambio) {
-      const conCambioVal = parseFloat(pago.conCambio)
-      if (conCambioVal > dto.monto) {
-        dto.conCambio = conCambioVal
+
+    if (selectedMedio.pagaVuelto && pagoConCambio) {
+      const conCambioVal = parseFloat(pagoConCambio)
+      if (!isNaN(conCambioVal) && conCambioVal > monto) {
+        entry.conCambio = conCambioVal
       }
     }
-    return dto
+
+    setPaymentEntries(prev => [...prev, entry])
+    setSelectedMedio(null)
+    setPagoMonto('')
+    setPagoConCambio('')
+  }
+
+  function quitarPago(idx: number) {
+    setPaymentEntries(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function handlePagoKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (selectedMedio && pagoMonto) {
+        agregarPago()
+      } else if (restante <= 0 && paymentEntries.length > 0) {
+        confirmarVenta()
+      }
+    }
+  }
+
+  function getPagosDto(): PagoVentaDto[] {
+    return paymentEntries.map(e => {
+      const dto: PagoVentaDto = {
+        medioPagoId: e.medioPagoId,
+        monto: e.monto,
+      }
+      if (e.conCambio && e.conCambio > e.monto) {
+        dto.conCambio = e.conCambio
+      }
+      return dto
+    })
+  }
+
+  function esPagoCompleto(): boolean {
+    return restante <= 0 && paymentEntries.length > 0
   }
 
   async function confirmarVenta() {
     if (!ctxSucursal || items.length === 0) return
 
-    // Re-check caja status in case it changed (user opened it since page loaded)
     if (!cajaActiva) {
       try {
         const res = await api.cajas.activa(ctxSucursal.id)
@@ -181,26 +251,23 @@ export default function VentasPage() {
 
     try {
       setError('')
-
-      if (!esPagoValido()) {
-        setError('Completá el monto recibido. Debe ser igual o mayor al total.')
-        return
-      }
-
-      const pagoDto = getPagoDto()
-      if (!pagoDto) {
-        setError('Seleccioná un medio de pago primero.')
+      const pagosDto = getPagosDto()
+      if (pagosDto.length === 0) {
+        setError('Agregá al menos un pago.')
         return
       }
 
       const res = await api.ventas.crear({
         sucursalId: ctxSucursal.id,
         items: items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
-        pagos: [pagoDto],
+        pagos: pagosDto,
       })
       setResultado(res)
       setItems([])
-      setPago(null)
+      setPaymentEntries([])
+      setSelectedMedio(null)
+      setPagoMonto('')
+      setPagoConCambio('')
       setStep('resultado')
     } catch (e: any) { setError(e.message) }
   }
@@ -213,38 +280,13 @@ export default function VentasPage() {
   function nuevaVenta() {
     setResultado(null)
     setItems([])
-    setPago(null)
+    setPaymentEntries([])
+    setSelectedMedio(null)
+    setPagoMonto('')
+    setPagoConCambio('')
     setError('')
     setStep('venta')
-    setTimeout(() => document.getElementById('search-producto')?.focus(), 100)
-  }
-
-  const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
-  const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
-
-  function calcularVuelto(entry: PaymentEntry): number | null {
-    if (!entry.pagaVuelto || !entry.conCambio) return null
-    const recibido = parseFloat(entry.conCambio)
-    const monto = parseFloat(entry.monto)
-    if (isNaN(recibido) || isNaN(monto)) return null
-    if (recibido <= monto) return null
-    return recibido - monto
-  }
-
-  function esPagoValido(): boolean {
-    if (!pago) return false
-    if (pago.pagaVuelto) {
-      const recibido = parseFloat(pago.conCambio)
-      return !isNaN(recibido) && recibido > 0 && recibido >= total
-    }
-    return true
-  }
-
-  function handlePaymentKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      confirmarVenta()
-    }
+    setTimeout(() => searchInputRef.current?.focus(), 100)
   }
 
   // ========== PANTALLA: SELECCIONAR SUCURSAL ==========
@@ -262,12 +304,9 @@ export default function VentasPage() {
             <h2 className="text-xl font-bold text-gray-900">Seleccioná tu sucursal</h2>
             <p className="text-sm text-gray-500 mt-1">Esta elección queda guardada para las próximas ventas</p>
           </div>
-
           <div className="space-y-2">
             {sucursales.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => seleccionarSucursal(s)}
+              <button key={s.id} onClick={() => seleccionarSucursal(s)}
                 className="w-full text-left px-4 py-3.5 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all flex items-center justify-between group"
               >
                 <div>
@@ -305,8 +344,6 @@ export default function VentasPage() {
               Venta #{resultado.ventaId} · {new Date(resultado.fecha).toLocaleString('es-AR')}
             </p>
           </div>
-
-          {/* Payment breakdown */}
           {resultado.pagos && resultado.pagos.length > 0 && (
             <div className="text-left bg-gray-50 rounded-xl p-4 space-y-2">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Medios de pago</h3>
@@ -324,9 +361,7 @@ export default function VentasPage() {
               )}
             </div>
           )}
-
-          <button
-            onClick={nuevaVenta}
+          <button onClick={nuevaVenta}
             className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors w-full"
           >
             Nueva venta
@@ -338,8 +373,8 @@ export default function VentasPage() {
 
   // ========== PANTALLA: VENTA ==========
   return (
-    <div className="space-y-5">
-      {/* Sucursal activa (solo info) */}
+    <div className="space-y-5 pb-28">
+      {/* Sucursal activa */}
       {ctxSucursal && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -352,7 +387,7 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* Caja loading / warning */}
+      {/* Caja warning */}
       {cajaLoading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -366,25 +401,26 @@ export default function VentasPage() {
           </svg>
           <div className="flex-1">
             <span className="font-medium">No hay caja abierta</span>
-            <p className="text-xs mt-0.5">Andá a la sección Caja para abrir una. Sin caja abierta no se pueden registrar ventas.</p>
+            <p className="text-xs mt-0.5">Andá a la sección Caja para abrir una.</p>
           </div>
         </div>
       )}
 
-      {/* Buscador */}
+      {/* Search */}
       <div className="relative" ref={sugerenciasRef}>
         <div className="relative">
           <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
+            ref={searchInputRef}
             id="search-producto"
             className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
             placeholder="Buscá producto por código de barra o nombre…"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => query.trim() && setMostrarSugerencias(true)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleSearchKeyDown}
             autoFocus
           />
           {buscandoSugerencias && (
@@ -396,12 +432,14 @@ export default function VentasPage() {
 
         {mostrarSugerencias && sugerencias.length > 0 && (
           <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
-            {sugerencias.map((p) => (
+            {sugerencias.map((p, idx) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => agregarProducto(p)}
-                className="w-full text-left px-4 py-3 text-sm hover:bg-indigo-50 border-b border-gray-100 last:border-0 flex items-center gap-3 transition-colors"
+                className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 flex items-center gap-3 transition-colors ${
+                  idx === highlightIdx ? 'bg-indigo-50 ring-1 ring-indigo-300' : 'hover:bg-indigo-50'
+                }`}
               >
                 <span className="font-mono text-xs text-gray-400 w-28 truncate">{p.codigoBarra}</span>
                 <span className="flex-1 font-medium text-gray-800 truncate">{p.nombre}</span>
@@ -430,7 +468,7 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* Items */}
+      {/* Items table */}
       {items.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -451,39 +489,24 @@ export default function VentasPage() {
                       <p className="font-medium text-gray-800 text-sm">{i.producto.nombre}</p>
                       <p className="text-xs text-gray-400 font-mono">{i.producto.codigoBarra}</p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      ${i.producto.precio.toFixed(2)}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">${i.producto.precio.toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad - 1)}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
-                        >−</button>
-                        <input
-                          type="number"
-                          min={1}
+                        <button type="button" onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad - 1)}
+                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors">−</button>
+                        <input type="number" min={1}
                           className="w-14 text-center border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                           value={i.cantidad}
-                          onChange={(e) => handleCambiarCantidad(i.producto.id, Number(e.target.value))}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad + 1)}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
-                        >+</button>
+                          onChange={(e) => handleCambiarCantidad(i.producto.id, Number(e.target.value))} />
+                        <button type="button" onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad + 1)}
+                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors">+</button>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                      ${(i.producto.precio * i.cantidad).toFixed(2)}
-                    </td>
+                      ${(i.producto.precio * i.cantidad).toFixed(2)}</td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => quitarItem(i.producto.id)}
-                        className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
-                      >
+                      <button type="button" onClick={() => quitarItem(i.producto.id)}
+                        className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -497,116 +520,119 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* Payment + Total */}
+      {/* Payment & items — only when items exist */}
       {items.length > 0 && (
-        <form onSubmit={handleConfirmar}
-          className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-4"
-        >
-          {/* Payment method — single selection */}
-          {mediosPago.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Medio de pago</h3>
-              <div className="space-y-1.5">
-                {mediosPago.map(mp => {
-                  const isSelected = pago?.medioPagoId === mp.id
-                  return (
-                    <label
-                      key={mp.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="medioPago"
-                        checked={isSelected}
-                        onChange={() => {
-                          setPago({
-                            medioPagoId: mp.id,
-                            medioPagoNombre: mp.nombre,
-                            monto: total.toFixed(2),
-                            conCambio: '',
-                            pagaVuelto: mp.pagaVuelto,
-                          })
-                        }}
-                        className="accent-indigo-600"
-                      />
-                      <span className="text-sm font-medium text-gray-800">{mp.nombre}</span>
-
-                      {isSelected && !mp.pagaVuelto && (
-                        <span className="ml-auto text-sm text-gray-500">${total.toFixed(2)}</span>
-                      )}
-
-                      {isSelected && mp.pagaVuelto && (
-                        <div className="ml-auto flex flex-col items-end gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">recibe:</span>
-                            <input
-                              type="number" step="0.01" min="0"
-                              value={pago!.conCambio}
-                              onChange={e => setPago({ ...pago!, conCambio: e.target.value })}
-                              onKeyDown={handlePaymentKeyDown}
-                              className={`w-24 px-2 py-1 border rounded text-sm text-right ${
-                                pago!.conCambio && parseFloat(pago!.conCambio) < total
-                                  ? 'border-red-300 bg-red-50'
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="0.00"
-                              autoFocus
-                              onClick={e => e.stopPropagation()}
-                            />
-                            {(() => {
-                              const vuelto = calcularVuelto(pago!)
-                              return vuelto !== null ? (
-                                <span className="text-green-600 font-bold text-sm whitespace-nowrap">
-                                  Vuelto: ${vuelto.toFixed(2)}
-                                </span>
-                              ) : null
-                            })()}
-                          </div>
-                          {pago!.conCambio && (() => {
-                            const recibido = parseFloat(pago!.conCambio)
-                            if (!isNaN(recibido) && recibido > 0 && recibido < total) {
-                              return (
-                                <p className="text-xs text-red-500">
-                                  Faltan ${(total - recibido).toFixed(2)}
-                                </p>
-                              )
-                            }
-                            return null
-                          })()}
-                        </div>
-                      )}
-                    </label>
-                  )
-                })}
-              </div>
+        <form onSubmit={handleConfirmar} className="space-y-4">
+          {/* Added payments list */}
+          {paymentEntries.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pagos agregados</h3>
+              {paymentEntries.map((e, idx) => (
+                <div key={idx} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-50 group">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-800">{e.medioPagoNombre}</span>
+                    {e.conCambio && e.conCambio > e.monto && (
+                      <span className="text-xs text-green-600">(recibió ${e.conCambio.toFixed(2)}, vuelto ${(e.conCambio - e.monto).toFixed(2)})</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900">${e.monto.toFixed(2)}</span>
+                    <button type="button" onClick={() => quitarPago(idx)}
+                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{cantidadTotal} productos</p>
-              <p className="text-3xl font-bold text-gray-900">${total.toFixed(2)}</p>
+          {/* Payment method selector */}
+          {restante > 0 && mediosPago.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Agregar pago</h3>
+
+              {/* Medio selector - grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                {mediosPago.map(mp => {
+                  const estaSeleccionado = selectedMedio?.id === mp.id
+                  const yaUsado = paymentEntries.some(e => e.medioPagoId === mp.id)
+                  return (
+                    <button
+                      key={mp.id}
+                      type="button"
+                      onClick={() => selectMedio(mp)}
+                      disabled={yaUsado}
+                      className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                        estaSeleccionado
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
+                          : yaUsado
+                            ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
+                      }`}
+                    >
+                      {mp.nombre}
+                      {yaUsado && <span className="block text-[10px] text-gray-400">ya agregado</span>}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {selectedMedio && (
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs text-gray-500 mb-1">Monto</label>
+                    <input
+                      ref={pagoMontoRef}
+                      type="number" step="0.01" min="0.01" max={restante}
+                      value={pagoMonto}
+                      onChange={e => setPagoMonto(e.target.value)}
+                      onKeyDown={handlePagoKeyDown}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-right font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                      placeholder={restante.toFixed(2)}
+                    />
+                  </div>
+
+                  {selectedMedio.pagaVuelto && (
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-xs text-gray-500 mb-1">Recibió <span className="text-gray-400">(opcional)</span></label>
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={pagoConCambio}
+                        onChange={e => setPagoConCambio(e.target.value)}
+                        onKeyDown={handlePagoKeyDown}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={agregarPago}
+                    disabled={!pagoMonto || parseFloat(pagoMonto) <= 0}
+                    className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              )}
             </div>
-            <button
-              type="submit"
-              disabled={!cajaActiva || !esPagoValido()}
-              className="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-semibold text-base hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {!cajaActiva
-                ? 'Sin caja abierta'
-                : !pago
-                  ? 'Seleccioná un medio de pago'
-                  : 'Confirmar venta'}
-            </button>
-          </div>
+          )}
+
+          {/* Restante indicator */}
+          {paymentEntries.length > 0 && restante > 0 && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5 text-sm flex items-center justify-between">
+              <span className="font-medium">Falta agregar</span>
+              <span className="font-bold text-lg">${restante.toFixed(2)}</span>
+            </div>
+          )}
         </form>
       )}
 
-      {/* Empty */}
+      {/* Empty state */}
       {items.length === 0 && (
         <div className="text-center py-16">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
@@ -616,6 +642,44 @@ export default function VentasPage() {
           </div>
           <p className="text-gray-500 font-medium">Buscá productos para armar la venta</p>
           <p className="text-sm text-gray-400 mt-1">Escribí el código de barra o nombre del producto</p>
+        </div>
+      )}
+
+      {/* Sticky bottom bar: total + confirm */}
+      {items.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 z-20">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <div className="flex items-baseline gap-3">
+              <span className="text-sm text-gray-500">{cantidadTotal} productos</span>
+              <span className="text-3xl font-bold text-gray-900">${total.toFixed(2)}</span>
+              {paymentEntries.length > 0 && (
+                <>
+                  <span className="text-gray-300 text-xl">−</span>
+                  <span className="text-xl font-semibold text-gray-500">${totalPagado.toFixed(2)}</span>
+                  {restante > 0 ? (
+                    <span className="text-lg font-bold text-amber-600">Faltan ${restante.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-lg font-semibold text-emerald-600">Cubierto</span>
+                  )}
+                </>
+              )}
+            </div>
+            <button
+              ref={confirmBtnRef}
+              type="button"
+              onClick={confirmarVenta}
+              disabled={!cajaActiva || !esPagoCompleto()}
+              className="px-10 py-3 rounded-xl font-semibold text-base transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-500/20"
+            >
+              {!cajaActiva
+                ? 'Sin caja abierta'
+                : !esPagoCompleto()
+                  ? restante > 0
+                    ? `Faltan $${restante.toFixed(2)}`
+                    : 'Agregá un medio de pago'
+                  : 'Confirmar venta'}
+            </button>
+          </div>
         </div>
       )}
     </div>
