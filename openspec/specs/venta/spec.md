@@ -2,47 +2,35 @@
 
 ## Purpose
 
-Handle sales (ventas) with per-sucursal stock validation and dual deduction: both global Producto.STOCK and per-sucursal StockSucursal are deducted when a sale is confirmed.
+Handle sales (ventas) with per-sucursal stock validation using branch stock (StockSucursal) as the sole stock source of truth for sale operations.
 
 ## Requirements
 
 ### Requirement: Per-Sucursal Stock Check Before Sale
 
-When creating a venta, the system MUST validate that each renglon (line item) has sufficient stock in the origin sucursal's StockSucursal record BEFORE allowing the sale.
+When creating a venta, the system MUST validate each renglon only against the origin sucursal's `StockSucursal` record before allowing the sale.
+(Previously: the spec also required deducting `Producto.STOCK`, which does not match the intended operational truth.)
 
 #### Scenario: Sufficient stock allows sale
 
 - GIVEN Sucursal A has StockSucursal = 10 for Producto X
-- WHEN a Venta is created in Sucursal A with a renglon of Producto X, cantidad = 3
+- WHEN a Venta is created in Sucursal A with cantidad = 3
 - THEN the sale is allowed
 - AND StockSucursal for (X, A) is deducted to 7
-- AND Producto.STOCK (global) is also deducted by 3
 
 #### Scenario: Insufficient stock blocks sale
 
 - GIVEN Sucursal A has StockSucursal = 2 for Producto X
-- WHEN a Venta is created in Sucursal A with a renglon of Producto X, cantidad = 5
+- WHEN a Venta is created in Sucursal A with cantidad = 5
 - THEN the sale MUST be rejected with a clear error
-- AND the error MUST indicate: sucursal, producto, available stock, requested quantity
-- AND neither StockSucursal nor Producto.STOCK are modified
+- AND branch stock is not modified
 
 #### Scenario: No stock record for sucursal
 
 - GIVEN Sucursal A has no StockSucursal record for Producto X
-- WHEN a Venta is created in Sucursal A with a renglon of Producto X
-- THEN the sale MUST be rejected (available = 0, requested > 0)
+- WHEN a Venta is created in Sucursal A with a positive quantity
+- THEN the sale MUST be rejected as zero available stock
 
-### Requirement: Dual Stock Deduction
-
-When a venta is confirmed, the system MUST deduct from both Producto.STOCK (global) AND StockSucursal (per-sucursal) for each renglon.
-
-#### Scenario: Deduction in service layer
-
-- GIVEN a sale is confirmed for Producto X, cantidad = 3 in Sucursal A
-- WHEN the VentaService processes the sale
-- THEN StockSucursal for (X, A) decreases by 3
-- AND Producto.STOCK for X decreases by 3
-- AND the deduction logic lives in VentaService, not in domain entities
 
 ### Requirement: Query Sales
 
@@ -59,3 +47,19 @@ The `VentaService` MUST expose read queries (`listar`, `obtenerPorId`) in additi
 - GIVEN a venta with 3 renglones exists
 - WHEN `VentaService.ObtenerPorId(ventaId)` is called
 - THEN the returned detail includes 3 items with product name, barcode, quantity, unit price, subtotal
+
+### Requirement: Sale-facing availability truth
+
+The system MUST NOT imply sellable availability from catalog/global product stock in sale-facing search or selection UI. Sale-facing stock indicators SHALL use selected-branch stock or show no availability value when branch-specific stock is not available.
+
+#### Scenario: Branch-aware stock display
+
+- GIVEN the user is selling from Sucursal A
+- WHEN product suggestions show availability
+- THEN the displayed value comes from Sucursal A branch stock only
+
+#### Scenario: No branch stock value available
+
+- GIVEN the sale UI cannot resolve selected-branch stock for a suggestion yet
+- WHEN suggestions are rendered
+- THEN the UI does not show global product stock as a sellable quantity
