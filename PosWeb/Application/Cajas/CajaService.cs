@@ -17,12 +17,13 @@ public class CajaService
 
     public CajaDto Abrir(AbrirCajaRequest request, int userId)
     {
-        bool existeActiva = _context.Cajas
-            .Any(c => c.ID_SUCURSAL == request.SucursalId && c.ESTADO == "Abierta");
+        // Each user can only have one open caja (across all sucursales)
+        bool tieneCajaActiva = _context.Cajas
+            .Any(c => c.ID_USUARIO_APERTURA == userId && c.ESTADO == "Abierta");
 
-        if (existeActiva)
+        if (tieneCajaActiva)
         {
-            throw new CajaYaAbiertaException(request.SucursalId);
+            throw new CajaYaAbiertaException(userId);
         }
 
         Sucursal? sucursal = _context.Sucursales.Find(request.SucursalId);
@@ -146,10 +147,10 @@ public class CajaService
         };
     }
 
-    public CajaDto? ObtenerActiva(int sucursalId)
+    public CajaDto? ObtenerActiva(int sucursalId, int userId)
     {
         Caja? caja = _context.Cajas
-            .FirstOrDefault(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Abierta");
+            .FirstOrDefault(c => c.ID_USUARIO_APERTURA == userId && c.ESTADO == "Abierta");
 
         if (caja == null) return null;
 

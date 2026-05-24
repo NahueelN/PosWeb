@@ -37,13 +37,23 @@ public class VentaService
             throw new SucursalInactivaException(dto.SucursalId);
         }
 
-        // Check active caja
-        Caja? cajaActiva = _context.Cajas
-            .FirstOrDefault(c => c.ID_SUCURSAL == dto.SucursalId && c.ESTADO == "Abierta");
+        // Check active caja — each user has their own caja
+        Caja? cajaActiva;
+        if (usuarioId.HasValue)
+        {
+            cajaActiva = _context.Cajas
+                .FirstOrDefault(c => c.ID_USUARIO_APERTURA == usuarioId.Value && c.ESTADO == "Abierta");
+        }
+        else
+        {
+            // Fallback for anonymous scenarios
+            cajaActiva = _context.Cajas
+                .FirstOrDefault(c => c.ID_SUCURSAL == dto.SucursalId && c.ESTADO == "Abierta");
+        }
 
         if (cajaActiva == null)
         {
-            throw new VentaSinCajaActivaException(dto.SucursalId);
+            throw new VentaSinCajaActivaException();
         }
 
         // Validate pagos

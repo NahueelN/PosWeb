@@ -2,8 +2,8 @@ namespace PosWeb.Application.Exceptions;
 
 public class CajaYaAbiertaException : ServiceException
 {
-    public CajaYaAbiertaException(int sucursalId)
-        : base($"Ya hay una caja abierta en la sucursal (ID: {sucursalId})")
+    public CajaYaAbiertaException(int userId)
+        : base($"Ya tenés una caja abierta. Cerrala antes de abrir otra.")
     {
     }
 }

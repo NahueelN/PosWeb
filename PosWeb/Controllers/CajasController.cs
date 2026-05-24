@@ -37,7 +37,8 @@ public class CajasController : ControllerBase
     [HttpGet("activa")]
     public IActionResult ObtenerActiva([FromQuery] int sucursalId)
     {
-        var result = _cajaService.ObtenerActiva(sucursalId);
+        var userId = GetUserId();
+        var result = _cajaService.ObtenerActiva(sucursalId, userId);
         if (result == null)
         {
             return Ok(new { caja = (object?)null, activa = false });
