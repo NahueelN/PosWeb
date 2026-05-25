@@ -250,13 +250,13 @@ export default function VentasPage() {
 
   function handleVentaSectionKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Escape') {
+      e.preventDefault()
       if (selectedMedio) {
-        e.preventDefault()
         setSelectedMedio(null)
         setPagoConCambio('')
         setPagoMonto('')
-        searchInputRef.current?.focus()
       }
+      searchInputRef.current?.focus()
     }
   }
 
