@@ -367,10 +367,6 @@ export default function VentasPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Tab' && !e.shiftKey && items.length > 0) {
-                e.preventDefault()
-                medioRefs.current[0]?.focus()
-              }
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
                 setTimeout(() => {
@@ -395,17 +391,11 @@ export default function VentasPage() {
 
         {/* Keyboard hints */}
         {filteredProductos.length > 0 && (
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+          <div className="flex items-center text-xs text-gray-400">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
               <span>Ir al producto</span>
             </span>
-            {items.length > 0 && (
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Tab</kbd>
-                <span>Ir al pago</span>
-              </span>
-            )}
           </div>
         )}
 
@@ -541,14 +531,7 @@ export default function VentasPage() {
                         ref={(el) => { medioRefs.current[idx] = el }}
                         type="button"
                         onClick={() => selectMedio(mp)}
-                        onKeyDown={(e) => {
-                          if (idx === 0 && e.key === 'Tab' && e.shiftKey && items.length > 0) {
-                            e.preventDefault()
-                            searchInputRef.current?.focus()
-                            return
-                          }
-                          handleMedioKeyDown(e, idx)
-                        }}
+                        onKeyDown={(e) => handleMedioKeyDown(e, idx)}
                         className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
                           estaSeleccionado
                             ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
