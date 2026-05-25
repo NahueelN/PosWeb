@@ -452,7 +452,10 @@ export default function VentasPage() {
 
               const gridEl = productGridRef.current
               if (!gridEl) return
-              const cols = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length
+              let cols = 2
+              try {
+                cols = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length
+              } catch {}
 
               if (e.key === 'ArrowRight') {
                 e.preventDefault()
@@ -695,6 +698,12 @@ function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: Pr
     <button
       type="button"
       onClick={() => onAdd(producto)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onAdd(producto)
+        }
+      }}
       className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none"
       title={producto.nombre}
     >
