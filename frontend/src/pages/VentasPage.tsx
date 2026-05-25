@@ -395,10 +395,11 @@ export default function VentasPage() {
 
         {/* Keyboard hints */}
         {filteredProductos.length > 0 && (
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+          <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
-              <span>Producto</span>
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↑</kbd>
+              <span>Productos</span>
             </span>
             {items.length > 0 && (
               <span className="flex items-center gap-1">
@@ -437,7 +438,28 @@ export default function VentasPage() {
             </p>
           </div>
         ) : (
-          <div ref={productGridRef} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div
+            ref={productGridRef}
+            className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+            onKeyDown={(e) => {
+              const buttons = Array.from(productGridRef.current?.querySelectorAll('button') ?? [])
+              const currentIdx = buttons.indexOf(e.target as HTMLButtonElement)
+              if (currentIdx === -1) return
+
+              if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault()
+                const next = Math.min(currentIdx + 1, buttons.length - 1)
+                if (next !== currentIdx) buttons[next]?.focus()
+              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault()
+                if (currentIdx === 0) {
+                  searchInputRef.current?.focus()
+                } else {
+                  buttons[currentIdx - 1]?.focus()
+                }
+              }
+            }}
+          >
             {filteredProductos.map((p) => (
               <ProductCard key={p.id} producto={p} onAdd={agregarProducto} />
             ))}
@@ -529,7 +551,14 @@ export default function VentasPage() {
             {/* Payment method selector */}
             {mediosPago.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Medio de pago</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Medio de pago</h3>
+                  <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                    <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">←</kbd>
+                    <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">→</kbd>
+                    <span>navegar</span>
+                  </span>
+                </div>
 
                 {/* Medio selector - grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
