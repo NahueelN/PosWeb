@@ -415,8 +415,6 @@ export default function VentasPage() {
             )}
           </div>
         )}
-          </div>
-        )}
 
         {/* Error */}
         {error && (
