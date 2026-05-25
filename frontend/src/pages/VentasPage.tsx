@@ -40,6 +40,7 @@ export default function VentasPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const searchInputRef = useRef<HTMLInputElement>(null!)
+  const productGridRef = useRef<HTMLDivElement>(null!)
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
   const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
 
@@ -370,6 +371,12 @@ export default function VentasPage() {
                 e.preventDefault()
                 medioRefs.current[0]?.focus()
               }
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setTimeout(() => {
+                  productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+                }, 0)
+              }
             }}
             autoFocus
           />
@@ -386,11 +393,19 @@ export default function VentasPage() {
           )}
         </div>
 
-        {/* Keyboard hint — jump to payment */}
-        {items.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Tab</kbd>
-            <span>Ir al pago</span>
+        {/* Keyboard hints */}
+        {filteredProductos.length > 0 && (
+          <div className="flex items-center gap-3 text-xs text-gray-400">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
+              <span>Ir al producto</span>
+            </span>
+            {items.length > 0 && (
+              <span className="flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Tab</kbd>
+                <span>Ir al pago</span>
+              </span>
+            )}
           </div>
         )}
 
@@ -422,7 +437,7 @@ export default function VentasPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div ref={productGridRef} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredProductos.map((p) => (
               <ProductCard key={p.id} producto={p} onAdd={agregarProducto} />
             ))}
