@@ -377,6 +377,10 @@ export default function VentasPage() {
                   productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
                 }, 0)
               }
+              if (e.key === 'Enter' && filteredProductos.length > 0) {
+                e.preventDefault()
+                agregarProducto(filteredProductos[0])
+              }
             }}
             autoFocus
           />
@@ -698,12 +702,6 @@ function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: Pr
     <button
       type="button"
       onClick={() => onAdd(producto)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          onAdd(producto)
-        }
-      }}
       className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none"
       title={producto.nombre}
     >
