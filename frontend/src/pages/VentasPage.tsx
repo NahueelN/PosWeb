@@ -23,6 +23,8 @@ export default function VentasPage() {
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [error, setError] = useState('')
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
+  const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const recibioInputRef = useRef<HTMLInputElement>(null!)
 
   // Caja
   const [cajaActiva, setCajaActiva] = useState<boolean | null>(null)
@@ -80,6 +82,13 @@ export default function VentasPage() {
 
   // Reset highlight when suggestions change
   useEffect(() => { setHighlightIdx(-1) }, [sugerencias])
+
+  // Auto-focus "Recibió" input when a pagaVuelto medio is selected
+  useEffect(() => {
+    if (selectedMedio?.pagaVuelto) {
+      setTimeout(() => recibioInputRef.current?.focus(), 50)
+    }
+  }, [selectedMedio])
 
   function seleccionarSucursal(s: SucursalDto) {
     localStorage.setItem('sucursalActiva', JSON.stringify(s))
@@ -160,7 +169,20 @@ export default function VentasPage() {
     setPagoConCambio('')
   }
 
-
+  function handleMedioKeyDown(e: React.KeyboardEvent, idx: number) {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      const prev = idx - 1
+      if (prev >= 0) medioRefs.current[prev]?.focus()
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      const next = idx + 1
+      if (next < mediosPago.length) medioRefs.current[next]?.focus()
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      selectMedio(mediosPago[idx])
+    }
+  }
 
   function handlePagoKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
@@ -239,6 +261,22 @@ export default function VentasPage() {
     setTimeout(() => searchInputRef.current?.focus(), 100)
   }
 
+  function handleVentaSectionKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      if (mostrarSugerencias) {
+        e.preventDefault()
+        setMostrarSugerencias(false)
+        searchInputRef.current?.focus()
+      } else if (selectedMedio) {
+        e.preventDefault()
+        setSelectedMedio(null)
+        setPagoConCambio('')
+        setPagoMonto('')
+        searchInputRef.current?.focus()
+      }
+    }
+  }
+
   // ========== PANTALLA: SELECCIONAR SUCURSAL ==========
   if (step === 'sucursal') {
     return (
@@ -312,7 +350,8 @@ export default function VentasPage() {
             </div>
           )}
           <button onClick={nuevaVenta}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors w-full"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); nuevaVenta() } }}
+            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors w-full focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             Nueva venta
           </button>
@@ -323,7 +362,7 @@ export default function VentasPage() {
 
   // ========== PANTALLA: VENTA ==========
   return (
-    <div className="space-y-5 pb-28">
+    <div className="space-y-5 pb-28" onKeyDown={handleVentaSectionKeyDown}>
       {/* Sucursal activa */}
       {ctxSucursal && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -443,20 +482,20 @@ export default function VentasPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button type="button" onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad - 1)}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors">−</button>
+                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none">−</button>
                         <input type="number" min={1}
                           className="w-14 text-center border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                           value={i.cantidad}
                           onChange={(e) => handleCambiarCantidad(i.producto.id, Number(e.target.value))} />
                         <button type="button" onClick={() => handleCambiarCantidad(i.producto.id, i.cantidad + 1)}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors">+</button>
+                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none">+</button>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">
                       ${(i.producto.precio * i.cantidad).toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <button type="button" onClick={() => quitarItem(i.producto.id)}
-                        className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                        className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -480,14 +519,16 @@ export default function VentasPage() {
 
               {/* Medio selector - grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
-                {mediosPago.map(mp => {
+                {mediosPago.map((mp, idx) => {
                   const estaSeleccionado = selectedMedio?.id === mp.id
                   return (
                     <button
                       key={mp.id}
+                      ref={(el) => { medioRefs.current[idx] = el }}
                       type="button"
                       onClick={() => selectMedio(mp)}
-                      className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                      onKeyDown={(e) => handleMedioKeyDown(e, idx)}
+                      className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
                         estaSeleccionado
                           ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
                           : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
@@ -509,6 +550,7 @@ export default function VentasPage() {
                     <div className="flex-1 min-w-[140px]">
                       <label className="block text-xs text-gray-500 mb-1">Recibió <span className="text-gray-400">(opcional)</span></label>
                       <input
+                        ref={recibioInputRef}
                         type="number" step="0.01" min="0"
                         value={pagoConCambio}
                         onChange={e => setPagoConCambio(e.target.value)}
@@ -557,7 +599,7 @@ export default function VentasPage() {
               type="button"
               onClick={confirmarVenta}
               disabled={!cajaActiva || !esPagoCompleto()}
-              className="px-10 py-3 rounded-xl font-semibold text-base transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-500/20"
+              className="px-10 py-3 rounded-xl font-semibold text-base transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-500/20 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               {!cajaActiva
                 ? 'Sin caja abierta'
