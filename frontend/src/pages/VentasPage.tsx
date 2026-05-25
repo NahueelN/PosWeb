@@ -397,8 +397,10 @@ export default function VentasPage() {
         {filteredProductos.length > 0 && (
           <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">←</kbd>
               <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↑</kbd>
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">→</kbd>
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
               <span>Productos</span>
             </span>
             {items.length > 0 && (
@@ -407,6 +409,8 @@ export default function VentasPage() {
                 <span>Pago</span>
               </span>
             )}
+          </div>
+        )}
           </div>
         )}
 
@@ -446,16 +450,24 @@ export default function VentasPage() {
               const currentIdx = buttons.indexOf(e.target as HTMLButtonElement)
               if (currentIdx === -1) return
 
-              if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-                e.preventDefault()
+              const gridEl = productGridRef.current
+              if (!gridEl) return
+              const cols = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length
+              e.preventDefault()
+
+              if (e.key === 'ArrowRight') {
                 const next = Math.min(currentIdx + 1, buttons.length - 1)
                 if (next !== currentIdx) buttons[next]?.focus()
-              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-                e.preventDefault()
-                if (currentIdx === 0) {
+              } else if (e.key === 'ArrowLeft') {
+                if (currentIdx > 0) buttons[currentIdx - 1]?.focus()
+              } else if (e.key === 'ArrowDown') {
+                const next = Math.min(currentIdx + cols, buttons.length - 1)
+                if (next !== currentIdx) buttons[next]?.focus()
+              } else if (e.key === 'ArrowUp') {
+                if (currentIdx - cols < 0) {
                   searchInputRef.current?.focus()
                 } else {
-                  buttons[currentIdx - 1]?.focus()
+                  buttons[currentIdx - cols]?.focus()
                 }
               }
             }}
