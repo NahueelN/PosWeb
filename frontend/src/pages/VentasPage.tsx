@@ -453,17 +453,20 @@ export default function VentasPage() {
               const gridEl = productGridRef.current
               if (!gridEl) return
               const cols = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length
-              e.preventDefault()
 
               if (e.key === 'ArrowRight') {
+                e.preventDefault()
                 const next = Math.min(currentIdx + 1, buttons.length - 1)
                 if (next !== currentIdx) buttons[next]?.focus()
               } else if (e.key === 'ArrowLeft') {
+                e.preventDefault()
                 if (currentIdx > 0) buttons[currentIdx - 1]?.focus()
               } else if (e.key === 'ArrowDown') {
+                e.preventDefault()
                 const next = Math.min(currentIdx + cols, buttons.length - 1)
                 if (next !== currentIdx) buttons[next]?.focus()
               } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
                 if (currentIdx - cols < 0) {
                   searchInputRef.current?.focus()
                 } else {
