@@ -403,7 +403,7 @@ export default function VentasPage() {
                   productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
                 }, 0)
               }
-              if (e.key === 'Enter' && filteredProductos.length > 0) {
+              if (e.key === 'Enter' && searchQuery.trim() && filteredProductos.length > 0) {
                 e.preventDefault()
                 agregarProducto(filteredProductos[0])
               }
