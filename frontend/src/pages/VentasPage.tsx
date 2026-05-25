@@ -22,6 +22,7 @@ export default function VentasPage() {
   const [error, setError] = useState('')
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const medioGridRef = useRef<HTMLDivElement>(null!)
   const recibioInputRef = useRef<HTMLInputElement>(null!)
 
   // Caja
@@ -140,6 +141,25 @@ export default function VentasPage() {
       e.preventDefault()
       const next = idx + 1
       if (next < mediosPago.length) medioRefs.current[next]?.focus()
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      let cols = 2
+      try {
+        cols = getComputedStyle(medioGridRef.current).gridTemplateColumns.split(' ').length
+      } catch {}
+      const next = Math.min(idx + cols, mediosPago.length - 1)
+      if (next !== idx) medioRefs.current[next]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      let cols = 2
+      try {
+        cols = getComputedStyle(medioGridRef.current).gridTemplateColumns.split(' ').length
+      } catch {}
+      if (idx - cols < 0) {
+        searchInputRef.current?.focus()
+      } else {
+        medioRefs.current[idx - cols]?.focus()
+      }
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       selectMedio(mediosPago[idx])
@@ -589,13 +609,15 @@ export default function VentasPage() {
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Medio de pago</h3>
                   <span className="flex items-center gap-1 text-[10px] text-gray-400">
                     <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">←</kbd>
+                    <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">↑</kbd>
                     <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">→</kbd>
+                    <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">↓</kbd>
                     <span>navegar</span>
                   </span>
                 </div>
 
                 {/* Medio selector - grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                <div ref={medioGridRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                   {mediosPago.map((mp, idx) => {
                     const estaSeleccionado = selectedMedio?.id === mp.id
                     return (
