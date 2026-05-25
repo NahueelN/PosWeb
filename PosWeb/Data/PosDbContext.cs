@@ -397,7 +397,7 @@ public class PosDbContext : DbContext
             new MedioPago(5, "Cuenta Corriente", false)
         );
 
-        // Seed admin user (password: admin123)
+        // Seed admin user (password: 123)
         modelBuilder.Entity<Usuario>().HasData(
             new Usuario(1, "admin", "$2a$11$K4YfGqJ1e4YHIpQqJ1e4Y.ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "Admin")
         );

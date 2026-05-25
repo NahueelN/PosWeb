@@ -86,8 +86,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendOrigins", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:5173",          // Vite dev server
-                "http://localhost:5173")          // Tauri frontend (same port)
+                "http://localhost:5173",          // Vite dev server (localhost)
+                "http://192.168.1.39:5173")       // Vite dev server (network)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -110,9 +110,9 @@ using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
-    if (admin != null && !BCrypt.Net.BCrypt.Verify("admin123", admin.PASSWORD_HASH))
+    if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
     {
-        admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("admin123"));
+        admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
         ctx.SaveChanges();
     }
 }
