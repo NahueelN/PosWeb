@@ -143,6 +143,13 @@ export default function VentasPage() {
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       selectMedio(mediosPago[idx])
+      setTimeout(() => {
+        if (mediosPago[idx].pagaVuelto) {
+          recibioInputRef.current?.focus()
+        } else {
+          confirmBtnRef.current?.focus()
+        }
+      }, 0)
     }
   }
 
