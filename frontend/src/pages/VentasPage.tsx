@@ -333,7 +333,7 @@ export default function VentasPage() {
             </div>
           )}
           <button onClick={nuevaVenta}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); nuevaVenta() } }}
+            autoFocus
             className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors w-full focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             Nueva venta
