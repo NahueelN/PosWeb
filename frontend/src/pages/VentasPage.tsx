@@ -106,6 +106,7 @@ export default function VentasPage() {
       }
       return [...prev, { producto, cantidad: 1 }]
     })
+    setSearchQuery('')
     searchInputRef.current?.focus()
   }
 
