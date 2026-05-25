@@ -150,14 +150,12 @@ export default function VentasPage() {
       const next = Math.min(idx + cols, mediosPago.length - 1)
       if (next !== idx) medioRefs.current[next]?.focus()
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
       let cols = 2
       try {
         cols = getComputedStyle(medioGridRef.current).gridTemplateColumns.split(' ').length
       } catch {}
-      if (idx - cols < 0) {
-        searchInputRef.current?.focus()
-      } else {
+      if (idx - cols >= 0) {
+        e.preventDefault()
         medioRefs.current[idx - cols]?.focus()
       }
     } else if (e.key === 'Enter' || e.key === ' ') {
