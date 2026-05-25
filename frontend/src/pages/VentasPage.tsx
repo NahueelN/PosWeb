@@ -478,6 +478,12 @@ export default function VentasPage() {
                 } else {
                   buttons[currentIdx - cols]?.focus()
                 }
+              } else if (e.key === 'Tab' && !e.shiftKey && items.length > 0) {
+                e.preventDefault()
+                medioRefs.current[0]?.focus()
+              } else if (e.key === 'Tab' && e.shiftKey && currentIdx === 0) {
+                e.preventDefault()
+                searchInputRef.current?.focus()
               }
             }}
           >
