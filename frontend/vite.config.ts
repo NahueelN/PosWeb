@@ -55,6 +55,9 @@ export default defineConfig({
   ],
   server: {
     host: true,
+    watch: {
+      ignored: ['**/src-tauri/target/**'],
+    },
     proxy: {
       '/api': 'http://localhost:5196',
     },
