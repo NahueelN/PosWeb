@@ -45,6 +45,42 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const KEY_ACTIONS = new Map<string, () => void>([
+    ['F1', () => navigate('/ventas')],
+    ['F2', () => navigate('/caja')],
+    ['F3', () => navigate('/stock')],
+    ['F4', () => navigate('/productos')],
+    ['F5', () => navigate('/clientes')],
+    ['F11', () => toggleFullscreen()],
+  ])
+
+  function isTyping(element: Element | null): boolean {
+    if (!element) return false
+    const tag = element.tagName.toLowerCase()
+    return tag === 'input' || tag === 'textarea' || (element as HTMLElement).isContentEditable
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (isTyping(document.activeElement)) return
+      const action = KEY_ACTIONS.get(e.code)
+      if (action) {
+        e.preventDefault()
+        action()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
+
+  async function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen()
+    } else {
+      await document.exitFullscreen()
+    }
+  }
+
   function handleLogout() {
     logout()
     limpiar()
