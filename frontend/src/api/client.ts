@@ -215,4 +215,12 @@ export const api = {
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
   },
+
+// Compras
+   compras: {
+     crear: (dto: CompraRequestDto) => request<CompraResponseDto>('/compras/crear', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+   },
 }
