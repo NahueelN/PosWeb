@@ -3,15 +3,16 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
 
-const links = [
-  { to: '/ventas', label: 'Ventas', icon: '🛒' },
-  { to: '/historial', label: 'Historial', icon: '📋' },
-  { to: '/productos', label: 'Productos', icon: '📦' },
-  { to: '/stock', label: 'Stock', icon: '📊' },
-  { to: '/clientes', label: 'Clientes', icon: '👤' },
-  { to: '/caja', label: 'Caja', icon: '💰' },
-  { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
-]
+  const links = [
+    { to: '/ventas', label: 'Ventas', icon: '🛒' },
+    { to: '/historial', label: 'Historial', icon: '📋' },
+    { to: '/productos', label: 'Productos', icon: '📦' },
+    { to: '/stock', label: 'Stock', icon: '📊' },
+    { to: '/clientes', label: 'Clientes', icon: '👤' },
+    { to: '/caja', label: 'Caja', icon: '💰' },
+    { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
+    { to: '/compras', label: 'Compras', icon: '🛒' },
+  ]
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
@@ -47,10 +48,11 @@ export default function Layout() {
 
   const KEY_ACTIONS = new Map<string, () => void>([
     ['F1', () => navigate('/ventas')],
-    ['F2', () => navigate('/caja')],
+    ['F2', () => navigate('/compras')],
     ['F3', () => navigate('/stock')],
     ['F4', () => navigate('/productos')],
     ['F5', () => navigate('/clientes')],
+    ['F6', () => navigate('/compras')],
     ['F11', () => toggleFullscreen()],
   ])
 
@@ -129,7 +131,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -151,7 +153,7 @@ export default function Layout() {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 flex flex-col overflow-auto min-w-0">
+      <main className="flex-1 flex flex-col overflow-auto min-w-0 min-h-0">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
           <div className="flex items-center gap-3 min-w-0">
             {/* Hamburger — mobile only */}
@@ -204,7 +206,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 overflow-auto">
+        <div className="flex-1 p-4 sm:p-6 overflow-auto min-h-0 flex flex-col">
           <Outlet context={{ sucursal }} />
         </div>
       </main>

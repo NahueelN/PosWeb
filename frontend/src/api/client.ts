@@ -193,17 +193,25 @@ export const api = {
     listar: () => request<MedioPagoDto[]>('/medios-pago'),
   },
 
-  // Cajas
-  cajas: {
-    activa: (sucursalId: number) => request<{ caja: CajaDto | null; activa: boolean }>(`/cajas/activa?sucursalId=${sucursalId}`),
-    abrir: (dto: AbrirCajaRequest) => request<CajaDto>('/cajas/abrir', {
-      method: 'POST',
-      body: JSON.stringify(dto),
-    }),
-    cerrar: (cajaId: number, dto: CerrarCajaRequest) => request<CajaDto>(`/cajas/cerrar?cajaId=${cajaId}`, {
-      method: 'POST',
-      body: JSON.stringify(dto),
-    }),
-    previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
-  },
-}
+   // Cajas
+   cajas: {
+     activa: (sucursalId: number) => request<{ caja: CajaDto | null; activa: boolean }>(`/cajas/activa?sucursalId=${sucursalId}`),
+     abrir: (dto: AbrirCajaRequest) => request<CajaDto>('/cajas/abrir', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+     cerrar: (cajaId: number, dto: CerrarCajaRequest) => request<CajaDto>(`/cajas/cerrar?cajaId=${cajaId}`, {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
+   },
+
+   // Compras
+   compras: {
+     crear: (dto: CompraRequestDto) => request<CompraResponseDto>('/compras/crear', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+   },
+ }

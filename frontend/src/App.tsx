@@ -11,6 +11,7 @@ import VentasPage from './pages/VentasPage'
 import HistorialVentasPage from './pages/HistorialVentasPage'
 import ClientesPage from './pages/ClientesPage'
 import CajaPage from './pages/CajaPage'
+import CompraPage from './pages/CompraPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -68,13 +69,14 @@ export default function App() {
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/ventas" replace />} />
-              <Route path="/productos" element={<ProductosPage />} />
-              <Route path="/stock" element={<StockPage />} />
-              <Route path="/sucursales" element={<SucursalesPage />} />
-              <Route path="/ventas" element={<VentasPage />} />
-              <Route path="/historial" element={<HistorialVentasPage />} />
-              <Route path="/clientes" element={<ClientesPage />} />
-              <Route path="/caja" element={<CajaPage />} />
+            <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/stock" element={<StockPage />} />
+            <Route path="/sucursales" element={<SucursalesPage />} />
+            <Route path="/ventas" element={<VentasPage />} />
+            <Route path="/historial" element={<HistorialVentasPage />} />
+            <Route path="/clientes" element={<ClientesPage />} />
+            <Route path="/caja" element={<CajaPage />} />
+            <Route path="/compras" element={<CompraPage />} />
             </Route>
           </Route>
         </Routes>
