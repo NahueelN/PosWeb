@@ -114,10 +114,39 @@ export interface LoginResponse {
   usuario: UsuarioInfo
 }
 
+export interface RegisterRequest {
+  usuario: string
+  password: string
+  mail: string
+  rol: string
+  empresaRepresenta?: string | null
+}
+
+export interface RegisterResponse {
+  id: number
+  usuario: string
+  mail: string
+  rol: string
+  usuarioResponsableId?: number | null
+  empresaRepresenta?: string | null
+}
+
 export interface UsuarioInfo {
   id: number
   nombre: string
   rol: string
+}
+
+export interface UsuarioListadoDto {
+  id: number
+  nombreUsuario: string
+  mail?: string | null
+  rol: string
+  usuarioResponsableId?: number | null
+  usuarioResponsableNombre?: string | null
+  empresaRepresenta?: string | null
+  activo: boolean
+  pinConfigurado: boolean
 }
 
 // --- Cliente types ---

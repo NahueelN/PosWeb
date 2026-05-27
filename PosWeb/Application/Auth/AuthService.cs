@@ -108,7 +108,7 @@ public class AuthService
         };
     }
 
-    public RegisterResponseDto Register(RegisterRequestDto request)
+    public RegisterResponseDto Register(RegisterRequestDto request, int? currentUserId = null)
     {
         if (string.IsNullOrWhiteSpace(request.Usuario))
         {
@@ -134,17 +134,35 @@ public class AuthService
             throw new ArgumentException("Mail inválido");
         }
 
-        if (_context.Usuarios.Any(u => u.NOMBRE_USUARIO == request.Usuario))
+        var nombreUsuario = request.Usuario.Trim();
+        var mail = request.Mail.Trim();
+        var rol = currentUserId == null
+            ? Roles.Admin
+            : (request.Rol?.Trim() ?? string.Empty);
+
+        if (_context.Usuarios.Any(u => u.NOMBRE_USUARIO == nombreUsuario))
         {
             throw new ArgumentException("El usuario ya existe");
         }
 
+        int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
+        string? empresaRepresenta = rol == Roles.Admin
+            ? request.EmpresaRepresenta?.Trim()
+            : null;
+
+        if (rol == Roles.Admin && string.IsNullOrWhiteSpace(empresaRepresenta))
+        {
+            throw new ArgumentException("Empresa requerida para el alta de administrador");
+        }
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         var nuevoUsuario = new Usuario(
-            request.Usuario.Trim(),
+            nombreUsuario,
             passwordHash,
-            request.Rol?.Trim() ?? string.Empty,
-            request.Mail.Trim());
+            rol,
+            mail,
+            usuarioResponsableId: usuarioResponsableId,
+            empresaRepresenta: empresaRepresenta);
 
         _context.Usuarios.Add(nuevoUsuario);
         _context.SaveChanges();
@@ -153,8 +171,10 @@ public class AuthService
         {
             Id = nuevoUsuario.ID_USUARIO,
             Usuario = nuevoUsuario.NOMBRE_USUARIO,
-            Mail = request.Mail.Trim(),
-            Rol = nuevoUsuario.ROL
+            Mail = mail,
+            Rol = nuevoUsuario.ROL,
+            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESPONSABLE,
+            EmpresaRepresenta = nuevoUsuario.EMPRESA_REPRESENTA
         };
     }
 }

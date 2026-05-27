@@ -22,13 +22,32 @@ public class Usuario
 
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
-    public Usuario(int id, string nombreUsuario, string passwordHash, string rol, string? mail = null, int? sucursalDefault = null)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault)
+    public int? ID_USUARIO_RESPONSABLE { get; private set; }
+
+    public string? EMPRESA_REPRESENTA { get; private set; }
+
+    public Usuario(
+        int id,
+        string nombreUsuario,
+        string passwordHash,
+        string rol,
+        string? mail = null,
+        int? sucursalDefault = null,
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta)
     {
         ID_USUARIO = id;
     }
 
-    public Usuario(string nombreUsuario, string passwordHash, string rol, string? mail = null, int? sucursalDefault = null)
+    public Usuario(
+        string nombreUsuario,
+        string passwordHash,
+        string rol,
+        string? mail = null,
+        int? sucursalDefault = null,
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
@@ -36,6 +55,8 @@ public class Usuario
         SetMail(mail);
         ACTIVO = true;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
+        ID_USUARIO_RESPONSABLE = usuarioResponsableId;
+        SetEmpresaRepresenta(empresaRepresenta);
     }
 
     protected Usuario()
@@ -111,6 +132,22 @@ public class Usuario
         }
 
         ROL = rol;
+    }
+
+    public void SetEmpresaRepresenta(string? empresaRepresenta)
+    {
+        if (string.IsNullOrWhiteSpace(empresaRepresenta))
+        {
+            EMPRESA_REPRESENTA = null;
+            return;
+        }
+
+        if (empresaRepresenta.Length > 120)
+        {
+            throw new ArgumentException("La empresa no puede superar 120 caracteres");
+        }
+
+        EMPRESA_REPRESENTA = empresaRepresenta.Trim();
     }
 
     public void Activar()

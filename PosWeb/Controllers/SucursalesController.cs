@@ -19,6 +19,7 @@ public class SucursalesController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult Get()
     {
         return Ok(_sucursalService.ObtenerActivas());

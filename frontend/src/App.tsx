@@ -11,6 +11,7 @@ import VentasPage from './pages/VentasPage'
 import HistorialVentasPage from './pages/HistorialVentasPage'
 import ClientesPage from './pages/ClientesPage'
 import CajaPage from './pages/CajaPage'
+import AltaUsuarioPage from './pages/AltaUsuarioPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -75,6 +76,7 @@ export default function App() {
               <Route path="/historial" element={<HistorialVentasPage />} />
               <Route path="/clientes" element={<ClientesPage />} />
               <Route path="/caja" element={<CajaPage />} />
+              <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>
           </Route>
         </Routes>
