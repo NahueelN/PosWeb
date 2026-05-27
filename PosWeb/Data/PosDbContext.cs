@@ -206,6 +206,10 @@ public class PosDbContext : DbContext
             entity.Property(u => u.PIN_HASH)
                 .HasColumnName("PIN_HASH");
 
+            entity.Property(u => u.MAIL)
+                .HasColumnName("MAIL")
+                .HasMaxLength(150);
+
             entity.Property(u => u.ROL)
                 .HasColumnName("ROL")
                 .IsRequired()

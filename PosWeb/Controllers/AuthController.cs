@@ -38,4 +38,11 @@ public class AuthController : ControllerBase
         var result = _authService.PinLogin(request);
         return Ok(result);
     }
+
+    [HttpPost("register")]
+    public IActionResult Register([FromBody] RegisterRequestDto request)
+    {
+        var result = _authService.Register(request);
+        return Ok(result);
+    }
 }

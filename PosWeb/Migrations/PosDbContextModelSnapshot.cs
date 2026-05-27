@@ -385,6 +385,11 @@ namespace PosWeb.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUCURSAL_DEFAULT");
 
+                    b.Property<string>("MAIL")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MAIL");
+
                     b.Property<string>("NOMBRE_USUARIO")
                         .IsRequired()
                         .HasMaxLength(50)

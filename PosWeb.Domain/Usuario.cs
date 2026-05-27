@@ -14,23 +14,26 @@ public class Usuario
 
     public string? PIN_HASH { get; private set; }
 
+    public string? MAIL { get; private set; }
+
     public string ROL { get; private set; } = null!;
 
     public bool ACTIVO { get; private set; }
 
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
-    public Usuario(int id, string nombreUsuario, string passwordHash, string rol, int? sucursalDefault = null)
-        : this(nombreUsuario, passwordHash, rol, sucursalDefault)
+    public Usuario(int id, string nombreUsuario, string passwordHash, string rol, string? mail = null, int? sucursalDefault = null)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault)
     {
         ID_USUARIO = id;
     }
 
-    public Usuario(string nombreUsuario, string passwordHash, string rol, int? sucursalDefault = null)
+    public Usuario(string nombreUsuario, string passwordHash, string rol, string? mail = null, int? sucursalDefault = null)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
         CambiarRol(rol);
+        SetMail(mail);
         ACTIVO = true;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
     }
@@ -79,9 +82,29 @@ public class Usuario
         return !string.IsNullOrWhiteSpace(PIN_HASH);
     }
 
+    public void SetMail(string? mail)
+    {
+        if (string.IsNullOrWhiteSpace(mail))
+        {
+            MAIL = null;
+            return;
+        }
+
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(mail);
+        }
+        catch
+        {
+            throw new ArgumentException("Mail inválido");
+        }
+
+        MAIL = mail.Trim();
+    }
+
     public void CambiarRol(string rol)
     {
-        var rolesValidos = new[] { "Admin", "Supervisor", "Vendedor" };
+        var rolesValidos = Roles.Todos;
         if (!rolesValidos.Contains(rol))
         {
             throw new ArgumentException($"Rol inválido. Debe ser uno de: {string.Join(", ", rolesValidos)}");

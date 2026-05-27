@@ -2,6 +2,7 @@ using PosWeb.Application.Exceptions;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
+using System.Net.Mail;
 
 namespace PosWeb.Application.Auth;
 
@@ -104,6 +105,56 @@ public class AuthService
                 Nombre = usuario.NOMBRE_USUARIO,
                 Rol = usuario.ROL
             }
+        };
+    }
+
+    public RegisterResponseDto Register(RegisterRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Usuario))
+        {
+            throw new ArgumentException("Usuario requerido");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+        {
+            throw new ArgumentException("Password requerido (mínimo 6 caracteres)");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Mail))
+        {
+            throw new ArgumentException("Mail requerido");
+        }
+
+        try
+        {
+            _ = new MailAddress(request.Mail);
+        }
+        catch
+        {
+            throw new ArgumentException("Mail inválido");
+        }
+
+        if (_context.Usuarios.Any(u => u.NOMBRE_USUARIO == request.Usuario))
+        {
+            throw new ArgumentException("El usuario ya existe");
+        }
+
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        var nuevoUsuario = new Usuario(
+            request.Usuario.Trim(),
+            passwordHash,
+            request.Rol?.Trim() ?? string.Empty,
+            request.Mail.Trim());
+
+        _context.Usuarios.Add(nuevoUsuario);
+        _context.SaveChanges();
+
+        return new RegisterResponseDto
+        {
+            Id = nuevoUsuario.ID_USUARIO,
+            Usuario = nuevoUsuario.NOMBRE_USUARIO,
+            Mail = request.Mail.Trim(),
+            Rol = nuevoUsuario.ROL
         };
     }
 }
