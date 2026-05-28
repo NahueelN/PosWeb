@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -10,9 +11,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525043715_AddTamanoToProducto")]
+    partial class AddTamanoToProducto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
@@ -129,37 +132,6 @@ namespace PosWeb.Migrations
                         .IsUnique();
 
                     b.ToTable("CLIENTES", (string)null);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
-                {
-                    b.Property<int>("ID_GASTO")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_GASTO");
-
-                    b.Property<string>("DETALLE")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("DETALLE");
-
-                    b.Property<DateTime>("FECHA")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("FECHA");
-
-                    b.Property<int>("ID_CAJA")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_CAJA");
-
-                    b.Property<decimal>("MONTO")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("MONTO");
-
-                    b.HasKey("ID_GASTO");
-
-                    b.HasIndex("ID_CAJA");
-
-                    b.ToTable("GASTOS", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
@@ -514,15 +486,6 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_USUARIO_CIERRE")
                         .OnDelete(DeleteBehavior.NoAction);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Caja", null)
-                        .WithMany()
-                        .HasForeignKey("ID_CAJA")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.PagoVenta", b =>

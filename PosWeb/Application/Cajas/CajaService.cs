@@ -138,11 +138,18 @@ public class CajaService
             .Select(v => v.TOTAL)
             .ToList();
 
+        // Materialize gasto amounts then sum client-side (SQLite can't SUM(decimal))
+        List<decimal> montosGastos = _context.Gastos
+            .Where(g => g.ID_CAJA == cajaId)
+            .Select(g => g.MONTO)
+            .ToList();
+
         return new CierrePreviewDto
         {
             CajaId = cajaId,
             MontoInicial = caja.MONTO_INICIAL,
             TotalVentas = montosVentas.Sum(),
+            TotalGastos = montosGastos.Sum(),
             DesglosePagos = GetDesglosePagos(cajaId),
         };
     }

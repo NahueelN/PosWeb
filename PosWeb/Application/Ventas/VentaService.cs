@@ -130,6 +130,7 @@ public class VentaService
             }
 
             stockSuc!.DescontarStock(item.Cantidad);
+            producto.DescontarStock(item.Cantidad);
             venta.AgregarRenglon(producto, item.Cantidad);
         }
 

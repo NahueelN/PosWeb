@@ -20,6 +20,7 @@ public class PosDbContext : DbContext
     public DbSet<PagoVenta> PagosVenta { get; set; }
     public DbSet<Caja> Cajas { get; set; }
     public DbSet<Cliente> Clientes { get; set; }
+    public DbSet<Gasto> Gastos { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,10 @@ public class PosDbContext : DbContext
 
             entity.Property(p => p.STOCK)
                 .HasColumnName("STOCK");
+
+            entity.Property(p => p.TAMANO)
+                .HasColumnName("TAMANO")
+                .HasMaxLength(50);
 
             entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
@@ -386,6 +391,38 @@ public class PosDbContext : DbContext
                 .HasColumnName("ACTIVO");
 
             entity.HasIndex(c => new { c.TIPO_DOCUMENTO, c.NUMERO_DOCUMENTO }).IsUnique();
+        });
+
+        // GASTO
+        modelBuilder.Entity<Gasto>(entity =>
+        {
+            entity.ToTable("GASTOS");
+
+            entity.HasKey(g => g.ID_GASTO);
+
+            entity.Property(g => g.ID_GASTO)
+                .HasColumnName("ID_GASTO");
+
+            entity.Property(g => g.ID_CAJA)
+                .HasColumnName("ID_CAJA");
+
+            entity.Property(g => g.MONTO)
+                .HasColumnName("MONTO")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(g => g.FECHA)
+                .HasColumnName("FECHA");
+
+            entity.Property(g => g.DETALLE)
+                .HasColumnName("DETALLE")
+                .IsRequired();
+
+            entity.HasIndex(g => g.ID_CAJA);
+
+            entity.HasOne<Caja>()
+                .WithMany()
+                .HasForeignKey(g => g.ID_CAJA)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed data for MediosPago

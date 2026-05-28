@@ -6,4 +6,5 @@ public class ProductoUpsertDto
     public string Nombre { get; set; } = string.Empty;
     public decimal Precio { get; set; }
     public decimal Costo { get; set; }
+    public string? Tamano { get; set; }
 }

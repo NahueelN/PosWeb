@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
 using PosWeb.Application.Clientes;
+using PosWeb.Application.Compras;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
@@ -76,6 +77,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();
+builder.Services.AddScoped<CompraService>();
 
 // HTTP context for user tracking
 builder.Services.AddHttpContextAccessor();
