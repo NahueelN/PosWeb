@@ -174,9 +174,15 @@ export interface PagoPorMedioDto {
 
 // --- Compra types ---
 export interface CompraItemDto {
-   productoId: number
+   productoId: number          // 0 → create new product inline
    cantidad: number
    costoUnitario: number
+   // Inline creation fields (required when productoId === 0)
+   codigoBarra?: string
+   nombre?: string
+   precio?: number             // price to set (new product or update existing)
+   costo?: number              // optional — defaults to 0 for new products
+   tamano?: string
  }
 
  export interface NuevoProductoDto {
@@ -190,7 +196,6 @@ export interface CompraItemDto {
  export interface CompraRequestDto {
    sucursalId: number
    items: CompraItemDto[]
-   nuevosProductos?: NuevoProductoDto[]
  }
 
  export interface CompraItemResultDto {
