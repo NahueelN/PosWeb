@@ -1,11 +1,13 @@
 ﻿import React, { useReducer, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, NuevoProductoDto, ProductoDto } from '../types';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto } from '../types';
 import { api } from '../api/client';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Step = 'scan' | 'confirm' | 'done';
+
+type ScanMode = 'idle' | 'loading' | 'found' | 'not-found' | 'picker';
 
 interface CartItem {
   productoId: number;
@@ -14,12 +16,15 @@ interface CartItem {
   cantidad: number;
   costoUnitario: number;
   subtotal: number;
+  // Optional: for inline creation or price/cost update
+  precio?: number;
+  costo?: number;
+  tamano?: string;
 }
 
 interface CompraState {
   step: Step;
   cart: CartItem[];
-  nuevosProductos: NuevoProductoDto[];
   searchTerm: string;
   cantidad: number;
   error: string | null;
@@ -30,7 +35,7 @@ interface CompraState {
 
 type CompraAction =
   | { type: 'SET_STEP'; step: Step }
-  | { type: 'ADD_PRODUCT'; productoId: number; nombre: string; codigoBarra: string; costo: number; cantidad: number }
+  | { type: 'ADD_TO_CART'; item: CartItem }
   | { type: 'REMOVE_FROM_CART'; index: number }
   | { type: 'UPDATE_CANTIDAD_CART'; index: number; cantidad: number }
   | { type: 'SET_SEARCH_TERM'; term: string }
@@ -38,10 +43,7 @@ type CompraAction =
   | { type: 'SET_VERIFIED'; verified: boolean }
   | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
   | { type: 'CONFIRM_ERROR'; error: string }
-  | { type: 'ADD_NUEVO_PRODUCTO' }
-  | { type: 'UPDATE_NUEVO_PRODUCTO'; index: number; data: Partial<NuevoProductoDto> }
-  | { type: 'REMOVE_NUEVO_PRODUCTO'; index: number }
-  | { type: 'RESET_CART' }
+  | { type: 'RESET' }
   | { type: 'SET_ERROR'; error: string }
   | { type: 'CLEAR_ERROR' }
   | { type: 'SET_SUCURSAL'; sucursalId: number };
@@ -52,26 +54,19 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'SET_STEP':
       return { ...state, step: action.step };
 
-    case 'ADD_PRODUCT': {
-      const idx = state.cart.findIndex(i => i.productoId === action.productoId);
+    case 'ADD_TO_CART': {
+      // Merge with existing item if same productoId (existing products only)
+      const idx = state.cart.findIndex(
+        i => i.productoId === action.item.productoId && i.productoId !== 0
+      );
       if (idx >= 0) {
         const cart = [...state.cart];
-        const item = cart[idx];
-        const nuevaCant = item.cantidad + action.cantidad;
-        cart[idx] = { ...item, cantidad: nuevaCant, subtotal: nuevaCant * item.costoUnitario };
+        const existing = cart[idx];
+        const nuevaCant = existing.cantidad + action.item.cantidad;
+        cart[idx] = { ...existing, cantidad: nuevaCant, subtotal: nuevaCant * existing.costoUnitario };
         return { ...state, cart };
       }
-      return {
-        ...state,
-        cart: [...state.cart, {
-          productoId: action.productoId,
-          productoNombre: action.nombre,
-          codigoBarra: action.codigoBarra,
-          cantidad: action.cantidad,
-          costoUnitario: action.costo,
-          subtotal: action.cantidad * action.costo,
-        }],
-      };
+      return { ...state, cart: [...state.cart, action.item] };
     }
 
     case 'REMOVE_FROM_CART': {
@@ -109,25 +104,7 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'CONFIRM_ERROR':
       return { ...state, error: action.error };
 
-    case 'ADD_NUEVO_PRODUCTO':
-      return {
-        ...state,
-        nuevosProductos: [...state.nuevosProductos, { codigoBarra: '', nombre: '', precio: 0, costo: 0 }],
-      };
-
-    case 'UPDATE_NUEVO_PRODUCTO': {
-      const np = [...state.nuevosProductos];
-      np[action.index] = { ...np[action.index], ...action.data };
-      return { ...state, nuevosProductos: np };
-    }
-
-    case 'REMOVE_NUEVO_PRODUCTO': {
-      const np = [...state.nuevosProductos];
-      np.splice(action.index, 1);
-      return { ...state, nuevosProductos: np };
-    }
-
-    case 'RESET_CART':
+    case 'RESET':
       return { ...initialState, sucursalId: state.sucursalId };
 
     case 'SET_ERROR':
@@ -161,7 +138,6 @@ function getInitialSucursalId(): number {
 const initialState: CompraState = {
   step: 'scan',
   cart: [],
-  nuevosProductos: [],
   searchTerm: '',
   cantidad: 1,
   error: null,
@@ -209,30 +185,19 @@ export default function CompraPage() {
   const searchRef = useRef<HTMLInputElement>(null);
   const lastScanRef = useRef<{ barcode: string; time: number } | null>(null);
 
-  // Local state (async / external — not in reducer)
-  const [productos, setProductos] = useState<ProductoDto[]>([]);
-  const [productosLoading, setProductosLoading] = useState(true);
+  // Scan interaction local state
+  const [scanMode, setScanMode] = useState<ScanMode>('idle');
+  const [foundProduct, setFoundProduct] = useState<ProductoDto | null>(null);
+  const [searchResults, setSearchResults] = useState<ProductoDto[]>([]);
+  const [editPrecio, setEditPrecio] = useState(0);
+  const [editCosto, setEditCosto] = useState('');
+  const [inlineNombre, setInlineNombre] = useState('');  // for new-product creation form
+  const [editCantidad, setEditCantidad] = useState(1);
+  const [editTamano, setEditTamano] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
   // ── Effects ──────────────────────────────────────────────────────
-
-  // Load / reload products when sucursal changes
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setProductosLoading(true);
-      try {
-        const data = await api.productos.listar();
-        if (!cancelled) setProductos(data);
-      } catch (err: any) {
-        if (!cancelled) dispatch({ type: 'SET_ERROR', error: err.message || 'Error al cargar productos' });
-      } finally {
-        if (!cancelled) setProductosLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [state.sucursalId]);
 
   // Auto-focus search when entering scan step
   useEffect(() => {
@@ -254,7 +219,10 @@ export default function CompraPage() {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (state.step === 'scan') {
-        if (state.searchTerm) dispatch({ type: 'SET_SEARCH_TERM', term: '' });
+        if (state.searchTerm) {
+          dispatch({ type: 'SET_SEARCH_TERM', term: '' });
+        }
+        resetScan();
       } else if (state.step === 'confirm') {
         dispatch({ type: 'SET_STEP', step: 'scan' });
       } else if (state.step === 'done') {
@@ -265,33 +233,135 @@ export default function CompraPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [state.step, state.searchTerm, navigate]);
 
+  // ── Scan helpers ─────────────────────────────────────────────────
+
+  function resetScan() {
+    setScanMode('idle');
+    setFoundProduct(null);
+    setSearchResults([]);
+    setEditPrecio(0);
+    setEditCosto('');
+    setInlineNombre('');
+    setEditCantidad(1);
+    setEditTamano('');
+  }
+
   // ── Handlers ─────────────────────────────────────────────────────
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
     const q = e.currentTarget.value.trim();
     if (!q) return;
 
-    const match = productos.find(p => p.codigoBarra === q);
-    if (!match) return; // partial text → no action (per spec)
-
-    // Scanner dedup: ignore same barcode within 500ms
+    // Scanner dedup
     const now = Date.now();
     if (lastScanRef.current && lastScanRef.current.barcode === q && now - lastScanRef.current.time < LAST_SCAN_MS) {
       return;
     }
     lastScanRef.current = { barcode: q, time: now };
 
-    dispatch({ type: 'ADD_PRODUCT', productoId: match.id, nombre: match.nombre, codigoBarra: match.codigoBarra, costo: match.costo, cantidad: state.cantidad });
+    // Clear previous results
+    resetScan();
+    setScanMode('loading');
+
+    try {
+      // 1. Try barcode lookup
+      const product = await api.productos.obtenerPorBarra(q);
+
+      // If we get here, product was found
+      setFoundProduct(product);
+      setEditPrecio(product.precio);
+      setEditCosto(String(product.costo));
+      setEditCantidad(state.cantidad);
+      setEditTamano(product.tamano ?? '');
+      setScanMode('found');
+    } catch {
+      // 2. Barcode not found — try name search
+      try {
+        const results = await api.productos.buscar(q);
+        if (results.length > 0) {
+          setSearchResults(results);
+          setScanMode('picker');
+        } else {
+          // 3. No results — show creation form
+          setEditPrecio(0);
+          setEditCosto('');
+          setInlineNombre('');
+          setEditCantidad(1);
+          setEditTamano('');
+          setScanMode('not-found');
+        }
+      } catch {
+        // Fallback to creation form
+        setEditPrecio(0);
+        setEditCosto('');
+        setInlineNombre('');
+        setEditCantidad(1);
+        setEditTamano('');
+        setScanMode('not-found');
+      }
+    }
+  };
+
+  const handleSelectFromPicker = (p: ProductoDto) => {
+    setFoundProduct(p);
+    setEditPrecio(p.precio);
+    setEditCosto(String(p.costo));
+    setEditCantidad(state.cantidad);
+    setEditTamano(p.tamano ?? '');
+    setScanMode('found');
+  };
+
+  const handleAddToCart = () => {
+    if (isAdding) return;
+    setIsAdding(true);
+
+    const cantidad = editCantidad;
+    let costoUnitario = parseFloat(editCosto) || 0;
+
+    if (scanMode === 'not-found') {
+      // Inline creation
+      if (!inlineNombre.trim()) {
+        setIsAdding(false);
+        dispatch({ type: 'SET_ERROR', error: 'Debe ingresar un nombre para el producto nuevo' });
+        return;
+      }
+
+      const item: CartItem = {
+        productoId: 0,
+        productoNombre: inlineNombre.trim(),
+        codigoBarra: state.searchTerm,
+        cantidad,
+        costoUnitario,
+        subtotal: cantidad * costoUnitario,
+        precio: editPrecio || undefined,
+        costo: costoUnitario || undefined,
+        tamano: editTamano || undefined,
+      };
+
+      dispatch({ type: 'ADD_TO_CART', item });
+    } else if (scanMode === 'found' && foundProduct) {
+      // Existing product with optional price/cost updates
+      const item: CartItem = {
+        productoId: foundProduct.id,
+        productoNombre: foundProduct.nombre,
+        codigoBarra: foundProduct.codigoBarra,
+        cantidad,
+        costoUnitario,
+        subtotal: cantidad * costoUnitario,
+        precio: editPrecio > 0 ? editPrecio : undefined,
+        costo: costoUnitario > 0 ? costoUnitario : undefined,
+        tamano: editTamano || undefined,
+      };
+      dispatch({ type: 'ADD_TO_CART', item });
+    }
+
+    // Reset scan — keep search term clear (user sees barcode in cart)
+    resetScan();
     dispatch({ type: 'SET_SEARCH_TERM', term: '' });
     dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
     searchRef.current?.focus();
-  };
-
-  const handleAddProduct = (p: ProductoDto) => {
-    dispatch({ type: 'ADD_PRODUCT', productoId: p.id, nombre: p.nombre, codigoBarra: p.codigoBarra, costo: p.costo, cantidad: state.cantidad });
-    dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
-    searchRef.current?.focus();
+    setTimeout(() => setIsAdding(false), 200);
   };
 
   const handleConfirm = async () => {
@@ -300,8 +370,16 @@ export default function CompraPage() {
     try {
       const request: CompraRequestDto = {
         sucursalId: state.sucursalId,
-        items: state.cart.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, costoUnitario: i.costoUnitario })),
-        nuevosProductos: state.nuevosProductos.length > 0 ? state.nuevosProductos : undefined,
+        items: state.cart.map(i => ({
+          productoId: i.productoId,
+          cantidad: i.cantidad,
+          costoUnitario: i.costoUnitario,
+          codigoBarra: i.productoId === 0 ? i.codigoBarra : undefined,
+          nombre: i.productoId === 0 ? i.productoNombre : undefined,
+          precio: i.precio ?? 0,
+          costo: i.costo,
+          tamano: i.tamano,
+        })),
       };
       const response = await api.compras.crear(request);
       dispatch({ type: 'CONFIRM_SUCCESS', response });
@@ -313,7 +391,8 @@ export default function CompraPage() {
   };
 
   const handleNuevaCompra = () => {
-    dispatch({ type: 'RESET_CART' });
+    dispatch({ type: 'RESET' });
+    resetScan();
     dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
     searchRef.current?.focus();
   };
@@ -323,19 +402,13 @@ export default function CompraPage() {
 
   // ── Derived data ─────────────────────────────────────────────────
 
-  const filteredProductos = productos.filter(p => {
-    if (!state.searchTerm) return true;
-    const q = state.searchTerm.toLowerCase();
-    return p.codigoBarra.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q);
-  });
-
   const cartTotal = state.cart.reduce((s, i) => s + i.subtotal, 0);
 
   // ── Render ───────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-4xl mx-auto">
 
         {/* ── Sucursal header ─────────────────────────────────────── */}
         <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -369,16 +442,21 @@ export default function CompraPage() {
             ════════════════════════════════════════════════════════════ */}
         {state.step === 'scan' && (
           <>
-            {/* Search + Quantity row */}
+            {/* ── Search row ──────────────────────────────────────── */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none">🔍</span>
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
                 <input
                   ref={searchRef}
                   type="text"
                   autoFocus
                   value={state.searchTerm}
-                  onChange={e => dispatch({ type: 'SET_SEARCH_TERM', term: e.target.value })}
+                  onChange={e => {
+                    dispatch({ type: 'SET_SEARCH_TERM', term: e.target.value });
+                    if (e.target.value !== state.searchTerm) resetScan();
+                  }}
                   onKeyDown={handleSearchKeyDown}
                   placeholder="Buscar producto por código o nombre..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
@@ -396,158 +474,262 @@ export default function CompraPage() {
               </div>
             </div>
 
-            {/* Product grid + Cart panel */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* ── Product grid ────────────────────────────────── */}
-              <div className="lg:col-span-2">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Productos</h2>
+            {/* ── Result area ─────────────────────────────────────── */}
+            <div className="mb-6">
+              {scanMode === 'loading' && (
+                <div className="flex items-center justify-center py-8 text-gray-500">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500 mr-3" />
+                  Buscando producto...
+                </div>
+              )}
 
-                {productosLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
-                    <span className="ml-3 text-gray-500">Cargando productos...</span>
+              {scanMode === 'found' && foundProduct && (
+                <div className="bg-white border border-indigo-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">{foundProduct.nombre}</h3>
+                  <p className="text-xs text-gray-500 mb-3">Código: {foundProduct.codigoBarra}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Precio actual: {formatCurrency(foundProduct.precio)}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editPrecio}
+                        onChange={e => setEditPrecio(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Precio"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Costo actual: {formatCurrency(foundProduct.costo)}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCosto}
+                        onChange={e => setEditCosto(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Costo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Talle</label>
+                      <input
+                        type="text"
+                        value={editTamano}
+                        onChange={e => setEditTamano(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Talle (opcional)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Stock actual: {foundProduct.stock}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={editCantidad}
+                        onChange={e => setEditCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Cantidad"
+                      />
+                    </div>
                   </div>
-                ) : filteredProductos.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    {state.searchTerm
-                      ? 'No se encontraron productos con ese criterio'
-                      : 'No hay productos disponibles'}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {filteredProductos.map(p => (
-                      <div key={p.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-white flex flex-col">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 text-sm leading-tight">{p.nombre}</h3>
-                          <p className="text-xs text-gray-500 mt-0.5">Cod: {p.codigoBarra}</p>
-                          <div className="mt-2 space-y-0.5">
-                            <p className="text-sm text-gray-700"><span className="font-medium">Precio:</span> {formatCurrency(p.precio)}</p>
-                            <p className="text-sm text-gray-700"><span className="font-medium">Costo:</span> {formatCurrency(p.costo)}</p>
-                            <p className="text-sm text-gray-700"><span className="font-medium">Stock:</span> {p.stock}</p>
-                          </div>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isAdding}
+                    className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isAdding ? 'Agregando...' : 'Agregar a compra'}
+                  </button>
+                </div>
+              )}
+
+              {scanMode === 'picker' && searchResults.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Se encontraron {searchResults.length} producto(s) — seleccione uno:
+                  </h3>
+                  <div className="space-y-2">
+                    {searchResults.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => handleSelectFromPicker(p)}
+                        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-400 hover:shadow-sm cursor-pointer transition-all flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{p.nombre}</p>
+                          <p className="text-xs text-gray-500">Código: {p.codigoBarra}</p>
                         </div>
-                        <button
-                          onClick={() => handleAddProduct(p)}
-                          className="mt-3 w-full px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-                        >
-                          + Agregar
-                        </button>
+                        <div className="text-right text-sm">
+                          <p className="text-gray-700">Precio: {formatCurrency(p.precio)}</p>
+                          <p className="text-gray-500">Costo: {formatCurrency(p.costo)}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={() => {
+                      setEditPrecio(0);
+                      setEditCosto('');
+                      setInlineNombre('');
+                      setEditCantidad(1);
+                      setEditTamano('');
+                      setScanMode('not-found');
+                    }}
+                    className="mt-3 text-sm text-indigo-600 hover:text-indigo-800"
+                  >
+                    No encuentro el producto — crear uno nuevo
+                  </button>
+                </div>
+              )}
 
-              {/* ── Cart panel ───────────────────────────────────── */}
-              <div className="lg:col-span-1">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Carrito</h2>
-
-                {state.cart.length === 0 && state.nuevosProductos.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    <p className="text-sm">Agregue productos al carrito para continuar</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {state.cart.length > 0 && (
-                      <>
-                        {state.cart.map((item, i) => (
-                          <div key={i} className="bg-white border border-gray-200 rounded-lg p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-gray-900 text-sm truncate">{item.productoNombre}</p>
-                                <p className="text-xs text-gray-500">{item.codigoBarra}</p>
-                              </div>
-                              <button
-                                onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
-                                className="text-red-400 hover:text-red-600 shrink-0 text-sm"
-                                title="Eliminar"
-                              >
-                                {'🗑'}
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad - 1 })}
-                                  className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
-                                >
-                                  {'\u2212'}
-                                </button>
-                                <span className="w-8 text-center text-sm font-medium">{item.cantidad}</span>
-                                <button
-                                  onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad + 1 })}
-                                  className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
-                                >
-                                  +
-                                </button>
-                              </div>
-                              <p className="text-sm font-medium text-gray-900">{formatCurrency(item.subtotal)}</p>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                          <span className="text-sm font-semibold text-gray-900">Total:</span>
-                          <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
-                        </div>
-                      </>
-                    )}
-
-                    {/* ── New products section ──────────────────────── */}
-                    {state.nuevosProductos.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Productos nuevos</h3>
-                        {state.nuevosProductos.map((np, idx) => (
-                          <div key={idx} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <input type="text" placeholder="Codigo" value={np.codigoBarra}
-                                onChange={e => dispatch({ type: 'UPDATE_NUEVO_PRODUCTO', index: idx, data: { codigoBarra: e.target.value } })}
-                                className="px-2 py-1 border border-gray-300 rounded text-xs" />
-                              <input type="text" placeholder="Nombre" value={np.nombre}
-                                onChange={e => dispatch({ type: 'UPDATE_NUEVO_PRODUCTO', index: idx, data: { nombre: e.target.value } })}
-                                className="px-2 py-1 border border-gray-300 rounded text-xs" />
-                              <input type="number" step="0.01" placeholder="Precio" value={np.precio}
-                                onChange={e => dispatch({ type: 'UPDATE_NUEVO_PRODUCTO', index: idx, data: { precio: parseFloat(e.target.value) || 0 } })}
-                                className="px-2 py-1 border border-gray-300 rounded text-xs" />
-                              <input type="number" step="0.01" placeholder="Costo" value={np.costo}
-                                onChange={e => dispatch({ type: 'UPDATE_NUEVO_PRODUCTO', index: idx, data: { costo: parseFloat(e.target.value) || 0 } })}
-                                className="px-2 py-1 border border-gray-300 rounded text-xs" />
-                              <div className="col-span-2">
-                                <input type="text" placeholder="Tamano (opcional)" value={np.tamano || ''}
-                                  onChange={e => dispatch({ type: 'UPDATE_NUEVO_PRODUCTO', index: idx, data: { tamano: e.target.value || undefined } })}
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs" />
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => dispatch({ type: 'REMOVE_NUEVO_PRODUCTO', index: idx })}
-                              className="mt-2 text-xs text-red-600 hover:text-red-800"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Action buttons in cart panel */}
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={() => dispatch({ type: 'ADD_NUEVO_PRODUCTO' })}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        + Nuevo producto
-                      </button>
-                      <button
-                        onClick={() => dispatch({ type: 'SET_STEP', step: 'confirm' })}
-                        disabled={state.cart.length === 0}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Ver resumen →
-                      </button>
+              {scanMode === 'not-found' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-amber-900 mb-3">
+                    Producto no encontrado — crear nuevo
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Código de barras</label>
+                      <input
+                        type="text"
+                        value={state.searchTerm}
+                        readOnly
+                        className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                      <input
+                        type="text"
+                        value={inlineNombre}
+                        onChange={e => setInlineNombre(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Nombre del producto"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Precio</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editPrecio}
+                        onChange={e => setEditPrecio(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Precio de venta"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Costo (opcional)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCosto}
+                        onChange={e => setEditCosto(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Costo por unidad"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Talle (opcional)</label>
+                      <input
+                        type="text"
+                        value={editTamano}
+                        onChange={e => setEditTamano(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Talle"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={editCantidad}
+                        onChange={e => setEditCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Cantidad"
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isAdding}
+                    className="px-5 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isAdding ? 'Agregando...' : 'Crear y agregar a compra'}
+                  </button>
+                </div>
+              )}
+
+              {scanMode === 'idle' && state.cart.length === 0 && (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300 mb-6">
+                  <p className="text-sm">Escanee o busque un producto para comenzar</p>
+                </div>
+              )}
             </div>
+
+            {/* ── Cart / items list ───────────────────────────────── */}
+            {state.cart.length > 0 && (
+              <div className="border-t border-gray-200 pt-4">
+                <h2 className="text-base font-semibold text-gray-900 mb-3">
+                  Items cargados ({state.cart.length})
+                </h2>
+                <div className="space-y-2">
+                  {state.cart.map((item, i) => (
+                    <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 text-sm truncate">
+                            {item.productoNombre || '(nuevo producto)'}
+                          </p>
+                          {item.productoId === 0 && (
+                            <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">nuevo</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">{item.codigoBarra}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad - 1 })}
+                          className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
+                        >
+                          {'\u2212'}
+                        </button>
+                        <span className="w-8 text-center text-sm font-medium">{item.cantidad}</span>
+                        <button
+                          onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad + 1 })}
+                          className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <p className="text-sm font-medium text-gray-900 w-24 text-right shrink-0">
+                        {formatCurrency(item.subtotal)}
+                      </p>
+                      <button
+                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
+                        className="text-red-400 hover:text-red-600 shrink-0 text-sm"
+                        title="Eliminar"
+                      >
+                        {'\u2715'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+                  <span className="text-base font-semibold text-gray-900">Total:</span>
+                  <span className="text-xl font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={() => dispatch({ type: 'SET_STEP', step: 'confirm' })}
+                    disabled={state.cart.length === 0}
+                    className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Ver resumen →
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -580,7 +762,12 @@ export default function CompraPage() {
                   {state.cart.map((item, i) => (
                     <tr key={i} className={i % 2 === 0 ? 'bg-gray-50' : ''}>
                       <td className="py-1.5 pr-2 text-gray-600">{item.codigoBarra}</td>
-                      <td className="py-1.5 pr-2">{item.productoNombre}</td>
+                      <td className="py-1.5 pr-2">
+                        {item.productoNombre}
+                        {item.productoId === 0 && (
+                          <span className="ml-1 text-xs text-amber-600 font-sans">(nuevo)</span>
+                        )}
+                      </td>
                       <td className="py-1.5 pr-2 text-right">{item.cantidad}</td>
                       <td className="py-1.5 pr-2 text-right">{formatCurrency(item.costoUnitario)}</td>
                       <td className="py-1.5 text-right font-medium">{formatCurrency(item.subtotal)}</td>
@@ -605,7 +792,7 @@ export default function CompraPage() {
                 className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
               />
               <span className="text-sm text-gray-700">
-                He verificado que las cantidades y precios coinciden con la boleta fisica
+                He verificado que las cantidades y costos coinciden con la boleta fisica
               </span>
             </label>
 
