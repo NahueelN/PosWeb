@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Clientes;
 using PosWeb.Contracts;
+using PosWeb.Domain;
 
 namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/clientes")]
-[Authorize]
+[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
 public class ClientesController : ControllerBase
 {
     private readonly ClienteService _clienteService;

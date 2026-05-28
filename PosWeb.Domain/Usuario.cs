@@ -14,25 +14,49 @@ public class Usuario
 
     public string? PIN_HASH { get; private set; }
 
+    public string? MAIL { get; private set; }
+
     public string ROL { get; private set; } = null!;
 
     public bool ACTIVO { get; private set; }
 
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
-    public Usuario(int id, string nombreUsuario, string passwordHash, string rol, int? sucursalDefault = null)
-        : this(nombreUsuario, passwordHash, rol, sucursalDefault)
+    public int? ID_USUARIO_RESPONSABLE { get; private set; }
+
+    public string? EMPRESA_REPRESENTA { get; private set; }
+
+    public Usuario(
+        int id,
+        string nombreUsuario,
+        string passwordHash,
+        string rol,
+        string? mail = null,
+        int? sucursalDefault = null,
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta)
     {
         ID_USUARIO = id;
     }
 
-    public Usuario(string nombreUsuario, string passwordHash, string rol, int? sucursalDefault = null)
+    public Usuario(
+        string nombreUsuario,
+        string passwordHash,
+        string rol,
+        string? mail = null,
+        int? sucursalDefault = null,
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
         CambiarRol(rol);
+        SetMail(mail);
         ACTIVO = true;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
+        ID_USUARIO_RESPONSABLE = usuarioResponsableId;
+        SetEmpresaRepresenta(empresaRepresenta);
     }
 
     protected Usuario()
@@ -79,15 +103,51 @@ public class Usuario
         return !string.IsNullOrWhiteSpace(PIN_HASH);
     }
 
+    public void SetMail(string? mail)
+    {
+        if (string.IsNullOrWhiteSpace(mail))
+        {
+            MAIL = null;
+            return;
+        }
+
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(mail);
+        }
+        catch
+        {
+            throw new ArgumentException("Mail inválido");
+        }
+
+        MAIL = mail.Trim();
+    }
+
     public void CambiarRol(string rol)
     {
-        var rolesValidos = new[] { "Admin", "Supervisor", "Vendedor" };
+        var rolesValidos = Roles.Todos;
         if (!rolesValidos.Contains(rol))
         {
             throw new ArgumentException($"Rol inválido. Debe ser uno de: {string.Join(", ", rolesValidos)}");
         }
 
         ROL = rol;
+    }
+
+    public void SetEmpresaRepresenta(string? empresaRepresenta)
+    {
+        if (string.IsNullOrWhiteSpace(empresaRepresenta))
+        {
+            EMPRESA_REPRESENTA = null;
+            return;
+        }
+
+        if (empresaRepresenta.Length > 120)
+        {
+            throw new ArgumentException("La empresa no puede superar 120 caracteres");
+        }
+
+        EMPRESA_REPRESENTA = empresaRepresenta.Trim();
     }
 
     public void Activar()

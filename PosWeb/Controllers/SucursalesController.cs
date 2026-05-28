@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Sucursales;
 using PosWeb.Contracts;
+using PosWeb.Domain;
 
 namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/sucursales")]
+[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
 public class SucursalesController : ControllerBase
 {
     private readonly SucursalService _sucursalService;
@@ -16,6 +19,7 @@ public class SucursalesController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult Get()
     {
         return Ok(_sucursalService.ObtenerActivas());

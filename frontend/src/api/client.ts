@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, UsuarioListadoDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -101,6 +101,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
+    register: (dto: RegisterRequest) => request<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
   },
 
   // Productos
@@ -191,6 +195,11 @@ export const api = {
   // Medios de pago
   mediosPago: {
     listar: () => request<MedioPagoDto[]>('/medios-pago'),
+  },
+
+  // Usuarios
+  usuarios: {
+    listar: () => request<UsuarioListadoDto[]>('/usuarios'),
   },
 
   // Cajas

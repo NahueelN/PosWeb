@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Auth;
 using PosWeb.Contracts;
+using PosWeb.Domain;
+using System.Security.Claims;
 
 namespace PosWeb.Controllers;
 
@@ -36,6 +38,17 @@ public class AuthController : ControllerBase
         }
 
         var result = _authService.PinLogin(request);
+        return Ok(result);
+    }
+
+    [HttpPost("register")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public IActionResult Register([FromBody] RegisterRequestDto request)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? currentUserId = int.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : null;
+
+        var result = _authService.Register(request, currentUserId);
         return Ok(result);
     }
 }

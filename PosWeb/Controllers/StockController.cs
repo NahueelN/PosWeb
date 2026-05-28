@@ -1,13 +1,16 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Contracts;
+using PosWeb.Domain;
 
 namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/stock")]
+[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
 public class StockController : ControllerBase
 {
     private readonly StockSucursalService _stockService;

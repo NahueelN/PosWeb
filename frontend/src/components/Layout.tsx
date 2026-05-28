@@ -13,13 +13,19 @@ const links = [
   { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
 ]
 
+const hiddenForUsuarioComun = new Set(['/stock', '/clientes', '/sucursales'])
+
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('sucursalActiva')
     if (saved) {
-      try { setSucursal(JSON.parse(saved)) } catch { /* ignore */ }
+      try {
+        setSucursal(JSON.parse(saved))
+      } catch {
+        /* ignore */
+      }
     }
   }, [])
 
@@ -45,6 +51,11 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const visibleLinks = user?.rol === 'UsuarioComun'
+    ? links.filter(link => !hiddenForUsuarioComun.has(link.to))
+    : links
+  const canCreateUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
+
   function handleLogout() {
     logout()
     limpiar()
@@ -67,7 +78,7 @@ export default function Layout() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
-        {links.map((l) => (
+        {visibleLinks.map((l) => (
           <NavLink
             key={l.to}
             to={l.to}
@@ -86,15 +97,30 @@ export default function Layout() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-700">
-        <p className="text-xs text-slate-500">PosWeb v0.1</p>
+      <div className="p-3 border-t border-slate-700 space-y-2">
+        {canCreateUsers && (
+          <NavLink
+            to="/usuarios/alta"
+            onClick={closeSidebar}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                isActive
+                  ? 'bg-emerald-500/15 text-emerald-300 shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`
+            }
+          >
+            <span className="text-base">👥+</span>
+            Alta usuario
+          </NavLink>
+        )}
+        <p className="px-3 text-xs text-slate-500">PosWeb v0.1</p>
       </div>
     </>
   )
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"
@@ -102,7 +128,6 @@ export default function Layout() {
         />
       )}
 
-      {/* Mobile sidebar (fixed, slides in) */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 w-56 bg-slate-900 flex flex-col
@@ -114,15 +139,13 @@ export default function Layout() {
         {sidebarContent}
       </aside>
 
-      {/* Content */}
       <main className="flex-1 flex flex-col overflow-auto min-w-0">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-              aria-label="Abrir menú"
+              aria-label="Abrir menu"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />

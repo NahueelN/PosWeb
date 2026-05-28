@@ -206,6 +206,10 @@ public class PosDbContext : DbContext
             entity.Property(u => u.PIN_HASH)
                 .HasColumnName("PIN_HASH");
 
+            entity.Property(u => u.MAIL)
+                .HasColumnName("MAIL")
+                .HasMaxLength(150);
+
             entity.Property(u => u.ROL)
                 .HasColumnName("ROL")
                 .IsRequired()
@@ -217,7 +221,19 @@ public class PosDbContext : DbContext
             entity.Property(u => u.ID_SUCURSAL_DEFAULT)
                 .HasColumnName("ID_SUCURSAL_DEFAULT");
 
+            entity.Property(u => u.ID_USUARIO_RESPONSABLE)
+                .HasColumnName("ID_USUARIO_RESPONSABLE");
+
+            entity.Property(u => u.EMPRESA_REPRESENTA)
+                .HasColumnName("EMPRESA_REPRESENTA")
+                .HasMaxLength(120);
+
             entity.HasIndex(u => u.NOMBRE_USUARIO).IsUnique();
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(u => u.ID_USUARIO_RESPONSABLE)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // MEDIO PAGO

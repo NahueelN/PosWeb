@@ -385,6 +385,20 @@ namespace PosWeb.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUCURSAL_DEFAULT");
 
+                    b.Property<int?>("ID_USUARIO_RESPONSABLE")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_RESPONSABLE");
+
+                    b.Property<string>("EMPRESA_REPRESENTA")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("EMPRESA_REPRESENTA");
+
+                    b.Property<string>("MAIL")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MAIL");
+
                     b.Property<string>("NOMBRE_USUARIO")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -543,6 +557,14 @@ namespace PosWeb.Migrations
                     b.HasOne("PosWeb.Domain.Usuario", null)
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Usuario", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO_RESPONSABLE")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 

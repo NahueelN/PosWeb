@@ -2,6 +2,7 @@ using PosWeb.Application.Exceptions;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
+using System.Net.Mail;
 
 namespace PosWeb.Application.Auth;
 
@@ -104,6 +105,76 @@ public class AuthService
                 Nombre = usuario.NOMBRE_USUARIO,
                 Rol = usuario.ROL
             }
+        };
+    }
+
+    public RegisterResponseDto Register(RegisterRequestDto request, int? currentUserId = null)
+    {
+        if (string.IsNullOrWhiteSpace(request.Usuario))
+        {
+            throw new ArgumentException("Usuario requerido");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+        {
+            throw new ArgumentException("Password requerido (mínimo 6 caracteres)");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Mail))
+        {
+            throw new ArgumentException("Mail requerido");
+        }
+
+        try
+        {
+            _ = new MailAddress(request.Mail);
+        }
+        catch
+        {
+            throw new ArgumentException("Mail inválido");
+        }
+
+        var nombreUsuario = request.Usuario.Trim();
+        var mail = request.Mail.Trim();
+        var rol = currentUserId == null
+            ? Roles.Admin
+            : (request.Rol?.Trim() ?? string.Empty);
+
+        if (_context.Usuarios.Any(u => u.NOMBRE_USUARIO == nombreUsuario))
+        {
+            throw new ArgumentException("El usuario ya existe");
+        }
+
+        int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
+        string? empresaRepresenta = rol == Roles.Admin
+            ? request.EmpresaRepresenta?.Trim()
+            : null;
+
+        if (rol == Roles.Admin && string.IsNullOrWhiteSpace(empresaRepresenta))
+        {
+            throw new ArgumentException("Empresa requerida para el alta de administrador");
+        }
+
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        var nuevoUsuario = new Usuario(
+            nombreUsuario,
+            passwordHash,
+            rol,
+            mail,
+            usuarioResponsableId: usuarioResponsableId,
+            empresaRepresenta: empresaRepresenta);
+
+        _context.Usuarios.Add(nuevoUsuario);
+        _context.SaveChanges();
+
+        return new RegisterResponseDto
+        {
+            Id = nuevoUsuario.ID_USUARIO,
+            Usuario = nuevoUsuario.NOMBRE_USUARIO,
+            Mail = mail,
+            Rol = nuevoUsuario.ROL,
+            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESPONSABLE,
+            EmpresaRepresenta = nuevoUsuario.EMPRESA_REPRESENTA
         };
     }
 }
