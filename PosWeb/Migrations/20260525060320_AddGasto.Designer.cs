@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -10,9 +11,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525060320_AddGasto")]
+    partial class AddGasto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
@@ -421,20 +424,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUCURSAL_DEFAULT");
 
-                    b.Property<int?>("ID_USUARIO_RESPONSABLE")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_USUARIO_RESPONSABLE");
-
-                    b.Property<string>("EMPRESA_REPRESENTA")
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("EMPRESA_REPRESENTA");
-
-                    b.Property<string>("MAIL")
-                        .HasMaxLength(150)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("MAIL");
-
                     b.Property<string>("NOMBRE_USUARIO")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -602,14 +591,6 @@ namespace PosWeb.Migrations
                     b.HasOne("PosWeb.Domain.Usuario", null)
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.Usuario", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Usuario", null)
-                        .WithMany()
-                        .HasForeignKey("ID_USUARIO_RESPONSABLE")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 

@@ -18,6 +18,8 @@ public class Producto
 
     public int STOCK { get; private set; }
 
+    public string? TAMANO { get; private set; }
+
     public bool ACTIVO { get; private set; }
 
     public Producto(
@@ -25,13 +27,15 @@ public class Producto
         string nombre,
         decimal precio,
         decimal costo,
-        int stock)
+        int stock,
+        string? tamano = null)
     {
         CambiarCodigoBarra(codigoBarra);
         CambiarNombre(nombre);
         CambiarPrecio(precio);
         CambiarCosto(costo);
         CambiarStock(stock);
+        CambiarTamano(tamano);
 
         ACTIVO = true;
     }
@@ -88,6 +92,11 @@ public class Producto
         }
 
         STOCK = stock;
+    }
+
+    public void CambiarTamano(string? tamano)
+    {
+        TAMANO = string.IsNullOrWhiteSpace(tamano) ? null : tamano.Trim();
     }
 
     public void DescontarStock(int cantidad)

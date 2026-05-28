@@ -13,5 +13,7 @@ public class ProductoDto
     // Compatibility-only while the app finishes moving stock behavior to branch-level flows.
     public int Stock { get; set; }
 
+    public string? Tamano { get; set; }
+
     public bool Activo { get; set; }
 }

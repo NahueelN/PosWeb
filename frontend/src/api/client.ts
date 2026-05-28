@@ -113,7 +113,11 @@ export const api = {
     buscar: (q: string) => request<ProductoDto[]>(`/productos/buscar?q=${encodeURIComponent(q)}`),
     buscarParaVenta: (q: string, sucursalId: number) =>
       request<ProductoDto[]>(`/productos/buscar-venta?q=${encodeURIComponent(q)}&sucursalId=${sucursalId}`),
-    obtenerPorBarra: (codigo: string) => request<ProductoDto>(`/productos/barra/${encodeURIComponent(codigo)}`),
+    obtenerPorBarra: (codigo: string, sucursalId?: number) => {
+      let url = `/productos/barra/${encodeURIComponent(codigo)}`;
+      if (sucursalId) url += `?sucursalId=${sucursalId}`;
+      return request<ProductoDto>(url);
+    },
     crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
       method: 'POST',
       body: JSON.stringify(dto),

@@ -197,6 +197,14 @@ export default function CompraPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
+  // Autocomplete suggestions
+  const [suggestions, setSuggestions] = useState<ProductoDto[]>([]);
+  const [highlightedIdx, setHighlightedIdx] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const precioRef = useRef<HTMLInputElement>(null);
+  const nombreRef = useRef<HTMLInputElement>(null);
+
   // ── Effects ──────────────────────────────────────────────────────
 
   // Auto-focus search when entering scan step
@@ -233,6 +241,41 @@ export default function CompraPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [state.step, state.searchTerm, navigate]);
 
+  // ── Autocomplete: debounced search while typing ────────────────
+  useEffect(() => {
+    const q = state.searchTerm.trim();
+    if (q.length < 2 || scanMode !== 'idle') {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await api.productos.buscar(q);
+        setSuggestions(results);
+        setHighlightedIdx(results.length > 0 ? 0 : -1);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [state.searchTerm, scanMode]);
+
+  // ── Auto-focus: precio si existe, nombre si es nuevo ──────────
+  useEffect(() => {
+    if (scanMode === 'found') {
+      setTimeout(() => precioRef.current?.focus(), 50);
+    } else if (scanMode === 'not-found') {
+      setTimeout(() => nombreRef.current?.focus(), 50);
+    }
+  }, [scanMode]);
+
   // ── Scan helpers ─────────────────────────────────────────────────
 
   function resetScan() {
@@ -248,10 +291,51 @@ export default function CompraPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────
 
+  const selectSuggestion = (p: ProductoDto) => {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setFoundProduct(p);
+    setEditPrecio(p.precio);
+    setEditCosto(String(p.costo));
+    setEditCantidad(state.cantidad);
+    setEditTamano(p.tamano ?? '');
+    setScanMode('found');
+    dispatch({ type: 'SET_SEARCH_TERM', term: p.codigoBarra });
+  };
+
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return;
     const q = e.currentTarget.value.trim();
+
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIdx(prev => Math.min(prev + 1, suggestions.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIdx(prev => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const idx = highlightedIdx >= 0 ? highlightedIdx : 0;
+        if (idx < suggestions.length) {
+          selectSuggestion(suggestions[idx]);
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        return;
+      }
+    }
+
+    if (e.key !== 'Enter') return;
     if (!q) return;
+
+    // Close suggestions and proceed with barcode lookup
+    setShowSuggestions(false);
 
     // Scanner dedup
     const now = Date.now();
@@ -266,7 +350,7 @@ export default function CompraPage() {
 
     try {
       // 1. Try barcode lookup
-      const product = await api.productos.obtenerPorBarra(q);
+      const product = await api.productos.obtenerPorBarra(q, state.sucursalId);
 
       // If we get here, product was found
       setFoundProduct(product);
@@ -443,7 +527,7 @@ export default function CompraPage() {
         {state.step === 'scan' && (
           <>
             {/* ── Search row ──────────────────────────────────────── */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-3 mb-0 flex-wrap relative z-10">
               <div className="relative flex-1 min-w-[200px]">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -458,9 +542,39 @@ export default function CompraPage() {
                     if (e.target.value !== state.searchTerm) resetScan();
                   }}
                   onKeyDown={handleSearchKeyDown}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="Buscar producto por código o nombre..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
                 />
+
+                {/* ── Suggestions dropdown ─────────────────────── */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto z-20">
+                    {suggestions.map((p, i) => (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => selectSuggestion(p)}
+                        onMouseEnter={() => setHighlightedIdx(i)}
+                        className={`flex items-center justify-between px-4 py-2.5 cursor-pointer text-sm ${
+                          i === highlightedIdx
+                            ? 'bg-indigo-50 text-indigo-900'
+                            : 'hover:bg-gray-50 text-gray-900'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">{p.nombre}</span>
+                          <span className="ml-2 text-xs text-gray-500">{p.codigoBarra}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 shrink-0 ml-2">
+                          {formatCurrency(p.precio)}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="px-4 py-1.5 text-xs text-gray-400 border-t border-gray-100 bg-gray-50">
+                      ↑↓ Navegar · Enter seleccionar · Esc cerrar
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <label className="text-sm font-medium text-gray-600">Cant:</label>
@@ -491,6 +605,7 @@ export default function CompraPage() {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Precio actual: {formatCurrency(foundProduct.precio)}</label>
                       <input
+                        ref={precioRef}
                         type="number"
                         step="0.01"
                         value={editPrecio}
@@ -599,6 +714,7 @@ export default function CompraPage() {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
                       <input
+                        ref={nombreRef}
                         type="text"
                         value={inlineNombre}
                         onChange={e => setInlineNombre(e.target.value)}

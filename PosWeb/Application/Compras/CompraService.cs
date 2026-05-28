@@ -103,6 +103,7 @@ public class CompraService
             }
 
             stock.AumentarStock(item.Cantidad);
+            productoFinal.AumentarStock(item.Cantidad);
 
             decimal subtotal = item.Cantidad * item.CostoUnitario;
             totalGasto += subtotal;
