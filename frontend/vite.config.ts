@@ -55,6 +55,7 @@ export default defineConfig({
   ],
   server: {
     host: true,
+    allowedHosts: ['knee-volley-handwash.ngrok-free.dev'],
     proxy: {
       '/api': 'http://localhost:5196',
     },

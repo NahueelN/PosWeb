@@ -160,6 +160,15 @@ export default function VentasPage() {
     setPagoConCambio('')
   }
 
+  useEffect(() => {
+    if (!selectedMedio) return
+
+    // Keep the payment amount aligned with the current sale total.
+    // This avoids sending a stale amount if the user changes quantities
+    // after selecting a payment method.
+    setPagoMonto(total.toFixed(2))
+  }, [total, selectedMedio?.id])
+
 
 
   function handlePagoKeyDown(e: React.KeyboardEvent) {
