@@ -22,8 +22,10 @@ public class ProductosController : ControllerBase
     }
 
     [HttpGet("barra/{codigoBarra}")]
-    public IActionResult GetPorCodigoBarra(string codigoBarra)
+    public IActionResult GetPorCodigoBarra(string codigoBarra, [FromQuery] int? sucursalId = null)
     {
+        if (sucursalId.HasValue)
+            return Ok(_productoService.ObtenerPorCodigoBarra(codigoBarra, sucursalId.Value));
         return Ok(_productoService.ObtenerPorCodigoBarra(codigoBarra));
     }
 

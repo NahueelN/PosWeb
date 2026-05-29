@@ -5,6 +5,7 @@ export interface ProductoDto {
   precio: number
   costo: number
   stock: number
+  tamano?: string
   activo: boolean
 }
 
@@ -13,6 +14,7 @@ export interface ProductoUpsertDto {
   nombre: string
   precio: number
   costo: number
+  tamano?: string
 }
 
 export interface SucursalDto {
@@ -193,11 +195,52 @@ export interface CierrePreviewDto {
 }
 
 export interface PagoPorMedioDto {
-  idMedioPago: number
-  medioPago: string
-  monto: number
-  pagaVuelto: boolean
-}
+   idMedioPago: number
+   medioPago: string
+   monto: number
+   pagaVuelto: boolean
+ }
+
+// --- Compra types ---
+export interface CompraItemDto {
+   productoId: number          // 0 → create new product inline
+   cantidad: number
+   costoUnitario: number
+   // Inline creation fields (required when productoId === 0)
+   codigoBarra?: string
+   nombre?: string
+   precio?: number             // price to set (new product or update existing)
+   costo?: number              // optional — defaults to 0 for new products
+   tamano?: string
+ }
+
+ export interface NuevoProductoDto {
+   codigoBarra: string
+   nombre: string
+   precio: number
+   costo: number
+   tamano?: string
+ }
+
+ export interface CompraRequestDto {
+   sucursalId: number
+   items: CompraItemDto[]
+ }
+
+ export interface CompraItemResultDto {
+   productoId: number
+   productoNombre: string
+   cantidad: number
+   costoUnitario: number
+   subtotal: number
+ }
+
+ export interface CompraResponseDto {
+   gastoId: number
+   totalGasto: number
+   fecha: string
+   items: CompraItemResultDto[]
+ }
 
 export interface CajaDto {
   id: number

@@ -131,6 +131,37 @@ namespace PosWeb.Migrations
                     b.ToTable("CLIENTES", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
+                {
+                    b.Property<int>("ID_GASTO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_GASTO");
+
+                    b.Property<string>("DETALLE")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DETALLE");
+
+                    b.Property<DateTime>("FECHA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA");
+
+                    b.Property<int>("ID_CAJA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CAJA");
+
+                    b.Property<decimal>("MONTO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO");
+
+                    b.HasKey("ID_GASTO");
+
+                    b.HasIndex("ID_CAJA");
+
+                    b.ToTable("GASTOS", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
                 {
                     b.Property<int>("ID_MEDIO_PAGO")
@@ -268,6 +299,11 @@ namespace PosWeb.Migrations
                     b.Property<int>("STOCK")
                         .HasColumnType("INTEGER")
                         .HasColumnName("STOCK");
+
+                    b.Property<string>("TAMANO")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TAMANO");
 
                     b.HasKey("ID_PRODUCTO");
 
@@ -492,6 +528,15 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_USUARIO_CIERRE")
                         .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("ID_CAJA")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.PagoVenta", b =>

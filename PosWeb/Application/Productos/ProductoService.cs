@@ -28,6 +28,7 @@ public class ProductoService
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
                 Stock = p.STOCK,
+                Tamano = p.TAMANO,
                 Activo = p.ACTIVO
             })
             .ToList();
@@ -48,7 +49,8 @@ public class ProductoService
             dto.Nombre,
             dto.Precio,
             dto.Costo,
-            0
+            0,
+            dto.Tamano
         );
 
         _context.Productos.Add(producto);
@@ -58,6 +60,11 @@ public class ProductoService
     }
 
     public ProductoDto ObtenerPorCodigoBarra(string codigoBarra)
+    {
+        return ObtenerPorCodigoBarra(codigoBarra, sucursalId: null);
+    }
+
+    public ProductoDto ObtenerPorCodigoBarra(string codigoBarra, int? sucursalId)
     {
         if (string.IsNullOrWhiteSpace(codigoBarra))
         {
@@ -72,7 +79,16 @@ public class ProductoService
             throw new ProductoNoEncontradoException(codigoBarra);
         }
 
-        return MapToDto(producto);
+        var dto = MapToDto(producto);
+
+        if (sucursalId.HasValue)
+        {
+            StockSucursal? stock = _context.StockSucursales
+                .FirstOrDefault(s => s.IdProducto == producto.ID_PRODUCTO && s.IdSucursal == sucursalId.Value);
+            dto.Stock = stock?.Stock ?? 0;
+        }
+
+        return dto;
     }
 
     public void Eliminar(int id)
@@ -98,6 +114,7 @@ public class ProductoService
             Precio = producto.PRECIO,
             Costo = producto.COSTO,
             Stock = producto.STOCK,
+            Tamano = producto.TAMANO,
             Activo = producto.ACTIVO
         };
     }
@@ -125,6 +142,7 @@ public class ProductoService
         producto.CambiarNombre(dto.Nombre);
         producto.CambiarPrecio(dto.Precio);
         producto.CambiarCosto(dto.Costo);
+        producto.CambiarTamano(dto.Tamano);
         
         _context.SaveChanges();
         
@@ -139,7 +157,7 @@ public class ProductoService
         }
 
         return _context.Productos
-            .Where(p => p.ACTIVO && EF.Functions.Like(p.NOMBRE, $"%{term}%"))
+            .Where(p => p.ACTIVO && (EF.Functions.Like(p.NOMBRE, $"%{term}%") || EF.Functions.Like(p.CODIGO_BARRA, $"%{term}%")))
             .OrderBy(p => p.NOMBRE)
             .Select(p => new ProductoDto
             {
@@ -149,6 +167,7 @@ public class ProductoService
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
                 Stock = p.STOCK,
+                Tamano = p.TAMANO,
                 Activo = p.ACTIVO
             })
             .ToList();
@@ -173,11 +192,12 @@ public class ProductoService
                 Nombre = p.NOMBRE,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
-                Stock = _context.StockSucursales
-                    .Where(s => s.IdProducto == p.ID_PRODUCTO && s.IdSucursal == sucursalId)
-                    .Select(s => s.Stock)
-                    .FirstOrDefault(),
-                Activo = p.ACTIVO
+                    Stock = _context.StockSucursales
+                        .Where(s => s.IdProducto == p.ID_PRODUCTO && s.IdSucursal == sucursalId)
+                        .Select(s => s.Stock)
+                        .FirstOrDefault(),
+                    Tamano = p.TAMANO,
+                    Activo = p.ACTIVO
             })
             .ToList();
     }

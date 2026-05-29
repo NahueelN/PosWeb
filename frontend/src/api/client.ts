@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, UsuarioListadoDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, UsuarioListadoDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -113,7 +113,11 @@ export const api = {
     buscar: (q: string) => request<ProductoDto[]>(`/productos/buscar?q=${encodeURIComponent(q)}`),
     buscarParaVenta: (q: string, sucursalId: number) =>
       request<ProductoDto[]>(`/productos/buscar-venta?q=${encodeURIComponent(q)}&sucursalId=${sucursalId}`),
-    obtenerPorBarra: (codigo: string) => request<ProductoDto>(`/productos/barra/${encodeURIComponent(codigo)}`),
+    obtenerPorBarra: (codigo: string, sucursalId?: number) => {
+      let url = `/productos/barra/${encodeURIComponent(codigo)}`;
+      if (sucursalId) url += `?sucursalId=${sucursalId}`;
+      return request<ProductoDto>(url);
+    },
     crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
       method: 'POST',
       body: JSON.stringify(dto),
@@ -215,4 +219,12 @@ export const api = {
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
   },
+
+// Compras
+   compras: {
+     crear: (dto: CompraRequestDto) => request<CompraResponseDto>('/compras/crear', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+   },
 }
