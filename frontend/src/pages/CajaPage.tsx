@@ -20,7 +20,6 @@ export default function CajaPage() {
   // Close form
   const [montoEfectivo, setMontoEfectivo] = useState('')
   const [montoTarjetas, setMontoTarjetas] = useState('')
-  const [gastos, setGastos] = useState('')
 
   const loadCaja = useCallback(async () => {
     if (!sucursal) return
@@ -89,14 +88,13 @@ export default function CajaPage() {
       const result = await api.cajas.cerrar(caja.id, {
         montoContadoEfectivo: parseFloat(montoEfectivo) || 0,
         montoContadoTarjetas: parseFloat(montoTarjetas) || 0,
-        gastos: parseFloat(gastos) || 0,
+        gastos: preview?.totalGastos ?? 0,
       })
       setCaja(result)
       setActiva(false)
       setReporteCierre(result)
       setMontoEfectivo('')
       setMontoTarjetas('')
-      setGastos('')
     } catch (err: any) {
       setError(err.message || 'Error al cerrar caja')
     } finally {
@@ -106,8 +104,8 @@ export default function CajaPage() {
 
   const ef = parseFloat(montoEfectivo) || 0
   const tj = parseFloat(montoTarjetas) || 0
-  const gs = parseFloat(gastos) || 0
-  const esperado = preview ? preview.montoInicial + preview.totalVentas - gs : 0
+  const totalGastos = preview?.totalGastos ?? 0
+  const esperado = preview ? preview.montoInicial + preview.totalVentas - totalGastos : 0
   const contadoActual = ef + tj
   const diffPreview = esperado - contadoActual
 
@@ -207,15 +205,17 @@ export default function CajaPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gastos <span className="text-gray-400 font-normal">(opcional)</span>
+                  Gastos
                 </label>
-                <input
-                  type="number" step="0.01" min="0"
-                  value={gastos}
-                  onChange={e => setGastos(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
+                  {totalGastos > 0
+                    ? <span className="font-medium text-red-600">-${totalGastos.toFixed(2)}</span>
+                    : <span className="text-gray-400">$0.00</span>
+                  }
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Los gastos se cargan desde la solapa <strong>Gastos</strong>
+                </p>
               </div>
 
               {preview && (ef > 0 || tj > 0) && (
@@ -358,8 +358,8 @@ export default function CajaPage() {
                 onChange={e => setMontoInicial(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 required
-              />
-            </div>
+                />
+              </div>
             <button
               type="submit"
               disabled={loading}

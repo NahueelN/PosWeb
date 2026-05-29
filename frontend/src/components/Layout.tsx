@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
     { to: '/caja', label: 'Caja', icon: '💰' },
     { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
     { to: '/compras', label: 'Compras', icon: '🛒' },
+    { to: '/gastos', label: 'Gastos', icon: '💸' },
   ]
 
 const hiddenForUsuarioComun = new Set(['/stock', '/clientes', '/sucursales'])

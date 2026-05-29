@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto } from '../types'
 
@@ -11,6 +11,7 @@ interface Item {
 type Step = 'sucursal' | 'venta' | 'resultado'
 
 export default function VentasPage() {
+  const navigate = useNavigate()
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [step, setStep] = useState<Step>(
     ctxSucursal ? 'venta' : 'sucursal'
@@ -18,6 +19,7 @@ export default function VentasPage() {
 
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [ultimosItems, setUltimosItems] = useState<Item[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [error, setError] = useState('')
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
@@ -243,6 +245,7 @@ export default function VentasPage() {
         pagos: pagosDto,
       })
       setResultado(res)
+      setUltimosItems([...items])
       setItems([])
       setSelectedMedio(null)
       setPagoMonto('')
@@ -256,8 +259,16 @@ export default function VentasPage() {
     await confirmarVenta()
   }
 
+  function formatCurrency(n: number): string {
+    return '$' + n.toFixed(2)
+  }
+
+  const handlePrint = () => window.print()
+  const handleCerrar = () => navigate(-1)
+
   function nuevaVenta() {
     setResultado(null)
+    setUltimosItems([])
     setItems([])
     setSelectedMedio(null)
     setPagoMonto('')
@@ -314,48 +325,90 @@ export default function VentasPage() {
     )
   }
 
-  // ========== PANTALLA: RESULTADO ==========
+  // ========== PANTALLA: RESULTADO (FACTURA) ==========
   if (step === 'resultado' && resultado) {
+    const formatFecha = (f: string) => new Date(f).toLocaleString('es-AR')
     return (
-      <div className="max-w-lg mx-auto mt-8 px-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 text-center space-y-5">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+      <div className="max-w-3xl mx-auto mt-8 px-4">
+        {/* Success badge - hidden when printing */}
+        <div className="no-print text-center mb-6">
+          <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">
+            VENTA REGISTRADA
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Venta registrada</h2>
-            <p className="text-sm text-gray-500 mt-1">Sucursal: {ctxSucursal?.nombre}</p>
+        </div>
+
+        {/* Receipt / Factura */}
+        <div className="receipt bg-white border border-gray-300 rounded-xl p-6 max-w-[80mm] mx-auto">
+          <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
+
+          <div className="text-xs mb-3 space-y-0.5">
+            <p><span className="font-semibold">Comprobante:</span> Venta #{resultado.ventaId}</p>
+            <p><span className="font-semibold">Fecha:</span> {formatFecha(resultado.fecha)}</p>
+            <p><span className="font-semibold">Sucursal:</span> {ctxSucursal?.nombre}</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-5 space-y-1">
-            <p className="text-4xl font-bold text-gray-900">${resultado.total.toFixed(2)}</p>
-            <p className="text-sm text-gray-500">
-              Venta #{resultado.ventaId} · {new Date(resultado.fecha).toLocaleString('es-AR')}
-            </p>
-          </div>
-          {resultado.pagos && resultado.pagos.length > 0 && (
-            <div className="text-left bg-gray-50 rounded-xl p-4 space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Medios de pago</h3>
-              {resultado.pagos.map((p, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-gray-600">{p.medioPagoNombre}</span>
-                  <span className="font-medium">${p.monto.toFixed(2)}</span>
-                </div>
+
+          {/* Items table */}
+          <table className="w-full border-collapse text-xs mb-3">
+            <thead>
+              <tr className="border-b border-gray-400">
+                <th className="text-left pb-1 pr-1">Producto</th>
+                <th className="text-right pb-1 pr-1">Cant</th>
+                <th className="text-right pb-1 pr-1">Precio</th>
+                <th className="text-right pb-1">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ultimosItems.map((item, i) => (
+                <tr key={i}>
+                  <td className="py-0.5 pr-1">{item.producto.nombre}</td>
+                  <td className="text-right py-0.5 pr-1">{item.cantidad}</td>
+                  <td className="text-right py-0.5 pr-1">{formatCurrency(item.producto.precio)}</td>
+                  <td className="text-right py-0.5">{formatCurrency(item.producto.precio * item.cantidad)}</td>
+                </tr>
               ))}
-              {resultado.cambio > 0 && (
-                <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-                  <span className="text-green-600 font-medium">Vuelto</span>
-                  <span className="font-bold text-green-600">${resultado.cambio.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-          )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-gray-400 font-bold">
+                <td colSpan={3} className="text-right pt-1 pr-1">Total:</td>
+                <td className="text-right pt-1">{formatCurrency(resultado.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          {/* Payments breakdown */}
+          <div className="border-t border-gray-300 pt-2 text-xs space-y-0.5">
+            {resultado.pagos.map((p, i) => (
+              <div key={i} className="flex justify-between">
+                <span>{p.medioPagoNombre}</span>
+                <span>{formatCurrency(p.monto)}</span>
+              </div>
+            ))}
+            {resultado.cambio > 0 && (
+              <div className="flex justify-between text-green-700 font-semibold pt-1 border-t border-gray-200">
+                <span>Vuelto</span>
+                <span>{formatCurrency(resultado.cambio)}</span>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-600 text-center mt-3">
+            Unidades: {ultimosItems.reduce((s, i) => s + i.cantidad, 0)}
+          </p>
+        </div>
+
+        {/* Action buttons - hidden when printing */}
+        <div className="no-print flex justify-center gap-3 mt-6 flex-wrap">
+          <button onClick={handlePrint} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
+            Imprimir
+          </button>
           <button onClick={nuevaVenta}
             autoFocus
-            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors w-full focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
           >
             Nueva venta
+          </button>
+          <button onClick={handleCerrar} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors">
+            Cerrar
           </button>
         </div>
       </div>
