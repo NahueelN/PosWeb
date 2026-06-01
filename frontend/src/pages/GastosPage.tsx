@@ -2,21 +2,21 @@ import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import type { SucursalDto, GastoDto, CajaDto } from '../types'
+import { formatCurrency, formatDate } from '../formats'
+import PageHeader from '../components/ui/PageHeader'
+import AlertBanner from '../components/ui/AlertBanner'
+import Card from '../components/ui/Card'
+import Spinner from '../components/ui/Spinner'
 
-function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+// ── Helpers ──────────────────────────────────────────────────────────
 
-function formatFecha(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const inputClass =
+  'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm ' +
+  'focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all'
+
+const labelClass = 'block text-sm font-medium text-gray-700 mb-1'
+
+// ── Component ────────────────────────────────────────────────────────
 
 export default function GastosPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -79,7 +79,6 @@ export default function GastosPage() {
       setMonto('')
       setDetalle('')
       setSuccess('Gasto registrado correctamente')
-      // Refetch list
       if (cajaActiva) {
         const gastosRes = await api.gastos.listar(cajaActiva.id)
         setGastos(gastosRes.items)
@@ -91,77 +90,86 @@ export default function GastosPage() {
     }
   }
 
+  // ── Render ─────────────────────────────────────────────────────────
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Gastos</h1>
+    <div className="space-y-5">
+      <PageHeader
+        title="Gastos"
+        subtitle={cajaActiva ? `${gastos.length} gastos registrados` : undefined}
+      />
 
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
+        <AlertBanner variant="error" message={error} onClose={() => setError('')} />
       )}
+
       {success && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-lg">{success}</div>
+        <AlertBanner variant="success" message={success} onClose={() => setSuccess('')} />
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
+        <Spinner text="Cargando gastos..." />
       ) : !cajaActiva ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-          <p className="text-gray-500 mb-2">No hay caja abierta</p>
-          <p className="text-sm text-gray-400">Abrí una caja para registrar gastos</p>
-        </div>
+        <Card padding="lg" className="text-center">
+          <div className="py-6">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 font-medium">No hay caja abierta</p>
+            <p className="text-sm text-gray-400 mt-1">Abrí una caja para registrar gastos</p>
+          </div>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Form section */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Nuevo gasto</h2>
+          {/* ── Form section ──────────────────────────────────────── */}
+          <Card padding="lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Nuevo gasto</h3>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monto
-                </label>
+                <label className={labelClass}>Monto</label>
                 <input
                   type="number" step="0.01" min="0.01"
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={inputClass}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Detalle
-                </label>
+                <label className={labelClass}>Detalle</label>
                 <input
                   type="text"
                   value={detalle}
                   onChange={e => setDetalle(e.target.value)}
                   placeholder="Ej: Flete, limpieza, etc."
                   maxLength={500}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={inputClass}
                   required
                 />
               </div>
 
               {formError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-2 py-1.5 rounded-lg">{formError}</div>
+                <AlertBanner variant="error" message={formError} />
               )}
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Registrando...' : 'Registrar gasto'}
               </button>
             </form>
-          </div>
+          </Card>
 
-          {/* List section */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          {/* ── List section ──────────────────────────────────────── */}
+          <Card padding="lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Gastos registrados ({gastos.length})
-            </h2>
+            </h3>
 
             {gastos.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">No hay gastos registrados</p>
@@ -169,25 +177,25 @@ export default function GastosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
                       <th className="pb-2 pr-3">Fecha</th>
                       <th className="pb-2 pr-3 text-right">Monto</th>
                       <th className="pb-2">Detalle</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100">
                     {gastos.map(g => (
-                      <tr key={g.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 pr-3 text-gray-600 whitespace-nowrap">{formatFecha(g.fecha)}</td>
-                        <td className="py-2 pr-3 text-right font-medium">{formatCurrency(g.monto)}</td>
-                        <td className="py-2 text-gray-700">{g.detalle}</td>
+                      <tr key={g.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-2.5 pr-3 text-gray-600 whitespace-nowrap">{formatDate(g.fecha)}</td>
+                        <td className="py-2.5 pr-3 text-right font-medium">{formatCurrency(g.monto)}</td>
+                        <td className="py-2.5 text-gray-700">{g.detalle}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>
