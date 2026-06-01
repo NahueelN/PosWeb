@@ -191,6 +191,7 @@ export interface CierrePreviewDto {
   cajaId: number
   montoInicial: number
   totalVentas: number
+  totalGastos: number
   desglosePagos: PagoPorMedioDto[]
 }
 
@@ -224,6 +225,7 @@ export interface CompraItemDto {
 
  export interface CompraRequestDto {
    sucursalId: number
+   proveedor: string
    items: CompraItemDto[]
  }
 
@@ -237,6 +239,7 @@ export interface CompraItemDto {
 
  export interface CompraResponseDto {
    gastoId: number
+   proveedor: string
    totalGasto: number
    fecha: string
    items: CompraItemResultDto[]
@@ -271,4 +274,22 @@ export interface CerrarCajaRequest {
   montoContadoTarjetas: number
   gastos: number
   observaciones?: string
+}
+
+// --- Gasto types ---
+export interface GastoDto {
+  id: number
+  cajaId: number
+  monto: number
+  detalle: string
+  fecha: string
+}
+
+export interface CrearGastoRequest {
+  monto: number
+  detalle: string
+}
+
+export interface GastoListResponse {
+  items: GastoDto[]
 }

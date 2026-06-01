@@ -36,3 +36,13 @@
     border-top: 1px dashed #000;
   }
 }
+
+/* Quick-add flash animation */
+.cart-item-flash {
+  animation: flash-green 1.2s ease-out;
+}
+
+@keyframes flash-green {
+  0%   { background-color: #bbf7d0; border-color: #86efac; }
+  100% { background-color: transparent; border-color: transparent; }
+}

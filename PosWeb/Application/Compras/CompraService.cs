@@ -118,7 +118,10 @@ public class CompraService
             });
         }
 
-        var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, "Compra");
+        string detalleGasto = string.IsNullOrWhiteSpace(request.Proveedor)
+            ? "Compra"
+            : $"Compra - {request.Proveedor.Trim()}";
+        var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
         _context.Gastos.Add(gasto);
 
         _context.SaveChanges();
@@ -126,6 +129,7 @@ public class CompraService
         return new CompraResponseDto
         {
             GastoId = gasto.ID_GASTO,
+            Proveedor = request.Proveedor,
             TotalGasto = totalGasto,
             Fecha = gasto.FECHA,
             Items = results

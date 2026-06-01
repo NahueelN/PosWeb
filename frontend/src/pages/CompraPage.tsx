@@ -27,6 +27,7 @@ interface CompraState {
   cart: CartItem[];
   searchTerm: string;
   cantidad: number;
+  proveedor: string;
   error: string | null;
   success: CompraResponseDto | null;
   verified: boolean;
@@ -40,6 +41,7 @@ type CompraAction =
   | { type: 'UPDATE_CANTIDAD_CART'; index: number; cantidad: number }
   | { type: 'SET_SEARCH_TERM'; term: string }
   | { type: 'SET_CANTIDAD'; cantidad: number }
+  | { type: 'SET_PROVEEDOR'; proveedor: string }
   | { type: 'SET_VERIFIED'; verified: boolean }
   | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
   | { type: 'CONFIRM_ERROR'; error: string }
@@ -95,6 +97,9 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'SET_CANTIDAD':
       return { ...state, cantidad: action.cantidad };
 
+    case 'SET_PROVEEDOR':
+      return { ...state, proveedor: action.proveedor };
+
     case 'SET_VERIFIED':
       return { ...state, verified: action.verified };
 
@@ -140,6 +145,7 @@ const initialState: CompraState = {
   cart: [],
   searchTerm: '',
   cantidad: 1,
+  proveedor: '',
   error: null,
   success: null,
   verified: false,
@@ -196,6 +202,7 @@ export default function CompraPage() {
   const [editTamano, setEditTamano] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [quickAddFlash, setQuickAddFlash] = useState<number | null>(null); // productoId being auto-added
 
   // Autocomplete suggestions
   const [suggestions, setSuggestions] = useState<ProductoDto[]>([]);
@@ -352,7 +359,30 @@ export default function CompraPage() {
       // 1. Try barcode lookup
       const product = await api.productos.obtenerPorBarra(q, state.sucursalId);
 
-      // If we get here, product was found
+      // Auto-add if product has known cost — no form needed
+      if (product.costo > 0) {
+        const item: CartItem = {
+          productoId: product.id,
+          productoNombre: product.nombre,
+          codigoBarra: product.codigoBarra,
+          cantidad: state.cantidad,
+          costoUnitario: product.costo,
+          subtotal: state.cantidad * product.costo,
+          precio: product.precio,
+          costo: product.costo,
+          tamano: product.tamano ?? '',
+        };
+        dispatch({ type: 'ADD_TO_CART', item });
+        setQuickAddFlash(product.id);
+        setTimeout(() => setQuickAddFlash(null), 1200);
+        resetScan();
+        dispatch({ type: 'SET_SEARCH_TERM', term: '' });
+        dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
+        searchRef.current?.focus();
+        return;
+      }
+
+      // Show form for products without cost
       setFoundProduct(product);
       setEditPrecio(product.precio);
       setEditCosto(String(product.costo));
@@ -454,6 +484,7 @@ export default function CompraPage() {
     try {
       const request: CompraRequestDto = {
         sucursalId: state.sucursalId,
+        proveedor: state.proveedor.trim(),
         items: state.cart.map(i => ({
           productoId: i.productoId,
           cantidad: i.cantidad,
@@ -786,54 +817,61 @@ export default function CompraPage() {
             {/* ── Cart / items list ───────────────────────────────── */}
             {state.cart.length > 0 && (
               <div className="border-t border-gray-200 pt-4">
-                <h2 className="text-base font-semibold text-gray-900 mb-3">
-                  Items cargados ({state.cart.length})
-                </h2>
-                <div className="space-y-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Items cargados ({state.cart.length})
+                  </h2>
+                  <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
+                </div>
+                <div className="space-y-1.5">
                   {state.cart.map((item, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900 text-sm truncate">
-                            {item.productoNombre || '(nuevo producto)'}
-                          </p>
-                          {item.productoId === 0 && (
-                            <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">nuevo</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500">{item.codigoBarra}</p>
+                    <div key={i}
+                      className={`bg-white border rounded-lg px-3 py-2 flex items-center gap-2 text-sm transition-colors ${
+                        quickAddFlash === item.productoId && item.productoId !== 0
+                          ? 'cart-item-flash border-green-300'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {/* Product info */}
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="font-medium text-gray-900 truncate">
+                          {item.productoNombre || '(nuevo producto)'}
+                        </span>
+                        {item.productoId === 0 && (
+                          <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded shrink-0">nuevo</span>
+                        )}
+                        <span className="text-xs text-gray-400 shrink-0">{item.codigoBarra}</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad - 1 })}
-                          className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
-                        >
-                          {'\u2212'}
-                        </button>
-                        <span className="w-8 text-center text-sm font-medium">{item.cantidad}</span>
-                        <button
-                          onClick={() => dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: item.cantidad + 1 })}
-                          className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200 text-sm font-medium"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 w-24 text-right shrink-0">
+
+                      {/* Subtotal */}
+                      <span className="text-gray-700 font-medium w-24 text-right shrink-0">
                         {formatCurrency(item.subtotal)}
-                      </p>
+                      </span>
+
+                      {/* Inline quantity input */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.cantidad}
+                          onChange={e => {
+                            const v = parseInt(e.target.value);
+                            dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: isNaN(v) ? 0 : v });
+                          }}
+                          className="w-14 text-center border border-gray-300 rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      {/* Remove */}
                       <button
                         onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
-                        className="text-red-400 hover:text-red-600 shrink-0 text-sm"
+                        className="text-gray-300 hover:text-red-500 shrink-0 transition-colors"
                         title="Eliminar"
                       >
                         {'\u2715'}
                       </button>
                     </div>
                   ))}
-                </div>
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
-                  <span className="text-base font-semibold text-gray-900">Total:</span>
-                  <span className="text-xl font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
                 </div>
                 <div className="flex justify-end mt-4">
                   <button
@@ -844,6 +882,12 @@ export default function CompraPage() {
                     Ver resumen →
                   </button>
                 </div>
+              </div>
+            )}
+            {/* Quick-add tip */}
+            {state.cart.length > 0 && scanMode === 'idle' && (
+              <div className="text-xs text-gray-400 mt-2 text-center">
+                Escaneá otro código para agregar rápido · {state.cantidad} item(s) por vez
               </div>
             )}
           </>
@@ -858,10 +902,15 @@ export default function CompraPage() {
 
             {/* Boleta table */}
             <div className="bg-white border border-gray-300 rounded-xl p-5 font-mono text-sm mb-4">
-              <div className="text-center mb-4">
+              <div className="text-center mb-4 space-y-1">
                 <p className="text-xs text-gray-500">
                   Fecha: {new Date().toLocaleDateString('es-AR')}  |  Sucursal: {getSucursalNombre(state.sucursalId)}
                 </p>
+                {state.proveedor.trim() && (
+                  <p className="text-xs text-gray-600 font-medium">
+                    Proveedor: {state.proveedor.trim()}
+                  </p>
+                )}
               </div>
 
               <table className="w-full border-collapse">
@@ -897,6 +946,20 @@ export default function CompraPage() {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* Proveedor input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Proveedor <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={state.proveedor}
+                onChange={e => dispatch({ type: 'SET_PROVEEDOR', proveedor: e.target.value })}
+                placeholder="Nombre del proveedor"
+                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
 
             {/* Verification checkbox */}
@@ -951,6 +1014,9 @@ export default function CompraPage() {
                 <p><span className="font-semibold">Comprobante:</span> {getComprobanteNum(state.success.fecha, state.success.gastoId)}</p>
                 <p><span className="font-semibold">Fecha:</span> {formatFecha(state.success.fecha)}</p>
                 <p><span className="font-semibold">Sucursal:</span> {getSucursalNombre(state.sucursalId)}</p>
+                {state.success.proveedor && (
+                  <p><span className="font-semibold">Proveedor:</span> {state.success.proveedor}</p>
+                )}
               </div>
 
               <table className="w-full border-collapse text-xs mb-3">

@@ -7,6 +7,7 @@ using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
+using PosWeb.Application.Gastos;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
@@ -79,6 +80,7 @@ builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();
 builder.Services.AddScoped<CompraService>();
+builder.Services.AddScoped<GastoService>();
 
 // HTTP context for user tracking
 builder.Services.AddHttpContextAccessor();
