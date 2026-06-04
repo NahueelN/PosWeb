@@ -10,5 +10,7 @@ public class UsuarioDto
     public string? UsuarioResponsableNombre { get; set; }
     public string? EmpresaRepresenta { get; set; }
     public bool Activo { get; set; }
+    public bool SuscripcionActiva { get; set; }
+    public bool AccesoHabilitado { get; set; }
     public bool PinConfigurado { get; set; }
 }

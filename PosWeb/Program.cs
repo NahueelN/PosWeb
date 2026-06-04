@@ -15,6 +15,8 @@ using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Data;
 using PosWeb.Middlewares;
+using PosWeb.Domain;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -139,6 +141,31 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        var userIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdValue, out var userId))
+        {
+            var db = context.RequestServices.GetRequiredService<PosDbContext>();
+            var usuario = db.Usuarios.FirstOrDefault(u => u.ID_USUARIO == userId);
+
+            if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "Acceso suspendido por suscripción vencida"
+                });
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 // Add CORS middleware
@@ -196,6 +223,13 @@ static void EnsureUsuariosColumns(PosDbContext ctx)
             alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN EMPRESA_REPRESENTA TEXT NULL;";
             alter.ExecuteNonQuery();
         }
+
+        if (!existingColumns.Contains("SUSCRIPCION_ACTIVA"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN SUSCRIPCION_ACTIVA INTEGER NOT NULL DEFAULT 1;";
+            alter.ExecuteNonQuery();
+        }
     }
     finally
     {
@@ -204,4 +238,22 @@ static void EnsureUsuariosColumns(PosDbContext ctx)
             connection.Close();
         }
     }
+}
+
+static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
+{
+    if (!usuario.ACTIVO || !usuario.SUSCRIPCION_ACTIVA)
+    {
+        return false;
+    }
+
+    if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+    {
+        return true;
+    }
+
+    var responsable = ctx.Usuarios.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+    return responsable != null
+        && responsable.ACTIVO
+        && responsable.SUSCRIPCION_ACTIVA;
 }

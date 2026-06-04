@@ -223,6 +223,9 @@ public class PosDbContext : DbContext
             entity.Property(u => u.ACTIVO)
                 .HasColumnName("ACTIVO");
 
+            entity.Property(u => u.SUSCRIPCION_ACTIVA)
+                .HasColumnName("SUSCRIPCION_ACTIVA");
+
             entity.Property(u => u.ID_SUCURSAL_DEFAULT)
                 .HasColumnName("ID_SUCURSAL_DEFAULT");
 

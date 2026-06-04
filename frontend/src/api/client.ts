@@ -205,6 +205,10 @@ export const api = {
   usuarios: {
     listar: () => request<UsuarioListadoDto[]>('/usuarios'),
     desactivar: (id: number) => request<void>(`/usuarios/${id}`, { method: 'DELETE' }),
+    cambiarSuscripcion: (id: number, activa: boolean) => request<void>(`/usuarios/${id}/suscripcion`, {
+      method: 'PUT',
+      body: JSON.stringify({ activa }),
+    }),
   },
 
   // Cajas

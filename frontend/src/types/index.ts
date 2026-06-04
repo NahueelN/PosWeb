@@ -148,6 +148,8 @@ export interface UsuarioListadoDto {
   usuarioResponsableNombre?: string | null
   empresaRepresenta?: string | null
   activo: boolean
+  suscripcionActiva: boolean
+  accesoHabilitado: boolean
   pinConfigurado: boolean
 }
 

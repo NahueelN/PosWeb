@@ -20,6 +20,8 @@ public class Usuario
 
     public bool ACTIVO { get; private set; }
 
+    public bool SUSCRIPCION_ACTIVA { get; private set; }
+
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
     public int? ID_USUARIO_RESPONSABLE { get; private set; }
@@ -34,10 +36,12 @@ public class Usuario
         string? mail = null,
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
-        string? empresaRepresenta = null)
+        string? empresaRepresenta = null,
+        bool suscripcionActiva = true)
         : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta)
     {
         ID_USUARIO = id;
+        SUSCRIPCION_ACTIVA = suscripcionActiva;
     }
 
     public Usuario(
@@ -47,13 +51,15 @@ public class Usuario
         string? mail = null,
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
-        string? empresaRepresenta = null)
+        string? empresaRepresenta = null,
+        bool suscripcionActiva = true)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
         CambiarRol(rol);
         SetMail(mail);
         ACTIVO = true;
+        SUSCRIPCION_ACTIVA = suscripcionActiva;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
         ID_USUARIO_RESPONSABLE = usuarioResponsableId;
         SetEmpresaRepresenta(empresaRepresenta);
@@ -158,5 +164,15 @@ public class Usuario
     public void Desactivar()
     {
         ACTIVO = false;
+    }
+
+    public void ActivarSuscripcion()
+    {
+        SUSCRIPCION_ACTIVA = true;
+    }
+
+    public void SuspenderSuscripcion()
+    {
+        SUSCRIPCION_ACTIVA = false;
     }
 }
