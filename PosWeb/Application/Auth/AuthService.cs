@@ -42,6 +42,11 @@ public class AuthService
             throw new UsuarioInactivoException(request.Usuario);
         }
 
+        if (!TieneAccesoPorSuscripcion(usuario))
+        {
+            throw new UsuarioSinSuscripcionException(request.Usuario);
+        }
+
         if (!BCrypt.Net.BCrypt.Verify(request.Password, usuario.PASSWORD_HASH))
         {
             throw new CredencialesInvalidasException();
@@ -80,6 +85,11 @@ public class AuthService
         if (!usuario.ACTIVO)
         {
             throw new UsuarioInactivoException(request.Usuario);
+        }
+
+        if (!TieneAccesoPorSuscripcion(usuario))
+        {
+            throw new UsuarioSinSuscripcionException(request.Usuario);
         }
 
         if (!usuario.TienePin())
@@ -148,12 +158,19 @@ public class AuthService
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        var suscripcionActiva = rol == Roles.Admin
+            ? true
+            : _context.Usuarios
+                .FirstOrDefault(u => u.ID_USUARIO == currentUserId)?.SUSCRIPCION_ACTIVA ?? true;
+
         var nuevoUsuario = new Usuario(
             nombreUsuario,
             passwordHash,
             rol,
             mail,
-            usuarioResponsableId: usuarioResponsableId);
+            usuarioResponsableId: usuarioResponsableId,
+            empresaRepresenta: empresaRepresenta,
+            suscripcionActiva: suscripcionActiva);
 
         _context.Usuarios.Add(nuevoUsuario);
         _context.SaveChanges();
@@ -166,5 +183,25 @@ public class AuthService
             Rol = nuevoUsuario.ROL,
             UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP
         };
+    }
+
+    private bool TieneAccesoPorSuscripcion(Usuario usuario)
+    {
+        if (!usuario.SUSCRIPCION_ACTIVA)
+        {
+            return false;
+        }
+
+        if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        {
+            return true;
+        }
+
+        var responsable = _context.Usuarios
+            .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+
+        return responsable != null
+            && responsable.ACTIVO
+            && responsable.SUSCRIPCION_ACTIVA;
     }
 }

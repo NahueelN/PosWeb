@@ -15,6 +15,9 @@ using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Data;
 using PosWeb.Middlewares;
+using PosWeb.Domain;
+using System.Security.Claims;
+using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -139,6 +142,31 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        var userIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdValue, out var userId))
+        {
+            var db = context.RequestServices.GetRequiredService<PosDbContext>();
+            var usuario = db.Usuarios.FirstOrDefault(u => u.ID_USUARIO == userId);
+
+            if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "Acceso suspendido por suscripción vencida"
+                });
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 // Add CORS middleware
@@ -149,4 +177,85 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();
+
+static void EnsureUsuariosColumns(PosDbContext ctx)
+{
+    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
+    var shouldClose = connection.State != System.Data.ConnectionState.Open;
+    if (shouldClose)
+    {
+        connection.Open();
+    }
+
+    try
+    {
+        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA table_info('USUARIOS');";
+            using var reader = pragma.ExecuteReader();
+            while (reader.Read())
+            {
+                var columnName = reader["name"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(columnName))
+                {
+                    existingColumns.Add(columnName);
+                }
+            }
+        }
+
+        if (!existingColumns.Contains("MAIL"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN MAIL TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("ID_USUARIO_RESPONSABLE"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN ID_USUARIO_RESPONSABLE INTEGER NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("EMPRESA_REPRESENTA"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN EMPRESA_REPRESENTA TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("SUSCRIPCION_ACTIVA"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN SUSCRIPCION_ACTIVA INTEGER NOT NULL DEFAULT 1;";
+            alter.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        if (shouldClose)
+        {
+            connection.Close();
+        }
+    }
+}
+
+static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
+{
+    if (!usuario.ACTIVO || !usuario.SUSCRIPCION_ACTIVA)
+    {
+        return false;
+    }
+
+    if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+    {
+        return true;
+    }
+
+    var responsable = ctx.Usuarios.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+    return responsable != null
+        && responsable.ACTIVO
+        && responsable.SUSCRIPCION_ACTIVA;
+}
 

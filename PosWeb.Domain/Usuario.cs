@@ -20,11 +20,15 @@ public class Usuario
 
     public bool ACTIVO { get; private set; }
 
+    public bool SUSCRIPCION_ACTIVA { get; private set; }
+
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
     public int? ID_USUARIO_RESP { get; private set; }
 
-    public bool SUSCRIPCION_ACTIVA { get; private set; }
+    public string? EMPRESA_REPRESENTA { get; private set; }
+
+    public int? ID_USUARIO_RESPONSABLE { get; private set; }
 
     public Usuario(
         int id,
@@ -33,8 +37,10 @@ public class Usuario
         string rol,
         string? mail = null,
         int? sucursalDefault = null,
-        int? usuarioResponsableId = null)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId)
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null,
+        bool suscripcionActiva = true)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta, suscripcionActiva)
     {
         ID_USUARIO = id;
     }
@@ -45,16 +51,20 @@ public class Usuario
         string rol,
         string? mail = null,
         int? sucursalDefault = null,
-        int? usuarioResponsableId = null)
+        int? usuarioResponsableId = null,
+        string? empresaRepresenta = null,
+        bool suscripcionActiva = true)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
         CambiarRol(rol);
         SetMail(mail);
         ACTIVO = true;
-        SUSCRIPCION_ACTIVA = true;
+        SUSCRIPCION_ACTIVA = suscripcionActiva;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
         ID_USUARIO_RESP = usuarioResponsableId;
+        ID_USUARIO_RESPONSABLE = usuarioResponsableId;
+        EMPRESA_REPRESENTA = empresaRepresenta;
     }
 
     protected Usuario()
@@ -147,7 +157,7 @@ public class Usuario
         SUSCRIPCION_ACTIVA = true;
     }
 
-    public void DesactivarSuscripcion()
+    public void SuspenderSuscripcion()
     {
         SUSCRIPCION_ACTIVA = false;
     }
