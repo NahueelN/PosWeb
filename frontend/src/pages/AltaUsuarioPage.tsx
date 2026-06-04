@@ -18,6 +18,7 @@ export default function AltaUsuarioPage() {
   const [formError, setFormError] = useState('')
   const [listError, setListError] = useState('')
   const [success, setSuccess] = useState('')
+  const [desactivandoId, setDesactivandoId] = useState<number | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
@@ -76,6 +77,35 @@ export default function AltaUsuarioPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDesactivarUsuario(usuarioId: number, nombreUsuario: string) {
+    const confirmacion = window.confirm(`¿Dar de baja a ${nombreUsuario}?`)
+    if (!confirmacion) {
+      return
+    }
+
+    setListError('')
+    setSuccess('')
+    setDesactivandoId(usuarioId)
+
+    try {
+      await api.usuarios.desactivar(usuarioId)
+      setSuccess(`Usuario ${nombreUsuario} dado de baja correctamente.`)
+      await loadUsuarios()
+    } catch (err: any) {
+      const msg = err.message || 'Error al dar de baja al usuario'
+      try {
+        const parts = msg.split(': ')
+        const jsonPart = parts[parts.length - 1]
+        const parsed = JSON.parse(jsonPart)
+        setListError(parsed.error || msg)
+      } catch {
+        setListError(msg)
+      }
+    } finally {
+      setDesactivandoId(null)
     }
   }
 
@@ -233,6 +263,7 @@ export default function AltaUsuarioPage() {
                   <th className="py-2 pr-4 font-medium">Empresa</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
                   <th className="py-2 pr-4 font-medium">PIN</th>
+                  <th className="py-2 pr-4 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -264,6 +295,20 @@ export default function AltaUsuarioPage() {
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
                       {usuarioItem.pinConfigurado ? 'Configurado' : 'No configurado'}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {usuarioItem.activo && usuarioItem.rol === 'UsuarioComun' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDesactivarUsuario(usuarioItem.id, usuarioItem.nombreUsuario)}
+                          disabled={desactivandoId === usuarioItem.id}
+                          className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {desactivandoId === usuarioItem.id ? 'Dando de baja...' : 'Dar de baja'}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">Sin acciones</span>
+                      )}
                     </td>
                   </tr>
                 ))}
