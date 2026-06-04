@@ -166,10 +166,6 @@ public class AuthService
         }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-        var suscripcionActiva = rol == Roles.Admin
-            ? true
-            : _context.Usuarios
-                .FirstOrDefault(u => u.ID_USUARIO == currentUserId)?.SUSCRIPCION_ACTIVA ?? true;
 
         var nuevoUsuario = new Usuario(
             nombreUsuario,
@@ -177,11 +173,17 @@ public class AuthService
             rol,
             mail,
             usuarioResponsableId: usuarioResponsableId,
-            empresaRepresenta: empresaRepresenta,
-            suscripcionActiva: suscripcionActiva);
+            empresaRepresenta: empresaRepresenta);
 
         _context.Usuarios.Add(nuevoUsuario);
         _context.SaveChanges();
+
+        if (rol == Roles.Admin)
+        {
+            var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
+            _context.Suscripciones.Add(suscripcion);
+            _context.SaveChanges();
+        }
 
         return new RegisterResponseDto
         {
@@ -196,21 +198,31 @@ public class AuthService
 
     private bool TieneAccesoPorSuscripcion(Usuario usuario)
     {
-        if (!usuario.SUSCRIPCION_ACTIVA)
+        var titular = ObtenerTitularSuscripcion(usuario);
+        if (titular == null)
         {
-            return false;
+            return usuario.SUSCRIPCION_ACTIVA;
         }
 
+        var suscripcion = _context.Suscripciones
+            .FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
+
+        if (suscripcion == null)
+        {
+            return titular.SUSCRIPCION_ACTIVA;
+        }
+
+        return suscripcion.EstaActiva();
+    }
+
+    private Usuario? ObtenerTitularSuscripcion(Usuario usuario)
+    {
         if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
         {
-            return true;
+            return usuario;
         }
 
-        var responsable = _context.Usuarios
+        return _context.Usuarios
             .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
-
-        return responsable != null
-            && responsable.ACTIVO
-            && responsable.SUSCRIPCION_ACTIVA;
     }
 }

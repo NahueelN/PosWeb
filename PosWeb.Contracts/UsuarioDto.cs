@@ -12,5 +12,11 @@ public class UsuarioDto
     public bool Activo { get; set; }
     public bool SuscripcionActiva { get; set; }
     public bool AccesoHabilitado { get; set; }
+    public string? SuscripcionNivel { get; set; }
+    public string? SuscripcionEstado { get; set; }
+    public decimal? CostoMensual { get; set; }
+    public int? MaxSucursales { get; set; }
+    public int? MaxAdmins { get; set; }
+    public int? MaxUsuarios { get; set; }
     public bool PinConfigurado { get; set; }
 }

@@ -28,6 +28,9 @@ public class UsuariosController : ControllerBase
         var responsables = usuariosPorId
             .ToDictionary(u => u.Key, u => u.Value.NOMBRE_USUARIO);
 
+        var suscripcionesPorTitular = _context.Suscripciones
+            .ToDictionary(s => s.ID_USUARIO_TITULAR, s => s);
+
         var usuarios = _context.Usuarios
             .OrderBy(u => u.NOMBRE_USUARIO)
             .AsEnumerable()
@@ -43,8 +46,14 @@ public class UsuariosController : ControllerBase
                     : null,
                 EmpresaRepresenta = u.EMPRESA_REPRESENTA,
                 Activo = u.ACTIVO,
-                SuscripcionActiva = u.SUSCRIPCION_ACTIVA,
-                AccesoHabilitado = TieneAccesoHabilitado(u, usuariosPorId),
+                SuscripcionActiva = TieneSuscripcionActiva(u, usuariosPorId, suscripcionesPorTitular),
+                AccesoHabilitado = TieneAccesoHabilitado(u, usuariosPorId, suscripcionesPorTitular),
+                SuscripcionNivel = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.NIVEL,
+                SuscripcionEstado = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.ESTADO,
+                CostoMensual = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.COSTO_MENSUAL,
+                MaxSucursales = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_SUCURSALES,
+                MaxAdmins = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_ADMINS,
+                MaxUsuarios = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_USUARIOS,
                 PinConfigurado = u.PIN_HASH != null && u.PIN_HASH != string.Empty
             })
             .ToList();
@@ -66,29 +75,22 @@ public class UsuariosController : ControllerBase
             return BadRequest("La suscripción solo se gestiona sobre usuarios admin");
         }
 
+        var suscripcion = _context.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO);
+        if (suscripcion == null)
+        {
+            suscripcion = Suscripcion.CrearBasica(usuario.ID_USUARIO);
+            _context.Suscripciones.Add(suscripcion);
+        }
+
         if (request.Activa)
         {
+            suscripcion.Activar();
             usuario.ActivarSuscripcion();
         }
         else
         {
+            suscripcion.Suspender();
             usuario.SuspenderSuscripcion();
-        }
-
-        var dependientes = _context.Usuarios
-            .Where(u => u.ID_USUARIO_RESPONSABLE == id)
-            .ToList();
-
-        foreach (var dependiente in dependientes)
-        {
-            if (request.Activa)
-            {
-                dependiente.ActivarSuscripcion();
-            }
-            else
-            {
-                dependiente.SuspenderSuscripcion();
-            }
         }
 
         _context.SaveChanges();
@@ -96,8 +98,8 @@ public class UsuariosController : ControllerBase
         return Ok(new
         {
             id = usuario.ID_USUARIO,
-            suscripcionActiva = usuario.SUSCRIPCION_ACTIVA,
-            dependientesActualizados = dependientes.Count
+            suscripcionActiva = suscripcion.EstaActiva(),
+            nivel = suscripcion.NIVEL
         });
     }
 
@@ -132,21 +134,61 @@ public class UsuariosController : ControllerBase
         return NoContent();
     }
 
-    private static bool TieneAccesoHabilitado(Usuario usuario, Dictionary<int, Usuario> usuariosPorId)
+    private static bool TieneAccesoHabilitado(
+        Usuario usuario,
+        Dictionary<int, Usuario> usuariosPorId,
+        Dictionary<int, Suscripcion> suscripcionesPorTitular)
     {
-        if (!usuario.ACTIVO || !usuario.SUSCRIPCION_ACTIVA)
+        if (!usuario.ACTIVO)
         {
             return false;
         }
 
-        if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        return TieneSuscripcionActiva(usuario, usuariosPorId, suscripcionesPorTitular);
+    }
+
+    private static bool TieneSuscripcionActiva(
+        Usuario usuario,
+        Dictionary<int, Usuario> usuariosPorId,
+        Dictionary<int, Suscripcion> suscripcionesPorTitular)
+    {
+        var titular = ObtenerTitular(usuario, usuariosPorId);
+
+        if (titular == null)
         {
-            return true;
+            return usuario.SUSCRIPCION_ACTIVA;
         }
 
-        return usuariosPorId.TryGetValue(usuario.ID_USUARIO_RESPONSABLE.Value, out var responsable)
-            && responsable.ACTIVO
-            && responsable.SUSCRIPCION_ACTIVA;
+        if (suscripcionesPorTitular.TryGetValue(titular.ID_USUARIO, out var suscripcion))
+        {
+            return suscripcion.EstaActiva();
+        }
+
+        return titular.SUSCRIPCION_ACTIVA;
+    }
+
+    private static Suscripcion? ObtenerSuscripcion(
+        Usuario usuario,
+        Dictionary<int, Usuario> usuariosPorId,
+        Dictionary<int, Suscripcion> suscripcionesPorTitular)
+    {
+        var titular = ObtenerTitular(usuario, usuariosPorId);
+        if (titular == null)
+        {
+            return null;
+        }
+
+        suscripcionesPorTitular.TryGetValue(titular.ID_USUARIO, out var suscripcion);
+        return suscripcion;
+    }
+
+    private static Usuario? ObtenerTitular(
+        Usuario usuario,
+        Dictionary<int, Usuario> usuariosPorId)
+    {
+        return usuario.ID_USUARIO_RESPONSABLE.HasValue
+            ? usuariosPorId.GetValueOrDefault(usuario.ID_USUARIO_RESPONSABLE.Value)
+            : usuario;
     }
 }
 

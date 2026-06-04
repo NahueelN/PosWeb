@@ -293,6 +293,8 @@ export default function AltaUsuarioPage() {
                   <th className="py-2 pr-4 font-medium">Responde a</th>
                   <th className="py-2 pr-4 font-medium">Empresa</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
+                  <th className="py-2 pr-4 font-medium">Nivel</th>
+                  <th className="py-2 pr-4 font-medium">Costo</th>
                   <th className="py-2 pr-4 font-medium">Suscripción</th>
                   <th className="py-2 pr-4 font-medium">Acceso</th>
                   <th className="py-2 pr-4 font-medium">PIN</th>
@@ -325,6 +327,12 @@ export default function AltaUsuarioPage() {
                       >
                         {usuarioItem.activo ? 'Activo' : 'Inactivo'}
                       </span>
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {usuarioItem.suscripcionNivel || '-'}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {usuarioItem.costoMensual != null ? `$${usuarioItem.costoMensual.toFixed(2)}` : '-'}
                     </td>
                     <td className="py-3 pr-4">
                       <span

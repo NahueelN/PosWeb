@@ -16,6 +16,7 @@ public class PosDbContext : DbContext
     public DbSet<RenglonVenta> RenglonesVenta { get; set; }
     public DbSet<StockSucursal> StockSucursales { get; set; }
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<Suscripcion> Suscripciones { get; set; }
     public DbSet<MedioPago> MediosPago { get; set; }
     public DbSet<PagoVenta> PagosVenta { get; set; }
     public DbSet<Caja> Cajas { get; set; }
@@ -242,6 +243,63 @@ public class PosDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(u => u.ID_USUARIO_RESPONSABLE)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // SUSCRIPCION
+        modelBuilder.Entity<Suscripcion>(entity =>
+        {
+            entity.ToTable("SUSCRIPCIONES");
+
+            entity.HasKey(s => s.ID_SUSCRIPCION);
+
+            entity.Property(s => s.ID_SUSCRIPCION)
+                .HasColumnName("ID_SUSCRIPCION");
+
+            entity.Property(s => s.ID_USUARIO_TITULAR)
+                .HasColumnName("ID_USUARIO_TITULAR");
+
+            entity.Property(s => s.NIVEL)
+                .HasColumnName("NIVEL")
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(s => s.ESTADO)
+                .HasColumnName("ESTADO")
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(s => s.COSTO_MENSUAL)
+                .HasColumnName("COSTO_MENSUAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(s => s.MAX_SUCURSALES)
+                .HasColumnName("MAX_SUCURSALES");
+
+            entity.Property(s => s.MAX_ADMINS)
+                .HasColumnName("MAX_ADMINS");
+
+            entity.Property(s => s.MAX_USUARIOS)
+                .HasColumnName("MAX_USUARIOS");
+
+            entity.Property(s => s.FECHA_INICIO)
+                .HasColumnName("FECHA_INICIO");
+
+            entity.Property(s => s.FECHA_FIN)
+                .HasColumnName("FECHA_FIN");
+
+            entity.Property(s => s.PROXIMO_COBRO)
+                .HasColumnName("PROXIMO_COBRO");
+
+            entity.Property(s => s.MERCADOPAGO_PREAPPROVAL_ID)
+                .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID")
+                .HasMaxLength(80);
+
+            entity.HasIndex(s => s.ID_USUARIO_TITULAR).IsUnique();
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(s => s.ID_USUARIO_TITULAR)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // MEDIO PAGO

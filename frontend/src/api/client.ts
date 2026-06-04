@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -205,7 +205,7 @@ export const api = {
   usuarios: {
     listar: () => request<UsuarioListadoDto[]>('/usuarios'),
     desactivar: (id: number) => request<void>(`/usuarios/${id}`, { method: 'DELETE' }),
-    cambiarSuscripcion: (id: number, activa: boolean) => request<void>(`/usuarios/${id}/suscripcion`, {
+    cambiarSuscripcion: (id: number, activa: boolean) => request<CambiarSuscripcionResponse>(`/usuarios/${id}/suscripcion`, {
       method: 'PUT',
       body: JSON.stringify({ activa }),
     }),
