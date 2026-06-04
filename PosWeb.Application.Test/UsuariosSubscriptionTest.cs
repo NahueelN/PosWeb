@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Security.Claims;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Exceptions;
 using PosWeb.Controllers;
@@ -52,6 +54,16 @@ public class UsuariosSubscriptionTest
         context.Usuarios.Add(usuario);
         context.SaveChanges();
         return usuario;
+    }
+
+    private static void VincularUsuarioActual(HttpContext httpContext, int userId)
+    {
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+            },
+            "TestAuth"));
     }
 
     [Fact]
@@ -136,5 +148,52 @@ public class UsuariosSubscriptionTest
         Assert.IsType<OkObjectResult>(resultado);
         Assert.False(context.Suscripciones.Single(s => s.ID_USUARIO_TITULAR == 1).EstaActiva());
         Assert.False(context.Usuarios.Single(u => u.ID_USUARIO == 1).SUSCRIPCION_ACTIVA);
+    }
+
+    [Fact]
+    public void Register_ConPlanBasico_NoPermiteMasUsuariosComunes()
+    {
+        var context = CrearContexto(nameof(Register_ConPlanBasico_NoPermiteMasUsuariosComunes));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var service = new AuthService(context, CrearJwtTokenService());
+
+        service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "usuario1",
+            Password = "123456",
+            Mail = "u1@test.com",
+            Rol = Roles.UsuarioComun
+        }, currentUserId: 1);
+
+        Assert.Throws<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "usuario2",
+            Password = "123456",
+            Mail = "u2@test.com",
+            Rol = Roles.UsuarioComun
+        }, currentUserId: 1));
+    }
+
+    [Fact]
+    public void Register_ConPlanMedia_NoPermiteMasAdmins()
+    {
+        var context = CrearContexto(nameof(Register_ConPlanMedia_NoPermiteMasAdmins));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripciones.Add(Suscripcion.CrearMedia(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var service = new AuthService(context, CrearJwtTokenService());
+
+        Assert.Throws<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin2",
+            Password = "123456",
+            Mail = "admin2@test.com",
+            Rol = Roles.Admin,
+            EmpresaRepresenta = "Empresa"
+        }, currentUserId: 1));
     }
 }
