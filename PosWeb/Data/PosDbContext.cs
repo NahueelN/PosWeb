@@ -88,6 +88,14 @@ public class PosDbContext : DbContext
 
             entity.Property(s => s.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.Property(s => s.ID_SUSCRIPCION)
+                .HasColumnName("ID_SUSCRIPCION");
+
+            entity.HasOne<Suscripcion>()
+                .WithMany()
+                .HasForeignKey(s => s.ID_SUSCRIPCION)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // VENTA

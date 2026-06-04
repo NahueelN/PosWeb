@@ -155,7 +155,25 @@ public class AuthService
             throw new ArgumentException("El usuario ya existe");
         }
 
-        int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
+        Usuario? titular = currentUserId.HasValue
+            ? ObtenerTitularSuscripcion(_context.Usuarios.FirstOrDefault(u => u.ID_USUARIO == currentUserId.Value))
+            : null;
+
+        var suscripcion = titular != null
+            ? _context.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO)
+            : null;
+
+        if (currentUserId.HasValue && (titular == null || suscripcion == null))
+        {
+            throw new UsuarioSinSuscripcionException(request.Usuario);
+        }
+
+        if (suscripcion != null)
+        {
+            ValidarCupoParaAlta(suscripcion, rol);
+        }
+
+        int? usuarioResponsableId = currentUserId;
         string? empresaRepresenta = rol == Roles.Admin
             ? request.EmpresaRepresenta?.Trim()
             : null;
@@ -178,10 +196,10 @@ public class AuthService
         _context.Usuarios.Add(nuevoUsuario);
         _context.SaveChanges();
 
-        if (rol == Roles.Admin)
+        if (rol == Roles.Admin && !currentUserId.HasValue)
         {
-            var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
-            _context.Suscripciones.Add(suscripcion);
+            var nuevaSuscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
+            _context.Suscripciones.Add(nuevaSuscripcion);
             _context.SaveChanges();
         }
 
@@ -215,14 +233,69 @@ public class AuthService
         return suscripcion.EstaActiva();
     }
 
-    private Usuario? ObtenerTitularSuscripcion(Usuario usuario)
+    private Usuario? ObtenerTitularSuscripcion(Usuario? usuario)
     {
-        if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        if (usuario == null)
         {
-            return usuario;
+            return null;
         }
 
-        return _context.Usuarios
-            .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+        while (usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        {
+            var responsable = _context.Usuarios
+                .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+
+            if (responsable == null)
+            {
+                break;
+            }
+
+            usuario = responsable;
+        }
+
+        return usuario;
+    }
+
+    private void ValidarCupoParaAlta(Suscripcion suscripcion, string rol)
+    {
+        if (!suscripcion.EstaActiva())
+        {
+            throw new UsuarioSinSuscripcionException(rol);
+        }
+
+        if (rol == Roles.Admin)
+        {
+            if (suscripcion.PermiteUsuariosIlimitados())
+            {
+                return;
+            }
+
+            var adminsActivos = _context.Usuarios
+                .Where(u => u.ACTIVO && u.ROL == Roles.Admin)
+                .ToList()
+                .Count(u => ObtenerTitularSuscripcion(u)?.ID_USUARIO == suscripcion.ID_USUARIO_TITULAR);
+
+            if (adminsActivos >= suscripcion.MAX_ADMINS)
+            {
+                throw new SuscripcionSinCupoException("administradores", suscripcion.NIVEL);
+            }
+
+            return;
+        }
+
+        if (suscripcion.PermiteUsuariosIlimitados())
+        {
+            return;
+        }
+
+        var usuariosActivos = _context.Usuarios
+            .Where(u => u.ACTIVO && u.ROL == Roles.UsuarioComun)
+            .ToList()
+            .Count(u => ObtenerTitularSuscripcion(u)?.ID_USUARIO == suscripcion.ID_USUARIO_TITULAR);
+
+        if (usuariosActivos >= suscripcion.MAX_USUARIOS)
+        {
+            throw new SuscripcionSinCupoException("usuarios", suscripcion.NIVEL);
+        }
     }
 }

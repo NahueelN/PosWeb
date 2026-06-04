@@ -118,6 +118,7 @@ using (var scope = app.Services.CreateScope())
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     ctx.Database.Migrate();
     EnsureUsuariosColumns(ctx);
+    EnsureSucursalesColumns(ctx);
     EnsureSuscripcionesTable(ctx);
 
     var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
@@ -131,6 +132,24 @@ using (var scope = app.Services.CreateScope())
     {
         ctx.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         ctx.SaveChanges();
+    }
+
+    if (admin != null)
+    {
+        var adminSubscription = ctx.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+        if (adminSubscription != null)
+        {
+            var sucursalesSinSuscripcion = ctx.Sucursales.Where(s => s.ID_SUSCRIPCION == null).ToList();
+            foreach (var sucursal in sucursalesSinSuscripcion)
+            {
+                sucursal.VincularSuscripcion(adminSubscription.ID_SUSCRIPCION);
+            }
+
+            if (sucursalesSinSuscripcion.Count > 0)
+            {
+                ctx.SaveChanges();
+            }
+        }
     }
 }
 
@@ -237,6 +256,7 @@ static void EnsureUsuariosColumns(PosDbContext ctx)
             alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN SUSCRIPCION_ACTIVA INTEGER NOT NULL DEFAULT 1;";
             alter.ExecuteNonQuery();
         }
+
     }
     finally
     {
@@ -270,6 +290,48 @@ static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
     }
 
     return titular.SUSCRIPCION_ACTIVA;
+}
+
+static void EnsureSucursalesColumns(PosDbContext ctx)
+{
+    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
+    var shouldClose = connection.State != System.Data.ConnectionState.Open;
+    if (shouldClose)
+    {
+        connection.Open();
+    }
+
+    try
+    {
+        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA table_info('SUCURSALES');";
+            using var reader = pragma.ExecuteReader();
+            while (reader.Read())
+            {
+                var columnName = reader["name"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(columnName))
+                {
+                    existingColumns.Add(columnName);
+                }
+            }
+        }
+
+        if (!existingColumns.Contains("ID_SUSCRIPCION"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE SUCURSALES ADD COLUMN ID_SUSCRIPCION INTEGER NULL;";
+            alter.ExecuteNonQuery();
+        }
+    }
+    finally
+    {
+        if (shouldClose)
+        {
+            connection.Close();
+        }
+    }
 }
 
 static void EnsureSuscripcionesTable(PosDbContext ctx)

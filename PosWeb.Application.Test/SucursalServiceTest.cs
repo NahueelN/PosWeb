@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Sucursales;
 using PosWeb.Contracts;
@@ -23,6 +25,24 @@ public class SucursalServiceTest
     private static SucursalService CrearService(PosDbContext context)
     {
         return new SucursalService(context);
+    }
+
+    private static SucursalService CrearService(PosDbContext context, int userId)
+    {
+        var accessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                    },
+                    "TestAuth"))
+            }
+        };
+
+        return new SucursalService(context, accessor);
     }
 
     private static void AgregarSucursal(
@@ -82,6 +102,27 @@ public class SucursalServiceTest
         Assert.NotEqual(0, creada.Id);
         Assert.True(creada.Activo);
         Assert.Equal(1, creada.Numero);
+    }
+
+    [Fact]
+    public void CrearSucursal_ConPlanBasico_LimitaCantidad()
+    {
+        using PosDbContext context = CrearContexto();
+        Usuario admin = new Usuario("admin", BCrypt.Net.BCrypt.HashPassword("123456"), Roles.Admin, "admin@test.com");
+        TestHelpers.SetId(admin, 1, "ID_USUARIO");
+        context.Usuarios.Add(admin);
+        context.SaveChanges();
+        context.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        SucursalService service = CrearService(context, 1);
+
+        service.Crear(new SucursalDto { Numero = 1, Codigo = "SUC1", Nombre = "Sucursal 1" });
+
+        Assert.Throws<SuscripcionSinCupoException>(() =>
+        {
+            service.Crear(new SucursalDto { Numero = 2, Codigo = "SUC2", Nombre = "Sucursal 2" });
+        });
     }
 
     [Fact]

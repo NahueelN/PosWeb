@@ -8,6 +8,8 @@ public class Sucursal
     [Key]
     public int ID_SUCURSAL { get; private set; }
 
+    public int? ID_SUSCRIPCION { get; private set; }
+
     public int NUMERO { get; private set; }
 
     public string CODIGO { get; private set; } = null!;
@@ -16,13 +18,14 @@ public class Sucursal
 
     public bool ACTIVO { get; private set; }
 
-    public Sucursal(int numero, string codigo, string nombre)
+    public Sucursal(int numero, string codigo, string nombre, int? suscripcionId = null)
     {
         CambiarNumero(numero);
         CambiarCodigo(codigo);
         CambiarNombre(nombre);
 
         ACTIVO = true;
+        ID_SUSCRIPCION = suscripcionId;
     }
 
     protected Sucursal()
@@ -67,5 +70,10 @@ public class Sucursal
     public void Desactivar()
     {
         ACTIVO = false;
+    }
+
+    public void VincularSuscripcion(int? suscripcionId)
+    {
+        ID_SUSCRIPCION = suscripcionId;
     }
 }
