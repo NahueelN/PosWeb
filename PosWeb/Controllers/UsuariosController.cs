@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
+using System.Security.Claims;
 
 namespace PosWeb.Controllers;
 
@@ -43,5 +44,36 @@ public class UsuariosController : ControllerBase
             .ToList();
 
         return Ok(usuarios);
+    }
+
+    [HttpDelete("{id:int}")]
+    public IActionResult Desactivar(int id)
+    {
+        var usuario = _context.Usuarios.FirstOrDefault(u => u.ID_USUARIO == id);
+        if (usuario == null)
+        {
+            return NotFound($"El usuario con ID {id} no existe");
+        }
+
+        if (usuario.ROL != Roles.UsuarioComun)
+        {
+            return BadRequest("Solo se pueden dar de baja usuarios comunes");
+        }
+
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdValue, out var currentUserId) && currentUserId == usuario.ID_USUARIO)
+        {
+            return BadRequest("No podés darte de baja a vos mismo");
+        }
+
+        if (!usuario.ACTIVO)
+        {
+            return NoContent();
+        }
+
+        usuario.Desactivar();
+        _context.SaveChanges();
+
+        return NoContent();
     }
 }
