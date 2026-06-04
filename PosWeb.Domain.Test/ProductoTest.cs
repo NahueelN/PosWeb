@@ -6,83 +6,21 @@ namespace PosWeb.Domain.Test;
 
 public class ProductoTest
 {
-    [Fact]
-    public void DescontarStock_RestaCantidadCorrectamente()
+    private static Producto CrearProductoValido()
     {
-        Producto producto = new Producto(
+        return new Producto(
+            "PROD001",
             "123456",
             "Producto Test",
-            100,
-            80,
-            10
+            100m,
+            80m
         );
-
-        producto.DescontarStock(3);
-
-        Assert.Equal(7, producto.STOCK);
-    }
-
-    [Fact]
-    public void DescontarStock_StockInsuficiente_LanzaExcepcion()
-    {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            2
-        );
-
-        Assert.Throws<StockInsuficienteException>(() =>
-        {
-            producto.DescontarStock(5);
-        });
-    }
-
-    [Fact]
-    public void DescontarStock_CantidadCero_LanzaExcepcion()
-    {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            10
-        );
-
-        Assert.Throws<CantidadInvalidaException>(() =>
-        {
-            producto.DescontarStock(0);
-        });
-    }
-
-    [Fact]
-    public void DescontarStock_CantidadNegativa_LanzaExcepcion()
-    {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            10
-        );
-
-        Assert.Throws<CantidadInvalidaException>(() =>
-        {
-            producto.DescontarStock(-1);
-        });
     }
 
     [Fact]
     public void CambiarPrecio_PrecioInvalido_LanzaExcepcion()
     {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            10
-        );
+        Producto producto = CrearProductoValido();
 
         Assert.Throws<PrecioInvalidoException>(() =>
         {
@@ -93,34 +31,11 @@ public class ProductoTest
     [Fact]
     public void CambiarCosto_CostoInvalido_LanzaExcepcion()
     {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            10
-        );
+        Producto producto = CrearProductoValido();
 
         Assert.Throws<CostoInvalidoException>(() =>
         {
             producto.CambiarCosto(-1);
-        });
-    }
-
-    [Fact]
-    public void CambiarStock_StockInvalido_LanzaExcepcion()
-    {
-        Producto producto = new Producto(
-            "123456",
-            "Producto Test",
-            100,
-            80,
-            10
-        );
-
-        Assert.Throws<StockInvalidoException>(() =>
-        {
-            producto.CambiarStock(-5);
         });
     }
 
@@ -130,26 +45,26 @@ public class ProductoTest
         Assert.Throws<CodigoBarraInvalidoException>(() =>
         {
             new Producto(
+                "PROD001",
                 "",
                 "Producto Test",
-                100,
-                80,
-                10
+                100m,
+                80m
             );
         });
     }
 
     [Fact]
-    public void CambiarNombre_NombreInvalido_LanzaExcepcion()
+    public void CambiarDescripcion_DescripcionVacia_LanzaExcepcion()
     {
         Assert.Throws<NombreInvalidoException>(() =>
         {
             new Producto(
+                "PROD001",
                 "123456",
                 "",
-                100,
-                80,
-                10
+                100m,
+                80m
             );
         });
     }

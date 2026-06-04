@@ -18,13 +18,13 @@ public class SucursalService
     {
         return _context.Sucursales
             .Where(s => s.ACTIVO)
-            .OrderBy(s => s.NUMERO)
+            .OrderBy(s => s.COD_SUCURSAL)
             .Select(s => new SucursalDto
             {
                 Id = s.ID_SUCURSAL,
-                Numero = s.NUMERO,
-                Codigo = s.CODIGO,
-                Nombre = s.NOMBRE,
+                Numero = 0,
+                Codigo = s.COD_SUCURSAL,
+                Nombre = s.DESC_SUCURSAL,
                 Activo = s.ACTIVO
             })
             .ToList();
@@ -32,18 +32,10 @@ public class SucursalService
 
     public SucursalDto Crear(SucursalDto dto)
     {
-        bool numeroExiste = _context.Sucursales
-            .Any(s => s.NUMERO == dto.Numero);
-
-        if (numeroExiste)
-        {
-            throw new SucursalNumeroDuplicadoException(dto.Numero);
-        }
-
         Sucursal sucursal = new Sucursal(
-            dto.Numero,
             dto.Codigo,
-            dto.Nombre
+            dto.Nombre,
+            1 // Default ID_EMPRESA = 1
         );
 
         _context.Sucursales.Add(sucursal);
@@ -52,9 +44,9 @@ public class SucursalService
         return new SucursalDto
         {
             Id = sucursal.ID_SUCURSAL,
-            Numero = sucursal.NUMERO,
-            Codigo = sucursal.CODIGO,
-            Nombre = sucursal.NOMBRE,
+            Numero = 0,
+            Codigo = sucursal.COD_SUCURSAL,
+            Nombre = sucursal.DESC_SUCURSAL,
             Activo = sucursal.ACTIVO
         };
     }
@@ -72,9 +64,9 @@ public class SucursalService
         return new SucursalDto
         {
             Id = sucursal.ID_SUCURSAL,
-            Numero = sucursal.NUMERO,
-            Codigo = sucursal.CODIGO,
-            Nombre = sucursal.NOMBRE,
+            Numero = 0,
+            Codigo = sucursal.COD_SUCURSAL,
+            Nombre = sucursal.DESC_SUCURSAL,
             Activo = sucursal.ACTIVO
         };
     }

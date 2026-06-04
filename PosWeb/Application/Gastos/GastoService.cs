@@ -46,7 +46,7 @@ public class GastoService
     {
         return _context.Gastos
             .Where(g => g.ID_CAJA == cajaId)
-            .OrderByDescending(g => g.FECHA)
+            .OrderByDescending(g => g.FECHA_GASTO)
             .Select(g => MapToDto(g))
             .ToList();
     }
@@ -59,7 +59,7 @@ public class GastoService
             CajaId = gasto.ID_CAJA,
             Monto = gasto.MONTO,
             Detalle = gasto.DETALLE,
-            Fecha = gasto.FECHA,
+            Fecha = gasto.FECHA_GASTO,
         };
     }
 }

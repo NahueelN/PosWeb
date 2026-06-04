@@ -10,23 +10,36 @@ public class PosDbContext : DbContext
     {
     }
 
+    // Existing entities (kept as-is)
+    public DbSet<Caja> Cajas { get; set; }
+
+    // Modified entities
     public DbSet<Producto> Productos { get; set; }
     public DbSet<Sucursal> Sucursales { get; set; }
-    public DbSet<Venta> Ventas { get; set; }
-    public DbSet<RenglonVenta> RenglonesVenta { get; set; }
     public DbSet<StockSucursal> StockSucursales { get; set; }
     public DbSet<Usuario> Usuarios { get; set; }
-    public DbSet<MedioPago> MediosPago { get; set; }
-    public DbSet<PagoVenta> PagosVenta { get; set; }
-    public DbSet<Caja> Cajas { get; set; }
     public DbSet<Cliente> Clientes { get; set; }
+    public DbSet<Venta> Ventas { get; set; }
+    public DbSet<RenglonVenta> RenglonesVenta { get; set; }
+    public DbSet<MedioPago> MediosPago { get; set; }
+    public DbSet<Pago> Pagos { get; set; }
     public DbSet<Gasto> Gastos { get; set; }
+
+    // New entities
+    public DbSet<Suscripcion> Suscripciones { get; set; }
+    public DbSet<Empresa> Empresas { get; set; }
+    public DbSet<Categoria> Categorias { get; set; }
+    public DbSet<UnidadMedida> UnidadesMedida { get; set; }
+    public DbSet<Proveedor> Proveedores { get; set; }
+    public DbSet<Compra> Compras { get; set; }
+    public DbSet<RenglonCompra> RenglonesCompra { get; set; }
+    public DbSet<Deuda> Deudas { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // PRODUCTO
+        // ---- PRODUCTO ----
         modelBuilder.Entity<Producto>(entity =>
         {
             entity.ToTable("PRODUCTOS");
@@ -36,35 +49,58 @@ public class PosDbContext : DbContext
             entity.Property(p => p.ID_PRODUCTO)
                 .HasColumnName("ID_PRODUCTO");
 
-            entity.Property(p => p.CODIGO_BARRA)
-                .HasColumnName("CODIGO_BARRA")
+            entity.Property(p => p.COD_PRODUCTO)
+                .HasColumnName("COD_PRODUCTO")
+                .HasMaxLength(50)
                 .IsRequired();
 
-            entity.Property(p => p.NOMBRE)
-                .HasColumnName("NOMBRE")
+            entity.HasIndex(p => p.COD_PRODUCTO)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(p => p.DESC_PRODUCTO)
+                .HasColumnName("DESC_PRODUCTO")
+                .HasMaxLength(200)
                 .IsRequired();
+
+            entity.Property(p => p.CODIGO_BARRAS)
+                .HasColumnName("CODIGO_BARRAS")
+                .HasMaxLength(100);
 
             entity.Property(p => p.PRECIO)
-                .HasColumnName("PRECIO");
+                .HasColumnName("PRECIO")
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
 
             entity.Property(p => p.COSTO)
-                .HasColumnName("COSTO");
+                .HasColumnName("COSTO")
+                .HasColumnType("decimal(18,2)");
 
-            entity.Property(p => p.STOCK)
-                .HasColumnName("STOCK");
+            entity.Property(p => p.ID_CATEGORIA)
+                .HasColumnName("ID_CATEGORIA");
 
-            entity.Property(p => p.TAMANO)
-                .HasColumnName("TAMANO")
-                .HasMaxLength(50);
+            entity.Property(p => p.ID_UNIDAD_MEDIDA)
+                .HasColumnName("ID_UNIDAD_MEDIDA");
+
+            entity.Property(p => p.CONTENIDO)
+                .HasColumnName("CONTENIDO")
+                .HasColumnType("decimal(18,2)");
 
             entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
 
-            entity.HasIndex(p => p.CODIGO_BARRA);
-            entity.HasIndex(p => p.NOMBRE);
+            entity.HasOne<Categoria>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_CATEGORIA)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<UnidadMedida>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_UNIDAD_MEDIDA)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // SUCURSAL
+        // ---- SUCURSAL ----
         modelBuilder.Entity<Sucursal>(entity =>
         {
             entity.ToTable("SUCURSALES");
@@ -74,22 +110,148 @@ public class PosDbContext : DbContext
             entity.Property(s => s.ID_SUCURSAL)
                 .HasColumnName("ID_SUCURSAL");
 
-            entity.Property(s => s.NUMERO)
-                .HasColumnName("NUMERO");
-
-            entity.Property(s => s.CODIGO)
-                .HasColumnName("CODIGO")
+            entity.Property(s => s.COD_SUCURSAL)
+                .HasColumnName("COD_SUCURSAL")
+                .HasMaxLength(50)
                 .IsRequired();
 
-            entity.Property(s => s.NOMBRE)
-                .HasColumnName("NOMBRE")
+            entity.HasIndex(s => s.COD_SUCURSAL)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(s => s.DESC_SUCURSAL)
+                .HasColumnName("DESC_SUCURSAL")
+                .HasMaxLength(200)
                 .IsRequired();
+
+            entity.Property(s => s.ID_EMPRESA)
+                .HasColumnName("ID_EMPRESA");
 
             entity.Property(s => s.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.HasOne<Empresa>()
+                .WithMany()
+                .HasForeignKey(s => s.ID_EMPRESA)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // VENTA
+        // ---- STOCK SUCURSAL ----
+        modelBuilder.Entity<StockSucursal>(entity =>
+        {
+            entity.ToTable("STOCK_POR_SUCURSAL");
+
+            entity.HasKey(s => new { s.ID_PRODUCTO, s.ID_SUCURSAL });
+
+            entity.Property(s => s.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO");
+
+            entity.Property(s => s.ID_SUCURSAL)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(s => s.STOCK)
+                .HasColumnName("STOCK")
+                .HasColumnType("decimal(18,2)");
+
+            entity.HasOne(s => s.Producto)
+                .WithMany()
+                .HasForeignKey(s => s.ID_PRODUCTO)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(s => s.Sucursal)
+                .WithMany()
+                .HasForeignKey(s => s.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- USUARIO ----
+        modelBuilder.Entity<Usuario>(entity =>
+        {
+            entity.ToTable("USUARIOS");
+
+            entity.HasKey(u => u.ID_USUARIO);
+
+            entity.Property(u => u.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(u => u.NOMBRE_USUARIO)
+                .HasColumnName("NOMBRE_USUARIO")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.HasIndex(u => u.NOMBRE_USUARIO)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(u => u.PASSWORD_HASH)
+                .HasColumnName("PASSWORD_HASH")
+                .IsRequired();
+
+            entity.Property(u => u.ROL)
+                .HasColumnName("ROL")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(u => u.MAIL)
+                .HasColumnName("MAIL")
+                .HasMaxLength(200);
+
+            entity.Property(u => u.SUSCRIPCION_ACTIVA)
+                .HasColumnName("SUSCRIPCION_ACTIVA");
+
+            entity.Property(u => u.PIN_HASH)
+                .HasColumnName("PIN_HASH");
+
+            entity.Property(u => u.ID_USUARIO_RESP)
+                .HasColumnName("ID_USUARIO_RESP");
+
+            entity.Property(u => u.ACTIVO)
+                .HasColumnName("ACTIVO");
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(u => u.ID_USUARIO_RESP)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- CLIENTE ----
+        modelBuilder.Entity<Cliente>(entity =>
+        {
+            entity.ToTable("CLIENTES");
+
+            entity.HasKey(c => c.ID_CLIENTE);
+
+            entity.Property(c => c.ID_CLIENTE)
+                .HasColumnName("ID_CLIENTE");
+
+            entity.Property(c => c.COD_CLIENTE)
+                .HasColumnName("COD_CLIENTE")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(c => c.COD_CLIENTE)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(c => c.NOMBRE)
+                .HasColumnName("NOMBRE")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(c => c.MAIL)
+                .HasColumnName("MAIL")
+                .HasMaxLength(200);
+
+            entity.Property(c => c.NRO_DOCUMENTO)
+                .HasColumnName("NRO_DOCUMENTO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(c => c.ACTIVO)
+                .HasColumnName("ACTIVO");
+        });
+
+        // ---- VENTA ----
         modelBuilder.Entity<Venta>(entity =>
         {
             entity.ToTable("VENTAS");
@@ -102,37 +264,39 @@ public class PosDbContext : DbContext
             entity.Property(v => v.ID_SUCURSAL)
                 .HasColumnName("ID_SUCURSAL");
 
-            entity.Property(v => v.FECHA)
-                .HasColumnName("FECHA");
+            entity.Property(v => v.FECHA_VENTA)
+                .HasColumnName("FECHA_VENTA");
 
             entity.Property(v => v.TOTAL)
-                .HasColumnName("TOTAL");
+                .HasColumnName("TOTAL")
+                .HasColumnType("decimal(18,2)");
 
             entity.Property(v => v.ID_USUARIO)
                 .HasColumnName("ID_USUARIO");
 
-            entity.Property(v => v.ID_CAJA)
-                .HasColumnName("ID_CAJA");
-
             entity.Property(v => v.ID_CLIENTE)
                 .HasColumnName("ID_CLIENTE");
 
+            entity.Navigation(v => v.RENGLONES)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
             entity.HasOne<Sucursal>()
                 .WithMany()
-                .HasForeignKey(v => v.ID_SUCURSAL);
+                .HasForeignKey(v => v.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<Usuario>()
                 .WithMany()
                 .HasForeignKey(v => v.ID_USUARIO)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<Cliente>()
                 .WithMany()
                 .HasForeignKey(v => v.ID_CLIENTE)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // RENGLON VENTA
+        // ---- RENGLON VENTA ----
         modelBuilder.Entity<RenglonVenta>(entity =>
         {
             entity.ToTable("RENGLONES_VENTA");
@@ -142,106 +306,36 @@ public class PosDbContext : DbContext
             entity.Property(r => r.ID_RENGLON_VENTA)
                 .HasColumnName("ID_RENGLON_VENTA");
 
+            entity.Property(r => r.ID_VENTA)
+                .HasColumnName("ID_VENTA");
+
             entity.Property(r => r.ID_PRODUCTO)
                 .HasColumnName("ID_PRODUCTO");
 
             entity.Property(r => r.CANTIDAD)
-                .HasColumnName("CANTIDAD");
+                .HasColumnName("CANTIDAD")
+                .HasColumnType("decimal(18,2)");
 
             entity.Property(r => r.PRECIO_UNITARIO)
-                .HasColumnName("PRECIO_UNITARIO");
+                .HasColumnName("PRECIO_UNITARIO")
+                .HasColumnType("decimal(18,2)");
 
             entity.Property(r => r.SUBTOTAL)
-                .HasColumnName("SUBTOTAL");
+                .HasColumnName("SUBTOTAL")
+                .HasColumnType("decimal(18,2)");
 
             entity.HasOne<Venta>()
                 .WithMany(v => v.RENGLONES)
-                .HasForeignKey("ID_VENTA");
+                .HasForeignKey(r => r.ID_VENTA)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Producto>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_PRODUCTO)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // STOCK POR SUCURSAL
-        modelBuilder.Entity<StockSucursal>(entity =>
-        {
-            entity.ToTable("STOCK_POR_SUCURSAL");
-
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Id)
-                .HasColumnName("ID_STOCK_SUCURSAL");
-
-            entity.Property(x => x.IdProducto)
-                .HasColumnName("ID_PRODUCTO");
-
-            entity.Property(x => x.IdSucursal)
-                .HasColumnName("ID_SUCURSAL");
-
-            entity.Property(x => x.Stock)
-                .HasColumnName("STOCK");
-
-            entity.HasIndex(x => new { x.IdProducto, x.IdSucursal }).IsUnique();
-
-            entity.HasOne(x => x.Producto)
-                .WithMany()
-                .HasForeignKey(x => x.IdProducto);
-
-            entity.HasOne(x => x.Sucursal)
-                .WithMany()
-                .HasForeignKey(x => x.IdSucursal);
-        });
-
-        // USUARIO
-        modelBuilder.Entity<Usuario>(entity =>
-        {
-            entity.ToTable("USUARIOS");
-
-            entity.HasKey(u => u.ID_USUARIO);
-
-            entity.Property(u => u.ID_USUARIO)
-                .HasColumnName("ID_USUARIO");
-
-            entity.Property(u => u.NOMBRE_USUARIO)
-                .HasColumnName("NOMBRE_USUARIO")
-                .IsRequired()
-                .HasMaxLength(50);
-
-            entity.Property(u => u.PASSWORD_HASH)
-                .HasColumnName("PASSWORD_HASH")
-                .IsRequired();
-
-            entity.Property(u => u.PIN_HASH)
-                .HasColumnName("PIN_HASH");
-
-            entity.Property(u => u.MAIL)
-                .HasColumnName("MAIL")
-                .HasMaxLength(150);
-
-            entity.Property(u => u.ROL)
-                .HasColumnName("ROL")
-                .IsRequired()
-                .HasMaxLength(20);
-
-            entity.Property(u => u.ACTIVO)
-                .HasColumnName("ACTIVO");
-
-            entity.Property(u => u.ID_SUCURSAL_DEFAULT)
-                .HasColumnName("ID_SUCURSAL_DEFAULT");
-
-            entity.Property(u => u.ID_USUARIO_RESPONSABLE)
-                .HasColumnName("ID_USUARIO_RESPONSABLE");
-
-            entity.Property(u => u.EMPRESA_REPRESENTA)
-                .HasColumnName("EMPRESA_REPRESENTA")
-                .HasMaxLength(120);
-
-            entity.HasIndex(u => u.NOMBRE_USUARIO).IsUnique();
-
-            entity.HasOne<Usuario>()
-                .WithMany()
-                .HasForeignKey(u => u.ID_USUARIO_RESPONSABLE)
-                .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        // MEDIO PAGO
+        // ---- MEDIO PAGO ----
         modelBuilder.Entity<MedioPago>(entity =>
         {
             entity.ToTable("MEDIOS_PAGO");
@@ -251,10 +345,19 @@ public class PosDbContext : DbContext
             entity.Property(m => m.ID_MEDIO_PAGO)
                 .HasColumnName("ID_MEDIO_PAGO");
 
-            entity.Property(m => m.NOMBRE)
-                .HasColumnName("NOMBRE")
-                .IsRequired()
-                .HasMaxLength(100);
+            entity.Property(m => m.COD_MEDIO_PAGO)
+                .HasColumnName("COD_MEDIO_PAGO")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(m => m.COD_MEDIO_PAGO)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(m => m.DESC_MEDIO_PAGO)
+                .HasColumnName("DESC_MEDIO_PAGO")
+                .HasMaxLength(100)
+                .IsRequired();
 
             entity.Property(m => m.PAGA_VUELTO)
                 .HasColumnName("PAGA_VUELTO");
@@ -263,15 +366,15 @@ public class PosDbContext : DbContext
                 .HasColumnName("ACTIVO");
         });
 
-        // PAGO VENTA
-        modelBuilder.Entity<PagoVenta>(entity =>
+        // ---- PAGO ----
+        modelBuilder.Entity<Pago>(entity =>
         {
-            entity.ToTable("PAGOS_VENTA");
+            entity.ToTable("PAGOS");
 
-            entity.HasKey(p => p.ID_PAGO_VENTA);
+            entity.HasKey(p => p.ID_PAGO);
 
-            entity.Property(p => p.ID_PAGO_VENTA)
-                .HasColumnName("ID_PAGO_VENTA");
+            entity.Property(p => p.ID_PAGO)
+                .HasColumnName("ID_PAGO");
 
             entity.Property(p => p.ID_VENTA)
                 .HasColumnName("ID_VENTA");
@@ -279,36 +382,34 @@ public class PosDbContext : DbContext
             entity.Property(p => p.ID_MEDIO_PAGO)
                 .HasColumnName("ID_MEDIO_PAGO");
 
+            entity.Property(p => p.ID_CAJA)
+                .HasColumnName("ID_CAJA");
+
             entity.Property(p => p.MONTO)
                 .HasColumnName("MONTO")
-                .HasColumnType("decimal(18,2)");
-
-            entity.Property(p => p.CON_CAMBIO)
-                .HasColumnName("CON_CAMBIO")
                 .HasColumnType("decimal(18,2)");
 
             entity.Property(p => p.CAMBIO)
                 .HasColumnName("CAMBIO")
                 .HasColumnType("decimal(18,2)");
 
-            entity.Property(p => p.ID_USUARIO_REGISTRA)
-                .HasColumnName("ID_USUARIO_REGISTRA");
-
             entity.HasOne<Venta>()
                 .WithMany()
-                .HasForeignKey(p => p.ID_VENTA);
+                .HasForeignKey(p => p.ID_VENTA)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<MedioPago>()
                 .WithMany()
-                .HasForeignKey(p => p.ID_MEDIO_PAGO);
+                .HasForeignKey(p => p.ID_MEDIO_PAGO)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne<Usuario>()
+            entity.HasOne<Caja>()
                 .WithMany()
-                .HasForeignKey(p => p.ID_USUARIO_REGISTRA)
-                .OnDelete(DeleteBehavior.NoAction);
+                .HasForeignKey(p => p.ID_CAJA)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // CAJA
+        // ---- CAJA ----
         modelBuilder.Entity<Caja>(entity =>
         {
             entity.ToTable("CAJAS");
@@ -323,8 +424,8 @@ public class PosDbContext : DbContext
 
             entity.Property(c => c.ESTADO)
                 .HasColumnName("ESTADO")
-                .IsRequired()
-                .HasMaxLength(20);
+                .HasMaxLength(20)
+                .IsRequired();
 
             entity.Property(c => c.FECHA_APERTURA)
                 .HasColumnName("FECHA_APERTURA");
@@ -344,6 +445,10 @@ public class PosDbContext : DbContext
                 .HasColumnName("MONTO_CONTADO_TARJETAS")
                 .HasColumnType("decimal(18,2)");
 
+            entity.Property(c => c.MONTO_GASTOS)
+                .HasColumnName("MONTO_GASTOS")
+                .HasColumnType("decimal(18,2)");
+
             entity.Property(c => c.DIFERENCIA)
                 .HasColumnName("DIFERENCIA")
                 .HasColumnType("decimal(18,2)");
@@ -354,62 +459,23 @@ public class PosDbContext : DbContext
             entity.Property(c => c.ID_USUARIO_CIERRE)
                 .HasColumnName("ID_USUARIO_CIERRE");
 
+            entity.HasOne<Sucursal>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne<Usuario>()
                 .WithMany()
                 .HasForeignKey(c => c.ID_USUARIO_APERTURA)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<Usuario>()
                 .WithMany()
                 .HasForeignKey(c => c.ID_USUARIO_CIERRE)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // CLIENTE
-        modelBuilder.Entity<Cliente>(entity =>
-        {
-            entity.ToTable("CLIENTES");
-
-            entity.HasKey(c => c.ID_CLIENTE);
-
-            entity.Property(c => c.ID_CLIENTE)
-                .HasColumnName("ID_CLIENTE");
-
-            entity.Property(c => c.NOMBRE)
-                .HasColumnName("NOMBRE")
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(c => c.TIPO_DOCUMENTO)
-                .HasColumnName("TIPO_DOCUMENTO")
-                .IsRequired()
-                .HasMaxLength(20);
-
-            entity.Property(c => c.NUMERO_DOCUMENTO)
-                .HasColumnName("NUMERO_DOCUMENTO")
-                .IsRequired()
-                .HasMaxLength(20);
-
-            entity.Property(c => c.IVA_CONDICION)
-                .HasColumnName("IVA_CONDICION")
-                .IsRequired()
-                .HasMaxLength(30);
-
-            entity.Property(c => c.TELEFONO)
-                .HasColumnName("TELEFONO")
-                .HasMaxLength(50);
-
-            entity.Property(c => c.DOMICILIO)
-                .HasColumnName("DOMICILIO")
-                .HasMaxLength(200);
-
-            entity.Property(c => c.ACTIVO)
-                .HasColumnName("ACTIVO");
-
-            entity.HasIndex(c => new { c.TIPO_DOCUMENTO, c.NUMERO_DOCUMENTO }).IsUnique();
-        });
-
-        // GASTO
+        // ---- GASTO ----
         modelBuilder.Entity<Gasto>(entity =>
         {
             entity.ToTable("GASTOS");
@@ -419,40 +485,396 @@ public class PosDbContext : DbContext
             entity.Property(g => g.ID_GASTO)
                 .HasColumnName("ID_GASTO");
 
-            entity.Property(g => g.ID_CAJA)
-                .HasColumnName("ID_CAJA");
+            entity.Property(g => g.DETALLE)
+                .HasColumnName("DETALLE")
+                .HasMaxLength(200)
+                .IsRequired();
 
             entity.Property(g => g.MONTO)
                 .HasColumnName("MONTO")
                 .HasColumnType("decimal(18,2)");
 
-            entity.Property(g => g.FECHA)
-                .HasColumnName("FECHA");
+            entity.Property(g => g.FECHA_GASTO)
+                .HasColumnName("FECHA_GASTO");
 
-            entity.Property(g => g.DETALLE)
-                .HasColumnName("DETALLE")
-                .IsRequired();
-
-            entity.HasIndex(g => g.ID_CAJA);
+            entity.Property(g => g.ID_CAJA)
+                .HasColumnName("ID_CAJA");
 
             entity.HasOne<Caja>()
                 .WithMany()
                 .HasForeignKey(g => g.ID_CAJA)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Seed data for MediosPago
+        // ---- CATEGORIA ----
+        modelBuilder.Entity<Categoria>(entity =>
+        {
+            entity.ToTable("CATEGORIAS");
+
+            entity.HasKey(c => c.ID_CATEGORIA);
+
+            entity.Property(c => c.ID_CATEGORIA)
+                .HasColumnName("ID_CATEGORIA");
+
+            entity.Property(c => c.COD_CATEGORIA)
+                .HasColumnName("COD_CATEGORIA")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(c => c.COD_CATEGORIA)
+                .IsUnique();
+
+            entity.Property(c => c.DESC_CATEGORIA)
+                .HasColumnName("DESC_CATEGORIA")
+                .HasMaxLength(200)
+                .IsRequired();
+        });
+
+        // ---- UNIDAD MEDIDA ----
+        modelBuilder.Entity<UnidadMedida>(entity =>
+        {
+            entity.ToTable("UNIDADES_MEDIDA");
+
+            entity.HasKey(u => u.ID_UNIDAD_MEDIDA);
+
+            entity.Property(u => u.ID_UNIDAD_MEDIDA)
+                .HasColumnName("ID_UNIDAD_MEDIDA");
+
+            entity.Property(u => u.COD_UNIDAD_MEDIDA)
+                .HasColumnName("COD_UNIDAD_MEDIDA")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(u => u.COD_UNIDAD_MEDIDA)
+                .IsUnique();
+
+            entity.Property(u => u.DESC_UNIDAD_MEDIDA)
+                .HasColumnName("DESC_UNIDAD_MEDIDA")
+                .HasMaxLength(200)
+                .IsRequired();
+
+        });
+
+        // ---- SUSCRIPCION ----
+        modelBuilder.Entity<Suscripcion>(entity =>
+        {
+            entity.ToTable("SUSCRIPCIONES");
+
+            entity.HasKey(s => s.ID_SUSCRIPCION);
+
+            entity.Property(s => s.ID_SUSCRIPCION)
+                .HasColumnName("ID_SUSCRIPCION");
+
+            entity.Property(s => s.ID_USUARIO_TITULAR)
+                .HasColumnName("ID_USUARIO_TITULAR");
+
+            entity.Property(s => s.NIVEL)
+                .HasColumnName("NIVEL")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(s => s.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(s => s.COSTO_MENSUAL)
+                .HasColumnName("COSTO_MENSUAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(s => s.MAX_SUCURSALES)
+                .HasColumnName("MAX_SUCURSALES");
+
+            entity.Property(s => s.MAX_ADMIN)
+                .HasColumnName("MAX_ADMIN");
+
+            entity.Property(s => s.MAX_USUARIOS)
+                .HasColumnName("MAX_USUARIOS");
+
+            entity.Property(s => s.FECHA_INICIO)
+                .HasColumnName("FECHA_INICIO");
+
+            entity.Property(s => s.FECHA_FIN)
+                .HasColumnName("FECHA_FIN");
+
+            entity.Property(s => s.PROXIMO_COBRO)
+                .HasColumnName("PROXIMO_COBRO");
+
+            entity.Property(s => s.MERCADOPAGO_PREAPPROVAL_ID)
+                .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID")
+                .HasMaxLength(100);
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(s => s.ID_USUARIO_TITULAR)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- EMPRESA ----
+        modelBuilder.Entity<Empresa>(entity =>
+        {
+            entity.ToTable("EMPRESAS");
+
+            entity.HasKey(e => e.ID_EMPRESA);
+
+            entity.Property(e => e.ID_EMPRESA)
+                .HasColumnName("ID_EMPRESA");
+
+            entity.Property(e => e.NOMBRE)
+                .HasColumnName("NOMBRE")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(e => e.DOCUMENTO)
+                .HasColumnName("DOCUMENTO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(e => e.ID_SUSCRIPCION)
+                .HasColumnName("ID_SUSCRIPCION");
+
+            entity.HasOne<Suscripcion>()
+                .WithMany()
+                .HasForeignKey(e => e.ID_SUSCRIPCION)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- PROVEEDOR ----
+        modelBuilder.Entity<Proveedor>(entity =>
+        {
+            entity.ToTable("PROVEEDORES");
+
+            entity.HasKey(p => p.ID_PROVEEDOR);
+
+            entity.Property(p => p.ID_PROVEEDOR)
+                .HasColumnName("ID_PROVEEDOR");
+
+            entity.Property(p => p.COD_PROVEEDOR)
+                .HasColumnName("COD_PROVEEDOR")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(p => p.COD_PROVEEDOR)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(p => p.NOMBRE)
+                .HasColumnName("NOMBRE")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(p => p.TIPO_DOCUMENTO)
+                .HasColumnName("TIPO_DOCUMENTO")
+                .HasMaxLength(20);
+
+            entity.Property(p => p.NRO_DOCUMENTO)
+                .HasColumnName("NRO_DOCUMENTO")
+                .HasMaxLength(20);
+
+            entity.Property(p => p.TELEFONO)
+                .HasColumnName("TELEFONO")
+                .HasMaxLength(50);
+
+            entity.Property(p => p.DOMICILIO)
+                .HasColumnName("DOMICILIO")
+                .HasMaxLength(200);
+
+            entity.Property(p => p.MAIL)
+                .HasColumnName("MAIL")
+                .HasMaxLength(200);
+
+            entity.Property(p => p.ACTIVO)
+                .HasColumnName("ACTIVO");
+        });
+
+        // ---- COMPRA ----
+        modelBuilder.Entity<Compra>(entity =>
+        {
+            entity.ToTable("COMPRAS");
+
+            entity.HasKey(c => c.ID_COMPRA);
+
+            entity.Property(c => c.ID_COMPRA)
+                .HasColumnName("ID_COMPRA");
+
+            entity.Property(c => c.NUMERO_COMPROBANTE)
+                .HasColumnName("NUMERO_COMPROBANTE");
+
+            entity.Property(c => c.ID_SUCURSAL)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(c => c.ID_PROVEEDOR)
+                .HasColumnName("ID_PROVEEDOR")
+                .IsRequired();
+
+            entity.Property(c => c.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(c => c.ID_GASTO)
+                .HasColumnName("ID_GASTO");
+
+            entity.Property(c => c.FECHA_COMPRA)
+                .HasColumnName("FECHA_COMPRA");
+
+            entity.Property(c => c.TOTAL)
+                .HasColumnName("TOTAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Navigation(c => c.RENGLONES)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            entity.HasOne<Sucursal>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Proveedor>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_PROVEEDOR)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Gasto>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_GASTO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- RENGLON COMPRA ----
+        modelBuilder.Entity<RenglonCompra>(entity =>
+        {
+            entity.ToTable("RENGLONES_COMPRA");
+
+            entity.HasKey(r => r.ID_RENGLON_COMPRA);
+
+            entity.Property(r => r.ID_RENGLON_COMPRA)
+                .HasColumnName("ID_RENGLON_COMPRA");
+
+            entity.Property(r => r.ID_COMPRA)
+                .HasColumnName("ID_COMPRA");
+
+            entity.Property(r => r.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO");
+
+            entity.Property(r => r.CANTIDAD)
+                .HasColumnName("CANTIDAD")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(r => r.PRECIO_UNITARIO)
+                .HasColumnName("PRECIO_UNITARIO")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(r => r.SUBTOTAL)
+                .HasColumnName("SUBTOTAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.HasOne<Compra>()
+                .WithMany(c => c.RENGLONES)
+                .HasForeignKey(r => r.ID_COMPRA)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Producto>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_PRODUCTO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- DEUDA ----
+        modelBuilder.Entity<Deuda>(entity =>
+        {
+            entity.ToTable("DEUDAS");
+
+            entity.HasKey(d => d.ID_DEUDA);
+
+            entity.Property(d => d.ID_DEUDA)
+                .HasColumnName("ID_DEUDA");
+
+            entity.Property(d => d.ID_CLIENTE)
+                .HasColumnName("ID_CLIENTE");
+
+            entity.Property(d => d.ID_PROVEEDOR)
+                .HasColumnName("ID_PROVEEDOR");
+
+            entity.Property(d => d.MONTO_DEUDA)
+                .HasColumnName("MONTO_DEUDA")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(d => d.FECHA_DEUDA)
+                .HasColumnName("FECHA_DEUDA");
+
+            entity.Property(d => d.FECHA_PAGO)
+                .HasColumnName("FECHA_PAGO");
+
+            entity.Property(d => d.PAGO)
+                .HasColumnName("PAGO");
+
+            entity.Property(d => d.ID_VENTA)
+                .HasColumnName("ID_VENTA");
+
+            entity.Property(d => d.ID_COMPRA)
+                .HasColumnName("ID_COMPRA");
+
+            entity.HasOne<Cliente>()
+                .WithMany()
+                .HasForeignKey(d => d.ID_CLIENTE)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Proveedor>()
+                .WithMany()
+                .HasForeignKey(d => d.ID_PROVEEDOR)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Venta>()
+                .WithMany()
+                .HasForeignKey(d => d.ID_VENTA)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Compra>()
+                .WithMany()
+                .HasForeignKey(d => d.ID_COMPRA)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- SEED DATA ----
+        SeedData(modelBuilder);
+    }
+
+    private static void SeedData(ModelBuilder modelBuilder)
+    {
+        // Seed Medios de Pago
         modelBuilder.Entity<MedioPago>().HasData(
-            new MedioPago(1, "Efectivo", true),
-            new MedioPago(2, "Tarjeta Débito", false),
-            new MedioPago(3, "Tarjeta Crédito", false),
-            new MedioPago(4, "Transferencia", false),
-            new MedioPago(5, "Cuenta Corriente", false)
+            new MedioPago(1, "EFECTIVO", "Efectivo", true),
+            new MedioPago(2, "DEBITO", "Tarjeta Débito", true),
+            new MedioPago(3, "CREDITO", "Tarjeta Crédito", false),
+            new MedioPago(4, "TRANSFERENCIA", "Transferencia", false),
+            new MedioPago(5, "QR", "QR", true)
         );
 
-        // Seed admin user (password: 123)
+        // Seed Unidades de Medida (use anonymous type — constructor doesn't accept ID)
+        modelBuilder.Entity<UnidadMedida>().HasData(
+            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidad" },
+            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramo" },
+            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "LITRO", DESC_UNIDAD_MEDIDA = "Litro" }
+        );
+
+        // Seed admin user (password: admin123)
         modelBuilder.Entity<Usuario>().HasData(
-            new Usuario(1, "admin", "$2a$11$K4YfGqJ1e4YHIpQqJ1e4Y.ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "Admin")
+            new
+            {
+                ID_USUARIO = 1,
+                NOMBRE_USUARIO = "admin",
+                PASSWORD_HASH = "$2a$11$K4YfGqJ1e4YHIpRMTfoxYO0R9i0RDxG.h1X0As95JXQOYGMjs4eIy",
+                ROL = "SuperAdmin",
+                MAIL = "admin@posweb.com",
+                SUSCRIPCION_ACTIVA = false,
+                PIN_HASH = (string?)null,
+                ID_USUARIO_RESP = (int?)null,
+                ACTIVO = true
+            }
         );
     }
 }

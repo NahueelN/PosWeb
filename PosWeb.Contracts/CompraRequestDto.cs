@@ -18,7 +18,6 @@ public class CompraItemDto
     public string? Nombre { get; set; }
     public decimal Precio { get; set; }
     public decimal? Costo { get; set; }          // Optional — defaults to 0 if null
-    public string? Tamano { get; set; }
 }
 
 public class NuevoProductoDto
@@ -27,5 +26,4 @@ public class NuevoProductoDto
     public string Nombre { get; set; } = null!;
     public decimal Precio { get; set; }
     public decimal Costo { get; set; }
-    public string? Tamano { get; set; }
 }

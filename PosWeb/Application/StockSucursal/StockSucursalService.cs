@@ -39,7 +39,7 @@ public class StockSucursalService
         EnsureProductoActivo(productoId);
 
         StockSucursal? stock = _context.StockSucursales
-            .FirstOrDefault(s => s.IdProducto == productoId && s.IdSucursal == sucursalId);
+            .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
 
         if (stock == null)
         {
@@ -67,23 +67,23 @@ public class StockSucursalService
     private IQueryable<StockSucursalDto> BuildSucursalStockQuery(int sucursalId)
     {
         IQueryable<StockSucursal> branchStock = _context.StockSucursales
-            .Where(s => s.IdSucursal == sucursalId);
+            .Where(s => s.ID_SUCURSAL == sucursalId);
 
         return _context.Productos
             .Where(p => p.ACTIVO)
             .GroupJoin(
                 branchStock,
                 producto => producto.ID_PRODUCTO,
-                stock => stock.IdProducto,
+                stock => stock.ID_PRODUCTO,
                 (producto, stockRows) => new { producto, stock = stockRows.FirstOrDefault() }
             )
             .Select(x => new StockSucursalDto
             {
                 ProductoId = x.producto.ID_PRODUCTO,
-                ProductoNombre = x.producto.NOMBRE,
-                CodigoBarra = x.producto.CODIGO_BARRA,
+                ProductoNombre = x.producto.DESC_PRODUCTO,
+                CodigoBarra = x.producto.CODIGO_BARRAS,
                 SucursalId = sucursalId,
-                Stock = x.stock != null ? x.stock.Stock : 0,
+                Stock = x.stock != null ? (int)x.stock.STOCK : 0,
                 Inicializado = x.stock != null
             });
     }

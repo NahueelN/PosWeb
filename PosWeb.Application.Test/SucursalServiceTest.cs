@@ -32,9 +32,9 @@ public class SucursalServiceTest
         bool activa = true)
     {
         Sucursal sucursal = new Sucursal(
-            numero,
             $"COD{numero}",
-            $"Sucursal {numero}"
+            $"Sucursal {numero}",
+            1
         );
 
         if (!activa)
@@ -81,28 +81,7 @@ public class SucursalServiceTest
 
         Assert.NotEqual(0, creada.Id);
         Assert.True(creada.Activo);
-        Assert.Equal(1, creada.Numero);
-    }
-
-    [Fact]
-    public void CrearSucursal_NumeroDuplicado_LanzaExcepcion()
-    {
-        using PosDbContext context = CrearContexto();
-        SucursalService service = CrearService(context);
-
-        AgregarSucursal(context, 1, 1);
-
-        SucursalDto dto = new SucursalDto
-        {
-            Numero = 1,
-            Codigo = "OTRA",
-            Nombre = "Otra"
-        };
-
-        Assert.Throws<SucursalNumeroDuplicadoException>(() =>
-        {
-            service.Crear(dto);
-        });
+        Assert.Equal("CENTRO", creada.Codigo);
     }
 
     [Fact]

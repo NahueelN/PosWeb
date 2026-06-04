@@ -2,9 +2,9 @@
 
 public class CantidadInvalidaException : DomainException
 {
-    public int Cantidad { get; }
+    public decimal Cantidad { get; }
 
-    public CantidadInvalidaException(int cantidad)
+    public CantidadInvalidaException(decimal cantidad)
         : base($"La cantidad '{cantidad}' es inválida")
     {
         Cantidad = cantidad;

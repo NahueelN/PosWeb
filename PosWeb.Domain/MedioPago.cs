@@ -1,3 +1,4 @@
+using PosWeb.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 
 namespace PosWeb.Domain;
@@ -7,32 +8,50 @@ public class MedioPago
     [Key]
     public int ID_MEDIO_PAGO { get; private set; }
 
-    public string NOMBRE { get; private set; } = null!;
+    public string COD_MEDIO_PAGO { get; private set; } = null!;
+
+    public string DESC_MEDIO_PAGO { get; private set; } = null!;
 
     public bool PAGA_VUELTO { get; private set; }
 
     public bool ACTIVO { get; private set; }
 
-    public MedioPago(int id, string nombre, bool pagaVuelto)
-        : this(nombre, pagaVuelto)
+    public MedioPago(int id, string codMedioPago, string descMedioPago, bool pagaVuelto)
+        : this(codMedioPago, descMedioPago, pagaVuelto)
     {
         ID_MEDIO_PAGO = id;
     }
 
-    public MedioPago(string nombre, bool pagaVuelto)
+    public MedioPago(string codMedioPago, string descMedioPago, bool pagaVuelto)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            throw new ArgumentException("El nombre del medio de pago es requerido");
-        }
-
-        NOMBRE = nombre;
+        CambiarCodigo(codMedioPago);
+        CambiarDescripcion(descMedioPago);
         PAGA_VUELTO = pagaVuelto;
         ACTIVO = true;
     }
 
     protected MedioPago()
     {
+    }
+
+    public void CambiarCodigo(string codigo)
+    {
+        if (string.IsNullOrWhiteSpace(codigo) || codigo.Trim().Length > 20)
+        {
+            throw new CodigoInvalidoException("MedioPago", codigo);
+        }
+
+        COD_MEDIO_PAGO = codigo.Trim();
+    }
+
+    public void CambiarDescripcion(string descripcion)
+    {
+        if (string.IsNullOrWhiteSpace(descripcion))
+        {
+            throw new ArgumentException("La descripción del medio de pago es requerida");
+        }
+
+        DESC_MEDIO_PAGO = descripcion;
     }
 
     public void Desactivar()

@@ -1,0 +1,161 @@
+// PosWeb — Diagrama de Compras
+// Renombrar a .dbml y abrir en dbdiagram.io
+
+Table CATEGORIA {
+  ID_CATEGORIA int [pk, increment]
+  COD_CATEGORIA varchar(20) [unique, not null]
+  DESC_CATEGORIA varchar(200)
+}
+
+Table UNIDAD_MEDIDA {
+  ID_UNIDAD_MEDIDA int [pk, increment]
+  COD_UNIDAD_MEDIDA varchar(10) [unique, not null]
+  DESC_UNIDAD_MEDIDA varchar(100) [not null]
+}
+
+Table PRODUCTO {
+  ID_PRODUCTO int [pk, increment]
+  COD_PRODUCTO varchar(50) [unique, not null]
+  ID_CATEGORIA int [not null]
+  CODIGO_BARRAS varchar(100)
+  DESC_PRODUCTO varchar(200) [not null]
+  DESC_ADICIONAL varchar(500)
+  PRECIO decimal(18,2) [not null]
+  COSTO decimal(18,2) [not null]
+  CONTENIDO decimal(18,2)
+  ID_UNIDAD_MEDIDA int
+  FECHA_ALTA datetime [not null]
+  FECHA_ULTIMA_MOD datetime [not null]
+  FECHA_BAJA datetime
+  ACTIVO bit [not null, default: 1]
+}
+
+Table SUCURSAL {
+  ID_SUCURSAL int [pk, increment]
+  COD_SUCURSAL varchar(20) [unique, not null]
+  NUMERO int [not null]
+  NOMBRE varchar(200) [not null]
+  ACTIVO bit [not null, default: 1]
+}
+
+Table STOCK_POR_SUCURSAL {
+  ID_PRODUCTO int
+  ID_SUCURSAL int
+  STOCK decimal(18,2) [not null, default: 0]
+  Indexes {
+    (ID_PRODUCTO, ID_SUCURSAL) [pk]
+  }
+}
+
+Table USUARIO {
+  ID_USUARIO int [pk, increment]
+  NOMBRE_USUARIO varchar(50) [unique, not null]
+  PASSWORD_HASH varchar(200) [not null]
+  PIN_HASH varchar(200)
+  MAIL varchar(150)
+  ROL varchar(20) [not null]
+  ACTIVO bit [not null, default: 1]
+  ID_SUCURSAL_DEFAULT int
+  ID_USUARIO_RESP int
+}
+
+Table CAJA {
+  ID_CAJA int [pk, increment]
+  ID_SUCURSAL int [not null]
+  ESTADO varchar(20) [not null]
+  FECHA_APERTURA datetime [not null]
+  FECHA_CIERRE datetime
+  MONTO_INICIAL decimal(18,2) [not null]
+  MONTO_CONTADO_EFECTIVO decimal(18,2)
+  MONTO_CONTADO_TARJETAS decimal(18,2)
+  DIFERENCIA decimal(18,2)
+  MONTO_GASTOS decimal(18,2) [not null, default: 0]
+  ID_USUARIO_APERTURA int [not null]
+  ID_USUARIO_CIERRE int
+}
+
+Table PROVEEDOR {
+  ID_PROVEEDOR int [pk, increment]
+  COD_PROVEEDOR varchar(50) [unique, not null]
+  NOMBRE varchar(200) [not null]
+  TIPO_DOCUMENTO varchar(20) [not null]
+  NRO_DOCUMENTO varchar(20) [not null]
+  MAIL varchar(150)
+  TELEFONO varchar(50)
+  DOMICILIO varchar(200)
+  ACTIVO bit [not null, default: 1]
+}
+
+Table COMPRA {
+  ID_COMPRA int [pk, increment]
+  NUMERO_COMPROBANTE int [not null]
+  ID_SUCURSAL int [not null]
+  ID_PROVEEDOR int [not null]
+  ID_USUARIO int [not null]
+  FECHA_COMPRA datetime [not null]
+  TOTAL decimal(18,2) [not null]
+}
+
+Table RENGLON_COMPRA {
+  ID_RENGLON_COMPRA int [pk, increment]
+  ID_COMPRA int [not null]
+  ID_PRODUCTO int [not null]
+  CANTIDAD decimal(18,2) [not null]
+  PRECIO_UNITARIO decimal(18,2) [not null]
+  SUBTOTAL decimal(18,2) [not null]
+}
+
+// Una compra puede generar un gasto asociado
+Table GASTO {
+  ID_GASTO int [pk, increment]
+  ID_CAJA int [not null]
+  MONTO decimal(18,2) [not null]
+  FECHA_GASTO datetime [not null]
+  DETALLE varchar(500) [not null]
+}
+
+Table DEUDA {
+  ID_DEUDA int [pk, increment]
+  ID_PROVEEDOR int
+  ID_COMPRA int
+  MONTO_DEUDA decimal(18,2) [not null]
+  FECHA_DEUDA datetime [not null]
+  PAGO bit [not null, default: 0]
+  ID_CLIENTE int
+  ID_VENTA int
+}
+
+// ════════ RELACIONES ════════
+
+// Producto → Catálogos
+Ref: PRODUCTO.ID_CATEGORIA > CATEGORIA.ID_CATEGORIA
+Ref: PRODUCTO.ID_UNIDAD_MEDIDA > UNIDAD_MEDIDA.ID_UNIDAD_MEDIDA
+
+// Stock
+Ref: STOCK_POR_SUCURSAL.ID_PRODUCTO > PRODUCTO.ID_PRODUCTO
+Ref: STOCK_POR_SUCURSAL.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+
+// Usuario
+Ref: USUARIO.ID_SUCURSAL_DEFAULT > SUCURSAL.ID_SUCURSAL
+Ref: USUARIO.ID_USUARIO_RESP > USUARIO.ID_USUARIO
+
+// Caja
+Ref: CAJA.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+Ref: CAJA.ID_USUARIO_APERTURA > USUARIO.ID_USUARIO
+Ref: CAJA.ID_USUARIO_CIERRE > USUARIO.ID_USUARIO
+
+// Compra
+Ref: COMPRA.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+Ref: COMPRA.ID_PROVEEDOR > PROVEEDOR.ID_PROVEEDOR
+Ref: COMPRA.ID_USUARIO > USUARIO.ID_USUARIO
+
+// Renglones de compra
+Ref: RENGLON_COMPRA.ID_COMPRA > COMPRA.ID_COMPRA
+Ref: RENGLON_COMPRA.ID_PRODUCTO > PRODUCTO.ID_PRODUCTO
+
+// Gasto asociado a compra
+Ref: GASTO.ID_CAJA > CAJA.ID_CAJA
+
+// Deuda con proveedor
+Ref: DEUDA.ID_PROVEEDOR > PROVEEDOR.ID_PROVEEDOR
+Ref: DEUDA.ID_COMPRA > COMPRA.ID_COMPRA

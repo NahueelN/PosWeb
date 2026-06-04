@@ -12,27 +12,29 @@ public class Cliente
 
     public string TIPO_DOCUMENTO { get; private set; } = null!;
 
-    public string NUMERO_DOCUMENTO { get; private set; } = null!;
+    public string NRO_DOCUMENTO { get; private set; } = null!;
 
-    public string IVA_CONDICION { get; private set; } = null!;
+    public string? COD_CLIENTE { get; private set; }
 
     public string? TELEFONO { get; private set; }
 
     public string? DOMICILIO { get; private set; }
 
+    public string? MAIL { get; private set; }
+
     public bool ACTIVO { get; private set; }
 
     private static readonly string[] TiposDocumentoValidos = { "DNI", "CUIT", "CUIL", "ConsumidorFinal" };
-    private static readonly string[] IvaCondicionesValidas = { "ResponsableInscripto", "Monotributo", "Exento", "ConsumidorFinal" };
 
-    public Cliente(string nombre, string tipoDocumento, string numeroDocumento, string ivaCondicion,
-                   string? telefono = null, string? domicilio = null)
+    public Cliente(string nombre, string tipoDocumento, string nroDocumento,
+                   string? codCliente = null, string? telefono = null, string? domicilio = null, string? mail = null)
     {
         CambiarNombre(nombre);
-        CambiarTipoDocumento(tipoDocumento, numeroDocumento);
-        CambiarIvaCondicion(ivaCondicion);
+        CambiarTipoDocumento(tipoDocumento, nroDocumento);
+        COD_CLIENTE = codCliente;
         TELEFONO = telefono;
         DOMICILIO = domicilio;
+        SetMail(mail);
         ACTIVO = true;
     }
 
@@ -59,7 +61,7 @@ public class Cliente
 
         if (tipoDocumento == "ConsumidorFinal")
         {
-            NUMERO_DOCUMENTO = string.IsNullOrWhiteSpace(numeroDocumento) ? "0" : numeroDocumento;
+            NRO_DOCUMENTO = string.IsNullOrWhiteSpace(numeroDocumento) ? "0" : numeroDocumento;
         }
         else
         {
@@ -88,20 +90,35 @@ public class Cliente
                 throw new DocumentoInvalidoException(tipoDocumento, "El número de documento debe ser numérico");
             }
 
-            NUMERO_DOCUMENTO = numeroDocumento;
+            NRO_DOCUMENTO = numeroDocumento;
         }
 
         TIPO_DOCUMENTO = tipoDocumento;
     }
 
-    public void CambiarIvaCondicion(string ivaCondicion)
+    public void CambiarCodCliente(string? codCliente)
     {
-        if (!IvaCondicionesValidas.Contains(ivaCondicion))
+        COD_CLIENTE = string.IsNullOrWhiteSpace(codCliente) ? null : codCliente.Trim();
+    }
+
+    public void SetMail(string? mail)
+    {
+        if (string.IsNullOrWhiteSpace(mail))
         {
-            throw new IvaCondicionInvalidaException(ivaCondicion);
+            MAIL = null;
+            return;
         }
 
-        IVA_CONDICION = ivaCondicion;
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(mail);
+        }
+        catch
+        {
+            throw new ArgumentException("Mail inválido");
+        }
+
+        MAIL = mail.Trim();
     }
 
     public void CambiarTelefono(string? telefono)

@@ -9,5 +9,7 @@ public class ClienteDto
     public string IvaCondicion { get; set; } = "ConsumidorFinal";
     public string? Telefono { get; set; }
     public string? Domicilio { get; set; }
+    public string? CodCliente { get; set; }
+    public string? Mail { get; set; }
     public bool Activo { get; set; } = true;
 }

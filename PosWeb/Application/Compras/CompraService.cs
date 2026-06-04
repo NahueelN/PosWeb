@@ -49,7 +49,7 @@ public class CompraService
 
                 // Check duplicate barcode
                 bool codigoExiste = _context.Productos
-                    .Any(p => p.CODIGO_BARRA == item.CodigoBarra && p.ACTIVO);
+                    .Any(p => p.CODIGO_BARRAS == item.CodigoBarra && p.ACTIVO);
 
                 if (codigoExiste)
                 {
@@ -58,11 +58,10 @@ public class CompraService
 
                 var nuevoProducto = new Producto(
                     item.CodigoBarra,
+                    item.CodigoBarra,
                     item.Nombre,
                     item.Precio,
-                    item.Costo ?? 0,
-                    0,                          // stock starts at 0
-                    item.Tamano
+                    item.Costo ?? 0
                 );
                 _context.Productos.Add(nuevoProducto);
                 _context.SaveChanges(); // Generate ID
@@ -93,17 +92,16 @@ public class CompraService
 
             // Find or create StockSucursal row
             StockSucursal? stock = _context.StockSucursales
-                .FirstOrDefault(s => s.IdProducto == productoId && s.IdSucursal == request.SucursalId);
+                .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == request.SucursalId);
 
             if (stock == null)
             {
-                stock = new StockSucursal(productoId, request.SucursalId, productoFinal.STOCK);
+                stock = new StockSucursal(productoId, request.SucursalId, 0);
                 _context.StockSucursales.Add(stock);
-                _context.SaveChanges(); // Generate ID
+                _context.SaveChanges();
             }
 
             stock.AumentarStock(item.Cantidad);
-            productoFinal.AumentarStock(item.Cantidad);
 
             decimal subtotal = item.Cantidad * item.CostoUnitario;
             totalGasto += subtotal;
@@ -111,7 +109,7 @@ public class CompraService
             results.Add(new CompraItemResultDto
             {
                 ProductoId = productoId,
-                ProductoNombre = productoFinal.NOMBRE,
+                ProductoNombre = productoFinal.DESC_PRODUCTO,
                 Cantidad = item.Cantidad,
                 CostoUnitario = item.CostoUnitario,
                 Subtotal = subtotal
@@ -131,7 +129,7 @@ public class CompraService
             GastoId = gasto.ID_GASTO,
             Proveedor = request.Proveedor,
             TotalGasto = totalGasto,
-            Fecha = gasto.FECHA,
+            Fecha = gasto.FECHA_GASTO,
             Items = results
         };
     }

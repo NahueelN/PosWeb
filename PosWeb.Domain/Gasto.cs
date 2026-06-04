@@ -5,7 +5,7 @@ public class Gasto
     public int ID_GASTO { get; private set; }
     public int ID_CAJA { get; private set; }
     public decimal MONTO { get; private set; }
-    public DateTime FECHA { get; private set; }
+    public DateTime FECHA_GASTO { get; private set; }
     public string DETALLE { get; private set; } = null!;
 
     // EF Core constructor
@@ -23,6 +23,6 @@ public class Gasto
         ID_CAJA = idCaja;
         MONTO = monto;
         DETALLE = detalle;
-        FECHA = DateTime.Now;
+        FECHA_GASTO = DateTime.Now;
     }
 }

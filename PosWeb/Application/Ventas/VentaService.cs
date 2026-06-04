@@ -96,7 +96,6 @@ public class VentaService
         }
 
         Venta venta = new Venta(dto.SucursalId, usuarioId);
-        venta.AsignarCaja(cajaActiva.ID_CAJA);
         venta.AsignarCliente(dto.ClienteId);
 
         foreach (VentaItemDto item in dto.Items)
@@ -115,14 +114,14 @@ public class VentaService
 
             // Per-sucursal stock check
             StockSucursal? stockSuc = _context.StockSucursales
-                .FirstOrDefault(s => s.IdProducto == item.ProductoId && s.IdSucursal == dto.SucursalId);
+                .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
-            int available = stockSuc?.Stock ?? 0;
+            int available = (int)(stockSuc?.STOCK ?? 0);
 
             if (available < item.Cantidad)
             {
                 throw new StockSucursalInsuficienteException(
-                    producto.NOMBRE,
+                    producto.DESC_PRODUCTO,
                     dto.SucursalId,
                     available,
                     item.Cantidad
@@ -130,7 +129,6 @@ public class VentaService
             }
 
             stockSuc!.DescontarStock(item.Cantidad);
-            producto.DescontarStock(item.Cantidad);
             venta.AgregarRenglon(producto, item.Cantidad);
         }
 
@@ -177,7 +175,7 @@ public class VentaService
         _context.Ventas.Add(venta);
         _context.SaveChanges();
 
-        // Persist PagoVenta records
+        // Persist Pago records
         decimal cambioTotal = 0;
         var pagosResult = new List<PagoVentaResultDto>();
 
@@ -185,30 +183,30 @@ public class VentaService
         {
             foreach (var (medioPagoId, monto, conCambio) in pagosData)
             {
-                var pagoVenta = new PagoVenta(
+                var pago = new Pago(
                     venta.ID_VENTA,
                     medioPagoId,
                     monto,
                     usuarioId ?? 0,
-                    conCambio
+                    cajaActiva.ID_CAJA
                 );
 
-                _context.PagosVenta.Add(pagoVenta);
+                _context.Pagos.Add(pago);
 
                 string medioNombre = _context.MediosPago
                     .Where(m => m.ID_MEDIO_PAGO == medioPagoId)
-                    .Select(m => m.NOMBRE)
+                    .Select(m => m.DESC_MEDIO_PAGO)
                     .FirstOrDefault() ?? "";
 
-                cambioTotal += pagoVenta.CAMBIO;
+                cambioTotal += pago.CAMBIO;
 
                 pagosResult.Add(new PagoVentaResultDto
                 {
                     MedioPagoId = medioPagoId,
                     MedioPagoNombre = medioNombre,
-                    Monto = pagoVenta.MONTO,
-                    ConCambio = pagoVenta.CON_CAMBIO,
-                    Cambio = pagoVenta.CAMBIO
+                    Monto = pago.MONTO,
+                    ConCambio = conCambio,
+                    Cambio = pago.CAMBIO
                 });
             }
 
@@ -218,7 +216,7 @@ public class VentaService
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
-            Fecha = venta.FECHA,
+            Fecha = venta.FECHA_VENTA,
             Total = venta.TOTAL,
             Pagos = pagosResult,
             Cambio = cambioTotal
@@ -233,13 +231,13 @@ public class VentaService
     public async Task<PagedResult<VentaHistorialDto>> ObtenerHistorialAsync(VentaHistorialFiltro filtro)
     {
         IQueryable<Venta> query = _context.Ventas
-            .OrderByDescending(v => v.FECHA);
+            .OrderByDescending(v => v.FECHA_VENTA);
 
         if (filtro.FechaDesde.HasValue)
-            query = query.Where(v => v.FECHA >= filtro.FechaDesde.Value);
+            query = query.Where(v => v.FECHA_VENTA >= filtro.FechaDesde.Value);
 
         if (filtro.FechaHasta.HasValue)
-            query = query.Where(v => v.FECHA <= filtro.FechaHasta.Value);
+            query = query.Where(v => v.FECHA_VENTA <= filtro.FechaHasta.Value);
 
         if (filtro.SucursalId.HasValue)
             query = query.Where(v => v.ID_SUCURSAL == filtro.SucursalId.Value);
@@ -252,10 +250,10 @@ public class VentaService
             .Select(v => new VentaHistorialDto
             {
                 VentaId = v.ID_VENTA,
-                Fecha = v.FECHA,
+                Fecha = v.FECHA_VENTA,
                 SucursalNombre = _context.Sucursales
                     .Where(s => s.ID_SUCURSAL == v.ID_SUCURSAL)
-                    .Select(s => s.NOMBRE)
+                    .Select(s => s.DESC_SUCURSAL)
                     .FirstOrDefault(),
                 Total = v.TOTAL,
                 CantidadItems = v.RENGLONES.Count
@@ -278,19 +276,19 @@ public class VentaService
 
         string? sucursalNombre = await _context.Sucursales
             .Where(s => s.ID_SUCURSAL == venta.ID_SUCURSAL)
-            .Select(s => s.NOMBRE)
+            .Select(s => s.DESC_SUCURSAL)
             .FirstOrDefaultAsync();
 
         var items = await (
             from r in _context.RenglonesVenta
             join p in _context.Productos on r.ID_PRODUCTO equals p.ID_PRODUCTO
-            where EF.Property<int>(r, "ID_VENTA") == ventaId
+            where r.ID_VENTA == ventaId
             select new RenglonHistorialDto
             {
                 ProductoId = r.ID_PRODUCTO,
-                ProductoNombre = p.NOMBRE,
-                CodigoBarra = p.CODIGO_BARRA,
-                Cantidad = r.CANTIDAD,
+                ProductoNombre = p.DESC_PRODUCTO,
+                CodigoBarra = p.CODIGO_BARRAS,
+                Cantidad = (int)r.CANTIDAD,
                 PrecioUnitario = r.PRECIO_UNITARIO,
                 Subtotal = r.SUBTOTAL
             }
@@ -299,7 +297,7 @@ public class VentaService
         return new VentaDetalleDto
         {
             VentaId = venta.ID_VENTA,
-            Fecha = venta.FECHA,
+            Fecha = venta.FECHA_VENTA,
             SucursalId = venta.ID_SUCURSAL,
             SucursalNombre = sucursalNombre,
             Total = venta.TOTAL,

@@ -183,17 +183,10 @@ static void EnsureUsuariosColumns(PosDbContext ctx)
             alter.ExecuteNonQuery();
         }
 
-        if (!existingColumns.Contains("ID_USUARIO_RESPONSABLE"))
+        if (!existingColumns.Contains("ID_USUARIO_RESP"))
         {
             using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN ID_USUARIO_RESPONSABLE INTEGER NULL;";
-            alter.ExecuteNonQuery();
-        }
-
-        if (!existingColumns.Contains("EMPRESA_REPRESENTA"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN EMPRESA_REPRESENTA TEXT NULL;";
+            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN ID_USUARIO_RESP INTEGER NULL;";
             alter.ExecuteNonQuery();
         }
     }

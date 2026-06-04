@@ -16,11 +16,11 @@ public class MedioPagoService
     {
         return _context.MediosPago
             .Where(m => m.ACTIVO)
-            .OrderBy(m => m.NOMBRE)
+            .OrderBy(m => m.DESC_MEDIO_PAGO)
             .Select(m => new MedioPagoDto
             {
                 Id = m.ID_MEDIO_PAGO,
-                Nombre = m.NOMBRE,
+                Nombre = m.DESC_MEDIO_PAGO,
                 PagaVuelto = m.PAGA_VUELTO,
                 Activo = m.ACTIVO
             })

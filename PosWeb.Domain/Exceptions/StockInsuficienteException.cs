@@ -3,14 +3,14 @@
 public class StockInsuficienteException : DomainException
 {
     public string NombreProducto { get; }
-    public int StockDisponible { get; }
-    public int CantidadSolicitada { get; }
+    public decimal StockDisponible { get; }
+    public decimal CantidadSolicitada { get; }
     public int? IdSucursal { get; }
 
     public StockInsuficienteException(
         string nombreProducto,
-        int stockDisponible,
-        int cantidadSolicitada,
+        decimal stockDisponible,
+        decimal cantidadSolicitada,
         int? idSucursal = null)
         : base(idSucursal.HasValue
             ? $"El producto '{nombreProducto}' no tiene stock suficiente en sucursal {idSucursal}"

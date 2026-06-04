@@ -35,9 +35,9 @@ public class VentaServiceTest
         bool activa = true)
     {
         Sucursal sucursal = new Sucursal(
-            numero,
             $"COD{numero}",
-            $"Sucursal {numero}"
+            $"Sucursal {numero}",
+            1
         );
 
         if (!activa)
@@ -59,10 +59,10 @@ public class VentaServiceTest
     {
         Producto producto = new Producto(
             $"BAR{id}",
+            $"BAR{id}",
             $"Producto {id}",
-            100,
-            80,
-            stock
+            100m,
+            80m
         );
 
         if (!activo)
@@ -78,7 +78,7 @@ public class VentaServiceTest
 
     private static void AgregarUsuario(PosDbContext context, int id)
     {
-        Usuario usuario = new Usuario(id, "test_user", "$2a$11$dummyhash", "Vendedor");
+        Usuario usuario = new Usuario(id, "test_user", "$2a$11$dummyhash", "UsuarioComun");
         context.Usuarios.Add(usuario);
         context.SaveChanges();
     }
@@ -108,14 +108,14 @@ public class VentaServiceTest
         int stock)
     {
         StockSucursal stockSuc = new StockSucursal(productoId, sucursalId, stock);
-        TestHelpers.SetId(stockSuc, id, "Id");
         context.StockSucursales.Add(stockSuc);
         context.SaveChanges();
     }
 
-    private static void AgregarMedioPago(PosDbContext context, int id, string nombre, bool pagaVuelto)
+    private static void AgregarMedioPago(PosDbContext context, int id, string descripcion, bool pagaVuelto)
     {
-        context.MediosPago.Add(new MedioPago(id, nombre, pagaVuelto));
+        string codigo = descripcion.ToUpper().Replace(" ", "_");
+        context.MediosPago.Add(new MedioPago(id, codigo, descripcion, pagaVuelto));
         context.SaveChanges();
     }
 
@@ -151,7 +151,7 @@ public class VentaServiceTest
 
         VentaResultadoDto resultado = service.CrearVenta(dto);
 
-        Assert.Equal(200, resultado.Total);
+        Assert.Equal(200m, resultado.Total);
         Assert.Single(context.Ventas);
         Assert.Single(context.RenglonesVenta);
     }
@@ -298,6 +298,6 @@ public class VentaServiceTest
 
         StockSucursal stockSuc = context.StockSucursales.First();
 
-        Assert.Equal(7, stockSuc.Stock);
+        Assert.Equal(7, stockSuc.STOCK);
     }
 }
