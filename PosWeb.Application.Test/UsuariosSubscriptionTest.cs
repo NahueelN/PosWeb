@@ -39,16 +39,14 @@ public class UsuariosSubscriptionTest
         int id,
         string nombreUsuario,
         string rol,
-        int? responsableId = null,
-        bool suscripcionActiva = true)
+        int? responsableId = null)
     {
         var usuario = new Usuario(
             nombreUsuario,
             BCrypt.Net.BCrypt.HashPassword("123456"),
             rol,
             "test@mail.com",
-            usuarioResponsableId: responsableId,
-            suscripcionActiva: suscripcionActiva);
+            usuarioResponsableId: responsableId);
 
         TestHelpers.SetId(usuario, id, "ID_USUARIO");
         context.Usuarios.Add(usuario);
@@ -57,26 +55,39 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
-    public void CambiarSuscripcion_Admin_DesactivaDependientes()
+    public void Register_Admin_CreaSuscripcionBasica()
     {
-        var context = CrearContexto(nameof(CambiarSuscripcion_Admin_DesactivaDependientes));
-        CrearUsuario(context, 1, "admin", Roles.Admin);
-        CrearUsuario(context, 2, "usuario", Roles.UsuarioComun, responsableId: 1);
-        var controller = new UsuariosController(context);
+        var context = CrearContexto(nameof(Register_Admin_CreaSuscripcionBasica));
+        var service = new AuthService(context, CrearJwtTokenService());
 
-        var result = controller.CambiarSuscripcion(1, new CambiarSuscripcionRequest(false));
+        var resultado = service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin2",
+            Password = "123456",
+            Mail = "admin2@test.com",
+            Rol = Roles.Admin,
+            EmpresaRepresenta = "Empresa"
+        });
 
-        Assert.IsType<OkObjectResult>(result);
-        Assert.False(context.Usuarios.Single(u => u.ID_USUARIO == 1).SUSCRIPCION_ACTIVA);
-        Assert.False(context.Usuarios.Single(u => u.ID_USUARIO == 2).SUSCRIPCION_ACTIVA);
+        var usuario = Assert.Single(context.Usuarios.Where(u => u.NOMBRE_USUARIO == "admin2"));
+        var suscripcion = Assert.Single(context.Suscripciones.Where(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO));
+
+        Assert.Equal(NivelesSuscripcion.Basica, suscripcion.NIVEL);
+        Assert.Equal(1, suscripcion.MAX_SUCURSALES);
+        Assert.Equal(1, suscripcion.MAX_ADMINS);
+        Assert.Equal(1, suscripcion.MAX_USUARIOS);
+        Assert.True(suscripcion.EstaActiva());
+        Assert.Equal(resultado.Id, usuario.ID_USUARIO);
     }
 
     [Fact]
-    public void Login_ConAdminSuspendido_LanzaExcepcionDeSuscripcion()
+    public void Login_ConSuscripcionSuspendida_LanzaExcepcion()
     {
-        var context = CrearContexto(nameof(Login_ConAdminSuspendido_LanzaExcepcionDeSuscripcion));
+        var context = CrearContexto(nameof(Login_ConSuscripcionSuspendida_LanzaExcepcion));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        admin.SuspenderSuscripcion();
+        var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
+        suscripcion.Suspender();
+        context.Suscripciones.Add(suscripcion);
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService());
@@ -90,12 +101,15 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
-    public void Login_ConDependienteYAdminSuspendido_LanzaExcepcionDeSuscripcion()
+    public void Login_ConDependienteYAdminSuspendido_LanzaExcepcion()
     {
-        var context = CrearContexto(nameof(Login_ConDependienteYAdminSuspendido_LanzaExcepcionDeSuscripcion));
+        var context = CrearContexto(nameof(Login_ConDependienteYAdminSuspendido_LanzaExcepcion));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        admin.SuspenderSuscripcion();
+        var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
+        suscripcion.Suspender();
+        context.Suscripciones.Add(suscripcion);
         CrearUsuario(context, 2, "usuario", Roles.UsuarioComun, responsableId: 1);
+        context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService());
 
@@ -105,5 +119,22 @@ public class UsuariosSubscriptionTest
             Password = "123456",
             SucursalId = 1
         }));
+    }
+
+    [Fact]
+    public void CambiarSuscripcion_Admin_ActualizaLaEntidadSuscripcion()
+    {
+        var context = CrearContexto(nameof(CambiarSuscripcion_Admin_ActualizaLaEntidadSuscripcion));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var controller = new UsuariosController(context);
+
+        var resultado = controller.CambiarSuscripcion(1, new CambiarSuscripcionRequest(false));
+
+        Assert.IsType<OkObjectResult>(resultado);
+        Assert.False(context.Suscripciones.Single(s => s.ID_USUARIO_TITULAR == 1).EstaActiva());
+        Assert.False(context.Usuarios.Single(u => u.ID_USUARIO == 1).SUSCRIPCION_ACTIVA);
     }
 }

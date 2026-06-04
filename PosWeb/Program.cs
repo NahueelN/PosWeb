@@ -119,11 +119,18 @@ using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     ctx.Database.Migrate();
+    EnsureUsuariosColumns(ctx);
 
     var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
     {
         admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
+        ctx.SaveChanges();
+    }
+
+    if (admin != null && !ctx.Suscripciones.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
+    {
+        ctx.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         ctx.SaveChanges();
     }
 }
@@ -243,19 +250,71 @@ static void EnsureUsuariosColumns(PosDbContext ctx)
 
 static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
 {
-    if (!usuario.ACTIVO || !usuario.SUSCRIPCION_ACTIVA)
+    if (!usuario.ACTIVO)
     {
         return false;
     }
 
-    if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+    var titular = usuario.ID_USUARIO_RESPONSABLE.HasValue
+        ? ctx.Usuarios.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value)
+        : usuario;
+
+    if (titular == null || !titular.ACTIVO)
     {
-        return true;
+        return false;
     }
 
-    var responsable = ctx.Usuarios.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
-    return responsable != null
-        && responsable.ACTIVO
-        && responsable.SUSCRIPCION_ACTIVA;
+    var suscripcion = ctx.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
+    if (suscripcion != null)
+    {
+        return suscripcion.EstaActiva();
+    }
+
+    return titular.SUSCRIPCION_ACTIVA;
+}
+
+static void EnsureSuscripcionesTable(PosDbContext ctx)
+{
+    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
+    var shouldClose = connection.State != System.Data.ConnectionState.Open;
+    if (shouldClose)
+    {
+        connection.Open();
+    }
+
+    try
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+CREATE TABLE IF NOT EXISTS SUSCRIPCIONES (
+    ID_SUSCRIPCION INTEGER PRIMARY KEY AUTOINCREMENT,
+    ID_USUARIO_TITULAR INTEGER NOT NULL,
+    NIVEL TEXT NOT NULL,
+    ESTADO TEXT NOT NULL,
+    COSTO_MENSUAL NUMERIC(18,2) NOT NULL,
+    MAX_SUCURSALES INTEGER NULL,
+    MAX_ADMINS INTEGER NULL,
+    MAX_USUARIOS INTEGER NULL,
+    FECHA_INICIO TEXT NOT NULL,
+    FECHA_FIN TEXT NULL,
+    PROXIMO_COBRO TEXT NULL,
+    MERCADOPAGO_PREAPPROVAL_ID TEXT NULL,
+    FOREIGN KEY (ID_USUARIO_TITULAR) REFERENCES USUARIOS(ID_USUARIO) ON DELETE CASCADE
+);";
+        command.ExecuteNonQuery();
+
+        using var indexCommand = connection.CreateCommand();
+        indexCommand.CommandText = @"
+CREATE UNIQUE INDEX IF NOT EXISTS IX_SUSCRIPCIONES_ID_USUARIO_TITULAR
+ON SUSCRIPCIONES (ID_USUARIO_TITULAR);";
+        indexCommand.ExecuteNonQuery();
+    }
+    finally
+    {
+        if (shouldClose)
+        {
+            connection.Close();
+        }
+    }
 }
 

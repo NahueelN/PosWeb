@@ -150,7 +150,19 @@ export interface UsuarioListadoDto {
   activo: boolean
   suscripcionActiva: boolean
   accesoHabilitado: boolean
+  suscripcionNivel?: string | null
+  suscripcionEstado?: string | null
+  costoMensual?: number | null
+  maxSucursales?: number | null
+  maxAdmins?: number | null
+  maxUsuarios?: number | null
   pinConfigurado: boolean
+}
+
+export interface CambiarSuscripcionResponse {
+  id: number
+  suscripcionActiva: boolean
+  nivel: string
 }
 
 // --- Cliente types ---
