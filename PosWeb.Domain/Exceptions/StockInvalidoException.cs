@@ -2,9 +2,9 @@
 
 public class StockInvalidoException : DomainException
 {
-    public int Stock { get; }
+    public decimal Stock { get; }
 
-    public StockInvalidoException(int stock)
+    public StockInvalidoException(decimal stock)
         : base($"El stock '{stock}' es inválido")
     {
         Stock = stock;

@@ -24,7 +24,7 @@ public class ClienteService
             q = q.Trim();
             query = query.Where(c =>
                 EF.Functions.Like(c.NOMBRE, $"%{q}%") ||
-                EF.Functions.Like(c.NUMERO_DOCUMENTO, $"%{q}%")
+                EF.Functions.Like(c.NRO_DOCUMENTO, $"%{q}%")
             );
         }
 
@@ -39,8 +39,8 @@ public class ClienteService
                 Id = c.ID_CLIENTE,
                 Nombre = c.NOMBRE,
                 TipoDocumento = c.TIPO_DOCUMENTO,
-                NumeroDocumento = c.NUMERO_DOCUMENTO,
-                IvaCondicion = c.IVA_CONDICION,
+                NumeroDocumento = c.NRO_DOCUMENTO,
+                IvaCondicion = "ConsumidorFinal",
                 Telefono = c.TELEFONO,
                 Domicilio = c.DOMICILIO,
                 Activo = c.ACTIVO
@@ -69,7 +69,7 @@ public class ClienteService
         // Check duplicate document
         bool duplicado = _context.Clientes
             .Any(c => c.TIPO_DOCUMENTO == dto.TipoDocumento
-                      && c.NUMERO_DOCUMENTO == dto.NumeroDocumento
+                      && c.NRO_DOCUMENTO == dto.NumeroDocumento
                       && c.ACTIVO);
 
         if (duplicado)
@@ -81,9 +81,10 @@ public class ClienteService
             dto.Nombre,
             dto.TipoDocumento,
             dto.NumeroDocumento,
-            dto.IvaCondicion,
+            dto.CodCliente,
             dto.Telefono,
-            dto.Domicilio
+            dto.Domicilio,
+            dto.Mail
         );
 
         _context.Clientes.Add(cliente);
@@ -103,7 +104,7 @@ public class ClienteService
         // Check duplicate document excluding self
         bool duplicado = _context.Clientes
             .Any(c => c.TIPO_DOCUMENTO == dto.TipoDocumento
-                      && c.NUMERO_DOCUMENTO == dto.NumeroDocumento
+                      && c.NRO_DOCUMENTO == dto.NumeroDocumento
                       && c.ID_CLIENTE != id
                       && c.ACTIVO);
 
@@ -114,9 +115,9 @@ public class ClienteService
 
         cliente.CambiarNombre(dto.Nombre);
         cliente.CambiarTipoDocumento(dto.TipoDocumento, dto.NumeroDocumento);
-        cliente.CambiarIvaCondicion(dto.IvaCondicion);
         cliente.CambiarTelefono(dto.Telefono);
         cliente.CambiarDomicilio(dto.Domicilio);
+        cliente.SetMail(dto.Mail);
 
         _context.SaveChanges();
 
@@ -130,10 +131,12 @@ public class ClienteService
             Id = cliente.ID_CLIENTE,
             Nombre = cliente.NOMBRE,
             TipoDocumento = cliente.TIPO_DOCUMENTO,
-            NumeroDocumento = cliente.NUMERO_DOCUMENTO,
-            IvaCondicion = cliente.IVA_CONDICION,
+            NumeroDocumento = cliente.NRO_DOCUMENTO,
+            IvaCondicion = "ConsumidorFinal",
             Telefono = cliente.TELEFONO,
             Domicilio = cliente.DOMICILIO,
+            CodCliente = cliente.COD_CLIENTE,
+            Mail = cliente.MAIL,
             Activo = cliente.ACTIVO
         };
     }

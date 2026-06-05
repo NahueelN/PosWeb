@@ -8,28 +8,29 @@ public class RenglonVenta
     [Key]
     public int ID_RENGLON_VENTA { get; private set; }
 
+    public int ID_VENTA { get; private set; }
+
     public int ID_PRODUCTO { get; private set; }
 
-    public int CANTIDAD { get; private set; }
+    public decimal CANTIDAD { get; private set; }
 
     public decimal PRECIO_UNITARIO { get; private set; }
 
     public decimal SUBTOTAL { get; private set; }
 
-    public RenglonVenta(int productoId, int cantidad, decimal precioUnitario)
+    public RenglonVenta(int productoId, decimal cantidad, decimal precioUnitario)
     {
         ID_PRODUCTO = SetProductoId(productoId);
         CANTIDAD = SetCantidad(cantidad);
         PRECIO_UNITARIO = SetPrecioUnitario(precioUnitario);
-
-        SUBTOTAL = SetSubtotal(cantidad, precioUnitario);
+        SUBTOTAL = cantidad * precioUnitario;
     }
 
     protected RenglonVenta()
     {
     }
 
-    private static decimal SetSubtotal(int cantidad, decimal precioUnitario)
+    private static decimal SetSubtotal(decimal cantidad, decimal precioUnitario)
     {
         return cantidad * precioUnitario;
     }
@@ -44,7 +45,7 @@ public class RenglonVenta
         return precioUnitario;
     }
 
-    private static int SetCantidad(int cantidad)
+    private static decimal SetCantidad(decimal cantidad)
     {
         if (cantidad <= 0)
         {

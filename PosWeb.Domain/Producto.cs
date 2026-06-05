@@ -8,35 +8,54 @@ public class Producto
     [Key]
     public int ID_PRODUCTO { get; private set; }
 
-    public string CODIGO_BARRA { get; private set; } = null!;
+    public string COD_PRODUCTO { get; private set; } = null!;
 
-    public string NOMBRE { get; private set; } = null!;
+    public string CODIGO_BARRAS { get; private set; } = null!;
+
+    public string DESC_PRODUCTO { get; private set; } = null!;
 
     public decimal PRECIO { get; private set; }
 
     public decimal COSTO { get; private set; }
 
-    public int STOCK { get; private set; }
+    public int? ID_CATEGORIA { get; private set; }
 
-    public string? TAMANO { get; private set; }
+    public string? DESC_ADICIONAL { get; private set; }
+
+    public decimal? CONTENIDO { get; private set; }
+
+    public int? ID_UNIDAD_MEDIDA { get; private set; }
+
+    public DateTime FECHA_ALTA { get; private set; }
+
+    public DateTime FECHA_ULTIMA_MOD { get; private set; }
+
+    public DateTime? FECHA_BAJA { get; private set; }
 
     public bool ACTIVO { get; private set; }
 
     public Producto(
-        string codigoBarra,
-        string nombre,
+        string codProducto,
+        string codigoBarras,
+        string descProducto,
         decimal precio,
         decimal costo,
-        int stock,
-        string? tamano = null)
+        int? idCategoria = null,
+        string? descAdicional = null,
+        decimal? contenido = null,
+        int? idUnidadMedida = null)
     {
-        CambiarCodigoBarra(codigoBarra);
-        CambiarNombre(nombre);
+        CambiarCodigoProducto(codProducto);
+        CambiarCodigoBarras(codigoBarras);
+        CambiarDescripcion(descProducto);
         CambiarPrecio(precio);
         CambiarCosto(costo);
-        CambiarStock(stock);
-        CambiarTamano(tamano);
-
+        ID_CATEGORIA = idCategoria;
+        DESC_ADICIONAL = descAdicional;
+        CONTENIDO = contenido;
+        ID_UNIDAD_MEDIDA = idUnidadMedida;
+        FECHA_ALTA = DateTime.UtcNow;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
         ACTIVO = true;
     }
 
@@ -44,24 +63,37 @@ public class Producto
     {
     }
 
-    public void CambiarCodigoBarra(string codigoBarra)
+    public void CambiarCodigoProducto(string codProducto)
     {
-        if (string.IsNullOrWhiteSpace(codigoBarra))
+        if (string.IsNullOrWhiteSpace(codProducto) || codProducto.Trim().Length > 50)
         {
-            throw new CodigoBarraInvalidoException(codigoBarra);
+            throw new CodigoInvalidoException("Producto", codProducto);
         }
 
-        CODIGO_BARRA = codigoBarra;
+        COD_PRODUCTO = codProducto.Trim();
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void CambiarNombre(string nombre)
+    public void CambiarCodigoBarras(string codigoBarras)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
+        if (string.IsNullOrWhiteSpace(codigoBarras))
         {
-            throw new NombreInvalidoException(nombre);
+            throw new CodigoBarraInvalidoException(codigoBarras);
         }
 
-        NOMBRE = nombre;
+        CODIGO_BARRAS = codigoBarras;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarDescripcion(string descProducto)
+    {
+        if (string.IsNullOrWhiteSpace(descProducto))
+        {
+            throw new NombreInvalidoException(descProducto);
+        }
+
+        DESC_PRODUCTO = descProducto;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
     public void CambiarPrecio(decimal precio)
@@ -72,6 +104,7 @@ public class Producto
         }
 
         PRECIO = precio;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
     public void CambiarCosto(decimal costo)
@@ -82,59 +115,43 @@ public class Producto
         }
 
         COSTO = costo;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void CambiarStock(int stock)
+    public void CambiarCategoria(int? idCategoria)
     {
-        if (stock < 0)
-        {
-            throw new StockInvalidoException(stock);
-        }
-
-        STOCK = stock;
+        ID_CATEGORIA = idCategoria;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void CambiarTamano(string? tamano)
+    public void CambiarDescAdicional(string? descAdicional)
     {
-        TAMANO = string.IsNullOrWhiteSpace(tamano) ? null : tamano.Trim();
+        DESC_ADICIONAL = string.IsNullOrWhiteSpace(descAdicional) ? null : descAdicional.Trim();
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void DescontarStock(int cantidad)
+    public void CambiarContenido(decimal? contenido)
     {
-        if (cantidad <= 0)
-        {
-            throw new CantidadInvalidaException(cantidad);
-        }
-
-        if (STOCK < cantidad)
-        {
-            throw new StockInsuficienteException(
-                NOMBRE,
-                STOCK,
-                cantidad
-            );
-        }
-
-        STOCK -= cantidad;
+        CONTENIDO = contenido;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void AumentarStock(int cantidad)
+    public void CambiarUnidadMedida(int? idUnidadMedida)
     {
-        if (cantidad <= 0)
-        {
-            throw new CantidadInvalidaException(cantidad);
-        }
-
-        STOCK += cantidad;
+        ID_UNIDAD_MEDIDA = idUnidadMedida;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
     public void Activar()
     {
         ACTIVO = true;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
     public void Desactivar()
     {
         ACTIVO = false;
+        FECHA_BAJA = DateTime.UtcNow;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 }

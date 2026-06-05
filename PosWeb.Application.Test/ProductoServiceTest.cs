@@ -31,15 +31,14 @@ public class ProductoServiceTest
         int id,
         string codigo,
         string nombre,
-        bool activo = true,
-        int stock = 10)
+        bool activo = true)
     {
         Producto producto = new Producto(
             codigo,
+            codigo,
             nombre,
-            100,
-            80,
-            stock
+            100m,
+            80m
         );
 
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
@@ -93,15 +92,15 @@ public class ProductoServiceTest
 
         ProductoUpsertDto dto = new ProductoUpsertDto
         {
-            CodigoBarra = "123",
+            CodigoBarras = "123",
             Nombre = "Producto Test",
-            Precio = 100,
-            Costo = 80
+            Precio = 100m,
+            Costo = 80m
         };
 
         ProductoDto resultado = service.Crear(dto);
 
-        Assert.Equal("123", resultado.CodigoBarra);
+        Assert.Equal("123", resultado.CodigoBarras);
         Assert.Equal("Producto Test", resultado.Nombre);
         Assert.True(resultado.Activo);
         Assert.Equal(0, resultado.Stock);
@@ -118,10 +117,10 @@ public class ProductoServiceTest
 
         ProductoUpsertDto dto = new ProductoUpsertDto
         {
-            CodigoBarra = "123",
+            CodigoBarras = "123",
             Nombre = "Nuevo",
-            Precio = 100,
-            Costo = 80
+            Precio = 100m,
+            Costo = 80m
         };
 
         Assert.Throws<ProductoCodigoDuplicadoException>(() =>
@@ -192,29 +191,5 @@ public class ProductoServiceTest
         {
             service.Eliminar(999);
         });
-    }
-
-    [Fact]
-    public void Modificar_SinStock_ConservaStockLegacy()
-    {
-        PosDbContext context = CrearContexto(nameof(Modificar_SinStock_ConservaStockLegacy));
-        Producto producto = CrearProducto(context, 1, "123", "Producto", stock: 17);
-        ProductoService service = CrearService(context);
-
-        ProductoUpsertDto dto = new ProductoUpsertDto
-        {
-            CodigoBarra = "123-EDIT",
-            Nombre = "Producto Editado",
-            Precio = 150,
-            Costo = 90
-        };
-
-        ProductoDto resultado = service.Modificar(producto.ID_PRODUCTO, dto);
-        Producto persistido = context.Productos.Single();
-
-        Assert.Equal("123-EDIT", resultado.CodigoBarra);
-        Assert.Equal("Producto Editado", resultado.Nombre);
-        Assert.Equal(17, resultado.Stock);
-        Assert.Equal(17, persistido.STOCK);
     }
 }

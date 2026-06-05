@@ -22,9 +22,9 @@ public class Usuario
 
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
-    public int? ID_USUARIO_RESPONSABLE { get; private set; }
+    public int? ID_USUARIO_RESP { get; private set; }
 
-    public string? EMPRESA_REPRESENTA { get; private set; }
+    public bool SUSCRIPCION_ACTIVA { get; private set; }
 
     public Usuario(
         int id,
@@ -33,9 +33,8 @@ public class Usuario
         string rol,
         string? mail = null,
         int? sucursalDefault = null,
-        int? usuarioResponsableId = null,
-        string? empresaRepresenta = null)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta)
+        int? usuarioResponsableId = null)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId)
     {
         ID_USUARIO = id;
     }
@@ -46,17 +45,16 @@ public class Usuario
         string rol,
         string? mail = null,
         int? sucursalDefault = null,
-        int? usuarioResponsableId = null,
-        string? empresaRepresenta = null)
+        int? usuarioResponsableId = null)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
         CambiarRol(rol);
         SetMail(mail);
         ACTIVO = true;
+        SUSCRIPCION_ACTIVA = true;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
-        ID_USUARIO_RESPONSABLE = usuarioResponsableId;
-        SetEmpresaRepresenta(empresaRepresenta);
+        ID_USUARIO_RESP = usuarioResponsableId;
     }
 
     protected Usuario()
@@ -134,22 +132,6 @@ public class Usuario
         ROL = rol;
     }
 
-    public void SetEmpresaRepresenta(string? empresaRepresenta)
-    {
-        if (string.IsNullOrWhiteSpace(empresaRepresenta))
-        {
-            EMPRESA_REPRESENTA = null;
-            return;
-        }
-
-        if (empresaRepresenta.Length > 120)
-        {
-            throw new ArgumentException("La empresa no puede superar 120 caracteres");
-        }
-
-        EMPRESA_REPRESENTA = empresaRepresenta.Trim();
-    }
-
     public void Activar()
     {
         ACTIVO = true;
@@ -158,5 +140,15 @@ public class Usuario
     public void Desactivar()
     {
         ACTIVO = false;
+    }
+
+    public void ActivarSuscripcion()
+    {
+        SUSCRIPCION_ACTIVA = true;
+    }
+
+    public void DesactivarSuscripcion()
+    {
+        SUSCRIPCION_ACTIVA = false;
     }
 }

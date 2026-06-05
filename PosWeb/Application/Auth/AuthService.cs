@@ -146,14 +146,6 @@ public class AuthService
         }
 
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
-        string? empresaRepresenta = rol == Roles.Admin
-            ? request.EmpresaRepresenta?.Trim()
-            : null;
-
-        if (rol == Roles.Admin && string.IsNullOrWhiteSpace(empresaRepresenta))
-        {
-            throw new ArgumentException("Empresa requerida para el alta de administrador");
-        }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         var nuevoUsuario = new Usuario(
@@ -161,8 +153,7 @@ public class AuthService
             passwordHash,
             rol,
             mail,
-            usuarioResponsableId: usuarioResponsableId,
-            empresaRepresenta: empresaRepresenta);
+            usuarioResponsableId: usuarioResponsableId);
 
         _context.Usuarios.Add(nuevoUsuario);
         _context.SaveChanges();
@@ -173,8 +164,7 @@ public class AuthService
             Usuario = nuevoUsuario.NOMBRE_USUARIO,
             Mail = mail,
             Rol = nuevoUsuario.ROL,
-            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESPONSABLE,
-            EmpresaRepresenta = nuevoUsuario.EMPRESA_REPRESENTA
+            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP
         };
     }
 }

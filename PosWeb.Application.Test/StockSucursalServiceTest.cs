@@ -29,7 +29,7 @@ public class StockSucursalServiceTest
 
     private static Producto CrearProducto(PosDbContext context, int id, string codigo, string nombre, bool activo = true)
     {
-        Producto producto = new Producto(codigo, nombre, 100, 80, 0);
+        Producto producto = new Producto(codigo, codigo, nombre, 100m, 80m);
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
 
         if (!activo)
@@ -44,7 +44,7 @@ public class StockSucursalServiceTest
 
     private static Sucursal CrearSucursal(PosDbContext context, int id, string codigo, string nombre, bool activo = true)
     {
-        Sucursal sucursal = new Sucursal(id, codigo, nombre);
+        Sucursal sucursal = new Sucursal(codigo, nombre, 1);
         TestHelpers.SetId(sucursal, id, "ID_SUCURSAL");
 
         if (!activo)
@@ -57,10 +57,9 @@ public class StockSucursalServiceTest
         return sucursal;
     }
 
-    private static void CrearStock(PosDbContext context, int productoId, int sucursalId, int stock, int id = 1)
+    private static void CrearStock(PosDbContext context, int productoId, int sucursalId, int stock)
     {
         StockSucursal stockSucursal = new StockSucursal(productoId, sucursalId, stock);
-        TestHelpers.SetId(stockSucursal, id, "Id");
         context.StockSucursales.Add(stockSucursal);
         context.SaveChanges();
     }
@@ -122,9 +121,9 @@ public class StockSucursalServiceTest
         service.AjustarStock(producto.ID_PRODUCTO, 1, 8);
 
         StockSucursal creado = Assert.Single(context.StockSucursales);
-        Assert.Equal(producto.ID_PRODUCTO, creado.IdProducto);
-        Assert.Equal(1, creado.IdSucursal);
-        Assert.Equal(8, creado.Stock);
+        Assert.Equal(producto.ID_PRODUCTO, creado.ID_PRODUCTO);
+        Assert.Equal(1, creado.ID_SUCURSAL);
+        Assert.Equal(8, creado.STOCK);
     }
 
     [Fact]

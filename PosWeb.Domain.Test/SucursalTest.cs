@@ -10,9 +10,9 @@ public class SucursalTest
     public void CrearSucursal_QuedaActiva()
     {
         Sucursal sucursal = new Sucursal(
-            1,
             "CENTRO",
-            "Sucursal Centro"
+            "Sucursal Centro",
+            1
         );
 
         Assert.True(sucursal.ACTIVO);
@@ -22,9 +22,9 @@ public class SucursalTest
     public void DesactivarSucursal_QuedaInactiva()
     {
         Sucursal sucursal = new Sucursal(
-            1,
             "CENTRO",
-            "Sucursal Centro"
+            "Sucursal Centro",
+            1
         );
 
         sucursal.Desactivar();
@@ -33,56 +33,28 @@ public class SucursalTest
     }
 
     [Fact]
-    public void CrearSucursal_NumeroInvalido_LanzaExcepcion()
-    {
-        Assert.Throws<NumeroSucursalInvalidoException>(() =>
-        {
-            new Sucursal(
-                0,
-                "CENTRO",
-                "Sucursal Centro"
-            );
-        });
-    }
-
-    [Fact]
     public void CrearSucursal_CodigoVacio_LanzaExcepcion()
     {
         Assert.Throws<CodigoSucursalInvalidoException>(() =>
         {
             new Sucursal(
-                1,
                 "",
-                "Sucursal Centro"
+                "Sucursal Centro",
+                1
             );
         });
     }
 
     [Fact]
-    public void CrearSucursal_NombreVacio_LanzaExcepcion()
+    public void CrearSucursal_DescripcionVacia_LanzaExcepcion()
     {
         Assert.Throws<NombreSucursalInvalidoException>(() =>
         {
             new Sucursal(
-                1,
                 "CENTRO",
-                ""
+                "",
+                1
             );
-        });
-    }
-
-    [Fact]
-    public void CambiarNumero_NumeroInvalido_LanzaExcepcion()
-    {
-        Sucursal sucursal = new Sucursal(
-            1,
-            "CENTRO",
-            "Sucursal Centro"
-        );
-
-        Assert.Throws<NumeroSucursalInvalidoException>(() =>
-        {
-            sucursal.CambiarNumero(0);
         });
     }
 
@@ -90,9 +62,9 @@ public class SucursalTest
     public void CambiarCodigo_CodigoVacio_LanzaExcepcion()
     {
         Sucursal sucursal = new Sucursal(
-            1,
             "CENTRO",
-            "Sucursal Centro"
+            "Sucursal Centro",
+            1
         );
 
         Assert.Throws<CodigoSucursalInvalidoException>(() =>
@@ -102,17 +74,17 @@ public class SucursalTest
     }
 
     [Fact]
-    public void CambiarNombre_NombreVacio_LanzaExcepcion()
+    public void CambiarDescripcion_DescripcionVacia_LanzaExcepcion()
     {
         Sucursal sucursal = new Sucursal(
-            1,
             "CENTRO",
-            "Sucursal Centro"
+            "Sucursal Centro",
+            1
         );
 
         Assert.Throws<NombreSucursalInvalidoException>(() =>
         {
-            sucursal.CambiarNombre("");
+            sucursal.CambiarDescripcion("");
         });
     }
 }

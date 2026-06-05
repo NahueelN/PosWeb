@@ -62,10 +62,16 @@ public class CajaService
             throw new CajaException(ex.Message);
         }
 
-        // Calculate total sales in this caja
+        // Calculate total sales in this caja — via Pagos.ID_CAJA (Venta.ID_CAJA removed in PR 1)
         // Note: materialize first — SQLite can't SUM(decimal) server-side
+        var ventaIdsParaCaja = _context.Pagos
+            .Where(p => p.ID_CAJA == cajaId)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
+            .ToList();
+
         List<decimal> montosVentas = _context.Ventas
-            .Where(v => v.ID_CAJA == cajaId)
+            .Where(v => ventaIdsParaCaja.Contains(v.ID_VENTA))
             .Select(v => v.TOTAL)
             .ToList();
 
@@ -93,22 +99,23 @@ public class CajaService
 
     private List<PagoPorMedioDto> GetDesglosePagos(int cajaId)
     {
-        // Get venta IDs for this caja
-        var ventaIds = _context.Ventas
-            .Where(v => v.ID_CAJA == cajaId)
-            .Select(v => v.ID_VENTA)
+        // Get venta IDs for this caja — via Pagos.ID_CAJA (Venta.ID_CAJA removed in PR 1)
+        var ventaIds = _context.Pagos
+            .Where(p => p.ID_CAJA == cajaId)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
             .ToList();
 
         if (ventaIds.Count == 0) return new();
 
         // Materialize raw payment data, then group/sum client-side (SQLite can't SUM(decimal))
-        var pagosRaw = _context.PagosVenta
+        var pagosRaw = _context.Pagos
             .Where(p => ventaIds.Contains(p.ID_VENTA))
             .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO })
             .ToList();
 
         var medios = _context.MediosPago
-            .Select(m => new { m.ID_MEDIO_PAGO, m.NOMBRE, m.PAGA_VUELTO })
+            .Select(m => new { m.ID_MEDIO_PAGO, m.DESC_MEDIO_PAGO, m.PAGA_VUELTO })
             .ToList();
 
         return pagosRaw
@@ -119,7 +126,7 @@ public class CajaService
                 return new PagoPorMedioDto
                 {
                     IdMedioPago = g.Key,
-                    MedioPago = medio?.NOMBRE ?? "Otro",
+                    MedioPago = medio?.DESC_MEDIO_PAGO ?? "Otro",
                     Monto = g.Sum(p => p.MONTO),
                     PagaVuelto = medio?.PAGA_VUELTO ?? false,
                 };
@@ -133,8 +140,14 @@ public class CajaService
         Caja? caja = _context.Cajas.Find(cajaId);
         if (caja == null || caja.ESTADO != "Abierta") return null;
 
+        var ventaIdsPreview = _context.Pagos
+            .Where(p => p.ID_CAJA == cajaId)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
+            .ToList();
+
         List<decimal> montosVentas = _context.Ventas
-            .Where(v => v.ID_CAJA == cajaId)
+            .Where(v => ventaIdsPreview.Contains(v.ID_VENTA))
             .Select(v => v.TOTAL)
             .ToList();
 

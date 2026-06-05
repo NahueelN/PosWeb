@@ -20,7 +20,7 @@ public class GastoServiceTest
         var context = new PosDbContext(options);
 
         // Seed basic data
-        Sucursal sucursal = new Sucursal(1, "001", "Sucursal Test");
+        Sucursal sucursal = new Sucursal("001", "Sucursal Test", 1);
         sucursal.Activar();
         context.Sucursales.Add(sucursal);
 

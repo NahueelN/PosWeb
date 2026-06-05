@@ -1,4 +1,5 @@
-﻿using PosWeb.Domain.Exceptions;
+﻿using PosWeb.Domain;
+using PosWeb.Domain.Exceptions;
 using PosWeb.Testing;
 
 namespace PosWeb.Domain.Test;
@@ -15,17 +16,16 @@ public class VentaTest
     private static Producto CrearProducto(
         int id,
         decimal precio,
-        int stock,
         string codigoBarra = "TEST",
         string nombre = "Producto Test",
-        decimal costo = 80)
+        decimal costo = 80m)
     {
         Producto producto = new Producto(
             codigoBarra,
+            codigoBarra,
             nombre,
             precio,
-            costo,
-            stock
+            costo
         );
 
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
@@ -37,31 +37,31 @@ public class VentaTest
     {
         Venta venta = CrearVenta();
 
-        Assert.Equal(0, venta.TOTAL);
+        Assert.Equal(0m, venta.TOTAL);
     }
 
     [Fact]
     public void AgregarRenglon_CalculaTotalCorrectamente()
     {
-        Producto producto = CrearProducto(id: 1, precio: 100, stock: 10);
+        Producto producto = CrearProducto(id: 1, precio: 100m);
         Venta venta = CrearVenta();
 
-        venta.AgregarRenglon(producto, 2);
+        venta.AgregarRenglon(producto, 2m);
 
-        Assert.Equal(200, venta.TOTAL);
+        Assert.Equal(200m, venta.TOTAL);
     }
 
     [Fact]
     public void AgregarMultiplesRenglones_SumaTotales()
     {
-        Producto producto1 = CrearProducto(id: 1, precio: 100, stock: 10);
-        Producto producto2 = CrearProducto(id: 2, precio: 50, stock: 10);
+        Producto producto1 = CrearProducto(id: 1, precio: 100m);
+        Producto producto2 = CrearProducto(id: 2, precio: 50m);
         Venta venta = CrearVenta();
 
-        venta.AgregarRenglon(producto1, 2);
-        venta.AgregarRenglon(producto2, 4);
+        venta.AgregarRenglon(producto1, 2m);
+        venta.AgregarRenglon(producto2, 4m);
 
-        Assert.Equal(400, venta.TOTAL);
+        Assert.Equal(400m, venta.TOTAL);
     }
 
     [Fact]
@@ -80,32 +80,31 @@ public class VentaTest
 
         Assert.Throws<ProductoInvalidoException>(() =>
         {
-            venta.AgregarRenglon(null!, 1);
+            venta.AgregarRenglon(null!, 1m);
         });
     }
 
     [Fact]
     public void AgregarRenglon_CantidadCero_LanzaExcepcion()
     {
-        Producto producto = CrearProducto(id: 1, precio: 100, stock: 10);
+        Producto producto = CrearProducto(id: 1, precio: 100m);
         Venta venta = CrearVenta();
 
         Assert.Throws<CantidadInvalidaException>(() =>
         {
-            venta.AgregarRenglon(producto, 0);
+            venta.AgregarRenglon(producto, 0m);
         });
     }
 
     [Fact]
     public void AgregarRenglon_CantidadNegativa_LanzaExcepcion()
     {
-        Producto producto = CrearProducto(id: 1, precio: 100, stock: 10);
+        Producto producto = CrearProducto(id: 1, precio: 100m);
         Venta venta = CrearVenta();
 
         Assert.Throws<CantidadInvalidaException>(() =>
         {
-            venta.AgregarRenglon(producto, -1);
+            venta.AgregarRenglon(producto, -1m);
         });
     }
-
 }

@@ -4,10 +4,9 @@ namespace PosWeb.Domain;
 
 public class StockSucursal
 {
-    public int Id { get; private set; }
-    public int IdProducto { get; private set; }
-    public int IdSucursal { get; private set; }
-    public int Stock { get; private set; }
+    public int ID_PRODUCTO { get; private set; }
+    public int ID_SUCURSAL { get; private set; }
+    public decimal STOCK { get; private set; }
 
     // Navigation
     public Producto Producto { get; private set; } = null!;
@@ -15,39 +14,39 @@ public class StockSucursal
 
     protected StockSucursal() { } // EF Core
 
-    public StockSucursal(int idProducto, int idSucursal, int stockInicial)
+    public StockSucursal(int idProducto, int idSucursal, decimal stockInicial)
     {
         if (stockInicial < 0)
             throw new ArgumentException("Stock inicial no puede ser negativo", nameof(stockInicial));
 
-        IdProducto = idProducto;
-        IdSucursal = idSucursal;
-        Stock = stockInicial;
+        ID_PRODUCTO = idProducto;
+        ID_SUCURSAL = idSucursal;
+        STOCK = stockInicial;
     }
 
-    public void DescontarStock(int cantidad)
+    public void DescontarStock(decimal cantidad)
     {
         if (cantidad <= 0)
             throw new CantidadInvalidaException(cantidad);
-        if (Stock < cantidad)
-            throw new StockInsuficienteException("", Stock, cantidad, IdSucursal);
+        if (STOCK < cantidad)
+            throw new StockInsuficienteException("", STOCK, cantidad, ID_SUCURSAL);
 
-        Stock -= cantidad;
+        STOCK -= cantidad;
     }
 
-    public void AumentarStock(int cantidad)
+    public void AumentarStock(decimal cantidad)
     {
         if (cantidad <= 0)
             throw new CantidadInvalidaException(cantidad);
 
-        Stock += cantidad;
+        STOCK += cantidad;
     }
 
-    public void AjustarStock(int nuevoStock)
+    public void AjustarStock(decimal nuevoStock)
     {
         if (nuevoStock < 0)
             throw new StockInvalidoException(nuevoStock);
 
-        Stock = nuevoStock;
+        STOCK = nuevoStock;
     }
 }

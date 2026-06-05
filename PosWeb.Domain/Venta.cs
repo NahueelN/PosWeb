@@ -10,13 +10,11 @@ public class Venta
 
     public int ID_SUCURSAL { get; private set; }
 
-    public DateTime FECHA { get; private set; }
+    public DateTime FECHA_VENTA { get; private set; }
 
     public decimal TOTAL { get; private set; }
 
     public int? ID_USUARIO { get; private set; }
-
-    public int? ID_CAJA { get; private set; }
 
     public int? ID_CLIENTE { get; private set; }
 
@@ -27,7 +25,7 @@ public class Venta
     public Venta(int sucursalId, int? usuarioId = null)
     {
         ID_SUCURSAL = SetSucursalId(sucursalId);
-        FECHA = DateTime.Now;
+        FECHA_VENTA = DateTime.Now;
         TOTAL = 0;
         ID_USUARIO = usuarioId;
     }
@@ -46,7 +44,7 @@ public class Venta
         return sucursalId;
     }
 
-    public void AgregarRenglon(Producto producto, int cantidad)
+    public void AgregarRenglon(Producto producto, decimal cantidad)
     {
         if (producto == null)
         {
@@ -67,16 +65,6 @@ public class Venta
         _RENGLONES.Add(renglon);
 
         RecalcularTotal();
-    }
-
-    public void AsignarCaja(int cajaId)
-    {
-        if (cajaId <= 0)
-        {
-            throw new ArgumentException("Caja inválida");
-        }
-
-        ID_CAJA = cajaId;
     }
 
     public void AsignarCliente(int? clienteId)

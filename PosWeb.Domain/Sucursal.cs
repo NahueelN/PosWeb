@@ -8,35 +8,24 @@ public class Sucursal
     [Key]
     public int ID_SUCURSAL { get; private set; }
 
-    public int NUMERO { get; private set; }
+    public string COD_SUCURSAL { get; private set; } = null!;
 
-    public string CODIGO { get; private set; } = null!;
+    public string DESC_SUCURSAL { get; private set; } = null!;
 
-    public string NOMBRE { get; private set; } = null!;
+    public int ID_EMPRESA { get; private set; }
 
     public bool ACTIVO { get; private set; }
 
-    public Sucursal(int numero, string codigo, string nombre)
+    public Sucursal(string codSucursal, string descSucursal, int idEmpresa)
     {
-        CambiarNumero(numero);
-        CambiarCodigo(codigo);
-        CambiarNombre(nombre);
-
+        CambiarCodigo(codSucursal);
+        CambiarDescripcion(descSucursal);
+        CambiarEmpresa(idEmpresa);
         ACTIVO = true;
     }
 
     protected Sucursal()
     {
-    }
-
-    public void CambiarNumero(int numero)
-    {
-        if (numero <= 0)
-        {
-            throw new NumeroSucursalInvalidoException(numero);
-        }
-
-        NUMERO = numero;
     }
 
     public void CambiarCodigo(string codigo)
@@ -46,17 +35,27 @@ public class Sucursal
             throw new CodigoSucursalInvalidoException(codigo);
         }
 
-        CODIGO = codigo;
+        COD_SUCURSAL = codigo;
     }
 
-    public void CambiarNombre(string nombre)
+    public void CambiarDescripcion(string descripcion)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
+        if (string.IsNullOrWhiteSpace(descripcion))
         {
-            throw new NombreSucursalInvalidoException(nombre);
+            throw new NombreSucursalInvalidoException(descripcion);
         }
 
-        NOMBRE = nombre;
+        DESC_SUCURSAL = descripcion;
+    }
+
+    public void CambiarEmpresa(int idEmpresa)
+    {
+        if (idEmpresa <= 0)
+        {
+            throw new ArgumentException("Empresa inválida");
+        }
+
+        ID_EMPRESA = idEmpresa;
     }
 
     public void Activar()

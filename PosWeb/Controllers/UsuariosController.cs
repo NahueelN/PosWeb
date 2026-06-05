@@ -33,11 +33,10 @@ public class UsuariosController : ControllerBase
                 NombreUsuario = u.NOMBRE_USUARIO,
                 Mail = u.MAIL,
                 Rol = u.ROL,
-                UsuarioResponsableId = u.ID_USUARIO_RESPONSABLE,
-                UsuarioResponsableNombre = u.ID_USUARIO_RESPONSABLE.HasValue && responsables.TryGetValue(u.ID_USUARIO_RESPONSABLE.Value, out var nombreResponsable)
+                UsuarioResponsableId = u.ID_USUARIO_RESP,
+                UsuarioResponsableNombre = u.ID_USUARIO_RESP.HasValue && responsables.TryGetValue(u.ID_USUARIO_RESP.Value, out var nombreResponsable)
                     ? nombreResponsable
                     : null,
-                EmpresaRepresenta = u.EMPRESA_REPRESENTA,
                 Activo = u.ACTIVO,
                 PinConfigurado = u.PIN_HASH != null && u.PIN_HASH != string.Empty
             })

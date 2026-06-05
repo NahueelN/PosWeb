@@ -1,0 +1,158 @@
+// PosWeb — Diagrama de Ventas
+// Renombrar a .dbml y abrir en dbdiagram.io
+
+Table PRODUCTO {
+  ID_PRODUCTO int [pk, increment]
+  COD_PRODUCTO varchar(50) [unique, not null]
+  CODIGO_BARRAS varchar(100)
+  DESC_PRODUCTO varchar(200) [not null]
+  PRECIO decimal(18,2) [not null]
+  COSTO decimal(18,2) [not null]
+  ACTIVO bit [not null, default: 1]
+}
+
+Table SUCURSAL {
+  ID_SUCURSAL int [pk, increment]
+  COD_SUCURSAL varchar(20) [unique, not null]
+  NUMERO int [not null]
+  NOMBRE varchar(200) [not null]
+  ACTIVO bit [not null, default: 1]
+}
+
+Table STOCK_POR_SUCURSAL {
+  ID_PRODUCTO int
+  ID_SUCURSAL int
+  STOCK decimal(18,2) [not null, default: 0]
+  Indexes {
+    (ID_PRODUCTO, ID_SUCURSAL) [pk]
+  }
+}
+
+Table USUARIO {
+  ID_USUARIO int [pk, increment]
+  NOMBRE_USUARIO varchar(50) [unique, not null]
+  PASSWORD_HASH varchar(200) [not null]
+  PIN_HASH varchar(200)
+  MAIL varchar(150)
+  ROL varchar(20) [not null]
+  ACTIVO bit [not null, default: 1]
+}
+
+Table CAJA {
+  ID_CAJA int [pk, increment]
+  ID_SUCURSAL int [not null]
+  ESTADO varchar(20) [not null]
+  FECHA_APERTURA datetime [not null]
+  FECHA_CIERRE datetime
+  MONTO_INICIAL decimal(18,2) [not null]
+  MONTO_CONTADO_EFECTIVO decimal(18,2)
+  MONTO_CONTADO_TARJETAS decimal(18,2)
+  DIFERENCIA decimal(18,2)
+  MONTO_GASTOS decimal(18,2) [not null, default: 0]
+  ID_USUARIO_APERTURA int [not null]
+  ID_USUARIO_CIERRE int
+}
+
+Table CLIENTE {
+  ID_CLIENTE int [pk, increment]
+  COD_CLIENTE varchar(50) [unique, not null]
+  NOMBRE varchar(200) [not null]
+  TIPO_DOCUMENTO varchar(20) [not null]
+  NRO_DOCUMENTO varchar(20) [not null]
+  MAIL varchar(150)
+  TELEFONO varchar(50)
+  DOMICILIO varchar(200)
+  ACTIVO bit [not null, default: 1]
+}
+
+Table VENTA {
+  ID_VENTA int [pk, increment]
+  ID_CAJA int
+  ID_SUCURSAL int [not null]
+  FECHA_VENTA datetime [not null]
+  TOTAL decimal(18,2) [not null]
+  ID_USUARIO int
+  ID_CLIENTE int
+}
+
+Table RENGLON_VENTA {
+  ID_RENGLON_VENTA int [pk, increment]
+  ID_VENTA int [not null]
+  ID_PRODUCTO int [not null]
+  CANTIDAD decimal(18,2) [not null]
+  PRECIO_UNITARIO decimal(18,2) [not null]
+  SUBTOTAL decimal(18,2) [not null]
+}
+
+Table MEDIO_PAGO {
+  ID_MEDIO_PAGO int [pk, increment]
+  DESC_MEDIO_PAGO varchar(100) [not null]
+  PAGA_VUELTO bit [not null, default: 0]
+  ACTIVO bit [not null, default: 1]
+}
+
+Table PAGO {
+  ID_PAGO int [pk, increment]
+  ID_VENTA int [not null]
+  ID_MEDIO_PAGO int [not null]
+  MONTO decimal(18,2) [not null]
+  CAMBIO decimal(18,2) [not null, default: 0]
+  ID_USUARIO_REGISTRA int [not null]
+  ID_CAJA int [not null]
+}
+
+Table GASTO {
+  ID_GASTO int [pk, increment]
+  ID_CAJA int [not null]
+  MONTO decimal(18,2) [not null]
+  FECHA_GASTO datetime [not null]
+  DETALLE varchar(500) [not null]
+}
+
+Table DEUDA {
+  ID_DEUDA int [pk, increment]
+  ID_CLIENTE int
+  ID_VENTA int
+  MONTO_DEUDA decimal(18,2) [not null]
+  FECHA_DEUDA datetime [not null]
+  PAGO bit [not null, default: 0]
+  ID_PROVEEDOR int
+  ID_COMPRA int
+}
+
+// ════════ RELACIONES ════════
+
+// Stock
+Ref: STOCK_POR_SUCURSAL.ID_PRODUCTO > PRODUCTO.ID_PRODUCTO
+Ref: STOCK_POR_SUCURSAL.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+
+// Usuario
+Ref: USUARIO.ID_SUCURSAL_DEFAULT > SUCURSAL.ID_SUCURSAL
+
+// Caja
+Ref: CAJA.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+Ref: CAJA.ID_USUARIO_APERTURA > USUARIO.ID_USUARIO
+Ref: CAJA.ID_USUARIO_CIERRE > USUARIO.ID_USUARIO
+
+// Venta
+Ref: VENTA.ID_CAJA > CAJA.ID_CAJA
+Ref: VENTA.ID_SUCURSAL > SUCURSAL.ID_SUCURSAL
+Ref: VENTA.ID_USUARIO > USUARIO.ID_USUARIO
+Ref: VENTA.ID_CLIENTE > CLIENTE.ID_CLIENTE
+
+// Renglones de venta
+Ref: RENGLON_VENTA.ID_VENTA > VENTA.ID_VENTA
+Ref: RENGLON_VENTA.ID_PRODUCTO > PRODUCTO.ID_PRODUCTO
+
+// Pago
+Ref: PAGO.ID_VENTA > VENTA.ID_VENTA
+Ref: PAGO.ID_MEDIO_PAGO > MEDIO_PAGO.ID_MEDIO_PAGO
+Ref: PAGO.ID_USUARIO_REGISTRA > USUARIO.ID_USUARIO
+Ref: PAGO.ID_CAJA > CAJA.ID_CAJA
+
+// Gastos de caja
+Ref: GASTO.ID_CAJA > CAJA.ID_CAJA
+
+// Deuda con cliente
+Ref: DEUDA.ID_CLIENTE > CLIENTE.ID_CLIENTE
+Ref: DEUDA.ID_VENTA > VENTA.ID_VENTA
