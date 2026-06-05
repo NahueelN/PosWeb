@@ -23,6 +23,10 @@ public class Deuda
 
     public int? ID_COMPRA { get; private set; }
 
+    // Navigation properties
+    public Proveedor Proveedor { get; private set; } = null!;
+    public Compra Compra { get; private set; } = null!;
+
     protected Deuda()
     {
     }

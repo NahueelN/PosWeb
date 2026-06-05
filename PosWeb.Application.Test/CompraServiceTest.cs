@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Compras;
+using PosWeb.Application.Deudas;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -38,7 +39,8 @@ public class CompraServiceTest
 
     private static CompraService CrearService(PosDbContext context)
     {
-        return new CompraService(context);
+        var deudaService = new DeudaService(context);
+        return new CompraService(context, deudaService);
     }
 
     private static Caja CrearCajaAbierta(PosDbContext context, int sucursalId, int usuarioId)
@@ -415,5 +417,38 @@ public class CompraServiceTest
         Assert.Equal(producto.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
         Assert.Equal(4, stock.STOCK);
+    }
+
+    [Fact]
+    public void CrearCompra_ConProveedor_CreaDeuda()
+    {
+        // Arrange
+        PosDbContext context = CrearContexto(nameof(CrearCompra_ConProveedor_CreaDeuda));
+        CompraService service = CrearService(context);
+
+        Usuario usuario = context.Usuarios.First();
+        Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
+        Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
+        Producto producto = CrearProducto(context, 1, "CONDEUDA", "Producto con deuda", 150m, 100m);
+
+        // Act
+        CompraResponseDto resultado = service.CrearCompra(
+            sucursal.ID_SUCURSAL,
+            proveedorId,
+            usuario.ID_USUARIO,
+            new List<CompraItemDto>
+            {
+                new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 3, CostoUnitario = 80 }
+            });
+
+        // Assert
+        Assert.NotNull(resultado);
+        Deuda? deuda = context.Deudas.FirstOrDefault();
+        Assert.NotNull(deuda);
+        Assert.Equal(proveedorId, deuda!.ID_PROVEEDOR);
+        Assert.Equal(resultado.CompraId, deuda.ID_COMPRA);
+        Assert.Equal(3 * 80, deuda.MONTO_DEUDA);
+        Assert.False(deuda.PAGO);
     }
 }

@@ -316,3 +316,14 @@ export interface CrearGastoRequest {
 export interface GastoListResponse {
   items: GastoDto[]
 }
+
+// --- Deuda types ---
+export interface DeudaDto {
+  id: number
+  proveedorNombre: string
+  monto: number
+  fecha: string
+  fechaPago?: string
+  pago: boolean
+  compraId?: number
+}

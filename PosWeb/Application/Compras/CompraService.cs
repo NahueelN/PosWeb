@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PosWeb.Application.Deudas;
 using PosWeb.Application.Exceptions;
 using PosWeb.Contracts;
 using PosWeb.Data;
@@ -9,10 +10,12 @@ namespace PosWeb.Application.Compras;
 public class CompraService
 {
     private readonly PosDbContext _context;
+    private readonly DeudaService _deudaService;
 
-    public CompraService(PosDbContext context)
+    public CompraService(PosDbContext context, DeudaService deudaService)
     {
         _context = context;
+        _deudaService = deudaService;
     }
 
     /// <summary>
@@ -149,6 +152,9 @@ public class CompraService
 
             // Link Gasto back to Compra
             compra.AsignarGasto(gasto.ID_GASTO);
+
+            // Create Deuda for the proveedor
+            _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto);
 
             _context.SaveChanges(); // Final save within transaction
 

@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -242,11 +242,26 @@ export const api = {
    },
 
 // Gastos
-   gastos: {
-     listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
-     crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
-       method: 'POST',
-       body: JSON.stringify(dto),
-     }),
-   },
+    gastos: {
+      listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
+      crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+    },
+
+  // Deudas
+    deudas: {
+      listar: (proveedorId?: number, soloPendientes?: boolean) => {
+        const params = new URLSearchParams();
+        if (proveedorId) params.set('proveedorId', String(proveedorId));
+        if (soloPendientes) params.set('soloPendientes', 'true');
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request<DeudaDto[]>(`/deudas${query}`);
+      },
+      obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
+      pagar: (id: number) => request<DeudaDto>(`/deudas/${id}/pagar`, {
+        method: 'POST',
+      }),
+    },
 }
