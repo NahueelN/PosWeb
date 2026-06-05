@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -219,6 +219,19 @@ export const api = {
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
   },
+
+// Proveedores
+   proveedores: {
+     listar: (search?: string) => {
+       const query = search ? `?search=${encodeURIComponent(search)}` : '';
+       return request<ProveedorDto[]>(`/proveedores${query}`);
+     },
+     obtener: (id: number) => request<ProveedorDto>(`/proveedores/${id}`),
+     crear: (dto: CrearProveedorRequestDto) => request<ProveedorDto>('/proveedores', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+   },
 
 // Compras
    compras: {

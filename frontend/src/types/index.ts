@@ -202,6 +202,28 @@ export interface PagoPorMedioDto {
    pagaVuelto: boolean
  }
 
+// --- Proveedor types ---
+export interface ProveedorDto {
+  id: number
+  codigo: string
+  nombre: string
+  tipoDocumento?: string
+  nroDocumento?: string
+  telefono?: string
+  domicilio?: string
+  mail?: string
+  activo: boolean
+}
+
+export interface CrearProveedorRequestDto {
+  nombre: string
+  tipoDocumento?: string
+  nroDocumento?: string
+  telefono?: string
+  domicilio?: string
+  mail?: string
+}
+
 // --- Compra types ---
 export interface CompraItemDto {
    productoId: number          // 0 → create new product inline
@@ -225,7 +247,8 @@ export interface CompraItemDto {
 
  export interface CompraRequestDto {
    sucursalId: number
-   proveedor: string
+   proveedorId: number
+   userId?: number
    items: CompraItemDto[]
  }
 
@@ -238,8 +261,8 @@ export interface CompraItemDto {
  }
 
  export interface CompraResponseDto {
+   compraId: number
    gastoId: number
-   proveedor: string
    totalGasto: number
    fecha: string
    items: CompraItemResultDto[]

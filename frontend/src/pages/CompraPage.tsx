@@ -1,6 +1,6 @@
 ﻿import React, { useReducer, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, ProductoDto } from '../types';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto } from '../types';
 import { api } from '../api/client';
 import './CompraPage.css';
 
@@ -27,7 +27,8 @@ interface CompraState {
   cart: CartItem[];
   searchTerm: string;
   cantidad: number;
-  proveedor: string;
+  proveedorId: number;
+  proveedorNombre: string;
   error: string | null;
   success: CompraResponseDto | null;
   verified: boolean;
@@ -41,7 +42,7 @@ type CompraAction =
   | { type: 'UPDATE_CANTIDAD_CART'; index: number; cantidad: number }
   | { type: 'SET_SEARCH_TERM'; term: string }
   | { type: 'SET_CANTIDAD'; cantidad: number }
-  | { type: 'SET_PROVEEDOR'; proveedor: string }
+  | { type: 'SET_PROVEEDOR_ID'; proveedorId: number; proveedorNombre: string }
   | { type: 'SET_VERIFIED'; verified: boolean }
   | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
   | { type: 'CONFIRM_ERROR'; error: string }
@@ -97,8 +98,8 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'SET_CANTIDAD':
       return { ...state, cantidad: action.cantidad };
 
-    case 'SET_PROVEEDOR':
-      return { ...state, proveedor: action.proveedor };
+    case 'SET_PROVEEDOR_ID':
+      return { ...state, proveedorId: action.proveedorId, proveedorNombre: action.proveedorNombre };
 
     case 'SET_VERIFIED':
       return { ...state, verified: action.verified };
@@ -145,7 +146,8 @@ const initialState: CompraState = {
   cart: [],
   searchTerm: '',
   cantidad: 1,
-  proveedor: '',
+  proveedorId: 0,
+  proveedorNombre: '',
   error: null,
   success: null,
   verified: false,
@@ -204,6 +206,12 @@ export default function CompraPage() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [quickAddFlash, setQuickAddFlash] = useState<number | null>(null); // productoId being auto-added
 
+  // Proveedor selector state
+  const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
+  const [proveedorSearch, setProveedorSearch] = useState('');
+  const [showProveedorDropdown, setShowProveedorDropdown] = useState(false);
+  const [highlightedProvIdx, setHighlightedProvIdx] = useState(-1);
+
   // Autocomplete suggestions
   const [suggestions, setSuggestions] = useState<ProductoDto[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
@@ -213,6 +221,18 @@ export default function CompraPage() {
   const nombreRef = useRef<HTMLInputElement>(null);
 
   // ── Effects ──────────────────────────────────────────────────────
+
+  // Fetch proveedores list on mount
+  useEffect(() => {
+    api.proveedores.listar().then(setProveedores).catch(() => {});
+  }, []);
+
+  // Filtered proveedores for dropdown
+  const proveedoresFiltrados = proveedorSearch.trim()
+    ? proveedores.filter(p =>
+        p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) ||
+        p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
+    : proveedores;
 
   // Auto-focus search when entering scan step
   useEffect(() => {
@@ -484,7 +504,7 @@ export default function CompraPage() {
     try {
       const request: CompraRequestDto = {
         sucursalId: state.sucursalId,
-        proveedor: state.proveedor.trim(),
+        proveedorId: state.proveedorId,
         items: state.cart.map(i => ({
           productoId: i.productoId,
           cantidad: i.cantidad,
@@ -906,9 +926,9 @@ export default function CompraPage() {
                 <p className="text-xs text-gray-500">
                   Fecha: {new Date().toLocaleDateString('es-AR')}  |  Sucursal: {getSucursalNombre(state.sucursalId)}
                 </p>
-                {state.proveedor.trim() && (
+                {state.proveedorNombre.trim() && (
                   <p className="text-xs text-gray-600 font-medium">
-                    Proveedor: {state.proveedor.trim()}
+                    Proveedor: {state.proveedorNombre.trim()}
                   </p>
                 )}
               </div>
@@ -948,19 +968,22 @@ export default function CompraPage() {
               </table>
             </div>
 
-            {/* Proveedor input */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Proveedor <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={state.proveedor}
-                onChange={e => dispatch({ type: 'SET_PROVEEDOR', proveedor: e.target.value })}
-                placeholder="Nombre del proveedor"
-                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+            {/* Proveedor selector */}
+            <ProveedorSelector
+              proveedores={proveedoresFiltrados}
+              search={proveedorSearch}
+              onSearchChange={setProveedorSearch}
+              selectedId={state.proveedorId}
+              onSelect={(id, nombre) => {
+                dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: id, proveedorNombre: nombre });
+                setProveedorSearch('');
+                setShowProveedorDropdown(false);
+              }}
+              highlightedIndex={highlightedProvIdx}
+              setHighlightedIndex={setHighlightedProvIdx}
+              showDropdown={showProveedorDropdown}
+              setShowDropdown={setShowProveedorDropdown}
+            />
 
             {/* Verification checkbox */}
             <label className="flex items-start gap-3 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer">
@@ -1011,11 +1034,12 @@ export default function CompraPage() {
               <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
 
               <div className="text-xs mb-3 space-y-0.5">
-                <p><span className="font-semibold">Comprobante:</span> {getComprobanteNum(state.success.fecha, state.success.gastoId)}</p>
+                <p><span className="font-semibold">Comprobante:</span> {getComprobanteNum(state.success.fecha, state.success.compraId)}</p>
+                <p><span className="font-semibold">Compra ID:</span> {state.success.compraId}</p>
                 <p><span className="font-semibold">Fecha:</span> {formatFecha(state.success.fecha)}</p>
                 <p><span className="font-semibold">Sucursal:</span> {getSucursalNombre(state.sucursalId)}</p>
-                {state.success.proveedor && (
-                  <p><span className="font-semibold">Proveedor:</span> {state.success.proveedor}</p>
+                {state.proveedorNombre && (
+                  <p><span className="font-semibold">Proveedor:</span> {state.proveedorNombre}</p>
                 )}
               </div>
 
@@ -1067,6 +1091,90 @@ export default function CompraPage() {
         )}
 
       </div>
+    </div>
+  );
+}
+
+/* ── ProveedorSelector ────────────────────────────────────────── */
+interface ProveedorSelectorProps {
+  proveedores: ProveedorDto[];
+  search: string;
+  onSearchChange: (v: string) => void;
+  selectedId: number;
+  onSelect: (id: number, nombre: string) => void;
+  highlightedIndex: number;
+  setHighlightedIndex: (i: number) => void;
+  showDropdown: boolean;
+  setShowDropdown: (v: boolean) => void;
+}
+
+function ProveedorSelector({
+  proveedores,
+  search,
+  onSearchChange,
+  selectedId,
+  onSelect,
+  highlightedIndex,
+  setHighlightedIndex,
+  showDropdown,
+  setShowDropdown,
+}: ProveedorSelectorProps) {
+  const selected = proveedores.find(p => p.id === selectedId);
+
+  return (
+    <div className="mb-4 relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Proveedor <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        value={selected ? selected.nombre : search}
+        onChange={e => {
+          onSearchChange(e.target.value);
+          if (selectedId !== 0) onSelect(0, '');
+          setShowDropdown(true);
+          setHighlightedIndex(-1);
+        }}
+        onFocus={() => setShowDropdown(true)}
+        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+        onKeyDown={e => {
+          if (!showDropdown || proveedores.length === 0) return;
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setHighlightedIndex(Math.min(highlightedIndex + 1, proveedores.length - 1));
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightedIndex(Math.max(highlightedIndex - 1, 0));
+          } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+            e.preventDefault();
+            const p = proveedores[highlightedIndex];
+            onSelect(p.id, p.nombre);
+            setShowDropdown(false);
+          }
+        }}
+        placeholder="Buscar proveedor..."
+        className="w-full max-w-lg px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+      {showDropdown && proveedores.length > 0 && (
+        <ul className="absolute z-20 w-full max-w-lg mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-sm">
+          {proveedores.map((p, i) => (
+            <li
+              key={p.id}
+              onMouseDown={() => {
+                onSelect(p.id, p.nombre);
+                setShowDropdown(false);
+              }}
+              onMouseEnter={() => setHighlightedIndex(i)}
+              className={`px-3 py-2 cursor-pointer flex items-center justify-between ${
+                i === highlightedIndex ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'
+              } ${p.id === selectedId ? 'font-semibold' : ''}`}
+            >
+              <span>{p.nombre}</span>
+              <span className="text-xs text-gray-400">{p.codigo}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -3,7 +3,8 @@ namespace PosWeb.Contracts;
 public class CompraRequestDto
 {
     public int SucursalId { get; set; }
-    public string Proveedor { get; set; } = string.Empty;
+    public int ProveedorId { get; set; }
+    public int? UserId { get; set; }
     public List<CompraItemDto> Items { get; set; } = new();
 }
 

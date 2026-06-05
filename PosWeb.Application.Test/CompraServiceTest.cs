@@ -28,6 +28,9 @@ public class CompraServiceTest
         Usuario usuario = new Usuario(1, "testuser", "hashed", "UsuarioComun");
         usuario.Activar();
         context.Usuarios.Add(usuario);
+
+        // Seed a proveedor
+        context.Proveedores.Add(new Proveedor("TESTPROV", "Proveedor Test"));
         
         context.SaveChanges();
         return context;
@@ -55,50 +58,67 @@ public class CompraServiceTest
         return producto;
     }
 
+    private static int SeedProveedor(PosDbContext context)
+    {
+        return context.Proveedores.First().ID_PROVEEDOR;
+    }
+
     [Fact]
-    public void CrearCompra_ConItemsValidos_CreaGastoYActualizaStockAtomico()
+    public void CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ConItemsValidos_CreaGastoYActualizaStockAtomico));
+        PosDbContext context = CrearContexto(nameof(CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico));
         CompraService service = CrearService(context);
 
-        // Create active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Create test product
         Producto producto = CrearProducto(context, 1, "COD001", "Producto Test", 100m, 80m);
 
-        // Request
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
+        // Act
+        CompraResponseDto resultado = service.CrearCompra(
+            sucursal.ID_SUCURSAL,
+            proveedorId,
+            usuario.ID_USUARIO,
+            new List<CompraItemDto>
             {
                 new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 5, CostoUnitario = 75 }
-            }
-        };
-
-        // Act
-        CompraResponseDto resultado = service.CrearCompra(request);
+            });
 
         // Assert
         Assert.NotNull(resultado);
+        Assert.NotEqual(0, resultado.CompraId);
+        Assert.NotEqual(0, resultado.GastoId);
         Assert.Equal(5 * 75, resultado.TotalGasto);
         Assert.NotEmpty(resultado.Items);
-        
-        // Verify Gasto was created
+
+        // Verify Compra was created
+        Compra compra = context.Compras.First();
+        Assert.Equal(sucursal.ID_SUCURSAL, compra.ID_SUCURSAL);
+        Assert.Equal(proveedorId, compra.ID_PROVEEDOR);
+        Assert.Equal(usuario.ID_USUARIO, compra.ID_USUARIO);
+        Assert.Equal(resultado.GastoId, compra.ID_GASTO);
+
+        // Verify Gasto was created with ID_COMPRA
         Gasto gasto = context.Gastos.First();
         Assert.Equal(caja.ID_CAJA, gasto.ID_CAJA);
         Assert.Equal(5 * 75, gasto.MONTO);
-        Assert.Equal("Compra", gasto.DETALLE);
+        Assert.Contains("Proveedor Test", gasto.DETALLE);
 
         // Verify stock was updated atomically
         StockSucursal stock = context.StockSucursales.First();
         Assert.Equal(producto.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
-        Assert.Equal(5, stock.STOCK); // Initial 0 + 5 purchased
+        Assert.Equal(5, stock.STOCK);
+
+        // Verify RenglonCompra was created
+        RenglonCompra renglon = context.RenglonesCompra.First();
+        Assert.Equal(compra.ID_COMPRA, renglon.ID_COMPRA);
+        Assert.Equal(producto.ID_PRODUCTO, renglon.ID_PRODUCTO);
+        Assert.Equal(5, renglon.CANTIDAD);
+        Assert.Equal(75, renglon.PRECIO_UNITARIO);
     }
 
     [Fact]
@@ -108,26 +128,40 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_SinCajaActiva_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        // No active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
-        // Note: No caja created
-
-        // Request
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
-            {
-                new() { ProductoId = 1, Cantidad = 1, CostoUnitario = 10 }
-            }
-        };
+        int proveedorId = SeedProveedor(context);
+        // No active caja
 
         // Act & Assert
         Assert.Throws<CompraSinCajaActivaException>(() =>
         {
-            service.CrearCompra(request);
+            service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+                new List<CompraItemDto> { new() { ProductoId = 1, Cantidad = 1, CostoUnitario = 10 } });
         });
+    }
+
+    [Fact]
+    public void CrearCompra_ProveedorInexistente_LanzaExcepcion()
+    {
+        // Arrange
+        PosDbContext context = CrearContexto(nameof(CrearCompra_ProveedorInexistente_LanzaExcepcion));
+        CompraService service = CrearService(context);
+
+        Usuario usuario = context.Usuarios.First();
+        Sucursal sucursal = context.Sucursales.First();
+        Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
+
+        // Act & Assert — proveedorId 999 doesn't exist
+        Assert.Throws<ProveedorNoEncontradoException>(() =>
+        {
+            service.CrearCompra(sucursal.ID_SUCURSAL, 999, usuario.ID_USUARIO,
+                new List<CompraItemDto> { new() { ProductoId = 1, Cantidad = 1, CostoUnitario = 10 } });
+        });
+
+        // Verify no partial state
+        Assert.Empty(context.Compras);
+        Assert.Empty(context.Gastos);
     }
 
     [Fact]
@@ -137,22 +171,16 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ItemsVacios_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        // Create active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
-
-        // Request with empty items
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>()
-        };
 
         // Act & Assert
         Assert.Throws<CompraSinItemsException>(() =>
         {
-            service.CrearCompra(request);
+            service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+                new List<CompraItemDto>());
         });
     }
 
@@ -163,16 +191,17 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ConNuevosProductos_CreaProductosAtomicos));
         CompraService service = CrearService(context);
 
-        // Create active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Request with inline creation (ProductoId = 0 + inline fields)
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
+        // Act
+        CompraResponseDto resultado = service.CrearCompra(
+            sucursal.ID_SUCURSAL,
+            proveedorId,
+            usuario.ID_USUARIO,
+            new List<CompraItemDto>
             {
                 new()
                 {
@@ -184,11 +213,7 @@ public class CompraServiceTest
                     Precio = 30,
                     Costo = 20
                 }
-            }
-        };
-
-        // Act
-        CompraResponseDto resultado = service.CrearCompra(request);
+            });
 
         // Assert
         Assert.NotNull(resultado);
@@ -196,17 +221,14 @@ public class CompraServiceTest
         Assert.Single(resultado.Items);
         Assert.Equal("Producto Nuevo", resultado.Items[0].ProductoNombre);
 
-        // Verify new product was created
         Producto productoCreado = context.Productos.First(p => p.CODIGO_BARRAS == "NUEVO001");
         Assert.Equal("Producto Nuevo", productoCreado.DESC_PRODUCTO);
         Assert.Equal(30, productoCreado.PRECIO);
         Assert.Equal(20, productoCreado.COSTO);
 
-        // Verify stock was created and updated
         StockSucursal stock = context.StockSucursales.First();
         Assert.Equal(productoCreado.ID_PRODUCTO, stock.ID_PRODUCTO);
-        Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
-        Assert.Equal(3, stock.STOCK); // 0 initial + 3 purchased
+        Assert.Equal(3, stock.STOCK);
     }
 
     [Fact]
@@ -216,37 +238,30 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_CodigoBarraDuplicado_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        // Create active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Seed existing product with same barcode
         Producto productoExistente = CrearProducto(context, 1, "DUPLICADO", "Producto Existente", 100m, 80m);
-
-        // Request with duplicate barcode via inline creation
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
-            {
-                new()
-                {
-                    ProductoId = 0,
-                    Cantidad = 1,
-                    CostoUnitario = 50,
-                    CodigoBarra = "DUPLICADO", // Same as existing product
-                    Nombre = "Producto Duplicado",
-                    Precio = 60,
-                    Costo = 50
-                }
-            }
-        };
 
         // Act & Assert
         Assert.Throws<ProductoCodigoDuplicadoException>(() =>
         {
-            service.CrearCompra(request);
+            service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+                new List<CompraItemDto>
+                {
+                    new()
+                    {
+                        ProductoId = 0,
+                        Cantidad = 1,
+                        CostoUnitario = 50,
+                        CodigoBarra = "DUPLICADO",
+                        Nombre = "Producto Duplicado",
+                        Precio = 60,
+                        Costo = 50
+                    }
+                });
         });
     }
 
@@ -259,32 +274,26 @@ public class CompraServiceTest
 
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Create product with initial values
         Producto producto = CrearProducto(context, 1, "ACT001", "Producto Actualizable", 100m, 80m);
 
-        // Request with different precio/costo
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
+        // Act
+        service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+            new List<CompraItemDto>
             {
                 new()
                 {
                     ProductoId = producto.ID_PRODUCTO,
                     Cantidad = 2,
                     CostoUnitario = 90,
-                    Precio = 120,  // changed from 100
-                    Costo = 85     // changed from 80
+                    Precio = 120,
+                    Costo = 85
                 }
-            }
-        };
+            });
 
-        // Act
-        service.CrearCompra(request);
-
-        // Assert — product was updated
+        // Assert
         Producto actualizado = context.Productos.Find(producto.ID_PRODUCTO)!;
         Assert.Equal(120, actualizado.PRECIO);
         Assert.Equal(85, actualizado.COSTO);
@@ -299,32 +308,26 @@ public class CompraServiceTest
 
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Create product with initial values
         Producto producto = CrearProducto(context, 1, "SINCMBIO", "Producto Sin Cambio", 100m, 80m);
 
-        // Request with same precio/costo (Precio=0 means skip price update)
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
+        // Act
+        service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+            new List<CompraItemDto>
             {
                 new()
                 {
                     ProductoId = producto.ID_PRODUCTO,
                     Cantidad = 2,
                     CostoUnitario = 75,
-                    Precio = 0,      // 0 means "don't update price"
-                    Costo = null     // null means "don't update cost"
+                    Precio = 0,
+                    Costo = null
                 }
-            }
-        };
+            });
 
-        // Act
-        service.CrearCompra(request);
-
-        // Assert — product values unchanged
+        // Assert
         Producto actualizado = context.Productos.Find(producto.ID_PRODUCTO)!;
         Assert.Equal(100, actualizado.PRECIO);
         Assert.Equal(80, actualizado.COSTO);
@@ -339,29 +342,20 @@ public class CompraServiceTest
 
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Request with inline creation but missing CodigoBarra
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
-            {
-                new()
-                {
-                    ProductoId = 0,
-                    Cantidad = 1,
-                    CostoUnitario = 10,
-                    CodigoBarra = "",     // empty
-                    Nombre = "Sin Codigo",
-                    Precio = 50,
-                    Costo = 10
-                }
-            }
-        };
-
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => service.CrearCompra(request));
+        Assert.Throws<ArgumentException>(() =>
+            service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+                new List<CompraItemDto>
+                {
+                    new()
+                    {
+                        ProductoId = 0, Cantidad = 1, CostoUnitario = 10,
+                        CodigoBarra = "", Nombre = "Sin Codigo", Precio = 50, Costo = 10
+                    }
+                }));
     }
 
     [Fact]
@@ -373,29 +367,20 @@ public class CompraServiceTest
 
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Request with inline creation but missing Nombre
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
-            {
-                new()
-                {
-                    ProductoId = 0,
-                    Cantidad = 1,
-                    CostoUnitario = 10,
-                    CodigoBarra = "SINNOMBRE",
-                    Nombre = "",          // empty
-                    Precio = 50,
-                    Costo = 10
-                }
-            }
-        };
-
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => service.CrearCompra(request));
+        Assert.Throws<ArgumentException>(() =>
+            service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+                new List<CompraItemDto>
+                {
+                    new()
+                    {
+                        ProductoId = 0, Cantidad = 1, CostoUnitario = 10,
+                        CodigoBarra = "SINNOMBRE", Nombre = "", Precio = 50, Costo = 10
+                    }
+                }));
     }
 
     [Fact]
@@ -405,35 +390,30 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_StockNoInicializado_CreayActualizaStock));
         CompraService service = CrearService(context);
 
-        // Create active caja
         Usuario usuario = context.Usuarios.First();
         Sucursal sucursal = context.Sucursales.First();
+        int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
-        // Create product with no stock tracking
         Producto producto = CrearProducto(context, 1, "SINSTOCK", "Producto Sin Stock", 100m, 80m);
 
-        // Request
-        var request = new CompraRequestDto
-        {
-            SucursalId = sucursal.ID_SUCURSAL,
-            Items = new List<CompraItemDto>
+        // Act
+        CompraResponseDto resultado = service.CrearCompra(
+            sucursal.ID_SUCURSAL,
+            proveedorId,
+            usuario.ID_USUARIO,
+            new List<CompraItemDto>
             {
                 new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 4, CostoUnitario = 70 }
-            }
-        };
-
-        // Act
-        CompraResponseDto resultado = service.CrearCompra(request);
+            });
 
         // Assert
         Assert.NotNull(resultado);
         Assert.Equal(4 * 70, resultado.TotalGasto);
 
-        // Verify StockSucursal was created and updated
         StockSucursal stock = context.StockSucursales.First();
         Assert.Equal(producto.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
-        Assert.Equal(4, stock.STOCK); // Created with 0 + 4 purchased
+        Assert.Equal(4, stock.STOCK);
     }
 }
