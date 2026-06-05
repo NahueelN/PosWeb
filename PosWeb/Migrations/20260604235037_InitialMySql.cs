@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,110 +9,143 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PosWeb.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialMySql : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateTable(
                 name: "CATEGORIAS",
                 columns: table => new
                 {
-                    ID_CATEGORIA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_CATEGORIA = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    DESC_CATEGORIA = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false)
+                    ID_CATEGORIA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_CATEGORIA = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DESC_CATEGORIA = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CATEGORIAS", x => x.ID_CATEGORIA);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "CLIENTES",
                 columns: table => new
                 {
-                    ID_CLIENTE = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    NOMBRE = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    TIPO_DOCUMENTO = table.Column<string>(type: "TEXT", nullable: false),
-                    NRO_DOCUMENTO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    COD_CLIENTE = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    TELEFONO = table.Column<string>(type: "TEXT", nullable: true),
-                    DOMICILIO = table.Column<string>(type: "TEXT", nullable: true),
-                    MAIL = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_CLIENTE = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    NOMBRE = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TIPO_DOCUMENTO = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    NRO_DOCUMENTO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    COD_CLIENTE = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TELEFONO = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DOMICILIO = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MAIL = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CLIENTES", x => x.ID_CLIENTE);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "MEDIOS_PAGO",
                 columns: table => new
                 {
-                    ID_MEDIO_PAGO = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_MEDIO_PAGO = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    DESC_MEDIO_PAGO = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    PAGA_VUELTO = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_MEDIO_PAGO = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_MEDIO_PAGO = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DESC_MEDIO_PAGO = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PAGA_VUELTO = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_MEDIOS_PAGO", x => x.ID_MEDIO_PAGO);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "PROVEEDORES",
                 columns: table => new
                 {
-                    ID_PROVEEDOR = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_PROVEEDOR = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    NOMBRE = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    TIPO_DOCUMENTO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
-                    NRO_DOCUMENTO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
-                    TELEFONO = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
-                    DOMICILIO = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    MAIL = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_PROVEEDOR = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_PROVEEDOR = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    NOMBRE = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TIPO_DOCUMENTO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    NRO_DOCUMENTO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TELEFONO = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DOMICILIO = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MAIL = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PROVEEDORES", x => x.ID_PROVEEDOR);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "UNIDADES_MEDIDA",
                 columns: table => new
                 {
-                    ID_UNIDAD_MEDIDA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_UNIDAD_MEDIDA = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    DESC_UNIDAD_MEDIDA = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false)
+                    ID_UNIDAD_MEDIDA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_UNIDAD_MEDIDA = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DESC_UNIDAD_MEDIDA = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UNIDADES_MEDIDA", x => x.ID_UNIDAD_MEDIDA);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "USUARIOS",
                 columns: table => new
                 {
-                    ID_USUARIO = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    NOMBRE_USUARIO = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    PASSWORD_HASH = table.Column<string>(type: "TEXT", nullable: false),
-                    PIN_HASH = table.Column<string>(type: "TEXT", nullable: true),
-                    MAIL = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    ROL = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ID_SUCURSAL_DEFAULT = table.Column<int>(type: "INTEGER", nullable: true),
-                    ID_USUARIO_RESP = table.Column<int>(type: "INTEGER", nullable: true),
-                    SUSCRIPCION_ACTIVA = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_USUARIO = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    NOMBRE_USUARIO = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PASSWORD_HASH = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PIN_HASH = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MAIL = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ROL = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ID_SUCURSAL_DEFAULT = table.Column<int>(type: "int", nullable: true),
+                    ID_USUARIO_RESP = table.Column<int>(type: "int", nullable: true),
+                    SUSCRIPCION_ACTIVA = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -122,27 +156,32 @@ namespace PosWeb.Migrations
                         principalTable: "USUARIOS",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "PRODUCTOS",
                 columns: table => new
                 {
-                    ID_PRODUCTO = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_PRODUCTO = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    CODIGO_BARRAS = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    DESC_PRODUCTO = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    ID_PRODUCTO = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_PRODUCTO = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CODIGO_BARRAS = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DESC_PRODUCTO = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     PRECIO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     COSTO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ID_CATEGORIA = table.Column<int>(type: "INTEGER", nullable: true),
-                    DESC_ADICIONAL = table.Column<string>(type: "TEXT", nullable: true),
+                    ID_CATEGORIA = table.Column<int>(type: "int", nullable: true),
+                    DESC_ADICIONAL = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CONTENIDO = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    ID_UNIDAD_MEDIDA = table.Column<int>(type: "INTEGER", nullable: true),
-                    FECHA_ALTA = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    FECHA_ULTIMA_MOD = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    FECHA_BAJA = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_UNIDAD_MEDIDA = table.Column<int>(type: "int", nullable: true),
+                    FECHA_ALTA = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FECHA_ULTIMA_MOD = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FECHA_BAJA = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -159,25 +198,29 @@ namespace PosWeb.Migrations
                         principalTable: "UNIDADES_MEDIDA",
                         principalColumn: "ID_UNIDAD_MEDIDA",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "SUSCRIPCIONES",
                 columns: table => new
                 {
-                    ID_SUSCRIPCION = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_USUARIO_TITULAR = table.Column<int>(type: "INTEGER", nullable: false),
-                    NIVEL = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    ESTADO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    ID_SUSCRIPCION = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_USUARIO_TITULAR = table.Column<int>(type: "int", nullable: false),
+                    NIVEL = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ESTADO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     COSTO_MENSUAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    MAX_SUCURSALES = table.Column<int>(type: "INTEGER", nullable: false),
-                    MAX_ADMIN = table.Column<int>(type: "INTEGER", nullable: false),
-                    MAX_USUARIOS = table.Column<int>(type: "INTEGER", nullable: false),
-                    FECHA_INICIO = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    FECHA_FIN = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    PROXIMO_COBRO = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    MERCADOPAGO_PREAPPROVAL_ID = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true)
+                    MAX_SUCURSALES = table.Column<int>(type: "int", nullable: false),
+                    MAX_ADMIN = table.Column<int>(type: "int", nullable: false),
+                    MAX_USUARIOS = table.Column<int>(type: "int", nullable: false),
+                    FECHA_INICIO = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FECHA_FIN = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PROXIMO_COBRO = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    MERCADOPAGO_PREAPPROVAL_ID = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
@@ -188,17 +231,20 @@ namespace PosWeb.Migrations
                         principalTable: "USUARIOS",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "EMPRESAS",
                 columns: table => new
                 {
-                    ID_EMPRESA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    NOMBRE = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    DOCUMENTO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    ID_SUSCRIPCION = table.Column<int>(type: "INTEGER", nullable: false)
+                    ID_EMPRESA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    NOMBRE = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DOCUMENTO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ID_SUSCRIPCION = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -209,18 +255,21 @@ namespace PosWeb.Migrations
                         principalTable: "SUSCRIPCIONES",
                         principalColumn: "ID_SUSCRIPCION",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "SUCURSALES",
                 columns: table => new
                 {
-                    ID_SUCURSAL = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    COD_SUCURSAL = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    DESC_SUCURSAL = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    ID_EMPRESA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ACTIVO = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ID_SUCURSAL = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    COD_SUCURSAL = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DESC_SUCURSAL = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ID_EMPRESA = table.Column<int>(type: "int", nullable: false),
+                    ACTIVO = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -231,25 +280,27 @@ namespace PosWeb.Migrations
                         principalTable: "EMPRESAS",
                         principalColumn: "ID_EMPRESA",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "CAJAS",
                 columns: table => new
                 {
-                    ID_CAJA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_SUCURSAL = table.Column<int>(type: "INTEGER", nullable: false),
-                    ESTADO = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    FECHA_APERTURA = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    FECHA_CIERRE = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    ID_CAJA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_SUCURSAL = table.Column<int>(type: "int", nullable: false),
+                    ESTADO = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FECHA_APERTURA = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FECHA_CIERRE = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     MONTO_INICIAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     MONTO_CONTADO_EFECTIVO = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     MONTO_CONTADO_TARJETAS = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     DIFERENCIA = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     MONTO_GASTOS = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ID_USUARIO_APERTURA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_USUARIO_CIERRE = table.Column<int>(type: "INTEGER", nullable: true)
+                    ID_USUARIO_APERTURA = table.Column<int>(type: "int", nullable: false),
+                    ID_USUARIO_CIERRE = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -272,14 +323,15 @@ namespace PosWeb.Migrations
                         principalTable: "USUARIOS",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "STOCK_POR_SUCURSAL",
                 columns: table => new
                 {
-                    ID_PRODUCTO = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_SUCURSAL = table.Column<int>(type: "INTEGER", nullable: false),
+                    ID_PRODUCTO = table.Column<int>(type: "int", nullable: false),
+                    ID_SUCURSAL = table.Column<int>(type: "int", nullable: false),
                     STOCK = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
@@ -297,19 +349,20 @@ namespace PosWeb.Migrations
                         principalTable: "SUCURSALES",
                         principalColumn: "ID_SUCURSAL",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "VENTAS",
                 columns: table => new
                 {
-                    ID_VENTA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_SUCURSAL = table.Column<int>(type: "INTEGER", nullable: false),
-                    FECHA_VENTA = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ID_VENTA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_SUCURSAL = table.Column<int>(type: "int", nullable: false),
+                    FECHA_VENTA = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     TOTAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ID_USUARIO = table.Column<int>(type: "INTEGER", nullable: true),
-                    ID_CLIENTE = table.Column<int>(type: "INTEGER", nullable: true)
+                    ID_USUARIO = table.Column<int>(type: "int", nullable: true),
+                    ID_CLIENTE = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -332,18 +385,20 @@ namespace PosWeb.Migrations
                         principalTable: "USUARIOS",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "GASTOS",
                 columns: table => new
                 {
-                    ID_GASTO = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_CAJA = table.Column<int>(type: "INTEGER", nullable: false),
+                    ID_GASTO = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_CAJA = table.Column<int>(type: "int", nullable: false),
                     MONTO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    FECHA_GASTO = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    DETALLE = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false)
+                    FECHA_GASTO = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    DETALLE = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
@@ -354,20 +409,21 @@ namespace PosWeb.Migrations
                         principalTable: "CAJAS",
                         principalColumn: "ID_CAJA",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "PAGOS",
                 columns: table => new
                 {
-                    ID_PAGO = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_VENTA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_MEDIO_PAGO = table.Column<int>(type: "INTEGER", nullable: false),
+                    ID_PAGO = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_VENTA = table.Column<int>(type: "int", nullable: false),
+                    ID_MEDIO_PAGO = table.Column<int>(type: "int", nullable: false),
                     MONTO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     CAMBIO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ID_USUARIO_REGISTRA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_CAJA = table.Column<int>(type: "INTEGER", nullable: false)
+                    ID_USUARIO_REGISTRA = table.Column<int>(type: "int", nullable: false),
+                    ID_CAJA = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -390,16 +446,17 @@ namespace PosWeb.Migrations
                         principalTable: "VENTAS",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "RENGLONES_VENTA",
                 columns: table => new
                 {
-                    ID_RENGLON_VENTA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_VENTA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_PRODUCTO = table.Column<int>(type: "INTEGER", nullable: false),
+                    ID_RENGLON_VENTA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_VENTA = table.Column<int>(type: "int", nullable: false),
+                    ID_PRODUCTO = table.Column<int>(type: "int", nullable: false),
                     CANTIDAD = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     PRECIO_UNITARIO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     SUBTOTAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
@@ -419,20 +476,21 @@ namespace PosWeb.Migrations
                         principalTable: "VENTAS",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Cascade);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "COMPRAS",
                 columns: table => new
                 {
-                    ID_COMPRA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    NUMERO_COMPROBANTE = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_SUCURSAL = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_PROVEEDOR = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_USUARIO = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_GASTO = table.Column<int>(type: "INTEGER", nullable: true),
-                    FECHA_COMPRA = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ID_COMPRA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    NUMERO_COMPROBANTE = table.Column<int>(type: "int", nullable: false),
+                    ID_SUCURSAL = table.Column<int>(type: "int", nullable: false),
+                    ID_PROVEEDOR = table.Column<int>(type: "int", nullable: false),
+                    ID_USUARIO = table.Column<int>(type: "int", nullable: false),
+                    ID_GASTO = table.Column<int>(type: "int", nullable: true),
+                    FECHA_COMPRA = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     TOTAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
@@ -462,22 +520,23 @@ namespace PosWeb.Migrations
                         principalTable: "USUARIOS",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "DEUDAS",
                 columns: table => new
                 {
-                    ID_DEUDA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_CLIENTE = table.Column<int>(type: "INTEGER", nullable: true),
-                    ID_PROVEEDOR = table.Column<int>(type: "INTEGER", nullable: true),
+                    ID_DEUDA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_CLIENTE = table.Column<int>(type: "int", nullable: true),
+                    ID_PROVEEDOR = table.Column<int>(type: "int", nullable: true),
                     MONTO_DEUDA = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    FECHA_DEUDA = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    FECHA_PAGO = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    PAGO = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ID_VENTA = table.Column<int>(type: "INTEGER", nullable: true),
-                    ID_COMPRA = table.Column<int>(type: "INTEGER", nullable: true)
+                    FECHA_DEUDA = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FECHA_PAGO = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PAGO = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ID_VENTA = table.Column<int>(type: "int", nullable: true),
+                    ID_COMPRA = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -506,16 +565,17 @@ namespace PosWeb.Migrations
                         principalTable: "VENTAS",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "RENGLONES_COMPRA",
                 columns: table => new
                 {
-                    ID_RENGLON_COMPRA = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    ID_COMPRA = table.Column<int>(type: "INTEGER", nullable: false),
-                    ID_PRODUCTO = table.Column<int>(type: "INTEGER", nullable: false),
+                    ID_RENGLON_COMPRA = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ID_COMPRA = table.Column<int>(type: "int", nullable: false),
+                    ID_PRODUCTO = table.Column<int>(type: "int", nullable: false),
                     CANTIDAD = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     PRECIO_UNITARIO = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     SUBTOTAL = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
@@ -535,7 +595,8 @@ namespace PosWeb.Migrations
                         principalTable: "PRODUCTOS",
                         principalColumn: "ID_PRODUCTO",
                         onDelete: ReferentialAction.Restrict);
-                });
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.InsertData(
                 table: "MEDIOS_PAGO",

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -15,14 +16,20 @@ namespace PosWeb.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "8.0.13")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("PosWeb.Domain.Caja", b =>
                 {
                     b.Property<int>("ID_CAJA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CAJA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_CAJA"));
 
                     b.Property<decimal?>("DIFERENCIA")
                         .HasColumnType("decimal(18,2)")
@@ -31,27 +38,27 @@ namespace PosWeb.Migrations
                     b.Property<string>("ESTADO")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("ESTADO");
 
                     b.Property<DateTime>("FECHA_APERTURA")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_APERTURA");
 
                     b.Property<DateTime?>("FECHA_CIERRE")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_CIERRE");
 
                     b.Property<int>("ID_SUCURSAL")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<int>("ID_USUARIO_APERTURA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_APERTURA");
 
                     b.Property<int?>("ID_USUARIO_CIERRE")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_CIERRE");
 
                     b.Property<decimal?>("MONTO_CONTADO_EFECTIVO")
@@ -85,19 +92,21 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_CATEGORIA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CATEGORIA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_CATEGORIA"));
 
                     b.Property<string>("COD_CATEGORIA")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_CATEGORIA");
 
                     b.Property<string>("DESC_CATEGORIA")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_CATEGORIA");
 
                     b.HasKey("ID_CATEGORIA");
@@ -112,45 +121,47 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_CLIENTE")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CLIENTE");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_CLIENTE"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_CLIENTE")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_CLIENTE");
 
                     b.Property<string>("DOMICILIO")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("MAIL")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("MAIL");
 
                     b.Property<string>("NOMBRE")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("NOMBRE");
 
                     b.Property<string>("NRO_DOCUMENTO")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("NRO_DOCUMENTO");
 
                     b.Property<string>("TELEFONO")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("TIPO_DOCUMENTO")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.HasKey("ID_CLIENTE");
 
@@ -165,31 +176,33 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_COMPRA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_COMPRA");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_COMPRA"));
+
                     b.Property<DateTime>("FECHA_COMPRA")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_COMPRA");
 
                     b.Property<int?>("ID_GASTO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_GASTO");
 
                     b.Property<int>("ID_PROVEEDOR")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PROVEEDOR");
 
                     b.Property<int>("ID_SUCURSAL")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<int>("ID_USUARIO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO");
 
                     b.Property<int>("NUMERO_COMPROBANTE")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("NUMERO_COMPROBANTE");
 
                     b.Property<decimal>("TOTAL")
@@ -213,31 +226,33 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_DEUDA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_DEUDA");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_DEUDA"));
+
                     b.Property<DateTime>("FECHA_DEUDA")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_DEUDA");
 
                     b.Property<DateTime?>("FECHA_PAGO")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_PAGO");
 
                     b.Property<int?>("ID_CLIENTE")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CLIENTE");
 
                     b.Property<int?>("ID_COMPRA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_COMPRA");
 
                     b.Property<int?>("ID_PROVEEDOR")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PROVEEDOR");
 
                     b.Property<int?>("ID_VENTA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_VENTA");
 
                     b.Property<decimal>("MONTO_DEUDA")
@@ -245,7 +260,7 @@ namespace PosWeb.Migrations
                         .HasColumnName("MONTO_DEUDA");
 
                     b.Property<bool>("PAGO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("PAGO");
 
                     b.HasKey("ID_DEUDA");
@@ -265,23 +280,25 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_EMPRESA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_EMPRESA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_EMPRESA"));
 
                     b.Property<string>("DOCUMENTO")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("DOCUMENTO");
 
                     b.Property<int>("ID_SUSCRIPCION")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUSCRIPCION");
 
                     b.Property<string>("NOMBRE")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("NOMBRE");
 
                     b.HasKey("ID_EMPRESA");
@@ -295,21 +312,23 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_GASTO")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_GASTO");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_GASTO"));
 
                     b.Property<string>("DETALLE")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DETALLE");
 
                     b.Property<DateTime>("FECHA_GASTO")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_GASTO");
 
                     b.Property<int>("ID_CAJA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CAJA");
 
                     b.Property<decimal>("MONTO")
@@ -327,27 +346,29 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_MEDIO_PAGO")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_MEDIO_PAGO");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_MEDIO_PAGO"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_MEDIO_PAGO")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_MEDIO_PAGO");
 
                     b.Property<string>("DESC_MEDIO_PAGO")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("DESC_MEDIO_PAGO");
 
                     b.Property<bool>("PAGA_VUELTO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("PAGA_VUELTO");
 
                     b.HasKey("ID_MEDIO_PAGO");
@@ -405,26 +426,28 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_PAGO")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PAGO");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PAGO"));
 
                     b.Property<decimal>("CAMBIO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("CAMBIO");
 
                     b.Property<int>("ID_CAJA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CAJA");
 
                     b.Property<int>("ID_MEDIO_PAGO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_MEDIO_PAGO");
 
                     b.Property<int>("ID_USUARIO_REGISTRA")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("ID_VENTA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_VENTA");
 
                     b.Property<decimal>("MONTO")
@@ -446,23 +469,25 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_PRODUCTO")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PRODUCTO"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("CODIGO_BARRAS")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("CODIGO_BARRAS");
 
                     b.Property<string>("COD_PRODUCTO")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_PRODUCTO");
 
                     b.Property<decimal?>("CONTENIDO")
@@ -474,29 +499,29 @@ namespace PosWeb.Migrations
                         .HasColumnName("COSTO");
 
                     b.Property<string>("DESC_ADICIONAL")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("DESC_PRODUCTO")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_PRODUCTO");
 
                     b.Property<DateTime>("FECHA_ALTA")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("FECHA_BAJA")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("FECHA_ULTIMA_MOD")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int?>("ID_CATEGORIA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CATEGORIA");
 
                     b.Property<int?>("ID_UNIDAD_MEDIDA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_UNIDAD_MEDIDA");
 
                     b.Property<decimal>("PRECIO")
@@ -520,48 +545,50 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_PROVEEDOR")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PROVEEDOR");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PROVEEDOR"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_PROVEEDOR")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_PROVEEDOR");
 
                     b.Property<string>("DOMICILIO")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DOMICILIO");
 
                     b.Property<string>("MAIL")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("MAIL");
 
                     b.Property<string>("NOMBRE")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("NOMBRE");
 
                     b.Property<string>("NRO_DOCUMENTO")
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("NRO_DOCUMENTO");
 
                     b.Property<string>("TELEFONO")
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("TELEFONO");
 
                     b.Property<string>("TIPO_DOCUMENTO")
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("TIPO_DOCUMENTO");
 
                     b.HasKey("ID_PROVEEDOR");
@@ -577,19 +604,21 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_RENGLON_COMPRA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_RENGLON_COMPRA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_COMPRA"));
 
                     b.Property<decimal>("CANTIDAD")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_COMPRA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_COMPRA");
 
                     b.Property<int>("ID_PRODUCTO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
                     b.Property<decimal>("PRECIO_UNITARIO")
@@ -613,19 +642,21 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_RENGLON_VENTA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_RENGLON_VENTA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_VENTA"));
 
                     b.Property<decimal>("CANTIDAD")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_PRODUCTO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
                     b.Property<int>("ID_VENTA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_VENTA");
 
                     b.Property<decimal>("PRECIO_UNITARIO")
@@ -648,11 +679,11 @@ namespace PosWeb.Migrations
             modelBuilder.Entity("PosWeb.Domain.StockSucursal", b =>
                 {
                     b.Property<int>("ID_PRODUCTO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
                     b.Property<int>("ID_SUCURSAL")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<decimal>("STOCK")
@@ -670,27 +701,29 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_SUCURSAL")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUCURSAL");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_SUCURSAL"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_SUCURSAL")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_SUCURSAL");
 
                     b.Property<string>("DESC_SUCURSAL")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_SUCURSAL");
 
                     b.Property<int>("ID_EMPRESA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_EMPRESA");
 
                     b.HasKey("ID_SUCURSAL");
@@ -708,8 +741,10 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_SUSCRIPCION")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUSCRIPCION");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_SUSCRIPCION"));
 
                     b.Property<decimal>("COSTO_MENSUAL")
                         .HasColumnType("decimal(18,2)")
@@ -718,46 +753,46 @@ namespace PosWeb.Migrations
                     b.Property<string>("ESTADO")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("ESTADO");
 
                     b.Property<DateTime?>("FECHA_FIN")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_FIN");
 
                     b.Property<DateTime>("FECHA_INICIO")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_INICIO");
 
                     b.Property<int>("ID_USUARIO_TITULAR")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_TITULAR");
 
                     b.Property<int>("MAX_ADMIN")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("MAX_ADMIN");
 
                     b.Property<int>("MAX_SUCURSALES")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("MAX_SUCURSALES");
 
                     b.Property<int>("MAX_USUARIOS")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("MAX_USUARIOS");
 
                     b.Property<string>("MERCADOPAGO_PREAPPROVAL_ID")
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID");
 
                     b.Property<string>("NIVEL")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("NIVEL");
 
                     b.Property<DateTime?>("PROXIMO_COBRO")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("PROXIMO_COBRO");
 
                     b.HasKey("ID_SUSCRIPCION");
@@ -771,19 +806,21 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_UNIDAD_MEDIDA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_UNIDAD_MEDIDA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_UNIDAD_MEDIDA"));
 
                     b.Property<string>("COD_UNIDAD_MEDIDA")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("COD_UNIDAD_MEDIDA");
 
                     b.Property<string>("DESC_UNIDAD_MEDIDA")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_UNIDAD_MEDIDA");
 
                     b.HasKey("ID_UNIDAD_MEDIDA");
@@ -818,48 +855,50 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_USUARIO")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_USUARIO"));
+
                     b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
                     b.Property<int?>("ID_SUCURSAL_DEFAULT")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int?>("ID_USUARIO_RESP")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_RESP");
 
                     b.Property<string>("MAIL")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(200)")
                         .HasColumnName("MAIL");
 
                     b.Property<string>("NOMBRE_USUARIO")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("NOMBRE_USUARIO");
 
                     b.Property<string>("PASSWORD_HASH")
                         .IsRequired()
-                        .HasColumnType("TEXT")
+                        .HasColumnType("longtext")
                         .HasColumnName("PASSWORD_HASH");
 
                     b.Property<string>("PIN_HASH")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("longtext")
                         .HasColumnName("PIN_HASH");
 
                     b.Property<string>("ROL")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("varchar(50)")
                         .HasColumnName("ROL");
 
                     b.Property<bool>("SUSCRIPCION_ACTIVA")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("SUSCRIPCION_ACTIVA");
 
                     b.HasKey("ID_USUARIO");
@@ -889,23 +928,25 @@ namespace PosWeb.Migrations
                 {
                     b.Property<int>("ID_VENTA")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_VENTA");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_VENTA"));
+
                     b.Property<DateTime>("FECHA_VENTA")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_VENTA");
 
                     b.Property<int?>("ID_CLIENTE")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_CLIENTE");
 
                     b.Property<int>("ID_SUCURSAL")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<int?>("ID_USUARIO")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("ID_USUARIO");
 
                     b.Property<decimal>("TOTAL")

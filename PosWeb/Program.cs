@@ -1,8 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.Sqlite;
 using Microsoft.IdentityModel.Tokens;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
 using PosWeb.Application.Clientes;
@@ -100,8 +100,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddDbContext<PosDbContext>(options =>
-    options.UseSqlite(
-        builder.Configuration.GetConnectionString("DefaultConnection")
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     )
 );
 
@@ -115,7 +116,6 @@ using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     ctx.Database.Migrate();
-    EnsureUsuariosColumns(ctx);
 
     var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
@@ -150,51 +150,3 @@ app.MapControllers();
 
 app.Run();
 
-static void EnsureUsuariosColumns(PosDbContext ctx)
-{
-    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
-    var shouldClose = connection.State != System.Data.ConnectionState.Open;
-    if (shouldClose)
-    {
-        connection.Open();
-    }
-
-    try
-    {
-        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using (var pragma = connection.CreateCommand())
-        {
-            pragma.CommandText = "PRAGMA table_info('USUARIOS');";
-            using var reader = pragma.ExecuteReader();
-            while (reader.Read())
-            {
-                var columnName = reader["name"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(columnName))
-                {
-                    existingColumns.Add(columnName);
-                }
-            }
-        }
-
-        if (!existingColumns.Contains("MAIL"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN MAIL TEXT NULL;";
-            alter.ExecuteNonQuery();
-        }
-
-        if (!existingColumns.Contains("ID_USUARIO_RESP"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN ID_USUARIO_RESP INTEGER NULL;";
-            alter.ExecuteNonQuery();
-        }
-    }
-    finally
-    {
-        if (shouldClose)
-        {
-            connection.Close();
-        }
-    }
-}
