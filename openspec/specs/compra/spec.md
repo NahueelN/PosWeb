@@ -165,3 +165,13 @@ The system MUST validate purchase request data and reject malformed input. The r
 - WHEN the request is processed
 - THEN the response returns 400 Bad Request
 - AND no data is persisted
+
+### Requirement: Automatic Debt Creation
+
+The system MUST create a Deuda record when a Compra is created. The Deuda links to the Proveedor and the Compra, with the debt amount equal to the compra's total gasto. The debt is created as unpaid within the same database transaction as the compra.
+
+#### Scenario: Purchase creates supplier debt
+
+- GIVEN a compra is created for a proveedor with total $15,000
+- WHEN the compra is saved successfully
+- THEN a Deuda record is created with MONTO_DEUDA = 15000, ID_PROVEEDOR = the proveedor, ID_COMPRA = the new compra, PAGO = false
