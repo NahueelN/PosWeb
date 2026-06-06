@@ -63,4 +63,22 @@ public class ProveedoresController : ControllerBase
             return NotFound(new { error = ex.Message });
         }
     }
+
+    [HttpPut("{id:int}")]
+    public ActionResult<ProveedorDto> Actualizar(int id, [FromBody] CrearProveedorRequestDto request)
+    {
+        try
+        {
+            var result = _proveedorService.Actualizar(id, request);
+            return Ok(result);
+        }
+        catch (ProveedorNoEncontradoException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

@@ -67,6 +67,26 @@ public class Proveedor
         NOMBRE = nombre.Trim();
     }
 
+    public void SetTipoDocumento(string? tipoDocumento)
+    {
+        TIPO_DOCUMENTO = string.IsNullOrWhiteSpace(tipoDocumento) ? null : tipoDocumento.Trim();
+    }
+
+    public void SetNroDocumento(string? nroDocumento)
+    {
+        NRO_DOCUMENTO = string.IsNullOrWhiteSpace(nroDocumento) ? null : nroDocumento.Trim();
+    }
+
+    public void SetTelefono(string? telefono)
+    {
+        TELEFONO = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim();
+    }
+
+    public void SetDomicilio(string? domicilio)
+    {
+        DOMICILIO = string.IsNullOrWhiteSpace(domicilio) ? null : domicilio.Trim();
+    }
+
     public void SetMail(string? mail)
     {
         if (string.IsNullOrWhiteSpace(mail))

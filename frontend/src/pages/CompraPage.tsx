@@ -1,13 +1,11 @@
-﻿import React, { useReducer, useEffect, useRef, useState } from 'react';
+﻿import React, { useReducer, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto } from '../types';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto } from '../types';
 import { api } from '../api/client';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
-type Step = 'scan' | 'confirm' | 'done';
-
-type ScanMode = 'idle' | 'loading' | 'found' | 'not-found' | 'picker';
+type Step = 'scan' | 'done';
 
 interface CartItem {
   productoId: number;
@@ -16,17 +14,17 @@ interface CartItem {
   cantidad: number;
   costoUnitario: number;
   subtotal: number;
-  // Optional: for inline creation or price/cost update
   precio?: number;
   costo?: number;
-  tamano?: string;
+  categoriaId?: number;
+  descAdicional?: string;
+  contenido?: number;
+  unidadMedidaId?: number;
 }
 
 interface CompraState {
   step: Step;
   cart: CartItem[];
-  searchTerm: string;
-  cantidad: number;
   proveedorId: number;
   proveedorNombre: string;
   error: string | null;
@@ -39,9 +37,7 @@ type CompraAction =
   | { type: 'SET_STEP'; step: Step }
   | { type: 'ADD_TO_CART'; item: CartItem }
   | { type: 'REMOVE_FROM_CART'; index: number }
-  | { type: 'UPDATE_CANTIDAD_CART'; index: number; cantidad: number }
-  | { type: 'SET_SEARCH_TERM'; term: string }
-  | { type: 'SET_CANTIDAD'; cantidad: number }
+  | { type: 'UPDATE_CART_ITEM'; index: number; item: CartItem }
   | { type: 'SET_PROVEEDOR_ID'; proveedorId: number; proveedorNombre: string }
   | { type: 'SET_VERIFIED'; verified: boolean }
   | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
@@ -51,139 +47,55 @@ type CompraAction =
   | { type: 'CLEAR_ERROR' }
   | { type: 'SET_SUCURSAL'; sucursalId: number };
 
-// ─── Reducer ────────────────────────────────────────────────────────
 function compraReducer(state: CompraState, action: CompraAction): CompraState {
   switch (action.type) {
-    case 'SET_STEP':
-      return { ...state, step: action.step };
-
+    case 'SET_STEP': return { ...state, step: action.step };
     case 'ADD_TO_CART': {
-      // Merge with existing item if same productoId (existing products only)
-      const idx = state.cart.findIndex(
-        i => i.productoId === action.item.productoId && i.productoId !== 0
-      );
+      const idx = state.cart.findIndex(i => i.productoId === action.item.productoId && i.productoId !== 0);
       if (idx >= 0) {
         const cart = [...state.cart];
-        const existing = cart[idx];
-        const nuevaCant = existing.cantidad + action.item.cantidad;
-        cart[idx] = { ...existing, cantidad: nuevaCant, subtotal: nuevaCant * existing.costoUnitario };
+        const old = cart[idx];
+        const nc = old.cantidad + action.item.cantidad;
+        cart[idx] = { ...old, cantidad: nc, subtotal: nc * old.costoUnitario };
         return { ...state, cart };
       }
       return { ...state, cart: [...state.cart, action.item] };
     }
-
-    case 'REMOVE_FROM_CART': {
+    case 'REMOVE_FROM_CART': { const cart = [...state.cart]; cart.splice(action.index, 1); return { ...state, cart }; }
+    case 'UPDATE_CART_ITEM': {
       const cart = [...state.cart];
-      cart.splice(action.index, 1);
+      cart[action.index] = { ...action.item, subtotal: action.item.cantidad * action.item.costoUnitario };
       return { ...state, cart };
     }
-
-    case 'UPDATE_CANTIDAD_CART': {
-      if (action.cantidad <= 0) {
-        const cart = [...state.cart];
-        cart.splice(action.index, 1);
-        return { ...state, cart };
-      }
-      const cart = [...state.cart];
-      const item = { ...cart[action.index] };
-      item.cantidad = action.cantidad;
-      item.subtotal = action.cantidad * item.costoUnitario;
-      cart[action.index] = item;
-      return { ...state, cart };
-    }
-
-    case 'SET_SEARCH_TERM':
-      return { ...state, searchTerm: action.term };
-
-    case 'SET_CANTIDAD':
-      return { ...state, cantidad: action.cantidad };
-
-    case 'SET_PROVEEDOR_ID':
-      return { ...state, proveedorId: action.proveedorId, proveedorNombre: action.proveedorNombre };
-
-    case 'SET_VERIFIED':
-      return { ...state, verified: action.verified };
-
-    case 'CONFIRM_SUCCESS':
-      return { ...state, step: 'done', success: action.response, error: null };
-
-    case 'CONFIRM_ERROR':
-      return { ...state, error: action.error };
-
-    case 'RESET':
-      return { ...initialState, sucursalId: state.sucursalId };
-
-    case 'SET_ERROR':
-      return { ...state, error: action.error };
-
-    case 'CLEAR_ERROR':
-      return { ...state, error: null };
-
-    case 'SET_SUCURSAL':
-      return { ...state, sucursalId: action.sucursalId };
-
-    default:
-      return state;
+    case 'SET_PROVEEDOR_ID': return { ...state, proveedorId: action.proveedorId, proveedorNombre: action.proveedorNombre };
+    case 'SET_VERIFIED': return { ...state, verified: action.verified };
+    case 'CONFIRM_SUCCESS': return { ...state, step: 'done', success: action.response, error: null };
+    case 'CONFIRM_ERROR': return { ...state, error: action.error };
+    case 'RESET': return { ...initialState, sucursalId: state.sucursalId };
+    case 'SET_ERROR': return { ...state, error: action.error };
+    case 'CLEAR_ERROR': return { ...state, error: null };
+    case 'SET_SUCURSAL': return { ...state, sucursalId: action.sucursalId };
+    default: return state;
   }
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────
-const LAST_SCAN_MS = 500;
-
 function getInitialSucursalId(): number {
-  try {
-    const saved = localStorage.getItem('sucursalActiva');
-    if (saved) {
-      const s = JSON.parse(saved);
-      return s.id ?? 1;
-    }
-  } catch { /* ignore */ }
-  return 1;
+  try { const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}'); return s.id ?? 1; } catch { return 1; }
 }
-
 const initialState: CompraState = {
-  step: 'scan',
-  cart: [],
-  searchTerm: '',
-  cantidad: 1,
-  proveedorId: 0,
-  proveedorNombre: '',
-  error: null,
-  success: null,
-  verified: false,
-  sucursalId: getInitialSucursalId(),
+  step: 'scan', cart: [], proveedorId: 0, proveedorNombre: '',
+  error: null, success: null, verified: false, sucursalId: getInitialSucursalId(),
 };
 
 function getSucursalNombre(id: number): string {
-  const map: Record<number, string> = {
-    1: 'Sucursal Central',
-    2: 'Sucursal Norte',
-    3: 'Sucursal Sur',
-  };
-  return map[id] ?? `Sucursal #${id}`;
+  const m: Record<number, string> = { 1: 'Central', 2: 'Norte', 3: 'Sur' };
+  return m[id] ?? `#${id}`;
 }
-
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function formatFecha(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getComprobanteNum(fecha: string, gastoId: number): string {
-  const d = new Date(fecha);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `C-${y}${m}${dd}-${gastoId}`;
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -191,989 +103,531 @@ export default function CompraPage() {
   const [state, dispatch] = useReducer(compraReducer, initialState);
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
-  const lastScanRef = useRef<{ barcode: string; time: number } | null>(null);
+  const productGridRef = useRef<HTMLDivElement>(null);
+  const cartListRef = useRef<HTMLDivElement>(null);
 
-  // Scan interaction local state
-  const [scanMode, setScanMode] = useState<ScanMode>('idle');
-  const [foundProduct, setFoundProduct] = useState<ProductoDto | null>(null);
-  const [searchResults, setSearchResults] = useState<ProductoDto[]>([]);
-  const [editPrecio, setEditPrecio] = useState(0);
-  const [editCosto, setEditCosto] = useState('');
-  const [inlineNombre, setInlineNombre] = useState('');  // for new-product creation form
-  const [editCantidad, setEditCantidad] = useState(1);
-  const [editTamano, setEditTamano] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [quickAddFlash, setQuickAddFlash] = useState<number | null>(null); // productoId being auto-added
-
-  // Proveedor selector state
+  // Data
+  const [productos, setProductos] = useState<ProductoDto[]>([]);
+  const [prodLoading, setProdLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
   const [proveedorSearch, setProveedorSearch] = useState('');
-  const [showProveedorDropdown, setShowProveedorDropdown] = useState(false);
-  const [highlightedProvIdx, setHighlightedProvIdx] = useState(-1);
+  const [showProvDropdown, setShowProvDropdown] = useState(false);
+  const [provHighIdx, setProvHighIdx] = useState(-1);
+  const [categorias, setCategorias] = useState<CategoriaDto[]>([]);
+  const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([]);
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  // Autocomplete suggestions
-  const [suggestions, setSuggestions] = useState<ProductoDto[]>([]);
-  const [highlightedIdx, setHighlightedIdx] = useState(-1);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const precioRef = useRef<HTMLInputElement>(null);
-  const nombreRef = useRef<HTMLInputElement>(null);
+  // Payment
+  const [pagoType, setPagoType] = useState<'none' | 'total' | 'partial'>('none');
+  const [montoPago, setMontoPago] = useState(0);
 
-  // ── Effects ──────────────────────────────────────────────────────
+  // Editing
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [edNombre, setEdNombre] = useState(''); const [edCodigo, setEdCodigo] = useState('');
+  const [edPrecio, setEdPrecio] = useState(0); const [edCosto, setEdCosto] = useState('');
+  const [edCant, setEdCant] = useState(1); const [edCatId, setEdCatId] = useState<number>(0);
+  const [edUnidadId, setEdUnidadId] = useState<number>(0); const [edCont, setEdCont] = useState('');
+  const [edDesc, setEdDesc] = useState('');
 
-  // Fetch proveedores list on mount
+  // New product modal
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newNombre, setNewNombre] = useState(''); const [newCodigo, setNewCodigo] = useState('');
+  const [newPrecio, setNewPrecio] = useState(0); const [newCosto, setNewCosto] = useState('');
+  const [newCant, setNewCant] = useState(1); const [newCatId, setNewCatId] = useState<number>(0);
+  const [newUnidadId, setNewUnidadId] = useState<number>(0); const [newCont, setNewCont] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const provInputRef = useRef<HTMLInputElement>(null);
+  const newNombreRef = useRef<HTMLInputElement>(null);
+
+  // Load data
   useEffect(() => {
-    api.proveedores.listar().then(setProveedores).catch(() => {});
+    Promise.all([
+      api.productos.buscar('').then(setProductos).catch(() => {}),
+      api.proveedores.listar().then(setProveedores).catch(() => {}),
+      api.categorias.listar().then(setCategorias).catch(() => {}),
+      api.unidadesMedida.listar().then(setUnidades).catch(() => {}),
+    ]).finally(() => setProdLoading(false));
   }, []);
 
-  // Filtered proveedores for dropdown
-  const proveedoresFiltrados = proveedorSearch.trim()
-    ? proveedores.filter(p =>
-        p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) ||
-        p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
-    : proveedores;
-
-  // Auto-focus search when entering scan step
+  // Auto-focus proveedor if none selected
   useEffect(() => {
-    if (state.step === 'scan') {
-      searchRef.current?.focus();
-    }
-  }, [state.step]);
+    if (state.step === 'scan' && state.proveedorId === 0) setTimeout(() => provInputRef.current?.focus(), 200);
+  }, [state.step, state.proveedorId]);
 
-  // beforeunload warning when cart has items
+  // beforeunload
   useEffect(() => {
     if (state.cart.length === 0) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
   }, [state.cart.length]);
 
-  // Escape key handling per step
+  // Barcode uniqueness check
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (state.step === 'scan') {
-        if (state.searchTerm) {
-          dispatch({ type: 'SET_SEARCH_TERM', term: '' });
-        }
-        resetScan();
-      } else if (state.step === 'confirm') {
-        dispatch({ type: 'SET_STEP', step: 'scan' });
-      } else if (state.step === 'done') {
-        navigate(-1);
+    const codigo = newCodigo.trim();
+    if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
+    if (!codigo) { setBarcodeStatus('idle'); return; }
+    setBarcodeStatus('checking');
+    barcodeTimerRef.current = setTimeout(async () => {
+      try {
+        const existing = await api.productos.obtenerPorBarra(codigo);
+        if (existing) setBarcodeStatus('taken');
+        else setBarcodeStatus('available');
+      } catch {
+        setBarcodeStatus('available');
+      }
+    }, 400);
+    return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current); };
+  }, [newCodigo]);
+
+  // Keyboard handler
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (editingIdx !== null) { setEditingIdx(null); return; }
+        if (showNewModal) { setShowNewModal(false); return; }
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [state.step, state.searchTerm, navigate]);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [editingIdx, showNewModal]);
 
-  // ── Autocomplete: debounced search while typing ────────────────
-  useEffect(() => {
-    const q = state.searchTerm.trim();
-    if (q.length < 2 || scanMode !== 'idle') {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
+  // ── Derived ───────────────────────────────────────────────────────
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return productos;
+    const q = searchQuery.toLowerCase();
+    return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q));
+  }, [productos, searchQuery]);
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  const proveedoresFilt = proveedorSearch.trim()
+    ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
+    : proveedores;
 
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await api.productos.buscar(q);
-        setSuggestions(results);
-        setHighlightedIdx(results.length > 0 ? 0 : -1);
-        setShowSuggestions(results.length > 0);
-      } catch {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    }, 300);
-
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [state.searchTerm, scanMode]);
-
-  // ── Auto-focus: precio si existe, nombre si es nuevo ──────────
-  useEffect(() => {
-    if (scanMode === 'found') {
-      setTimeout(() => precioRef.current?.focus(), 50);
-    } else if (scanMode === 'not-found') {
-      setTimeout(() => nombreRef.current?.focus(), 50);
-    }
-  }, [scanMode]);
-
-  // ── Scan helpers ─────────────────────────────────────────────────
-
-  function resetScan() {
-    setScanMode('idle');
-    setFoundProduct(null);
-    setSearchResults([]);
-    setEditPrecio(0);
-    setEditCosto('');
-    setInlineNombre('');
-    setEditCantidad(1);
-    setEditTamano('');
-  }
+  const cartTotal = state.cart.reduce((s, i) => s + i.subtotal, 0);
+  const cartCount = state.cart.reduce((s, i) => s + i.cantidad, 0);
+  const proveedorOk = state.proveedorId > 0;
 
   // ── Handlers ─────────────────────────────────────────────────────
-
-  const selectSuggestion = (p: ProductoDto) => {
-    setShowSuggestions(false);
-    setSuggestions([]);
-    setFoundProduct(p);
-    setEditPrecio(p.precio);
-    setEditCosto(String(p.costo));
-    setEditCantidad(state.cantidad);
-    setEditTamano(p.tamano ?? '');
-    setScanMode('found');
-    dispatch({ type: 'SET_SEARCH_TERM', term: p.codigoBarra });
+  const addToCart = (p: ProductoDto) => {
+    const item: CartItem = {
+      productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra,
+      cantidad: 1, costoUnitario: p.costo, subtotal: p.costo,
+      precio: p.precio, costo: p.costo,
+    };
+    dispatch({ type: 'ADD_TO_CART', item });
   };
 
-  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const q = e.currentTarget.value.trim();
-
-    if (showSuggestions && suggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setHighlightedIdx(prev => Math.min(prev + 1, suggestions.length - 1));
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setHighlightedIdx(prev => Math.max(prev - 1, 0));
-        return;
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        const idx = highlightedIdx >= 0 ? highlightedIdx : 0;
-        if (idx < suggestions.length) {
-          selectSuggestion(suggestions[idx]);
-          return;
-        }
-      }
-      if (e.key === 'Escape') {
-        setShowSuggestions(false);
-        return;
-      }
-    }
-
-    if (e.key !== 'Enter') return;
-    if (!q) return;
-
-    // Close suggestions and proceed with barcode lookup
-    setShowSuggestions(false);
-
-    // Scanner dedup
-    const now = Date.now();
-    if (lastScanRef.current && lastScanRef.current.barcode === q && now - lastScanRef.current.time < LAST_SCAN_MS) {
-      return;
-    }
-    lastScanRef.current = { barcode: q, time: now };
-
-    // Clear previous results
-    resetScan();
-    setScanMode('loading');
-
-    try {
-      // 1. Try barcode lookup
-      const product = await api.productos.obtenerPorBarra(q, state.sucursalId);
-
-      // Auto-add if product has known cost — no form needed
-      if (product.costo > 0) {
-        const item: CartItem = {
-          productoId: product.id,
-          productoNombre: product.nombre,
-          codigoBarra: product.codigoBarra,
-          cantidad: state.cantidad,
-          costoUnitario: product.costo,
-          subtotal: state.cantidad * product.costo,
-          precio: product.precio,
-          costo: product.costo,
-          tamano: product.tamano ?? '',
-        };
-        dispatch({ type: 'ADD_TO_CART', item });
-        setQuickAddFlash(product.id);
-        setTimeout(() => setQuickAddFlash(null), 1200);
-        resetScan();
-        dispatch({ type: 'SET_SEARCH_TERM', term: '' });
-        dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
-        searchRef.current?.focus();
-        return;
-      }
-
-      // Show form for products without cost
-      setFoundProduct(product);
-      setEditPrecio(product.precio);
-      setEditCosto(String(product.costo));
-      setEditCantidad(state.cantidad);
-      setEditTamano(product.tamano ?? '');
-      setScanMode('found');
-    } catch {
-      // 2. Barcode not found — try name search
-      try {
-        const results = await api.productos.buscar(q);
-        if (results.length > 0) {
-          setSearchResults(results);
-          setScanMode('picker');
-        } else {
-          // 3. No results — show creation form
-          setEditPrecio(0);
-          setEditCosto('');
-          setInlineNombre('');
-          setEditCantidad(1);
-          setEditTamano('');
-          setScanMode('not-found');
-        }
-      } catch {
-        // Fallback to creation form
-        setEditPrecio(0);
-        setEditCosto('');
-        setInlineNombre('');
-        setEditCantidad(1);
-        setEditTamano('');
-        setScanMode('not-found');
-      }
-    }
+  const startEdit = (idx: number) => {
+    const i = state.cart[idx];
+    setEditingIdx(idx); setEdNombre(i.productoNombre); setEdCodigo(i.codigoBarra);
+    setEdPrecio(i.precio ?? 0); setEdCosto(String(i.costoUnitario)); setEdCant(i.cantidad);
+    setEdCatId(i.categoriaId ?? 0); setEdUnidadId(i.unidadMedidaId ?? 0);
+    setEdCont(i.contenido?.toString() ?? ''); setEdDesc(i.descAdicional ?? '');
+  };
+  const saveEdit = (idx: number) => {
+    const item: CartItem = {
+      ...state.cart[idx],
+      productoNombre: edNombre || state.cart[idx].productoNombre,
+      codigoBarra: edCodigo || state.cart[idx].codigoBarra,
+      cantidad: edCant, costoUnitario: parseFloat(edCosto) || 0,
+      precio: edPrecio, categoriaId: edCatId || undefined,
+      unidadMedidaId: edUnidadId || undefined,
+      contenido: parseFloat(edCont) || undefined, descAdicional: edDesc || undefined,
+    };
+    dispatch({ type: 'UPDATE_CART_ITEM', index: idx, item });
+    setEditingIdx(null);
   };
 
-  const handleSelectFromPicker = (p: ProductoDto) => {
-    setFoundProduct(p);
-    setEditPrecio(p.precio);
-    setEditCosto(String(p.costo));
-    setEditCantidad(state.cantidad);
-    setEditTamano(p.tamano ?? '');
-    setScanMode('found');
-  };
-
-  const handleAddToCart = () => {
-    if (isAdding) return;
-    setIsAdding(true);
-
-    const cantidad = editCantidad;
-    let costoUnitario = parseFloat(editCosto) || 0;
-
-    if (scanMode === 'not-found') {
-      // Inline creation
-      if (!inlineNombre.trim()) {
-        setIsAdding(false);
-        dispatch({ type: 'SET_ERROR', error: 'Debe ingresar un nombre para el producto nuevo' });
-        return;
-      }
-
-      const item: CartItem = {
-        productoId: 0,
-        productoNombre: inlineNombre.trim(),
-        codigoBarra: state.searchTerm,
-        cantidad,
-        costoUnitario,
-        subtotal: cantidad * costoUnitario,
-        precio: editPrecio || undefined,
-        costo: costoUnitario || undefined,
-        tamano: editTamano || undefined,
-      };
-
-      dispatch({ type: 'ADD_TO_CART', item });
-    } else if (scanMode === 'found' && foundProduct) {
-      // Existing product with optional price/cost updates
-      const item: CartItem = {
-        productoId: foundProduct.id,
-        productoNombre: foundProduct.nombre,
-        codigoBarra: foundProduct.codigoBarra,
-        cantidad,
-        costoUnitario,
-        subtotal: cantidad * costoUnitario,
-        precio: editPrecio > 0 ? editPrecio : undefined,
-        costo: costoUnitario > 0 ? costoUnitario : undefined,
-        tamano: editTamano || undefined,
-      };
-      dispatch({ type: 'ADD_TO_CART', item });
-    }
-
-    // Reset scan — keep search term clear (user sees barcode in cart)
-    resetScan();
-    dispatch({ type: 'SET_SEARCH_TERM', term: '' });
-    dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
-    searchRef.current?.focus();
-    setTimeout(() => setIsAdding(false), 200);
+  const handleNewProduct = () => {
+    if (!newNombre.trim()) return;
+    const item: CartItem = {
+      productoId: 0, productoNombre: newNombre.trim(), codigoBarra: newCodigo || newNombre.trim(),
+      cantidad: newCant, costoUnitario: parseFloat(newCosto) || 0, subtotal: newCant * (parseFloat(newCosto) || 0),
+      precio: newPrecio || undefined, costo: parseFloat(newCosto) || undefined,
+      categoriaId: newCatId || undefined, unidadMedidaId: newUnidadId || undefined,
+      contenido: parseFloat(newCont) || undefined, descAdicional: newDesc || undefined,
+    };
+    dispatch({ type: 'ADD_TO_CART', item });
+    setShowNewModal(false);
+    setNewNombre(''); setNewCodigo(''); setNewPrecio(0); setNewCosto('');
+    setNewCant(1); setNewCatId(0); setNewUnidadId(0); setNewCont(''); setNewDesc('');
+    setBarcodeStatus('idle');
   };
 
   const handleConfirm = async () => {
-    setIsConfirming(true);
-    dispatch({ type: 'CLEAR_ERROR' });
+    setIsConfirming(true); dispatch({ type: 'CLEAR_ERROR' });
     try {
-      const request: CompraRequestDto = {
-        sucursalId: state.sucursalId,
-        proveedorId: state.proveedorId,
+      const montoPagado = pagoType === 'none' ? undefined
+        : pagoType === 'total' ? cartTotal
+        : Math.min(montoPago, cartTotal);
+      const req: CompraRequestDto = {
+        sucursalId: state.sucursalId, proveedorId: state.proveedorId,
         items: state.cart.map(i => ({
-          productoId: i.productoId,
-          cantidad: i.cantidad,
-          costoUnitario: i.costoUnitario,
+          productoId: i.productoId, cantidad: i.cantidad, costoUnitario: i.costoUnitario,
           codigoBarra: i.productoId === 0 ? i.codigoBarra : undefined,
           nombre: i.productoId === 0 ? i.productoNombre : undefined,
-          precio: i.precio ?? 0,
-          costo: i.costo,
-          tamano: i.tamano,
+          precio: i.precio ?? 0, costo: i.costo,
+          categoriaId: i.categoriaId, descAdicional: i.descAdicional,
+          contenido: i.contenido, unidadMedidaId: i.unidadMedidaId,
         })),
+        montoPagado,
       };
-      const response = await api.compras.crear(request);
-      dispatch({ type: 'CONFIRM_SUCCESS', response });
+      const res = await api.compras.crear(req);
+      dispatch({ type: 'CONFIRM_SUCCESS', response: res });
     } catch (err: any) {
       dispatch({ type: 'CONFIRM_ERROR', error: err.message || 'Error al crear la compra' });
-    } finally {
-      setIsConfirming(false);
-    }
+    } finally { setIsConfirming(false); }
   };
 
-  const handleNuevaCompra = () => {
-    dispatch({ type: 'RESET' });
-    resetScan();
-    dispatch({ type: 'SET_CANTIDAD', cantidad: 1 });
-    searchRef.current?.focus();
-  };
-
+  const handleNuevaCompra = () => { dispatch({ type: 'RESET' }); searchRef.current?.focus(); };
   const handleCerrar = () => navigate(-1);
   const handlePrint = () => window.print();
 
-  // ── Derived data ─────────────────────────────────────────────────
+  // ── Render: DONE step ────────────────────────────────────────────
+  if (state.step === 'done' && state.success) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="no-print text-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">✓ COMPRA REGISTRADA</div>
+          </div>
+          <div className="receipt bg-white border border-gray-300 rounded-xl p-6 max-w-[80mm] mx-auto">
+            <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
+            <div className="text-xs mb-3 space-y-0.5">
+              <p><span className="font-semibold">Comprobante:</span> C-{new Date(state.success.fecha).getFullYear()}{String(new Date(state.success.fecha).getMonth()+1).padStart(2,'0')}{String(new Date(state.success.fecha).getDate()).padStart(2,'0')}-{state.success.compraId}</p>
+              <p><span className="font-semibold">Fecha:</span> {formatFecha(state.success.fecha)}</p>
+              <p><span className="font-semibold">Sucursal:</span> {getSucursalNombre(state.sucursalId)}</p>
+              {state.proveedorNombre && <p><span className="font-semibold">Proveedor:</span> {state.proveedorNombre}</p>}
+            </div>
+            <table className="w-full border-collapse text-xs mb-3">
+              <thead><tr className="border-b border-gray-400"><th className="text-left pb-1 pr-1">Producto</th><th className="text-right pb-1 pr-1">Cant</th><th className="text-right pb-1 pr-1">Costo</th><th className="text-right pb-1">Subtotal</th></tr></thead>
+              <tbody>{state.success.items.map((it, i) => (<tr key={i}><td className="py-0.5 pr-1">{it.productoNombre}</td><td className="text-right py-0.5 pr-1">{it.cantidad}</td><td className="text-right py-0.5 pr-1">{formatCurrency(it.costoUnitario)}</td><td className="text-right py-0.5">{formatCurrency(it.subtotal)}</td></tr>))}</tbody>
+              <tfoot><tr className="border-t border-gray-400 font-bold"><td colSpan={3} className="text-right pt-1 pr-1">Total gasto:</td><td className="text-right pt-1">{formatCurrency(state.success.totalGasto)}</td></tr></tfoot>
+            </table>
+            <p className="text-xs text-gray-600 text-center">Unidades: {state.success.items.reduce((s, i) => s + i.cantidad, 0)}</p>
+          </div>
+          <div className="no-print flex justify-center gap-3 mt-6 flex-wrap">
+            <button onClick={handlePrint} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 border border-gray-300">Imprimir</button>
+            <button onClick={handleNuevaCompra} autoFocus className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700">Nueva compra</button>
+            <button onClick={handleCerrar} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const cartTotal = state.cart.reduce((s, i) => s + i.subtotal, 0);
-
-  // ── Render ───────────────────────────────────────────────────────
-
+  // ── Render: SCAN step (two-column layout) ────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
+        {/* Top bar */}
+        <div className="shrink-0 space-y-3 px-4 sm:px-6 pt-4 pb-2">
+          {/* Sucursal + Proveedor */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-500">Suc:</span>
+              <select value={state.sucursalId} onChange={e => dispatch({ type: 'SET_SUCURSAL', sucursalId: Number(e.target.value) })}
+                className="px-2 py-1 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value={1}>Central</option><option value={2}>Norte</option><option value={3}>Sur</option>
+              </select>
+            </div>
+            <div className="h-4 w-px bg-gray-300" />
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <input ref={provInputRef} type="text"
+                value={state.proveedorId > 0 ? state.proveedorNombre : proveedorSearch}
+                onChange={e => { setProveedorSearch(e.target.value); if (state.proveedorId > 0) dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: 0, proveedorNombre: '' }); setShowProvDropdown(true); setProvHighIdx(-1); }}
+                onFocus={() => setShowProvDropdown(true)}
+                onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
+                onKeyDown={e => {
+                  if (!showProvDropdown || proveedoresFilt.length === 0) return;
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setProvHighIdx(Math.min(provHighIdx + 1, proveedoresFilt.length - 1)); }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
+                  else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault();
+                    const p = proveedoresFilt[provHighIdx];
+                    dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre });
+                    setProveedorSearch(''); setShowProvDropdown(false);
+                  }
+                }}
+                placeholder={state.proveedorId > 0 ? state.proveedorNombre : 'Seleccionar proveedor *'}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              {showProvDropdown && proveedoresFilt.length > 0 && (
+                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
+                  {proveedoresFilt.map((p, i) => (
+                    <li key={p.id} onMouseDown={() => { dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre }); setProveedorSearch(''); setShowProvDropdown(false); }}
+                      onMouseEnter={() => setProvHighIdx(i)}
+                      className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === state.proveedorId ? 'font-semibold' : ''}`}>
+                      <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {proveedorOk && (
+              <button onClick={() => { setShowNewModal(true); setBarcodeStatus('idle'); }}
+                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition-colors">+ Nuevo producto</button>
+            )}
+          </div>
 
-        {/* ── Sucursal header ─────────────────────────────────────── */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <label className="text-sm font-medium text-gray-700">Sucursal:</label>
-          <select
-            value={state.sucursalId}
-            onChange={e => dispatch({ type: 'SET_SUCURSAL', sucursalId: Number(e.target.value) })}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value={1}>Sucursal Central</option>
-            <option value={2}>Sucursal Norte</option>
-            <option value={3}>Sucursal Sur</option>
-          </select>
+          {/* Search bar */}
+          <div className="relative">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <input ref={searchRef} type="text" autoFocus
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={async e => {
+                if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) {
+                  e.preventDefault();
+                  const q = searchQuery.trim();
+                  // Try barcode lookup first
+                  try {
+                    const prod = await api.productos.obtenerPorBarra(q);
+                    if (prod) {
+                      addToCart(prod);
+                      setSearchQuery('');
+                      return;
+                    }
+                  } catch {
+                    // Not found by barcode, fall through to local search
+                  }
+                  // Local search fallback
+                  const match = filteredProducts.find(p =>
+                    p.codigoBarra.toLowerCase() === q.toLowerCase()
+                  );
+                  if (match) {
+                    addToCart(match);
+                    setSearchQuery('');
+                  } else {
+                    dispatch({ type: 'SET_ERROR', error: `Producto no encontrado: "${q}"` });
+                  }
+                }
+              }}
+              placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
+              disabled={!proveedorOk}
+              className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
+
+          {/* Error */}
+          {state.error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <span className="flex-1">{state.error}</span>
+              <button onClick={() => dispatch({ type: 'CLEAR_ERROR' })} className="text-red-500 hover:text-red-700 font-medium shrink-0">Cerrar</button>
+            </div>
+          )}
         </div>
 
-        {/* ── Error banner ────────────────────────────────────────── */}
-        {state.error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 flex items-start gap-3 rounded-r-lg">
-            <p className="text-red-700 text-sm flex-1">{state.error}</p>
-            <button
-              onClick={() => dispatch({ type: 'CLEAR_ERROR' })}
-              className="text-red-500 hover:text-red-700 text-sm font-medium shrink-0"
-            >
-              Cerrar
+        {/* Product Grid */}
+        <div className="flex-1 min-h-0 px-4 sm:px-6 pb-4">
+          <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-full overflow-y-auto p-4">
+              {!proveedorOk ? (
+                <div className="text-center py-16 text-gray-500">
+                  <p className="font-medium text-sm">Seleccione un proveedor para ver productos</p>
+                </div>
+              ) : prodLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-3 text-gray-500 text-sm">Cargando...</span>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-500 font-medium text-sm">{searchQuery ? 'Sin resultados' : 'No hay productos'}</p>
+                </div>
+              ) : (
+                <div ref={productGridRef} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {filteredProducts.map(p => (
+                    <button key={p.id} onClick={() => addToCart(p)}
+                      className="text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                      <p className="font-medium text-gray-900 text-sm truncate">{p.nombre}</p>
+                      <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-semibold text-indigo-700">{formatCurrency(p.precio)}</span>
+                        <span className="text-xs text-gray-400">{formatCurrency(p.costo)} c.</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL */}
+      {proveedorOk && (
+        <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-3">
+          {/* Header */}
+          <div className="flex items-center justify-between shrink-0">
+            <h3 className="text-sm font-semibold text-gray-700">
+              {state.cart.length > 0 ? `Compra (${cartCount})` : 'Nueva compra'}
+            </h3>
+            <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
+          </div>
+
+          {/* Cart items */}
+          <div ref={cartListRef} className="flex-1 overflow-y-auto min-h-0">
+            {state.cart.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">Agregá productos para armar la compra</div>
+            ) : (
+              <div className="space-y-2">
+                {state.cart.map((item, i) => (
+                  editingIdx === i ? (
+                    /* Edit mode */
+                    <div key={i} className="bg-white border-2 border-indigo-300 rounded-xl p-3 text-xs">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-bold text-indigo-900">Editar</span>
+                        <button onClick={() => setEditingIdx(null)} className="text-gray-400 hover:text-gray-600">Cancelar</button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 mb-2">
+                        <div className="col-span-3"><label className="text-gray-500">Nombre</label><input type="text" value={edNombre} onChange={e => setEdNombre(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div className="col-span-3"><label className="text-gray-500">Código</label><input type="text" value={edCodigo} onChange={e => setEdCodigo(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div><label className="text-gray-500">Precio</label><input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div><label className="text-gray-500">Costo</label><input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border border-indigo-300 rounded" autoFocus /></div>
+                        <div><label className="text-gray-500">Cant</label><input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div><label className="text-gray-500">Categ</label><select value={edCatId} onChange={e => setEdCatId(Number(e.target.value))} className="w-full px-1.5 py-0.5 border rounded text-xs"><option value={0}>-</option>{categorias.map(c=>(<option key={c.id} value={c.id}>{c.descripcion}</option>))}</select></div>
+                        <div><label className="text-gray-500">U.Med</label><select value={edUnidadId} onChange={e => setEdUnidadId(Number(e.target.value))} className="w-full px-1.5 py-0.5 border rounded text-xs"><option value={0}>-</option>{unidades.map(u=>(<option key={u.id} value={u.id}>{u.descripcion}</option>))}</select></div>
+                        <div><label className="text-gray-500">Cont</label><input type="number" step="0.01" value={edCont} onChange={e => setEdCont(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div className="col-span-3"><label className="text-gray-500">Desc</label><input type="text" value={edDesc} onChange={e => setEdDesc(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                      </div>
+                      <button onClick={() => saveEdit(i)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
+                    </div>
+                  ) : (
+                    /* View mode */
+                    <div key={i} className="flex items-center gap-3 pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(i)}>
+                        <p className="font-medium text-gray-800 text-xs truncate">{item.productoNombre || '(nuevo)'}</p>
+                        <p className="text-[10px] text-gray-400 font-mono truncate">{item.codigoBarra}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatCurrency(item.costoUnitario)} c/u</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad - 1, costoUnitario: item.costoUnitario } })}
+                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">−</button>
+                        <input type="number" min={0} value={item.cantidad}
+                          onChange={e => { const v = parseInt(e.target.value); dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: isNaN(v) ? 0 : v, costoUnitario: item.costoUnitario } }); if (isNaN(v) || v <= 0) dispatch({ type: 'REMOVE_FROM_CART', index: i }); }}
+                          className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                        <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad + 1, costoUnitario: item.costoUnitario } })}
+                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">+</button>
+                      </div>
+                    </div>
+                    )
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 space-y-3 border-t border-gray-200 pt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-700">Total</span>
+              <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
+            </div>
+
+            {/* Payment section */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-600">Pago</p>
+              <div className="flex gap-1.5">
+                {(['none', 'total', 'partial'] as const).map(t => (
+                  <button key={t} onClick={() => { setPagoType(t); if (t === 'total') setMontoPago(cartTotal); }}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                      pagoType === t
+                        ? 'bg-indigo-100 border-indigo-400 text-indigo-800'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {t === 'none' ? 'No pagar' : t === 'total' ? 'Pagar todo' : 'Pago parcial'}
+                  </button>
+                ))}
+              </div>
+              {pagoType === 'partial' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 shrink-0">Monto a pagar:</span>
+                  <input type="number" min={0} max={cartTotal} step="0.01"
+                    value={montoPago} onChange={e => setMontoPago(Math.min(parseFloat(e.target.value) || 0, cartTotal))}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs text-right font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                  <span className="text-xs text-gray-400">/ {formatCurrency(cartTotal)}</span>
+                </div>
+              )}
+              {pagoType !== 'none' && (
+                <p className="text-xs text-gray-500">
+                  {pagoType === 'total' ? '✓ Deuda saldada al momento de la compra' : `↗ Se registra deuda por ${formatCurrency(cartTotal - montoPago)}`}
+                </p>
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={state.verified} onChange={e => dispatch({ type: 'SET_VERIFIED', verified: e.target.checked })}
+                className="h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded" />
+              Verifiqué cantidades y costos
+            </label>
+            <button onClick={handleConfirm}
+              disabled={!state.verified || isConfirming || state.cart.length === 0 || (pagoType === 'partial' && (!montoPago || montoPago <= 0))}
+              className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              {isConfirming ? 'Confirmando...' : `Confirmar compra — ${formatCurrency(cartTotal)}`}
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ════════════════════════════════════════════════════════════
-            STEP: SCAN
-            ════════════════════════════════════════════════════════════ */}
-        {state.step === 'scan' && (
-          <>
-            {/* ── Search row ──────────────────────────────────────── */}
-            <div className="flex items-center gap-3 mb-0 flex-wrap relative z-10">
-              <div className="relative flex-1 min-w-[200px]">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  autoFocus
-                  value={state.searchTerm}
-                  onChange={e => {
-                    dispatch({ type: 'SET_SEARCH_TERM', term: e.target.value });
-                    if (e.target.value !== state.searchTerm) resetScan();
-                  }}
-                  onKeyDown={handleSearchKeyDown}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  placeholder="Buscar producto por código o nombre..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
-                />
-
-                {/* ── Suggestions dropdown ─────────────────────── */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto z-20">
-                    {suggestions.map((p, i) => (
-                      <div
-                        key={p.id}
-                        onMouseDown={() => selectSuggestion(p)}
-                        onMouseEnter={() => setHighlightedIdx(i)}
-                        className={`flex items-center justify-between px-4 py-2.5 cursor-pointer text-sm ${
-                          i === highlightedIdx
-                            ? 'bg-indigo-50 text-indigo-900'
-                            : 'hover:bg-gray-50 text-gray-900'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span className="font-medium">{p.nombre}</span>
-                          <span className="ml-2 text-xs text-gray-500">{p.codigoBarra}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 shrink-0 ml-2">
-                          {formatCurrency(p.precio)}
-                        </div>
-                      </div>
-                    ))}
-                    <div className="px-4 py-1.5 text-xs text-gray-400 border-t border-gray-100 bg-gray-50">
-                      ↑↓ Navegar · Enter seleccionar · Esc cerrar
-                    </div>
-                  </div>
+      {/* New Product Modal */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowNewModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between mb-4">
+              <h3 className="text-lg font-bold text-indigo-900">Nuevo producto</h3>
+              <button onClick={() => setShowNewModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-gray-700">Código de barras</label>
+                <div className="relative">
+                  <input type="text" value={newCodigo} onChange={e => setNewCodigo(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm pr-8" />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                    {barcodeStatus === 'checking' && (
+                      <svg className="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    )}
+                    {barcodeStatus === 'available' && (
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                    )}
+                    {barcodeStatus === 'taken' && (
+                      <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    )}
+                  </span>
+                </div>
+                {barcodeStatus === 'taken' && (
+                  <p className="text-xs text-red-600 mt-0.5">Este código ya está registrado</p>
+                )}
+                {barcodeStatus === 'available' && newCodigo.trim() && (
+                  <p className="text-xs text-green-600 mt-0.5">Código disponible</p>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <label className="text-sm font-medium text-gray-600">Cant:</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={state.cantidad}
-                  onChange={e => dispatch({ type: 'SET_CANTIDAD', cantidad: Math.max(1, parseInt(e.target.value) || 1) })}
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center text-base"
-                />
-              </div>
+              <div className="col-span-2"><label className="text-xs font-semibold text-gray-700">Nombre *</label><input ref={newNombreRef} type="text" value={newNombre} onChange={e => setNewNombre(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" autoFocus /></div>
+              <div><label className="text-xs font-semibold text-gray-700">Precio</label><input type="number" step="0.01" value={newPrecio} onChange={e => setNewPrecio(parseFloat(e.target.value)||0)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+              <div><label className="text-xs font-semibold text-gray-700">Costo</label><input type="number" step="0.01" value={newCosto} onChange={e => setNewCosto(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+              <div><label className="text-xs font-semibold text-gray-700">Cantidad</label><input type="number" min={1} value={newCant} onChange={e => setNewCant(Math.max(1,parseInt(e.target.value)||1))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+              <div><label className="text-xs font-semibold text-gray-700">Categoría</label><select value={newCatId} onChange={e => setNewCatId(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm"><option value={0}>Sin categoría</option>{categorias.map(c=>(<option key={c.id} value={c.id}>{c.descripcion}</option>))}</select></div>
+              <div><label className="text-xs font-semibold text-gray-700">U. Medida</label><select value={newUnidadId} onChange={e => setNewUnidadId(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm"><option value={0}>Sin unidad</option>{unidades.map(u=>(<option key={u.id} value={u.id}>{u.descripcion}</option>))}</select></div>
+              <div><label className="text-xs font-semibold text-gray-700">Contenido</label><input type="number" step="0.01" value={newCont} onChange={e => setNewCont(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+              <div className="col-span-2"><label className="text-xs font-semibold text-gray-700">Descripción adicional</label><input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
             </div>
-
-            {/* ── Result area ─────────────────────────────────────── */}
-            <div className="mb-6">
-              {scanMode === 'loading' && (
-                <div className="flex items-center justify-center py-8 text-gray-500">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500 mr-3" />
-                  Buscando producto...
-                </div>
-              )}
-
-              {scanMode === 'found' && foundProduct && (
-                <div className="bg-white border border-indigo-200 rounded-xl p-5 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-900 mb-1">{foundProduct.nombre}</h3>
-                  <p className="text-xs text-gray-500 mb-3">Código: {foundProduct.codigoBarra}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Precio actual: {formatCurrency(foundProduct.precio)}</label>
-                      <input
-                        ref={precioRef}
-                        type="number"
-                        step="0.01"
-                        value={editPrecio}
-                        onChange={e => setEditPrecio(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Precio"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Costo actual: {formatCurrency(foundProduct.costo)}</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editCosto}
-                        onChange={e => setEditCosto(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Costo"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Talle</label>
-                      <input
-                        type="text"
-                        value={editTamano}
-                        onChange={e => setEditTamano(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Talle (opcional)"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Stock actual: {foundProduct.stock}</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editCantidad}
-                        onChange={e => setEditCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Cantidad"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isAdding}
-                    className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                  >
-                    {isAdding ? 'Agregando...' : 'Agregar a compra'}
-                  </button>
-                </div>
-              )}
-
-              {scanMode === 'picker' && searchResults.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    Se encontraron {searchResults.length} producto(s) — seleccione uno:
-                  </h3>
-                  <div className="space-y-2">
-                    {searchResults.map(p => (
-                      <div
-                        key={p.id}
-                        onClick={() => handleSelectFromPicker(p)}
-                        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-400 hover:shadow-sm cursor-pointer transition-all flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">{p.nombre}</p>
-                          <p className="text-xs text-gray-500">Código: {p.codigoBarra}</p>
-                        </div>
-                        <div className="text-right text-sm">
-                          <p className="text-gray-700">Precio: {formatCurrency(p.precio)}</p>
-                          <p className="text-gray-500">Costo: {formatCurrency(p.costo)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditPrecio(0);
-                      setEditCosto('');
-                      setInlineNombre('');
-                      setEditCantidad(1);
-                      setEditTamano('');
-                      setScanMode('not-found');
-                    }}
-                    className="mt-3 text-sm text-indigo-600 hover:text-indigo-800"
-                  >
-                    No encuentro el producto — crear uno nuevo
-                  </button>
-                </div>
-              )}
-
-              {scanMode === 'not-found' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-                  <h3 className="text-sm font-semibold text-amber-900 mb-3">
-                    Producto no encontrado — crear nuevo
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Código de barras</label>
-                      <input
-                        type="text"
-                        value={state.searchTerm}
-                        readOnly
-                        className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
-                      <input
-                        ref={nombreRef}
-                        type="text"
-                        value={inlineNombre}
-                        onChange={e => setInlineNombre(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Nombre del producto"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Precio</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editPrecio}
-                        onChange={e => setEditPrecio(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Precio de venta"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Costo (opcional)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editCosto}
-                        onChange={e => setEditCosto(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Costo por unidad"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Talle (opcional)</label>
-                      <input
-                        type="text"
-                        value={editTamano}
-                        onChange={e => setEditTamano(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Talle"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editCantidad}
-                        onChange={e => setEditCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Cantidad"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isAdding}
-                    className="px-5 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
-                  >
-                    {isAdding ? 'Agregando...' : 'Crear y agregar a compra'}
-                  </button>
-                </div>
-              )}
-
-              {scanMode === 'idle' && state.cart.length === 0 && (
-                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300 mb-6">
-                  <p className="text-sm">Escanee o busque un producto para comenzar</p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Cart / items list ───────────────────────────────── */}
-            {state.cart.length > 0 && (
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Items cargados ({state.cart.length})
-                  </h2>
-                  <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
-                </div>
-                <div className="space-y-1.5">
-                  {state.cart.map((item, i) => (
-                    <div key={i}
-                      className={`bg-white border rounded-lg px-3 py-2 flex items-center gap-2 text-sm transition-colors ${
-                        quickAddFlash === item.productoId && item.productoId !== 0
-                          ? 'cart-item-flash border-green-300'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {/* Product info */}
-                      <div className="flex-1 min-w-0 flex items-center gap-2">
-                        <span className="font-medium text-gray-900 truncate">
-                          {item.productoNombre || '(nuevo producto)'}
-                        </span>
-                        {item.productoId === 0 && (
-                          <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded shrink-0">nuevo</span>
-                        )}
-                        <span className="text-xs text-gray-400 shrink-0">{item.codigoBarra}</span>
-                      </div>
-
-                      {/* Subtotal */}
-                      <span className="text-gray-700 font-medium w-24 text-right shrink-0">
-                        {formatCurrency(item.subtotal)}
-                      </span>
-
-                      {/* Inline quantity input */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.cantidad}
-                          onChange={e => {
-                            const v = parseInt(e.target.value);
-                            dispatch({ type: 'UPDATE_CANTIDAD_CART', index: i, cantidad: isNaN(v) ? 0 : v });
-                          }}
-                          className="w-14 text-center border border-gray-300 rounded-md px-1 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
-
-                      {/* Remove */}
-                      <button
-                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
-                        className="text-gray-300 hover:text-red-500 shrink-0 transition-colors"
-                        title="Eliminar"
-                      >
-                        {'\u2715'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-end mt-4">
-                  <button
-                    onClick={() => dispatch({ type: 'SET_STEP', step: 'confirm' })}
-                    disabled={state.cart.length === 0}
-                    className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Ver resumen →
-                  </button>
-                </div>
-              </div>
-            )}
-            {/* Quick-add tip */}
-            {state.cart.length > 0 && scanMode === 'idle' && (
-              <div className="text-xs text-gray-400 mt-2 text-center">
-                Escaneá otro código para agregar rápido · {state.cantidad} item(s) por vez
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════
-            STEP: CONFIRM
-            ════════════════════════════════════════════════════════════ */}
-        {state.step === 'confirm' && (
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Verificar compra</h2>
-
-            {/* Boleta table */}
-            <div className="bg-white border border-gray-300 rounded-xl p-5 font-mono text-sm mb-4">
-              <div className="text-center mb-4 space-y-1">
-                <p className="text-xs text-gray-500">
-                  Fecha: {new Date().toLocaleDateString('es-AR')}  |  Sucursal: {getSucursalNombre(state.sucursalId)}
-                </p>
-                {state.proveedorNombre.trim() && (
-                  <p className="text-xs text-gray-600 font-medium">
-                    Proveedor: {state.proveedorNombre.trim()}
-                  </p>
-                )}
-              </div>
-
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500 uppercase tracking-wider border-b border-gray-300">
-                    <th className="pb-2 pr-2">Codigo</th>
-                    <th className="pb-2 pr-2">Producto</th>
-                    <th className="pb-2 pr-2 text-right">Cant</th>
-                    <th className="pb-2 pr-2 text-right">Costo</th>
-                    <th className="pb-2 text-right">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.cart.map((item, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-gray-50' : ''}>
-                      <td className="py-1.5 pr-2 text-gray-600">{item.codigoBarra}</td>
-                      <td className="py-1.5 pr-2">
-                        {item.productoNombre}
-                        {item.productoId === 0 && (
-                          <span className="ml-1 text-xs text-amber-600 font-sans">(nuevo)</span>
-                        )}
-                      </td>
-                      <td className="py-1.5 pr-2 text-right">{item.cantidad}</td>
-                      <td className="py-1.5 pr-2 text-right">{formatCurrency(item.costoUnitario)}</td>
-                      <td className="py-1.5 text-right font-medium">{formatCurrency(item.subtotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-gray-400 font-bold">
-                    <td colSpan={4} className="pt-2 pr-2 text-right">Total:</td>
-                    <td className="pt-2 text-right text-lg">{formatCurrency(cartTotal)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {/* Proveedor selector */}
-            <ProveedorSelector
-              proveedores={proveedoresFiltrados}
-              search={proveedorSearch}
-              onSearchChange={setProveedorSearch}
-              selectedId={state.proveedorId}
-              onSelect={(id, nombre) => {
-                dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: id, proveedorNombre: nombre });
-                setProveedorSearch('');
-                setShowProveedorDropdown(false);
-              }}
-              highlightedIndex={highlightedProvIdx}
-              setHighlightedIndex={setHighlightedProvIdx}
-              showDropdown={showProveedorDropdown}
-              setShowDropdown={setShowProveedorDropdown}
-            />
-
-            {/* Verification checkbox */}
-            <label className="flex items-start gap-3 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={state.verified}
-                onChange={e => dispatch({ type: 'SET_VERIFIED', verified: e.target.checked })}
-                className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <span className="text-sm text-gray-700">
-                He verificado que las cantidades y costos coinciden con la boleta fisica
-              </span>
-            </label>
-
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => dispatch({ type: 'SET_STEP', step: 'scan' })}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Volver a editar
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={!state.verified || isConfirming}
-                className="px-5 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isConfirming ? 'Confirmando...' : 'Confirmar compra'}
-              </button>
-            </div>
+            <button onClick={handleNewProduct}
+              disabled={!newNombre.trim() || barcodeStatus === 'checking' || barcodeStatus === 'taken'}
+              className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
+              {barcodeStatus === 'checking' ? 'Verificando código...'
+                : barcodeStatus === 'taken' ? 'Código no disponible'
+                : 'Crear y agregar'}
+            </button>
           </div>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════
-            STEP: DONE
-            ════════════════════════════════════════════════════════════ */}
-        {state.step === 'done' && state.success && (
-          <div className="max-w-3xl mx-auto">
-            {/* Success badge - hidden when printing */}
-            <div className="no-print text-center mb-6">
-              <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">
-                COMPRA REGISTRADA
-              </div>
-            </div>
-
-            {/* Receipt / Comprobante */}
-            <div className="receipt bg-white border border-gray-300 rounded-xl p-6 max-w-[80mm] mx-auto">
-              <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
-
-              <div className="text-xs mb-3 space-y-0.5">
-                <p><span className="font-semibold">Comprobante:</span> {getComprobanteNum(state.success.fecha, state.success.compraId)}</p>
-                <p><span className="font-semibold">Compra ID:</span> {state.success.compraId}</p>
-                <p><span className="font-semibold">Fecha:</span> {formatFecha(state.success.fecha)}</p>
-                <p><span className="font-semibold">Sucursal:</span> {getSucursalNombre(state.sucursalId)}</p>
-                {state.proveedorNombre && (
-                  <p><span className="font-semibold">Proveedor:</span> {state.proveedorNombre}</p>
-                )}
-              </div>
-
-              <table className="w-full border-collapse text-xs mb-3">
-                <thead>
-                  <tr className="border-b border-gray-400">
-                    <th className="text-left pb-1 pr-1">Producto</th>
-                    <th className="text-right pb-1 pr-1">Cant</th>
-                    <th className="text-right pb-1 pr-1">Costo</th>
-                    <th className="text-right pb-1">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.success.items.map((item, i) => (
-                    <tr key={i}>
-                      <td className="py-0.5 pr-1">{item.productoNombre}</td>
-                      <td className="text-right py-0.5 pr-1">{item.cantidad}</td>
-                      <td className="text-right py-0.5 pr-1">{formatCurrency(item.costoUnitario)}</td>
-                      <td className="text-right py-0.5">{formatCurrency(item.subtotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-gray-400 font-bold">
-                    <td colSpan={3} className="text-right pt-1 pr-1">Total gasto:</td>
-                    <td className="text-right pt-1">{formatCurrency(state.success.totalGasto)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              <p className="text-xs text-gray-600 text-center">
-                Unidades: {state.success.items.reduce((s, i) => s + i.cantidad, 0)}
-              </p>
-            </div>
-
-            {/* Action buttons - hidden when printing */}
-            <div className="no-print flex justify-center gap-3 mt-6 flex-wrap">
-              <button onClick={handlePrint} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
-                Imprimir
-              </button>
-              <button onClick={handleNuevaCompra} className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                Nueva compra
-              </button>
-              <button onClick={handleCerrar} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors">
-                Cerrar
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
-
-/* ── ProveedorSelector ────────────────────────────────────────── */
-interface ProveedorSelectorProps {
-  proveedores: ProveedorDto[];
-  search: string;
-  onSearchChange: (v: string) => void;
-  selectedId: number;
-  onSelect: (id: number, nombre: string) => void;
-  highlightedIndex: number;
-  setHighlightedIndex: (i: number) => void;
-  showDropdown: boolean;
-  setShowDropdown: (v: boolean) => void;
-}
-
-function ProveedorSelector({
-  proveedores,
-  search,
-  onSearchChange,
-  selectedId,
-  onSelect,
-  highlightedIndex,
-  setHighlightedIndex,
-  showDropdown,
-  setShowDropdown,
-}: ProveedorSelectorProps) {
-  const selected = proveedores.find(p => p.id === selectedId);
-
-  return (
-    <div className="mb-4 relative">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Proveedor <span className="text-red-500">*</span>
-      </label>
-      <input
-        type="text"
-        value={selected ? selected.nombre : search}
-        onChange={e => {
-          onSearchChange(e.target.value);
-          if (selectedId !== 0) onSelect(0, '');
-          setShowDropdown(true);
-          setHighlightedIndex(-1);
-        }}
-        onFocus={() => setShowDropdown(true)}
-        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-        onKeyDown={e => {
-          if (!showDropdown || proveedores.length === 0) return;
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setHighlightedIndex(Math.min(highlightedIndex + 1, proveedores.length - 1));
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setHighlightedIndex(Math.max(highlightedIndex - 1, 0));
-          } else if (e.key === 'Enter' && highlightedIndex >= 0) {
-            e.preventDefault();
-            const p = proveedores[highlightedIndex];
-            onSelect(p.id, p.nombre);
-            setShowDropdown(false);
-          }
-        }}
-        placeholder="Buscar proveedor..."
-        className="w-full max-w-lg px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-      {showDropdown && proveedores.length > 0 && (
-        <ul className="absolute z-20 w-full max-w-lg mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-sm">
-          {proveedores.map((p, i) => (
-            <li
-              key={p.id}
-              onMouseDown={() => {
-                onSelect(p.id, p.nombre);
-                setShowDropdown(false);
-              }}
-              onMouseEnter={() => setHighlightedIndex(i)}
-              className={`px-3 py-2 cursor-pointer flex items-center justify-between ${
-                i === highlightedIndex ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'
-              } ${p.id === selectedId ? 'font-semibold' : ''}`}
-            >
-              <span>{p.nombre}</span>
-              <span className="text-xs text-gray-400">{p.codigo}</span>
-            </li>
-          ))}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -47,7 +47,7 @@ public class VentaServiceTest
 
         TestHelpers.SetId(sucursal, id, "ID_SUCURSAL");
 
-        context.Sucursales.Add(sucursal);
+        context.Sucursal.Add(sucursal);
         context.SaveChanges();
     }
 
@@ -72,31 +72,31 @@ public class VentaServiceTest
 
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
 
-        context.Productos.Add(producto);
+        context.Producto.Add(producto);
         context.SaveChanges();
     }
 
     private static void AgregarUsuario(PosDbContext context, int id)
     {
         Usuario usuario = new Usuario(id, "test_user", "$2a$11$dummyhash", "UsuarioComun");
-        context.Usuarios.Add(usuario);
+        context.Usuario.Add(usuario);
         context.SaveChanges();
     }
 
     private static void AgregarCajaActiva(PosDbContext context, int sucursalId)
     {
-        if (!context.Usuarios.Any())
+        if (!context.Usuario.Any())
         {
             AgregarUsuario(context, 1);
         }
-        if (!context.MediosPago.Any())
+        if (!context.MedioPago.Any())
         {
             AgregarMedioPago(context, 1, "Efectivo", true);
         }
-        int userId = context.Usuarios.First().ID_USUARIO;
+        int userId = context.Usuario.First().ID_USUARIO;
         Caja caja = new Caja(sucursalId, 1000, userId);
         TestHelpers.SetId(caja, 1, "ID_CAJA");
-        context.Cajas.Add(caja);
+        context.Caja.Add(caja);
         context.SaveChanges();
     }
 
@@ -108,14 +108,14 @@ public class VentaServiceTest
         int stock)
     {
         StockSucursal stockSuc = new StockSucursal(productoId, sucursalId, stock);
-        context.StockSucursales.Add(stockSuc);
+        context.StockSucursal.Add(stockSuc);
         context.SaveChanges();
     }
 
     private static void AgregarMedioPago(PosDbContext context, int id, string descripcion, bool pagaVuelto)
     {
         string codigo = descripcion.ToUpper().Replace(" ", "_");
-        context.MediosPago.Add(new MedioPago(id, codigo, descripcion, pagaVuelto));
+        context.MedioPago.Add(new MedioPago(id, codigo, descripcion, pagaVuelto));
         context.SaveChanges();
     }
 
@@ -152,8 +152,8 @@ public class VentaServiceTest
         VentaResultadoDto resultado = service.CrearVenta(dto);
 
         Assert.Equal(200m, resultado.Total);
-        Assert.Single(context.Ventas);
-        Assert.Single(context.RenglonesVenta);
+        Assert.Single(context.Venta);
+        Assert.Single(context.RenglonVenta);
     }
 
     [Fact]
@@ -296,7 +296,7 @@ public class VentaServiceTest
 
         service.CrearVenta(dto);
 
-        StockSucursal stockSuc = context.StockSucursales.First();
+        StockSucursal stockSuc = context.StockSucursal.First();
 
         Assert.Equal(7, stockSuc.STOCK);
     }

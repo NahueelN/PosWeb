@@ -27,7 +27,7 @@ public class GastoService
             throw new ArgumentException("El detalle no puede superar los 500 caracteres", nameof(detalle));
 
         // Find active caja for this user
-        Caja? cajaActiva = _context.Cajas
+        Caja? cajaActiva = _context.Caja
             .FirstOrDefault(c => c.ID_USUARIO_APERTURA == userId && c.ESTADO == "Abierta");
 
         if (cajaActiva == null)
@@ -36,7 +36,7 @@ public class GastoService
         }
 
         var gasto = new Gasto(cajaActiva.ID_CAJA, monto, detalle);
-        _context.Gastos.Add(gasto);
+        _context.Gasto.Add(gasto);
         _context.SaveChanges();
 
         return MapToDto(gasto);
@@ -44,7 +44,7 @@ public class GastoService
 
     public List<GastoDto> ObtenerPorCaja(int cajaId)
     {
-        return _context.Gastos
+        return _context.Gasto
             .Where(g => g.ID_CAJA == cajaId)
             .OrderByDescending(g => g.FECHA_GASTO)
             .Select(g => MapToDto(g))

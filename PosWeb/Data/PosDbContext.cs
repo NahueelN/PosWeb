@@ -10,30 +10,25 @@ public class PosDbContext : DbContext
     {
     }
 
-    // Existing entities (kept as-is)
-    public DbSet<Caja> Cajas { get; set; }
-
-    // Modified entities
-    public DbSet<Producto> Productos { get; set; }
-    public DbSet<Sucursal> Sucursales { get; set; }
-    public DbSet<StockSucursal> StockSucursales { get; set; }
-    public DbSet<Usuario> Usuarios { get; set; }
-    public DbSet<Cliente> Clientes { get; set; }
-    public DbSet<Venta> Ventas { get; set; }
-    public DbSet<RenglonVenta> RenglonesVenta { get; set; }
-    public DbSet<MedioPago> MediosPago { get; set; }
-    public DbSet<Pago> Pagos { get; set; }
-    public DbSet<Gasto> Gastos { get; set; }
-
-    // New entities
-    public DbSet<Suscripcion> Suscripciones { get; set; }
-    public DbSet<Empresa> Empresas { get; set; }
-    public DbSet<Categoria> Categorias { get; set; }
-    public DbSet<UnidadMedida> UnidadesMedida { get; set; }
-    public DbSet<Proveedor> Proveedores { get; set; }
-    public DbSet<Compra> Compras { get; set; }
-    public DbSet<RenglonCompra> RenglonesCompra { get; set; }
-    public DbSet<Deuda> Deudas { get; set; }
+    public DbSet<Caja> Caja { get; set; }
+    public DbSet<Producto> Producto { get; set; }
+    public DbSet<Sucursal> Sucursal { get; set; }
+    public DbSet<StockSucursal> StockSucursal { get; set; }
+    public DbSet<Usuario> Usuario { get; set; }
+    public DbSet<Cliente> Cliente { get; set; }
+    public DbSet<Venta> Venta { get; set; }
+    public DbSet<RenglonVenta> RenglonVenta { get; set; }
+    public DbSet<MedioPago> MedioPago { get; set; }
+    public DbSet<Pago> Pago { get; set; }
+    public DbSet<Gasto> Gasto { get; set; }
+    public DbSet<Suscripcion> Suscripcion { get; set; }
+    public DbSet<Empresa> Empresa { get; set; }
+    public DbSet<Categoria> Categoria { get; set; }
+    public DbSet<UnidadMedida> UnidadMedida { get; set; }
+    public DbSet<Proveedor> Proveedor { get; set; }
+    public DbSet<Compra> Compra { get; set; }
+    public DbSet<RenglonCompra> RenglonCompra { get; set; }
+    public DbSet<Deuda> Deuda { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,7 +37,7 @@ public class PosDbContext : DbContext
         // ---- PRODUCTO ----
         modelBuilder.Entity<Producto>(entity =>
         {
-            entity.ToTable("PRODUCTOS");
+            entity.ToTable("PRODUCTO");
 
             entity.HasKey(p => p.ID_PRODUCTO);
 
@@ -103,7 +98,7 @@ public class PosDbContext : DbContext
         // ---- SUCURSAL ----
         modelBuilder.Entity<Sucursal>(entity =>
         {
-            entity.ToTable("SUCURSALES");
+            entity.ToTable("SUCURSAL");
 
             entity.HasKey(s => s.ID_SUCURSAL);
 
@@ -139,7 +134,7 @@ public class PosDbContext : DbContext
         // ---- STOCK SUCURSAL ----
         modelBuilder.Entity<StockSucursal>(entity =>
         {
-            entity.ToTable("STOCK_POR_SUCURSAL");
+            entity.ToTable("STOCK_SUCURSAL");
 
             entity.HasKey(s => new { s.ID_PRODUCTO, s.ID_SUCURSAL });
 
@@ -167,7 +162,7 @@ public class PosDbContext : DbContext
         // ---- USUARIO ----
         modelBuilder.Entity<Usuario>(entity =>
         {
-            entity.ToTable("USUARIOS");
+            entity.ToTable("USUARIO");
 
             entity.HasKey(u => u.ID_USUARIO);
 
@@ -217,7 +212,7 @@ public class PosDbContext : DbContext
         // ---- CLIENTE ----
         modelBuilder.Entity<Cliente>(entity =>
         {
-            entity.ToTable("CLIENTES");
+            entity.ToTable("CLIENTE");
 
             entity.HasKey(c => c.ID_CLIENTE);
 
@@ -254,7 +249,7 @@ public class PosDbContext : DbContext
         // ---- VENTA ----
         modelBuilder.Entity<Venta>(entity =>
         {
-            entity.ToTable("VENTAS");
+            entity.ToTable("VENTA");
 
             entity.HasKey(v => v.ID_VENTA);
 
@@ -299,7 +294,7 @@ public class PosDbContext : DbContext
         // ---- RENGLON VENTA ----
         modelBuilder.Entity<RenglonVenta>(entity =>
         {
-            entity.ToTable("RENGLONES_VENTA");
+            entity.ToTable("RENGLON_VENTA");
 
             entity.HasKey(r => r.ID_RENGLON_VENTA);
 
@@ -338,7 +333,7 @@ public class PosDbContext : DbContext
         // ---- MEDIO PAGO ----
         modelBuilder.Entity<MedioPago>(entity =>
         {
-            entity.ToTable("MEDIOS_PAGO");
+            entity.ToTable("MEDIO_PAGO");
 
             entity.HasKey(m => m.ID_MEDIO_PAGO);
 
@@ -369,7 +364,7 @@ public class PosDbContext : DbContext
         // ---- PAGO ----
         modelBuilder.Entity<Pago>(entity =>
         {
-            entity.ToTable("PAGOS");
+            entity.ToTable("PAGO");
 
             entity.HasKey(p => p.ID_PAGO);
 
@@ -412,7 +407,7 @@ public class PosDbContext : DbContext
         // ---- CAJA ----
         modelBuilder.Entity<Caja>(entity =>
         {
-            entity.ToTable("CAJAS");
+            entity.ToTable("CAJA");
 
             entity.HasKey(c => c.ID_CAJA);
 
@@ -478,7 +473,7 @@ public class PosDbContext : DbContext
         // ---- GASTO ----
         modelBuilder.Entity<Gasto>(entity =>
         {
-            entity.ToTable("GASTOS");
+            entity.ToTable("GASTO");
 
             entity.HasKey(g => g.ID_GASTO);
 
@@ -509,7 +504,7 @@ public class PosDbContext : DbContext
         // ---- CATEGORIA ----
         modelBuilder.Entity<Categoria>(entity =>
         {
-            entity.ToTable("CATEGORIAS");
+            entity.ToTable("CATEGORIA");
 
             entity.HasKey(c => c.ID_CATEGORIA);
 
@@ -533,7 +528,7 @@ public class PosDbContext : DbContext
         // ---- UNIDAD MEDIDA ----
         modelBuilder.Entity<UnidadMedida>(entity =>
         {
-            entity.ToTable("UNIDADES_MEDIDA");
+            entity.ToTable("UNIDAD_MEDIDA");
 
             entity.HasKey(u => u.ID_UNIDAD_MEDIDA);
 
@@ -558,7 +553,7 @@ public class PosDbContext : DbContext
         // ---- SUSCRIPCION ----
         modelBuilder.Entity<Suscripcion>(entity =>
         {
-            entity.ToTable("SUSCRIPCIONES");
+            entity.ToTable("SUSCRIPCION");
 
             entity.HasKey(s => s.ID_SUSCRIPCION);
 
@@ -613,7 +608,7 @@ public class PosDbContext : DbContext
         // ---- EMPRESA ----
         modelBuilder.Entity<Empresa>(entity =>
         {
-            entity.ToTable("EMPRESAS");
+            entity.ToTable("EMPRESA");
 
             entity.HasKey(e => e.ID_EMPRESA);
 
@@ -642,7 +637,7 @@ public class PosDbContext : DbContext
         // ---- PROVEEDOR ----
         modelBuilder.Entity<Proveedor>(entity =>
         {
-            entity.ToTable("PROVEEDORES");
+            entity.ToTable("PROVEEDOR");
 
             entity.HasKey(p => p.ID_PROVEEDOR);
 
@@ -690,7 +685,7 @@ public class PosDbContext : DbContext
         // ---- COMPRA ----
         modelBuilder.Entity<Compra>(entity =>
         {
-            entity.ToTable("COMPRAS");
+            entity.ToTable("COMPRA");
 
             entity.HasKey(c => c.ID_COMPRA);
 
@@ -747,7 +742,7 @@ public class PosDbContext : DbContext
         // ---- RENGLON COMPRA ----
         modelBuilder.Entity<RenglonCompra>(entity =>
         {
-            entity.ToTable("RENGLONES_COMPRA");
+            entity.ToTable("RENGLON_COMPRA");
 
             entity.HasKey(r => r.ID_RENGLON_COMPRA);
 
@@ -786,7 +781,7 @@ public class PosDbContext : DbContext
         // ---- DEUDA ----
         modelBuilder.Entity<Deuda>(entity =>
         {
-            entity.ToTable("DEUDAS");
+            entity.ToTable("DEUDA");
 
             entity.HasKey(d => d.ID_DEUDA);
 
@@ -823,7 +818,7 @@ public class PosDbContext : DbContext
                 .HasForeignKey(d => d.ID_CLIENTE)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne<Proveedor>()
+            entity.HasOne(d => d.Proveedor)
                 .WithMany()
                 .HasForeignKey(d => d.ID_PROVEEDOR)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -833,7 +828,7 @@ public class PosDbContext : DbContext
                 .HasForeignKey(d => d.ID_VENTA)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne<Compra>()
+            entity.HasOne(d => d.Compra)
                 .WithMany()
                 .HasForeignKey(d => d.ID_COMPRA)
                 .OnDelete(DeleteBehavior.Restrict);

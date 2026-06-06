@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260605202332_InitialMySql")]
+    partial class InitialMySql
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -231,6 +234,9 @@ namespace PosWeb.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_DEUDA"));
 
+                    b.Property<int>("CompraID_COMPRA")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("FECHA_DEUDA")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_DEUDA");
@@ -263,11 +269,12 @@ namespace PosWeb.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("PAGO");
 
-                    b.Property<decimal>("MONTO_PAGADO")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("MONTO_PAGADO");
+                    b.Property<int>("ProveedorID_PROVEEDOR")
+                        .HasColumnType("int");
 
                     b.HasKey("ID_DEUDA");
+
+                    b.HasIndex("CompraID_COMPRA");
 
                     b.HasIndex("ID_CLIENTE");
 
@@ -276,6 +283,8 @@ namespace PosWeb.Migrations
                     b.HasIndex("ID_PROVEEDOR");
 
                     b.HasIndex("ID_VENTA");
+
+                    b.HasIndex("ProveedorID_PROVEEDOR");
 
                     b.ToTable("DEUDA", (string)null);
                 });
@@ -1016,17 +1025,23 @@ namespace PosWeb.Migrations
 
             modelBuilder.Entity("PosWeb.Domain.Deuda", b =>
                 {
+                    b.HasOne("PosWeb.Domain.Compra", "Compra")
+                        .WithMany()
+                        .HasForeignKey("CompraID_COMPRA")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("PosWeb.Domain.Cliente", null)
                         .WithMany()
                         .HasForeignKey("ID_CLIENTE")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PosWeb.Domain.Compra", "Compra")
+                    b.HasOne("PosWeb.Domain.Compra", null)
                         .WithMany()
                         .HasForeignKey("ID_COMPRA")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PosWeb.Domain.Proveedor", "Proveedor")
+                    b.HasOne("PosWeb.Domain.Proveedor", null)
                         .WithMany()
                         .HasForeignKey("ID_PROVEEDOR")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -1035,6 +1050,12 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_VENTA")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PosWeb.Domain.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorID_PROVEEDOR")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Compra");
 

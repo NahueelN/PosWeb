@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -231,6 +231,10 @@ export const api = {
        method: 'POST',
        body: JSON.stringify(dto),
      }),
+     actualizar: (id: number, dto: CrearProveedorRequestDto) => request<ProveedorDto>(`/proveedores/${id}`, {
+       method: 'PUT',
+       body: JSON.stringify(dto),
+     }),
    },
 
 // Compras
@@ -260,8 +264,25 @@ export const api = {
         return request<DeudaDto[]>(`/deudas${query}`);
       },
       obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
-      pagar: (id: number) => request<DeudaDto>(`/deudas/${id}/pagar`, {
-        method: 'POST',
-      }),
+      pagar: (id: number, monto?: number) => {
+        const body: PagarDeudaRequestDto = monto !== undefined ? { monto } : {};
+        return request<DeudaDto>(`/deudas/${id}/pagar`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      },
+      pagarMultiple: (proveedorId: number, monto: number) =>
+        request<DeudaDto[]>(`/deudas/pagar-multiple`, {
+          method: 'POST',
+          body: JSON.stringify({ proveedorId, monto }),
+        }),
+    },
+
+  // Lookups
+    categorias: {
+      listar: () => request<CategoriaDto[]>('/categorias'),
+    },
+    unidadesMedida: {
+      listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
     },
 }

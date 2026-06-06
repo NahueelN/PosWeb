@@ -42,11 +42,11 @@ public class DeudaController : ControllerBase
     }
 
     [HttpPost("{id:int}/pagar")]
-    public async Task<ActionResult<DeudaDto>> Pagar(int id)
+    public async Task<ActionResult<DeudaDto>> Pagar(int id, [FromBody] PagarDeudaRequestDto? request = null)
     {
         try
         {
-            var deuda = await _deudaService.RegistrarPagoAsync(id);
+            var deuda = await _deudaService.RegistrarPagoAsync(id, request?.Monto);
             return Ok(deuda);
         }
         catch (DeudaNoEncontradaException ex)
@@ -56,6 +56,24 @@ public class DeudaController : ControllerBase
         catch (DeudaYaPagadaException ex)
         {
             return Conflict(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("pagar-multiple")]
+    public async Task<ActionResult<List<DeudaDto>>> PagarMultiple([FromBody] PagarMultipleRequestDto request)
+    {
+        try
+        {
+            var deudas = await _deudaService.PagarMultipleAsync(request.ProveedorId, request.Monto);
+            return Ok(deudas);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 }

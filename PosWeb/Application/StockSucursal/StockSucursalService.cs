@@ -38,13 +38,13 @@ public class StockSucursalService
         EnsureSucursalExists(sucursalId);
         EnsureProductoActivo(productoId);
 
-        StockSucursal? stock = _context.StockSucursales
+        StockSucursal? stock = _context.StockSucursal
             .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
 
         if (stock == null)
         {
             StockSucursal newStock = new StockSucursal(productoId, sucursalId, nuevoStock);
-            _context.StockSucursales.Add(newStock);
+            _context.StockSucursal.Add(newStock);
         }
         else
         {
@@ -66,10 +66,10 @@ public class StockSucursalService
 
     private IQueryable<StockSucursalDto> BuildSucursalStockQuery(int sucursalId)
     {
-        IQueryable<StockSucursal> branchStock = _context.StockSucursales
+        IQueryable<StockSucursal> branchStock = _context.StockSucursal
             .Where(s => s.ID_SUCURSAL == sucursalId);
 
-        return _context.Productos
+        return _context.Producto
             .Where(p => p.ACTIVO)
             .GroupJoin(
                 branchStock,
@@ -90,7 +90,7 @@ public class StockSucursalService
 
     private void EnsureSucursalExists(int sucursalId)
     {
-        bool sucursalExiste = _context.Sucursales
+        bool sucursalExiste = _context.Sucursal
             .Any(s => s.ID_SUCURSAL == sucursalId && s.ACTIVO);
 
         if (!sucursalExiste)
@@ -101,7 +101,7 @@ public class StockSucursalService
 
     private void EnsureProductoActivo(int productoId)
     {
-        Producto? producto = _context.Productos
+        Producto? producto = _context.Producto
             .FirstOrDefault(p => p.ID_PRODUCTO == productoId);
 
         if (producto == null)

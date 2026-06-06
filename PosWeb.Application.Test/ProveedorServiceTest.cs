@@ -35,8 +35,8 @@ public class ProveedorServiceTest
         PosDbContext context = CrearContexto(nameof(Listar_SinFiltro_RetornaTodos));
         ProveedorService service = CrearService(context);
 
-        context.Proveedores.Add(new Proveedor("ALPHA", "Distribuidora Alpha", telefono: "111"));
-        context.Proveedores.Add(new Proveedor("BETA", "Distribuidora Beta", telefono: "222"));
+        context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha", telefono: "111"));
+        context.Proveedor.Add(new Proveedor("BETA", "Distribuidora Beta", telefono: "222"));
         context.SaveChanges();
 
         // Act
@@ -53,8 +53,8 @@ public class ProveedorServiceTest
         PosDbContext context = CrearContexto(nameof(Listar_ConFiltro_RetornaCoincidentes));
         ProveedorService service = CrearService(context);
 
-        context.Proveedores.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
-        context.Proveedores.Add(new Proveedor("BETA", "Distribuidora Beta"));
+        context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
+        context.Proveedor.Add(new Proveedor("BETA", "Distribuidora Beta"));
         context.SaveChanges();
 
         // Act
@@ -72,8 +72,8 @@ public class ProveedorServiceTest
         PosDbContext context = CrearContexto(nameof(Listar_ConFiltroCodigo_RetornaCoincidentes));
         ProveedorService service = CrearService(context);
 
-        context.Proveedores.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
-        context.Proveedores.Add(new Proveedor("BETA", "Distribuidora Beta"));
+        context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
+        context.Proveedor.Add(new Proveedor("BETA", "Distribuidora Beta"));
         context.SaveChanges();
 
         // Act
@@ -133,7 +133,7 @@ public class ProveedorServiceTest
         ProveedorService service = CrearService(context);
 
         // Seed a proveedor
-        context.Proveedores.Add(new Proveedor("DUP", "Proveedor Original"));
+        context.Proveedor.Add(new Proveedor("DUP", "Proveedor Original"));
         context.SaveChanges();
 
         // Try to create another with same auto-generated code ("DUP" ← "Dup...")
@@ -151,7 +151,7 @@ public class ProveedorServiceTest
         ProveedorService service = CrearService(context);
 
         var proveedor = new Proveedor("ALPHA", "Distribuidora Alpha");
-        context.Proveedores.Add(proveedor);
+        context.Proveedor.Add(proveedor);
         context.SaveChanges();
 
         // Act

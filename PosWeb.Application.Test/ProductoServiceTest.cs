@@ -48,7 +48,7 @@ public class ProductoServiceTest
             producto.Desactivar();
         }
 
-        context.Productos.Add(producto);
+        context.Producto.Add(producto);
         context.SaveChanges();
 
         return producto;
@@ -104,7 +104,7 @@ public class ProductoServiceTest
         Assert.Equal("Producto Test", resultado.Nombre);
         Assert.True(resultado.Activo);
         Assert.Equal(0, resultado.Stock);
-        Assert.Equal(1, context.Productos.Count());
+        Assert.Equal(1, context.Producto.Count());
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public class ProductoServiceTest
 
         service.Eliminar(producto.ID_PRODUCTO);
 
-        Producto resultado = context.Productos.First();
+        Producto resultado = context.Producto.First();
 
         Assert.False(resultado.ACTIVO);
     }

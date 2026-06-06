@@ -44,7 +44,7 @@ public class SucursalServiceTest
 
         TestHelpers.SetId(sucursal, id, "ID_SUCURSAL");
 
-        context.Sucursales.Add(sucursal);
+        context.Sucursal.Add(sucursal);
         context.SaveChanges();
     }
 
@@ -120,7 +120,7 @@ public class SucursalServiceTest
 
         service.Eliminar(1);
 
-        Sucursal sucursal = context.Sucursales.First();
+        Sucursal sucursal = context.Sucursal.First();
 
         Assert.False(sucursal.ACTIVO);
     }

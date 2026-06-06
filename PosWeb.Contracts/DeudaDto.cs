@@ -7,5 +7,7 @@ public record DeudaDto(
     DateTime Fecha,
     DateTime? FechaPago,
     bool Pago,
-    int? CompraId
+    int? CompraId,
+    decimal MontoPagado = 0,
+    decimal SaldoPendiente = 0
 );

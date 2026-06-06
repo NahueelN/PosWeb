@@ -9,9 +9,11 @@ import { useAuth } from '../context/AuthContext'
     { to: '/productos', label: 'Productos', icon: '📦' },
     { to: '/stock', label: 'Stock', icon: '📊' },
     { to: '/clientes', label: 'Clientes', icon: '👤' },
+    { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
     { to: '/caja', label: 'Caja', icon: '💰' },
     { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
     { to: '/compras', label: 'Compras', icon: '🛒' },
+    { to: '/deudas', label: 'Deudas', icon: '📝' },
     { to: '/gastos', label: 'Gastos', icon: '💸' },
   ]
 

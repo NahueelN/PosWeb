@@ -17,7 +17,7 @@ public class ProveedorService
 
     public List<ProveedorDto> Listar(string? search = null)
     {
-        IQueryable<Proveedor> query = _context.Proveedores.Where(p => p.ACTIVO);
+        IQueryable<Proveedor> query = _context.Proveedor.Where(p => p.ACTIVO);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -45,7 +45,7 @@ public class ProveedorService
             codigo = codigo[..50];
 
         // Check duplicate codigo
-        bool codigoExiste = _context.Proveedores
+        bool codigoExiste = _context.Proveedor
             .Any(p => p.COD_PROVEEDOR == codigo && p.ACTIVO);
 
         if (codigoExiste)
@@ -63,22 +63,59 @@ public class ProveedorService
             dto.Mail
         );
 
-        _context.Proveedores.Add(proveedor);
+        _context.Proveedor.Add(proveedor);
         _context.SaveChanges();
 
         return MapToDto(proveedor);
     }
 
+    public ProveedorDto Actualizar(int id, CrearProveedorRequestDto dto)
+    {
+        Proveedor? proveedor = _context.Proveedor.Find(id);
+        if (proveedor == null || !proveedor.ACTIVO)
+            throw new ProveedorNoEncontradoException(id);
+
+        if (!string.IsNullOrWhiteSpace(dto.Nombre))
+        {
+            proveedor.CambiarNombre(dto.Nombre.Trim());
+            string codigo = dto.Nombre.Trim().ToUpperInvariant();
+            if (codigo.Length > 50) codigo = codigo[..50];
+            proveedor.CambiarCodigo(codigo);
+        }
+
+        proveedor.SetTipoDocumento(dto.TipoDocumento);
+        proveedor.SetNroDocumento(dto.NroDocumento);
+        proveedor.SetTelefono(dto.Telefono);
+        proveedor.SetDomicilio(dto.Domicilio);
+        proveedor.SetMail(dto.Mail);
+
+        _context.SaveChanges();
+        return ObtenerPorId(id);
+    }
+
     public ProveedorDto ObtenerPorId(int id)
     {
-        Proveedor? proveedor = _context.Proveedores.Find(id);
+        Proveedor? proveedor = _context.Proveedor.Find(id);
 
         if (proveedor == null || !proveedor.ACTIVO)
         {
             throw new ProveedorNoEncontradoException(id);
         }
 
-        return MapToDto(proveedor);
+        var deudaPendiente = _context.Deuda
+            .Where(d => d.ID_PROVEEDOR == id && !d.PAGO)
+            .Sum(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO)) ?? 0;
+
+        var dto = MapToDto(proveedor);
+        dto.DeudaPendiente = deudaPendiente;
+        return dto;
+    }
+
+    private decimal CalcularDeudaPendiente(int proveedorId)
+    {
+        return _context.Deuda
+            .Where(d => d.ID_PROVEEDOR == proveedorId && !d.PAGO)
+            .Sum(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO)) ?? 0;
     }
 
     private static ProveedorDto MapToDto(Proveedor proveedor)

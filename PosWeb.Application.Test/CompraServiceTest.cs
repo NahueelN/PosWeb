@@ -24,14 +24,14 @@ public class CompraServiceTest
         // Seed basic data needed for tests
         Sucursal sucursal = new Sucursal("001", "Sucursal Test", 1);
         sucursal.Activar();
-        context.Sucursales.Add(sucursal);
+        context.Sucursal.Add(sucursal);
         
         Usuario usuario = new Usuario(1, "testuser", "hashed", "UsuarioComun");
         usuario.Activar();
-        context.Usuarios.Add(usuario);
+        context.Usuario.Add(usuario);
 
         // Seed a proveedor
-        context.Proveedores.Add(new Proveedor("TESTPROV", "Proveedor Test"));
+        context.Proveedor.Add(new Proveedor("TESTPROV", "Proveedor Test"));
         
         context.SaveChanges();
         return context;
@@ -46,7 +46,7 @@ public class CompraServiceTest
     private static Caja CrearCajaAbierta(PosDbContext context, int sucursalId, int usuarioId)
     {
         var caja = new Caja(sucursalId, 1000, usuarioId);
-        context.Cajas.Add(caja);
+        context.Caja.Add(caja);
         context.SaveChanges();
         return caja;
     }
@@ -55,14 +55,14 @@ public class CompraServiceTest
     {
         Producto producto = new Producto(codigo, codigo, nombre, precio, costo);
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
-        context.Productos.Add(producto);
+        context.Producto.Add(producto);
         context.SaveChanges();
         return producto;
     }
 
     private static int SeedProveedor(PosDbContext context)
     {
-        return context.Proveedores.First().ID_PROVEEDOR;
+        return context.Proveedor.First().ID_PROVEEDOR;
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -97,26 +97,26 @@ public class CompraServiceTest
         Assert.NotEmpty(resultado.Items);
 
         // Verify Compra was created
-        Compra compra = context.Compras.First();
+        Compra compra = context.Compra.First();
         Assert.Equal(sucursal.ID_SUCURSAL, compra.ID_SUCURSAL);
         Assert.Equal(proveedorId, compra.ID_PROVEEDOR);
         Assert.Equal(usuario.ID_USUARIO, compra.ID_USUARIO);
         Assert.Equal(resultado.GastoId, compra.ID_GASTO);
 
         // Verify Gasto was created with ID_COMPRA
-        Gasto gasto = context.Gastos.First();
+        Gasto gasto = context.Gasto.First();
         Assert.Equal(caja.ID_CAJA, gasto.ID_CAJA);
         Assert.Equal(5 * 75, gasto.MONTO);
         Assert.Contains("Proveedor Test", gasto.DETALLE);
 
         // Verify stock was updated atomically
-        StockSucursal stock = context.StockSucursales.First();
+        StockSucursal stock = context.StockSucursal.First();
         Assert.Equal(producto.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
         Assert.Equal(5, stock.STOCK);
 
         // Verify RenglonCompra was created
-        RenglonCompra renglon = context.RenglonesCompra.First();
+        RenglonCompra renglon = context.RenglonCompra.First();
         Assert.Equal(compra.ID_COMPRA, renglon.ID_COMPRA);
         Assert.Equal(producto.ID_PRODUCTO, renglon.ID_PRODUCTO);
         Assert.Equal(5, renglon.CANTIDAD);
@@ -130,8 +130,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_SinCajaActiva_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         // No active caja
 
@@ -150,8 +150,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ProveedorInexistente_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
         // Act & Assert — proveedorId 999 doesn't exist
@@ -162,8 +162,8 @@ public class CompraServiceTest
         });
 
         // Verify no partial state
-        Assert.Empty(context.Compras);
-        Assert.Empty(context.Gastos);
+        Assert.Empty(context.Compra);
+        Assert.Empty(context.Gasto);
     }
 
     [Fact]
@@ -173,8 +173,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ItemsVacios_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -193,8 +193,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ConNuevosProductos_CreaProductosAtomicos));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -223,12 +223,12 @@ public class CompraServiceTest
         Assert.Single(resultado.Items);
         Assert.Equal("Producto Nuevo", resultado.Items[0].ProductoNombre);
 
-        Producto productoCreado = context.Productos.First(p => p.CODIGO_BARRAS == "NUEVO001");
+        Producto productoCreado = context.Producto.First(p => p.CODIGO_BARRAS == "NUEVO001");
         Assert.Equal("Producto Nuevo", productoCreado.DESC_PRODUCTO);
         Assert.Equal(30, productoCreado.PRECIO);
         Assert.Equal(20, productoCreado.COSTO);
 
-        StockSucursal stock = context.StockSucursales.First();
+        StockSucursal stock = context.StockSucursal.First();
         Assert.Equal(productoCreado.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(3, stock.STOCK);
     }
@@ -240,8 +240,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_CodigoBarraDuplicado_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -274,8 +274,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ProductoExistente_ActualizaPrecioYCosto));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -296,7 +296,7 @@ public class CompraServiceTest
             });
 
         // Assert
-        Producto actualizado = context.Productos.Find(producto.ID_PRODUCTO)!;
+        Producto actualizado = context.Producto.Find(producto.ID_PRODUCTO)!;
         Assert.Equal(120, actualizado.PRECIO);
         Assert.Equal(85, actualizado.COSTO);
     }
@@ -308,8 +308,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ProductoExistente_PrecioCostoIguales_NoActualiza));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -330,7 +330,7 @@ public class CompraServiceTest
             });
 
         // Assert
-        Producto actualizado = context.Productos.Find(producto.ID_PRODUCTO)!;
+        Producto actualizado = context.Producto.Find(producto.ID_PRODUCTO)!;
         Assert.Equal(100, actualizado.PRECIO);
         Assert.Equal(80, actualizado.COSTO);
     }
@@ -342,8 +342,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_InlineCreation_SinCodigoBarra_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -367,8 +367,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_InlineCreation_SinNombre_LanzaExcepcion));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -392,8 +392,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_StockNoInicializado_CreayActualizaStock));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
 
@@ -413,7 +413,7 @@ public class CompraServiceTest
         Assert.NotNull(resultado);
         Assert.Equal(4 * 70, resultado.TotalGasto);
 
-        StockSucursal stock = context.StockSucursales.First();
+        StockSucursal stock = context.StockSucursal.First();
         Assert.Equal(producto.ID_PRODUCTO, stock.ID_PRODUCTO);
         Assert.Equal(sucursal.ID_SUCURSAL, stock.ID_SUCURSAL);
         Assert.Equal(4, stock.STOCK);
@@ -426,8 +426,8 @@ public class CompraServiceTest
         PosDbContext context = CrearContexto(nameof(CrearCompra_ConProveedor_CreaDeuda));
         CompraService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
-        Sucursal sucursal = context.Sucursales.First();
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
         int proveedorId = SeedProveedor(context);
         Caja caja = CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
         Producto producto = CrearProducto(context, 1, "CONDEUDA", "Producto con deuda", 150m, 100m);
@@ -444,7 +444,7 @@ public class CompraServiceTest
 
         // Assert
         Assert.NotNull(resultado);
-        Deuda? deuda = context.Deudas.FirstOrDefault();
+        Deuda? deuda = context.Deuda.FirstOrDefault();
         Assert.NotNull(deuda);
         Assert.Equal(proveedorId, deuda!.ID_PROVEEDOR);
         Assert.Equal(resultado.CompraId, deuda.ID_COMPRA);

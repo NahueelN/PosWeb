@@ -9,6 +9,16 @@ export interface ProductoDto {
   activo: boolean
 }
 
+export interface CategoriaDto {
+  id: number
+  descripcion: string
+}
+
+export interface UnidadMedidaDto {
+  id: number
+  descripcion: string
+}
+
 export interface ProductoUpsertDto {
   codigoBarra: string
   nombre: string
@@ -213,6 +223,7 @@ export interface ProveedorDto {
   domicilio?: string
   mail?: string
   activo: boolean
+  deudaPendiente: number
 }
 
 export interface CrearProveedorRequestDto {
@@ -232,8 +243,12 @@ export interface CompraItemDto {
    // Inline creation fields (required when productoId === 0)
    codigoBarra?: string
    nombre?: string
-   precio?: number             // price to set (new product or update existing)
-   costo?: number              // optional — defaults to 0 for new products
+   precio?: number
+   costo?: number
+   categoriaId?: number
+   descAdicional?: string
+   contenido?: number
+   unidadMedidaId?: number
    tamano?: string
  }
 
@@ -245,12 +260,13 @@ export interface CompraItemDto {
    tamano?: string
  }
 
- export interface CompraRequestDto {
-   sucursalId: number
-   proveedorId: number
-   userId?: number
-   items: CompraItemDto[]
- }
+  export interface CompraRequestDto {
+    sucursalId: number
+    proveedorId: number
+    userId?: number
+    items: CompraItemDto[]
+    montoPagado?: number
+  }
 
  export interface CompraItemResultDto {
    productoId: number
@@ -326,4 +342,10 @@ export interface DeudaDto {
   fechaPago?: string
   pago: boolean
   compraId?: number
+  montoPagado: number
+  saldoPendiente: number
+}
+
+export interface PagarDeudaRequestDto {
+  monto?: number
 }

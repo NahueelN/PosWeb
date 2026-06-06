@@ -11,4 +11,5 @@ public class ProveedorDto
     public string? Domicilio { get; set; }
     public string? Mail { get; set; }
     public bool Activo { get; set; }
+    public decimal DeudaPendiente { get; set; }
 }

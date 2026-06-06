@@ -121,7 +121,7 @@ using (var scope = app.Services.CreateScope())
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     ctx.Database.Migrate();
 
-    var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
+    var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
     {
         admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));

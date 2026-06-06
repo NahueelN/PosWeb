@@ -23,7 +23,7 @@ public class CompraService
     /// Uses IDbContextTransaction for atomicity when the provider supports it (e.g. MySQL).
     /// </summary>
     public CompraResponseDto CrearCompra(int sucursalId, int proveedorId, int userId,
-        List<CompraItemDto> items, DateTime? fechaCompra = null)
+        List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null)
     {
         if (items.Count == 0)
             throw new CompraSinItemsException();
@@ -35,12 +35,12 @@ public class CompraService
         try
         {
             // Validate proveedor exists
-            Proveedor? proveedor = _context.Proveedores.Find(proveedorId);
+            Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
             if (proveedor == null || !proveedor.ACTIVO)
                 throw new ProveedorNoEncontradoException(proveedorId);
 
             // Find active caja for the sucursal
-            Caja? cajaActiva = _context.Cajas
+            Caja? cajaActiva = _context.Caja
                 .FirstOrDefault(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Abierta");
 
             if (cajaActiva == null)
@@ -48,7 +48,7 @@ public class CompraService
 
             // Generate NUMERO_COMPROBANTE: YYYYMMDD + sequential int per day
             DateTime today = fechaCompra?.Date ?? DateTime.Now.Date;
-            int maxNumero = _context.Compras
+            int maxNumero = _context.Compra
                 .Where(c => c.FECHA_COMPRA.Date == today)
                 .Select(c => (int?)c.NUMERO_COMPROBANTE)
                 .Max() ?? 0;
@@ -60,7 +60,7 @@ public class CompraService
 
             // Create Compra entity
             var compra = new Compra(sucursalId, userId, numeroComprobante, proveedorId);
-            _context.Compras.Add(compra);
+            _context.Compra.Add(compra);
 
             var results = new List<CompraItemResultDto>();
             decimal totalGasto = 0;
@@ -79,7 +79,7 @@ public class CompraService
                         throw new ArgumentException("El nombre es obligatorio para crear un producto nuevo");
 
                     // Check duplicate barcode
-                    bool codigoExiste = _context.Productos
+                    bool codigoExiste = _context.Producto
                         .Any(p => p.CODIGO_BARRAS == item.CodigoBarra && p.ACTIVO);
 
                     if (codigoExiste)
@@ -90,16 +90,20 @@ public class CompraService
                         item.CodigoBarra,
                         item.Nombre,
                         item.Precio,
-                        item.Costo ?? 0
+                        item.Costo ?? 0,
+                        idCategoria: item.CategoriaId,
+                        descAdicional: item.DescAdicional,
+                        contenido: item.Contenido,
+                        idUnidadMedida: item.UnidadMedidaId
                     );
-                    _context.Productos.Add(nuevoProducto);
+                    _context.Producto.Add(nuevoProducto);
                     _context.SaveChanges(); // Generate ID within transaction
                     productoId = nuevoProducto.ID_PRODUCTO;
                 }
                 else
                 {
                     // EXISTING PRODUCT: find and optionally update price / cost
-                    var producto = _context.Productos.Find(productoId);
+                    var producto = _context.Producto.Find(productoId);
                     if (producto == null || !producto.ACTIVO)
                         throw new ProductoNoEncontradoException(productoId);
 
@@ -111,18 +115,18 @@ public class CompraService
                 }
 
                 // Re-read product (may have been created inline)
-                Producto? productoFinal = _context.Productos.Find(productoId);
+                Producto? productoFinal = _context.Producto.Find(productoId);
                 if (productoFinal == null || !productoFinal.ACTIVO)
                     throw new ProductoNoEncontradoException(productoId);
 
                 // Find or create StockSucursal row
-                StockSucursal? stock = _context.StockSucursales
+                StockSucursal? stock = _context.StockSucursal
                     .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
 
                 if (stock == null)
                 {
                     stock = new StockSucursal(productoId, sucursalId, 0);
-                    _context.StockSucursales.Add(stock);
+                    _context.StockSucursal.Add(stock);
                 }
 
                 stock.AumentarStock(item.Cantidad);
@@ -147,14 +151,14 @@ public class CompraService
             // Create Gasto linked to active caja with ID_COMPRA
             string detalleGasto = $"Compra - {proveedor.NOMBRE}";
             var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
-            _context.Gastos.Add(gasto);
+            _context.Gasto.Add(gasto);
             _context.SaveChanges(); // Save to generate IDs
 
             // Link Gasto back to Compra
             compra.AsignarGasto(gasto.ID_GASTO);
 
-            // Create Deuda for the proveedor
-            _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto);
+            // Create Deuda for the proveedor (with optional partial payment)
+            _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto, montoPagado);
 
             _context.SaveChanges(); // Final save within transaction
 
@@ -186,7 +190,8 @@ public class CompraService
             request.SucursalId,
             request.ProveedorId,
             request.UserId ?? 0,
-            request.Items
+            request.Items,
+            montoPagado: request.MontoPagado
         );
     }
 }

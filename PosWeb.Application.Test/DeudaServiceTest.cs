@@ -36,11 +36,11 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
-        context.Deudas.Add(new Deuda(1000, idProveedor: prov.ID_PROVEEDOR));
-        context.Deudas.Add(new Deuda(2000, idProveedor: prov.ID_PROVEEDOR));
+        context.Deuda.Add(new Deuda(1000, idProveedor: prov.ID_PROVEEDOR));
+        context.Deuda.Add(new Deuda(2000, idProveedor: prov.ID_PROVEEDOR));
         context.SaveChanges();
 
         // Act
@@ -59,12 +59,12 @@ public class DeudaServiceTest
 
         Proveedor p1 = new Proveedor("P001", "Proveedor Uno");
         Proveedor p2 = new Proveedor("P002", "Proveedor Dos");
-        context.Proveedores.Add(p1);
-        context.Proveedores.Add(p2);
+        context.Proveedor.Add(p1);
+        context.Proveedor.Add(p2);
         context.SaveChanges();
 
-        context.Deudas.Add(new Deuda(1000, idProveedor: p1.ID_PROVEEDOR));
-        context.Deudas.Add(new Deuda(2000, idProveedor: p2.ID_PROVEEDOR));
+        context.Deuda.Add(new Deuda(1000, idProveedor: p1.ID_PROVEEDOR));
+        context.Deuda.Add(new Deuda(2000, idProveedor: p2.ID_PROVEEDOR));
         context.SaveChanges();
 
         // Act
@@ -84,14 +84,14 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
         Deuda d1 = new Deuda(1000, idProveedor: prov.ID_PROVEEDOR);
         Deuda d2 = new Deuda(2000, idProveedor: prov.ID_PROVEEDOR);
         d2.RegistrarPago();
-        context.Deudas.Add(d1);
-        context.Deudas.Add(d2);
+        context.Deuda.Add(d1);
+        context.Deuda.Add(d2);
         context.SaveChanges();
 
         // Act
@@ -110,11 +110,11 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
         Deuda deuda = new Deuda(1500, idProveedor: prov.ID_PROVEEDOR);
-        context.Deudas.Add(deuda);
+        context.Deuda.Add(deuda);
         context.SaveChanges();
 
         // Act
@@ -145,11 +145,11 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
         Deuda deuda = new Deuda(1000, idProveedor: prov.ID_PROVEEDOR);
-        context.Deudas.Add(deuda);
+        context.Deuda.Add(deuda);
         context.SaveChanges();
 
         // Act
@@ -160,7 +160,7 @@ public class DeudaServiceTest
         Assert.NotNull(result.FechaPago);
 
         // Verify persisted
-        Deuda? persisted = await context.Deudas.FindAsync(deuda.ID_DEUDA);
+        Deuda? persisted = await context.Deuda.FindAsync(deuda.ID_DEUDA);
         Assert.True(persisted!.PAGO);
         Assert.NotNull(persisted.FECHA_PAGO);
     }
@@ -173,12 +173,12 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
         Deuda deuda = new Deuda(1000, idProveedor: prov.ID_PROVEEDOR);
         deuda.RegistrarPago();
-        context.Deudas.Add(deuda);
+        context.Deuda.Add(deuda);
         context.SaveChanges();
 
         // Act & Assert
@@ -206,7 +206,7 @@ public class DeudaServiceTest
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
-        context.Proveedores.Add(prov);
+        context.Proveedor.Add(prov);
         context.SaveChanges();
 
         // Act
@@ -214,7 +214,7 @@ public class DeudaServiceTest
         context.SaveChanges();
 
         // Assert
-        Deuda? deuda = context.Deudas.FirstOrDefault();
+        Deuda? deuda = context.Deuda.FirstOrDefault();
         Assert.NotNull(deuda);
         Assert.Equal(prov.ID_PROVEEDOR, deuda!.ID_PROVEEDOR);
         Assert.Equal(42, deuda.ID_COMPRA);

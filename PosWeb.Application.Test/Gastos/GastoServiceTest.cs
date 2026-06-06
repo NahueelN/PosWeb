@@ -22,11 +22,11 @@ public class GastoServiceTest
         // Seed basic data
         Sucursal sucursal = new Sucursal("001", "Sucursal Test", 1);
         sucursal.Activar();
-        context.Sucursales.Add(sucursal);
+        context.Sucursal.Add(sucursal);
 
         Usuario usuario = new Usuario(1, "testuser", "hashed", "UsuarioComun");
         usuario.Activar();
-        context.Usuarios.Add(usuario);
+        context.Usuario.Add(usuario);
 
         context.SaveChanges();
         return context;
@@ -40,7 +40,7 @@ public class GastoServiceTest
     private static Caja CrearCajaAbierta(PosDbContext context, int usuarioId)
     {
         var caja = new Caja(1, 1000, usuarioId);
-        context.Cajas.Add(caja);
+        context.Caja.Add(caja);
         context.SaveChanges();
         return caja;
     }
@@ -52,7 +52,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_ConMontoYDetalleValidos_CreaGastoVinculadoACajaActiva));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         Caja caja = CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Act
@@ -66,7 +66,7 @@ public class GastoServiceTest
         Assert.NotEqual(default, resultado.Fecha);
 
         // Verify persisted in DB
-        Gasto gastoDb = context.Gastos.First();
+        Gasto gastoDb = context.Gasto.First();
         Assert.Equal(caja.ID_CAJA, gastoDb.ID_CAJA);
         Assert.Equal(150.50m, gastoDb.MONTO);
         Assert.Equal("Flete", gastoDb.DETALLE);
@@ -79,7 +79,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_MontoCeroOLanzar_LanzaArgumentException));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Act & Assert — monto cero
@@ -100,7 +100,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_DetalleVacio_LanzaArgumentException));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Act & Assert
@@ -116,7 +116,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_DetalleSoloEspacios_LanzaArgumentException));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Act & Assert
@@ -132,7 +132,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_DetalleExcede500Caracteres_LanzaArgumentException));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         string detalleLargo = new string('X', 501);
@@ -150,7 +150,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(Crear_SinCajaActiva_LanzaGastoSinCajaActivaException));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         // No caja created
 
         // Act & Assert
@@ -165,28 +165,28 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(ObtenerPorCaja_ConGastos_RetornaFiltradosYOrdenadosDesc));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         Caja caja = CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Create second caja to test filtering
         var caja2 = new Caja(1, 2000, usuario.ID_USUARIO);
         TestHelpers.SetId(caja2, 2, "ID_CAJA");
-        context.Cajas.Add(caja2);
+        context.Caja.Add(caja2);
         context.SaveChanges();
 
         // Create gastos with controlled timestamps via direct reflection
         Gasto gasto1 = new Gasto(caja.ID_CAJA, 100, "Primero");
         TestHelpers.SetId(gasto1, 1, "ID_GASTO");
-        context.Gastos.Add(gasto1);
+        context.Gasto.Add(gasto1);
 
         Gasto gasto2 = new Gasto(caja.ID_CAJA, 200, "Segundo");
         TestHelpers.SetId(gasto2, 2, "ID_GASTO");
-        context.Gastos.Add(gasto2);
+        context.Gasto.Add(gasto2);
 
         // Gasto for caja2 (should be filtered out)
         Gasto gasto3 = new Gasto(caja2.ID_CAJA, 300, "Otra caja");
         TestHelpers.SetId(gasto3, 3, "ID_GASTO");
-        context.Gastos.Add(gasto3);
+        context.Gasto.Add(gasto3);
 
         context.SaveChanges();
 
@@ -209,7 +209,7 @@ public class GastoServiceTest
         PosDbContext context = CrearContexto(nameof(ObtenerPorCaja_SinGastos_RetornaListaVacia));
         GastoService service = CrearService(context);
 
-        Usuario usuario = context.Usuarios.First();
+        Usuario usuario = context.Usuario.First();
         Caja caja = CrearCajaAbierta(context, usuario.ID_USUARIO);
 
         // Act

@@ -18,7 +18,7 @@ public class CajaService
     public CajaDto Abrir(AbrirCajaRequest request, int userId)
     {
         // Each user can only have one open caja (across all sucursales)
-        bool tieneCajaActiva = _context.Cajas
+        bool tieneCajaActiva = _context.Caja
             .Any(c => c.ID_USUARIO_APERTURA == userId && c.ESTADO == "Abierta");
 
         if (tieneCajaActiva)
@@ -26,7 +26,7 @@ public class CajaService
             throw new CajaYaAbiertaException(userId);
         }
 
-        Sucursal? sucursal = _context.Sucursales.Find(request.SucursalId);
+        Sucursal? sucursal = _context.Sucursal.Find(request.SucursalId);
         if (sucursal == null)
         {
             throw new SucursalNoExisteException(request.SucursalId);
@@ -38,7 +38,7 @@ public class CajaService
         }
 
         var caja = new Caja(request.SucursalId, request.MontoInicial, userId);
-        _context.Cajas.Add(caja);
+        _context.Caja.Add(caja);
         _context.SaveChanges();
 
         return MapToDto(caja);
@@ -46,7 +46,7 @@ public class CajaService
 
     public CajaDto Cerrar(int cajaId, CerrarCajaRequest request, int userId)
     {
-        Caja? caja = _context.Cajas.Find(cajaId);
+        Caja? caja = _context.Caja.Find(cajaId);
 
         if (caja == null || caja.ESTADO != "Abierta")
         {
@@ -64,13 +64,13 @@ public class CajaService
 
         // Calculate total sales in this caja — via Pagos.ID_CAJA (Venta.ID_CAJA removed in PR 1)
         // Note: materialize first — SQLite can't SUM(decimal) server-side
-        var ventaIdsParaCaja = _context.Pagos
+        var ventaIdsParaCaja = _context.Pago
             .Where(p => p.ID_CAJA == cajaId)
             .Select(p => p.ID_VENTA)
             .Distinct()
             .ToList();
 
-        List<decimal> montosVentas = _context.Ventas
+        List<decimal> montosVentas = _context.Venta
             .Where(v => ventaIdsParaCaja.Contains(v.ID_VENTA))
             .Select(v => v.TOTAL)
             .ToList();
@@ -100,7 +100,7 @@ public class CajaService
     private List<PagoPorMedioDto> GetDesglosePagos(int cajaId)
     {
         // Get venta IDs for this caja — via Pagos.ID_CAJA (Venta.ID_CAJA removed in PR 1)
-        var ventaIds = _context.Pagos
+        var ventaIds = _context.Pago
             .Where(p => p.ID_CAJA == cajaId)
             .Select(p => p.ID_VENTA)
             .Distinct()
@@ -109,12 +109,12 @@ public class CajaService
         if (ventaIds.Count == 0) return new();
 
         // Materialize raw payment data, then group/sum client-side (SQLite can't SUM(decimal))
-        var pagosRaw = _context.Pagos
+        var pagosRaw = _context.Pago
             .Where(p => ventaIds.Contains(p.ID_VENTA))
             .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO })
             .ToList();
 
-        var medios = _context.MediosPago
+        var medios = _context.MedioPago
             .Select(m => new { m.ID_MEDIO_PAGO, m.DESC_MEDIO_PAGO, m.PAGA_VUELTO })
             .ToList();
 
@@ -137,22 +137,22 @@ public class CajaService
 
     public CierrePreviewDto? ObtenerPreviewCierre(int cajaId)
     {
-        Caja? caja = _context.Cajas.Find(cajaId);
+        Caja? caja = _context.Caja.Find(cajaId);
         if (caja == null || caja.ESTADO != "Abierta") return null;
 
-        var ventaIdsPreview = _context.Pagos
+        var ventaIdsPreview = _context.Pago
             .Where(p => p.ID_CAJA == cajaId)
             .Select(p => p.ID_VENTA)
             .Distinct()
             .ToList();
 
-        List<decimal> montosVentas = _context.Ventas
+        List<decimal> montosVentas = _context.Venta
             .Where(v => ventaIdsPreview.Contains(v.ID_VENTA))
             .Select(v => v.TOTAL)
             .ToList();
 
         // Materialize gasto amounts then sum client-side (SQLite can't SUM(decimal))
-        List<decimal> montosGastos = _context.Gastos
+        List<decimal> montosGastos = _context.Gasto
             .Where(g => g.ID_CAJA == cajaId)
             .Select(g => g.MONTO)
             .ToList();
@@ -169,7 +169,7 @@ public class CajaService
 
     public CajaDto? ObtenerActiva(int sucursalId, int userId)
     {
-        Caja? caja = _context.Cajas
+        Caja? caja = _context.Caja
             .FirstOrDefault(c => c.ID_USUARIO_APERTURA == userId && c.ESTADO == "Abierta");
 
         if (caja == null) return null;
@@ -179,13 +179,13 @@ public class CajaService
 
     public CajaDto? ObtenerPorId(int cajaId)
     {
-        Caja? caja = _context.Cajas.Find(cajaId);
+        Caja? caja = _context.Caja.Find(cajaId);
         return caja == null ? null : MapToDto(caja);
     }
 
     private CajaDto MapToDto(Caja caja)
     {
-        string usuarioApertura = _context.Usuarios
+        string usuarioApertura = _context.Usuario
             .Where(u => u.ID_USUARIO == caja.ID_USUARIO_APERTURA)
             .Select(u => u.NOMBRE_USUARIO)
             .FirstOrDefault() ?? "";
@@ -193,7 +193,7 @@ public class CajaService
         string? usuarioCierre = null;
         if (caja.ID_USUARIO_CIERRE.HasValue)
         {
-            usuarioCierre = _context.Usuarios
+            usuarioCierre = _context.Usuario
                 .Where(u => u.ID_USUARIO == caja.ID_USUARIO_CIERRE.Value)
                 .Select(u => u.NOMBRE_USUARIO)
                 .FirstOrDefault();
