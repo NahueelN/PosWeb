@@ -1,2 +1,0 @@
-@echo off
-start "" "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysqld.exe" --datadir="C:\Dev\PosWeb2\Pos\mysql-data" --port=3306
