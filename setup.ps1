@@ -10,10 +10,31 @@ $ProjectRoot = $PSScriptRoot
 $MysqlDataDir = Join-Path $ProjectRoot "mysql-data"
 $SqlFile = Join-Path $ProjectRoot "seed.sql"
 
+# Ruta personalizada y fija para la herramienta de EF
+$CustomToolDir = Join-Path $ProjectRoot ".ef-tool"
+$EfExePath = Join-Path $CustomToolDir "dotnet-ef.exe"
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "     PosWeb - Setup completo" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+
+# --- Preguntar por credenciales de MySQL ---
+$usePassword = Read-Host "¿Tu servidor MySQL requiere contraseña para el usuario 'root'? (S/N)"
+$mysqlPass = ""
+$mysqlArgsCreate = @("-u", "root")
+$mysqlArgsSeed = @("-u", "root", "posweb")
+
+if ($usePassword -match "^[sS]") {
+    $mysqlPass = Read-Host -AsSecureString "Introduce la contraseña de MySQL root"
+    # Convertir SecureString a texto plano para pasarlo de forma segura a los comandos internos
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($mysqlPass)
+    $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    
+    # Argumentos dinámicos usando la contraseña
+    $mysqlArgsCreate += "-p$plainPass"
+    $mysqlArgsSeed += "-p$plainPass"
+}
 
 # --- Helper: find MySQL bin folder ---
 function Find-MySqlBin {
@@ -107,27 +128,60 @@ if (-not $mysqlRunning) {
 # 4. Create database
 # ====================================================================
 Write-Host "[4/7] Creando base de datos posweb..." -ForegroundColor Yellow
-& "$MysqlBin\mysql" -u root -e "CREATE DATABASE IF NOT EXISTS posweb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: No se pudo crear la base de datos" -ForegroundColor Red
+
+$OldErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+
+try {
+    & "$MysqlBin\mysql" @mysqlArgsCreate -e "CREATE DATABASE IF NOT EXISTS posweb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>$null
+} catch {}
+
+$ErrorActionPreference = $OldErrorAction
+
+if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
+    Write-Host "ERROR: No se pudo crear la base de datos. Verificá tu contraseña." -ForegroundColor Red
     exit 1
 }
-Write-Host "   Base de datos 'posweb' creada" -ForegroundColor Green
+Write-Host "   Base de datos 'posweb' lista" -ForegroundColor Green
 
 # ====================================================================
 # 5. Install dotnet-ef tool (if needed)
 # ====================================================================
 Write-Host "[5/7] Verificando dotnet-ef tool..." -ForegroundColor Yellow
-$efInstalled = dotnet tool list --global 2>&1 | Select-String "dotnet-ef"
-if (-not $efInstalled) {
-    Write-Host "   Instalando dotnet-ef..." -ForegroundColor Yellow
-    dotnet tool install --global dotnet-ef 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: No se pudo instalar dotnet-ef. Instalalo manualmente:" -ForegroundColor Red
-        Write-Host "  dotnet tool install --global dotnet-ef" -ForegroundColor White
-        exit 1
+
+$OldEFErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+
+$efInstalled = $false
+try {
+    $efCheck = dotnet tool list --global 2>$null | Select-String "dotnet-ef"
+    if ($efCheck) {
+        $efInstalled = $true
+        Write-Host "   dotnet-ef ya instalado globalmente" -ForegroundColor Green
     }
+} catch {}
+
+if (-not $efInstalled) {
+    # Borramos cualquier residuo de manifiestos locales que esté molestando
+    if (Test-Path (Join-Path $ProjectRoot ".config\dotnet-tools.json")) {
+        Remove-Item (Join-Path $ProjectRoot ".config\dotnet-tools.json") -Force -ErrorAction SilentlyContinue
+    }
+
+    try {
+        Write-Host "   Instalando dotnet-ef globalmente..." -ForegroundColor Yellow
+        dotnet tool install dotnet-ef --global 2>&1 | Out-Null
+        $efInstalled = $true
+    } catch {}
 }
+
+$ErrorActionPreference = $OldEFErrorAction
+
+if (-not $efInstalled) {
+    Write-Host "ERROR: No se pudo instalar dotnet-ef." -ForegroundColor Red
+    Write-Host "  Instalalo manualmente: dotnet tool install --global dotnet-ef" -ForegroundColor White
+    exit 1
+}
+
 Write-Host "   dotnet-ef listo" -ForegroundColor Green
 
 # ====================================================================
@@ -135,8 +189,32 @@ Write-Host "   dotnet-ef listo" -ForegroundColor Green
 # ====================================================================
 Write-Host "[6/7] Aplicando migrations EF Core..." -ForegroundColor Yellow
 Push-Location (Join-Path $ProjectRoot "PosWeb")
-dotnet ef database update 2>&1
-if ($LASTEXITCODE -ne 0) {
+
+# Si se ingresó contraseña, la inyectamos temporalmente como variable de entorno para EF Core
+if ($plainPass) {
+    $env:ConnectionStrings__DefaultConnection = "Server=localhost;Database=posweb;Uid=root;Pwd=$plainPass;"
+}
+
+# Buscar dotnet-ef (global tools puede no estar en PATH)
+$efExe = (Get-Command dotnet-ef -ErrorAction SilentlyContinue).Source
+if (-not $efExe) {
+    $dotnetToolsDir = Join-Path $env:USERPROFILE ".dotnet\tools"
+    $efExe = Join-Path $dotnetToolsDir "dotnet-ef.exe"
+}
+
+if (-not (Test-Path $efExe)) {
+    Write-Host "ERROR: No se encuentra dotnet-ef.exe" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+
+& $efExe database update 2>&1
+$efExitCode = $LASTEXITCODE
+
+# Limpiar la variable de entorno por seguridad
+if ($plainPass) { $env:ConnectionStrings__DefaultConnection = $null }
+
+if ($efExitCode -ne 0 -and $efExitCode -ne $null) {
     Write-Host "ERROR: Fallaron las migrations" -ForegroundColor Red
     Pop-Location
     exit 1
@@ -151,8 +229,16 @@ Write-Host "[7/7] Insertando datos semilla y preparando frontend..." -Foreground
 
 # Seed SQL
 if (Test-Path $SqlFile) {
-    Get-Content $SqlFile | & "$MysqlBin\mysql" -u root posweb 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    $OldErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    
+    try {
+        Get-Content $SqlFile | & "$MysqlBin\mysql" @mysqlArgsSeed 2>$null
+    } catch {}
+    
+    $ErrorActionPreference = $OldErrorAction
+
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
         Write-Host "WARNING: Error insertando seed data (puede que ya exista)" -ForegroundColor Yellow
     } else {
         Write-Host "   Datos semilla insertados" -ForegroundColor Green
@@ -165,7 +251,7 @@ if (Test-Path $SqlFile) {
 if (Test-Path (Join-Path $ProjectRoot "frontend\package.json")) {
     Push-Location (Join-Path $ProjectRoot "frontend")
     npm install 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
         Write-Host "WARNING: npm install tuvo errores. Revisá manualmente." -ForegroundColor Yellow
     } else {
         Write-Host "   Dependencias del frontend instaladas" -ForegroundColor Green
