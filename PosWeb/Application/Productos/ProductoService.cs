@@ -47,7 +47,12 @@ public class ProductoService
             dto.CodigoBarras,
             dto.Nombre,
             dto.Precio,
-            dto.Costo
+            dto.Costo,
+            dto.CategoriaId,
+            dto.DescAdicional,
+            dto.Contenido,
+            dto.UnidadMedidaId,
+            dto.Marca
         );
 
         _context.Producto.Add(producto);
@@ -110,7 +115,12 @@ public class ProductoService
             Nombre = producto.DESC_PRODUCTO,
             Precio = producto.PRECIO,
             Costo = producto.COSTO,
-            Activo = producto.ACTIVO
+            Activo = producto.ACTIVO,
+            Marca = producto.MARCA,
+            Contenido = producto.CONTENIDO,
+            CategoriaId = producto.ID_CATEGORIA,
+            UnidadMedidaId = producto.ID_UNIDAD_MEDIDA,
+            DescAdicional = producto.DESC_ADICIONAL
         };
     }
 
@@ -137,6 +147,11 @@ public class ProductoService
         producto.CambiarDescripcion(dto.Nombre);
         producto.CambiarPrecio(dto.Precio);
         producto.CambiarCosto(dto.Costo);
+        producto.CambiarMarca(dto.Marca);
+        producto.CambiarCategoria(dto.CategoriaId);
+        producto.CambiarContenido(dto.Contenido);
+        producto.CambiarUnidadMedida(dto.UnidadMedidaId);
+        producto.CambiarDescAdicional(dto.DescAdicional);
         
         _context.SaveChanges();
         

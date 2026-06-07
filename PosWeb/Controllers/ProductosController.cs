@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using PosWeb.Application.Exceptions;
+using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Productos;
 using PosWeb.Contracts;
 
@@ -9,10 +11,12 @@ namespace PosWeb.Controllers;
 public class ProductosController : ControllerBase
 {
     private readonly ProductoService _productoService;
+    private readonly OpenFoodFactsService _openFoodFactsService;
 
-    public ProductosController(ProductoService productoService)
+    public ProductosController(ProductoService productoService, OpenFoodFactsService openFoodFactsService)
     {
         _productoService = productoService;
+        _openFoodFactsService = openFoodFactsService;
     }
 
     [HttpGet]
@@ -59,6 +63,49 @@ public class ProductosController : ControllerBase
         }
 
         return Ok(_productoService.BuscarParaVenta(q.Trim(), sucursalId));
+    }
+
+    /// <summary>
+    /// Busca un producto por código de barras: primero en la DB local, luego en Open Food Facts.
+    /// </summary>
+    [HttpGet("openfoodfacts/{codigo}")]
+    public async Task<IActionResult> LookupOpenFoodFacts(string codigo)
+    {
+        // 1. Buscar en DB local
+        try
+        {
+            var local = _productoService.ObtenerPorCodigoBarra(codigo);
+            return Ok(new ProductoLookupResponseDto
+            {
+                Local = true,
+                Producto = local,
+                Encontrado = true
+            });
+        }
+        catch (ProductoNoEncontradoException)
+        {
+            // No existe localmente, continuar
+        }
+
+        // 2. Consultar Open Food Facts
+        var datos = await _openFoodFactsService.ConsultarAsync(codigo);
+
+        if (datos != null)
+        {
+            return Ok(new ProductoLookupResponseDto
+            {
+                Local = false,
+                Encontrado = true,
+                Datos = datos
+            });
+        }
+
+        // 3. No encontrado en ningún lado
+        return Ok(new ProductoLookupResponseDto
+        {
+            Local = false,
+            Encontrado = false
+        });
     }
 
     [HttpPost]

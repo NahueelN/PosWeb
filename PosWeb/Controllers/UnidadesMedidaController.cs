@@ -26,6 +26,7 @@ public class UnidadesMedidaController : ControllerBase
             .Select(u => new UnidadMedidaDto
             {
                 Id = u.ID_UNIDAD_MEDIDA,
+                Codigo = u.COD_UNIDAD_MEDIDA,
                 Descripcion = u.DESC_UNIDAD_MEDIDA
             })
             .ToListAsync();

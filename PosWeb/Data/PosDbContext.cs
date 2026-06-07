@@ -81,6 +81,10 @@ public class PosDbContext : DbContext
                 .HasColumnName("CONTENIDO")
                 .HasColumnType("decimal(18,2)");
 
+            entity.Property(p => p.MARCA)
+                .HasColumnName("MARCA")
+                .HasMaxLength(200);
+
             entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
 

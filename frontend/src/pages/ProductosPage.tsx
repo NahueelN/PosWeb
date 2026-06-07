@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import ProductCardPanel from '../components/ProductCardPanel'
-import type { ProductoDto } from '../types'
+import BarcodeLookup from '../components/BarcodeLookup'
+import ProductFormEnriched from '../components/ProductFormEnriched'
+import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
 
 interface EditState {
   id: number
@@ -16,15 +18,14 @@ interface EditState {
 export default function ProductosPage() {
   const navigate = useNavigate()
   const [productos, setProductos] = useState<ProductoDto[]>([])
-  const [codigoBarra, setCodigoBarra] = useState('')
-  const [nombre, setNombre] = useState('')
-  const [precio, setPrecio] = useState('')
-  const [costo, setCosto] = useState('')
-  const [tamano, setTamano] = useState('')
   const [error, setError] = useState('')
   const [postCreateProduct, setPostCreateProduct] = useState<ProductoDto | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editState, setEditState] = useState<EditState | null>(null)
+
+  // Lookup state
+  const [prefillData, setPrefillData] = useState<OpenFoodFactsResultDto | null>(null)
+  const [lookupCodigo, setLookupCodigo] = useState('')
 
   const [query, setQuery] = useState('')
 
@@ -46,19 +47,44 @@ export default function ProductosPage() {
     } catch (e: any) { setError(e.message) }
   }
 
-  async function handleCrear(e: FormEvent) {
-    e.preventDefault()
-    try {
-      setError('')
-      const created = await api.productos.crear({
-        codigoBarra, nombre, tamano: tamano || undefined,
-        precio: Number(precio), costo: Number(costo),
-      })
-      setCodigoBarra(''); setNombre(''); setPrecio(''); setCosto(''); setTamano('')
-      setPostCreateProduct(created)
-      setShowForm(false)
-      await listar()
-    } catch (e: any) { setError(e.message) }
+  // --- Lookup callbacks ---
+  function handleProductFound(product: ProductoDto) {
+    // Producto ya existe — scrollear a la tarjeta o mostrar info
+    setPostCreateProduct(product)
+  }
+
+  function handlePrefillForm(data: OpenFoodFactsResultDto) {
+    setPrefillData(data)
+    setShowForm(true)
+    setError('')
+  }
+
+  function handleNotFound(codigo: string) {
+    setLookupCodigo(codigo)
+    setPrefillData(null)
+    setShowForm(true)
+    setError('')
+  }
+
+  function handleProductCreated(product: ProductoDto) {
+    setPrefillData(null)
+    setLookupCodigo('')
+    setShowForm(false)
+    setPostCreateProduct(product)
+    listar()
+  }
+
+  function handleCancelForm() {
+    setPrefillData(null)
+    setLookupCodigo('')
+    setShowForm(false)
+  }
+
+  function handleOpenForm() {
+    setPrefillData(null)
+    setLookupCodigo('')
+    setShowForm(true)
+    setError('')
   }
 
   async function handleEliminar(id: number) {
@@ -123,7 +149,7 @@ export default function ProductosPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={handleOpenForm}
           className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -132,6 +158,13 @@ export default function ProductosPage() {
           Nuevo producto
         </button>
       </div>
+
+      {/* Barcode Lookup */}
+      <BarcodeLookup
+        onProductFound={handleProductFound}
+        onPrefillForm={handlePrefillForm}
+        onNotFound={handleNotFound}
+      />
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
@@ -169,33 +202,14 @@ export default function ProductosPage() {
         </div>
       )}
 
-      {/* Formulario crear */}
+      {/* ProductFormEnriched */}
       {showForm && (
-        <form onSubmit={handleCrear}
-          className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-4 animate-[fadeIn_0.2s_ease]"
-        >
-          <h3 className="font-semibold text-gray-900 text-sm">Nuevo producto</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Código barra" value={codigoBarra} onChange={(e) => setCodigoBarra(e.target.value)} required />
-            <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-            <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Tamaño (ej: 500ml, 1kg)" value={tamano} onChange={(e) => setTamano(e.target.value)} />
-            <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              type="number" step="0.01" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
-            <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              type="number" step="0.01" placeholder="Costo" value={costo} onChange={(e) => setCosto(e.target.value)} required />
-            <button type="submit"
-              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              Crear
-            </button>
-          </div>
-          <p className="text-xs text-gray-500">
-            El stock se configura después, por sucursal, desde la pantalla de Stock.
-          </p>
-        </form>
+        <ProductFormEnriched
+          prefillData={prefillData}
+          initialCodigo={lookupCodigo}
+          onCreated={handleProductCreated}
+          onCancel={handleCancelForm}
+        />
       )}
 
       {/* Panel de productos con búsqueda y grilla */}
@@ -327,13 +341,15 @@ export default function ProductosPage() {
                 {/* Acciones en hover */}
                 <div className="flex justify-end gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity -mb-1">
                   <span className="text-xs font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
-                  <button
-                    type="button"
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); handleEliminar(p.id) }}
-                    className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEliminar(p.id) } }}
+                    className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
                   >
                     Eliminar
-                  </button>
+                  </span>
                 </div>
               </button>
             )

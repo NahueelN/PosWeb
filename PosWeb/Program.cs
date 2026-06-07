@@ -11,6 +11,7 @@ using PosWeb.Application.Deudas;
 using PosWeb.Application.Gastos;
 using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
+using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
@@ -85,6 +86,14 @@ builder.Services.AddScoped<CompraService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<DeudaService>();
 builder.Services.AddScoped<GastoService>();
+
+// Open Food Facts — optional barcode lookup
+builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
+{
+    client.BaseAddress = new Uri("https://world.openfoodfacts.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // HTTP context for user tracking
 builder.Services.AddHttpContextAccessor();

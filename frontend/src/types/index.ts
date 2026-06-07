@@ -7,6 +7,11 @@ export interface ProductoDto {
   stock: number
   tamano?: string
   activo: boolean
+  marca?: string | null
+  contenido?: number | null
+  categoriaId?: number | null
+  unidadMedidaId?: number | null
+  descAdicional?: string | null
 }
 
 export interface CategoriaDto {
@@ -16,6 +21,7 @@ export interface CategoriaDto {
 
 export interface UnidadMedidaDto {
   id: number
+  codigo: string
   descripcion: string
 }
 
@@ -25,6 +31,28 @@ export interface ProductoUpsertDto {
   precio: number
   costo: number
   tamano?: string
+  marca?: string | null
+  contenido?: number | null
+  categoriaId?: number | null
+  unidadMedidaId?: number | null
+  descAdicional?: string | null
+}
+
+// --- Open Food Facts ---
+export interface OpenFoodFactsResultDto {
+  codigoBarras: string
+  descripcion: string
+  marca?: string | null
+  categoria?: string | null
+  contenido?: number | null
+  unidad?: string | null
+}
+
+export interface ProductoLookupResponseDto {
+  local: boolean
+  producto?: ProductoDto | null
+  encontrado: boolean
+  datos?: OpenFoodFactsResultDto | null
 }
 
 export interface SucursalDto {

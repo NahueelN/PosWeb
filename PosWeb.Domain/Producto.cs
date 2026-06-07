@@ -26,6 +26,8 @@ public class Producto
 
     public int? ID_UNIDAD_MEDIDA { get; private set; }
 
+    public string? MARCA { get; private set; }
+
     public DateTime FECHA_ALTA { get; private set; }
 
     public DateTime FECHA_ULTIMA_MOD { get; private set; }
@@ -43,7 +45,8 @@ public class Producto
         int? idCategoria = null,
         string? descAdicional = null,
         decimal? contenido = null,
-        int? idUnidadMedida = null)
+        int? idUnidadMedida = null,
+        string? marca = null)
     {
         CambiarCodigoProducto(codProducto);
         CambiarCodigoBarras(codigoBarras);
@@ -54,6 +57,7 @@ public class Producto
         DESC_ADICIONAL = descAdicional;
         CONTENIDO = contenido;
         ID_UNIDAD_MEDIDA = idUnidadMedida;
+        MARCA = string.IsNullOrWhiteSpace(marca) ? null : marca.Trim();
         FECHA_ALTA = DateTime.UtcNow;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
         ACTIVO = true;
@@ -139,6 +143,12 @@ public class Producto
     public void CambiarUnidadMedida(int? idUnidadMedida)
     {
         ID_UNIDAD_MEDIDA = idUnidadMedida;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarMarca(string? marca)
+    {
+        MARCA = string.IsNullOrWhiteSpace(marca) ? null : marca.Trim();
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
