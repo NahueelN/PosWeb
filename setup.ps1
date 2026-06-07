@@ -144,6 +144,17 @@ if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
 }
 Write-Host "   Base de datos 'posweb' lista" -ForegroundColor Green
 
+# Guardar connection string con password en appsettings.Development.json para que dotnet run funcione
+if ($plainPass) {
+    $devSettingsPath = Join-Path $ProjectRoot "PosWeb\appsettings.Development.json"
+    $devSettings = Get-Content $devSettingsPath -Raw | ConvertFrom-Json
+    $devSettings | Add-Member -NotePropertyName "ConnectionStrings" -NotePropertyValue @{
+        DefaultConnection = "Server=localhost;Database=posweb;User=root;Password=$plainPass;"
+    } -Force
+    $devSettings | ConvertTo-Json -Depth 3 | Set-Content $devSettingsPath
+    Write-Host "   Connection string guardado en appsettings.Development.json" -ForegroundColor Green
+}
+
 # ====================================================================
 # 5. Install dotnet-ef tool (if needed)
 # ====================================================================
