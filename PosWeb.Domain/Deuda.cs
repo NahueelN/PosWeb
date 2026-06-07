@@ -17,17 +17,23 @@ public class Deuda
 
     public DateTime? FECHA_PAGO { get; private set; }
 
+    public decimal MONTO_PAGADO { get; private set; }
+
     public bool PAGO { get; private set; }
 
     public int? ID_VENTA { get; private set; }
 
     public int? ID_COMPRA { get; private set; }
 
+    // Navigation properties
+    public Proveedor Proveedor { get; private set; } = null!;
+    public Compra Compra { get; private set; } = null!;
+
     protected Deuda()
     {
     }
 
-    public Deuda(decimal montoDeuda, int? idCliente = null, int? idProveedor = null, int? idVenta = null, int? idCompra = null)
+    public Deuda(decimal montoDeuda, int? idCliente = null, int? idProveedor = null, int? idVenta = null, int? idCompra = null, decimal? montoPagado = null)
     {
         if (montoDeuda <= 0)
             throw new ArgumentException("El monto de la deuda debe ser mayor a 0", nameof(montoDeuda));
@@ -35,17 +41,31 @@ public class Deuda
             throw new ArgumentException("Debe especificar un cliente o un proveedor para la deuda");
 
         MONTO_DEUDA = montoDeuda;
+        MONTO_PAGADO = montoPagado ?? 0;
         ID_CLIENTE = idCliente;
         ID_PROVEEDOR = idProveedor;
         ID_VENTA = idVenta;
         ID_COMPRA = idCompra;
         FECHA_DEUDA = DateTime.UtcNow;
-        PAGO = false;
+        PAGO = MONTO_PAGADO >= MONTO_DEUDA;
+        if (PAGO) FECHA_PAGO = DateTime.UtcNow;
     }
 
     public void RegistrarPago()
     {
-        PAGO = true;
-        FECHA_PAGO = DateTime.UtcNow;
+        RegistrarPago(MONTO_DEUDA - MONTO_PAGADO);
+    }
+
+    public void RegistrarPago(decimal monto)
+    {
+        if (monto <= 0)
+            throw new ArgumentException("El monto del pago debe ser mayor a 0", nameof(monto));
+
+        MONTO_PAGADO += monto;
+        if (MONTO_PAGADO >= MONTO_DEUDA)
+        {
+            PAGO = true;
+            FECHA_PAGO = DateTime.UtcNow;
+        }
     }
 }

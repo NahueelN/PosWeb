@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Compras;
@@ -23,7 +24,12 @@ public class CompraController : ControllerBase
     {
         try
         {
-            CompraResponseDto result = _compraService.CrearCompra(request);
+            int userId = GetUserId();
+            CompraResponseDto result = _compraService.CrearCompra(
+                request.SucursalId,
+                request.ProveedorId,
+                userId,
+                request.Items);
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -38,6 +44,10 @@ public class CompraController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (ProveedorNoEncontradoException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         catch (ProductoCodigoDuplicadoException ex)
         {
             return Conflict(ex.Message);
@@ -46,5 +56,11 @@ public class CompraController : ControllerBase
         {
             return NotFound(ex.Message);
         }
+    }
+
+    private int GetUserId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+        return int.Parse(claim?.Value ?? "0");
     }
 }

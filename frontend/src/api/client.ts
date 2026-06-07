@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -225,6 +225,23 @@ export const api = {
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
   },
 
+// Proveedores
+   proveedores: {
+     listar: (search?: string) => {
+       const query = search ? `?search=${encodeURIComponent(search)}` : '';
+       return request<ProveedorDto[]>(`/proveedores${query}`);
+     },
+     obtener: (id: number) => request<ProveedorDto>(`/proveedores/${id}`),
+     crear: (dto: CrearProveedorRequestDto) => request<ProveedorDto>('/proveedores', {
+       method: 'POST',
+       body: JSON.stringify(dto),
+     }),
+     actualizar: (id: number, dto: CrearProveedorRequestDto) => request<ProveedorDto>(`/proveedores/${id}`, {
+       method: 'PUT',
+       body: JSON.stringify(dto),
+     }),
+   },
+
 // Compras
    compras: {
      crear: (dto: CompraRequestDto) => request<CompraResponseDto>('/compras/crear', {
@@ -234,11 +251,43 @@ export const api = {
    },
 
 // Gastos
-   gastos: {
-     listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
-     crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
-       method: 'POST',
-       body: JSON.stringify(dto),
-     }),
-   },
+    gastos: {
+      listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
+      crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+    },
+
+  // Deudas
+    deudas: {
+      listar: (proveedorId?: number, soloPendientes?: boolean) => {
+        const params = new URLSearchParams();
+        if (proveedorId) params.set('proveedorId', String(proveedorId));
+        if (soloPendientes) params.set('soloPendientes', 'true');
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request<DeudaDto[]>(`/deudas${query}`);
+      },
+      obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
+      pagar: (id: number, monto?: number) => {
+        const body: PagarDeudaRequestDto = monto !== undefined ? { monto } : {};
+        return request<DeudaDto>(`/deudas/${id}/pagar`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      },
+      pagarMultiple: (proveedorId: number, monto: number) =>
+        request<DeudaDto[]>(`/deudas/pagar-multiple`, {
+          method: 'POST',
+          body: JSON.stringify({ proveedorId, monto }),
+        }),
+    },
+
+  // Lookups
+    categorias: {
+      listar: () => request<CategoriaDto[]>('/categorias'),
+    },
+    unidadesMedida: {
+      listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
+    },
 }

@@ -50,24 +50,36 @@ Nombres en SCREAMING_SNAKE_CASE.
 
 ## Setup rápido
 
+Solo la primera vez:
+
 ```powershell
 # 1. Clonar
 git clone <url>
 cd PosWeb
 
-# 2. Setup completo (instala MySQL, migra DB, seed data, npm install)
+# 2. Setup completo (instala MySQL, migra DB, seed, npm install)
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
+```
 
-# 3. Backend (no cerrar)
-cd PosWeb
-dotnet run
+Después, cada vez que quieras trabajar:
 
-# 4. Frontend (otra terminal)
+```powershell
+# Si recién prendiste la PC, arrancá MySQL primero:
+.\iniciar-mysql.ps1
+
+# Terminal 1 — Backend
+dotnet run --project PosWeb
+
+# Terminal 2 — Frontend
 cd frontend
 npm run dev
 ```
 
 Abrir http://localhost:5173
+
+> **Nota**: `setup.ps1` solo se corre **una vez** (instala MySQL, crea la DB, migra, seedea).
+> Después usá `.\iniciar-mysql.ps1` para arrancar MySQL y `.\stop-mysql.ps1` para apagarlo.
 
 ### Credenciales
 
@@ -77,12 +89,13 @@ Abrir http://localhost:5173
 
 ## Scripts útiles
 
-| Comando | Descripción |
-|---------|-------------|
-| `.\setup.ps1` | Setup completo desde cero |
-| `.\stop-mysql.ps1` | Apaga MySQL |
-| `cd PosWeb && dotnet run` | Backend API (Swagger en /swagger) |
-| `cd frontend && npm run dev` | Frontend web |
+| Comando | Cuándo usarlo |
+|---------|---------------|
+| `.\setup.ps1` | **Una sola vez**: instala MySQL, DB, migra, seedea, npm install |
+| `.\iniciar-mysql.ps1` | Cada vez que prendés la PC (arranca MySQL con los datos del proyecto) |
+| `.\stop-mysql.ps1` | Al terminar de trabajar (apaga MySQL) |
+| `dotnet run --project PosWeb` | Backend API (Swagger en http://localhost:5196/swagger) |
+| `cd frontend && npm run dev` | Frontend web (http://localhost:5173) |
 | `cd frontend && npm run tauri dev` | App desktop (requiere Rust) |
 
 ## Arquitectura

@@ -14,7 +14,7 @@ public class MedioPagoService
 
     public List<MedioPagoDto> ListarActivos()
     {
-        return _context.MediosPago
+        return _context.MedioPago
             .Where(m => m.ACTIVO)
             .OrderBy(m => m.DESC_MEDIO_PAGO)
             .Select(m => new MedioPagoDto

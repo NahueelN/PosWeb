@@ -25,7 +25,7 @@ public class VentaService
             throw new VentaSinItemsException();
         }
 
-        Sucursal? sucursal = _context.Sucursales.Find(dto.SucursalId);
+        Sucursal? sucursal = _context.Sucursal.Find(dto.SucursalId);
 
         if (sucursal == null)
         {
@@ -41,13 +41,13 @@ public class VentaService
         Caja? cajaActiva;
         if (usuarioId.HasValue)
         {
-            cajaActiva = _context.Cajas
+            cajaActiva = _context.Caja
                 .FirstOrDefault(c => c.ID_USUARIO_APERTURA == usuarioId.Value && c.ESTADO == "Abierta");
         }
         else
         {
             // Fallback for anonymous scenarios
-            cajaActiva = _context.Cajas
+            cajaActiva = _context.Caja
                 .FirstOrDefault(c => c.ID_SUCURSAL == dto.SucursalId && c.ESTADO == "Abierta");
         }
 
@@ -74,7 +74,7 @@ public class VentaService
                     throw new MedioPagoInvalidoException("Monto inválido");
                 }
 
-                MedioPago? medio = _context.MediosPago.Find(pago.MedioPagoId);
+                MedioPago? medio = _context.MedioPago.Find(pago.MedioPagoId);
                 if (medio == null)
                 {
                     throw new MedioPagoInvalidoException(pago.MedioPagoId);
@@ -100,7 +100,7 @@ public class VentaService
 
         foreach (VentaItemDto item in dto.Items)
         {
-            Producto? producto = _context.Productos.Find(item.ProductoId);
+            Producto? producto = _context.Producto.Find(item.ProductoId);
 
             if (producto == null)
             {
@@ -113,7 +113,7 @@ public class VentaService
             }
 
             // Per-sucursal stock check
-            StockSucursal? stockSuc = _context.StockSucursales
+            StockSucursal? stockSuc = _context.StockSucursal
                 .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
             int available = (int)(stockSuc?.STOCK ?? 0);
@@ -141,7 +141,7 @@ public class VentaService
                 // Check if it's a cash payment with extra (change scenario)
                 bool hasCashExtra = pagosData.Any(p =>
                 {
-                    var medio = _context.MediosPago.Find(p.medioPagoId);
+                    var medio = _context.MedioPago.Find(p.medioPagoId);
                     return medio?.PAGA_VUELTO == true && p.conCambio.HasValue && p.conCambio > p.monto;
                 });
 
@@ -153,7 +153,7 @@ public class VentaService
                 // Recalculate: cash overpayment is OK as long as the "real" payment covers the total
                 decimal realPayment = pagosData.Sum(p =>
                 {
-                    var medio = _context.MediosPago.Find(p.medioPagoId);
+                    var medio = _context.MedioPago.Find(p.medioPagoId);
                     if (medio?.PAGA_VUELTO == true && p.conCambio.HasValue)
                     {
                         return p.conCambio.Value;
@@ -172,7 +172,7 @@ public class VentaService
             throw new PagosVaciosException();
         }
 
-        _context.Ventas.Add(venta);
+        _context.Venta.Add(venta);
         _context.SaveChanges();
 
         // Persist Pago records
@@ -191,9 +191,9 @@ public class VentaService
                     cajaActiva.ID_CAJA
                 );
 
-                _context.Pagos.Add(pago);
+                _context.Pago.Add(pago);
 
-                string medioNombre = _context.MediosPago
+                string medioNombre = _context.MedioPago
                     .Where(m => m.ID_MEDIO_PAGO == medioPagoId)
                     .Select(m => m.DESC_MEDIO_PAGO)
                     .FirstOrDefault() ?? "";
@@ -225,12 +225,12 @@ public class VentaService
 
     public async Task<bool> ExisteSucursalAsync(int sucursalId)
     {
-        return await _context.Sucursales.AnyAsync(s => s.ID_SUCURSAL == sucursalId);
+        return await _context.Sucursal.AnyAsync(s => s.ID_SUCURSAL == sucursalId);
     }
 
     public async Task<PagedResult<VentaHistorialDto>> ObtenerHistorialAsync(VentaHistorialFiltro filtro)
     {
-        IQueryable<Venta> query = _context.Ventas
+        IQueryable<Venta> query = _context.Venta
             .OrderByDescending(v => v.FECHA_VENTA);
 
         if (filtro.FechaDesde.HasValue)
@@ -251,7 +251,7 @@ public class VentaService
             {
                 VentaId = v.ID_VENTA,
                 Fecha = v.FECHA_VENTA,
-                SucursalNombre = _context.Sucursales
+                SucursalNombre = _context.Sucursal
                     .Where(s => s.ID_SUCURSAL == v.ID_SUCURSAL)
                     .Select(s => s.DESC_SUCURSAL)
                     .FirstOrDefault(),
@@ -271,17 +271,17 @@ public class VentaService
 
     public async Task<VentaDetalleDto?> ObtenerDetalleAsync(int ventaId)
     {
-        Venta? venta = await _context.Ventas.FindAsync(ventaId);
+        Venta? venta = await _context.Venta.FindAsync(ventaId);
         if (venta == null) return null;
 
-        string? sucursalNombre = await _context.Sucursales
+        string? sucursalNombre = await _context.Sucursal
             .Where(s => s.ID_SUCURSAL == venta.ID_SUCURSAL)
             .Select(s => s.DESC_SUCURSAL)
             .FirstOrDefaultAsync();
 
         var items = await (
-            from r in _context.RenglonesVenta
-            join p in _context.Productos on r.ID_PRODUCTO equals p.ID_PRODUCTO
+            from r in _context.RenglonVenta
+            join p in _context.Producto on r.ID_PRODUCTO equals p.ID_PRODUCTO
             where r.ID_VENTA == ventaId
             select new RenglonHistorialDto
             {

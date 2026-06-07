@@ -9,6 +9,16 @@ export interface ProductoDto {
   activo: boolean
 }
 
+export interface CategoriaDto {
+  id: number
+  descripcion: string
+}
+
+export interface UnidadMedidaDto {
+  id: number
+  descripcion: string
+}
+
 export interface ProductoUpsertDto {
   codigoBarra: string
   nombre: string
@@ -216,6 +226,29 @@ export interface PagoPorMedioDto {
    pagaVuelto: boolean
  }
 
+// --- Proveedor types ---
+export interface ProveedorDto {
+  id: number
+  codigo: string
+  nombre: string
+  tipoDocumento?: string
+  nroDocumento?: string
+  telefono?: string
+  domicilio?: string
+  mail?: string
+  activo: boolean
+  deudaPendiente: number
+}
+
+export interface CrearProveedorRequestDto {
+  nombre: string
+  tipoDocumento?: string
+  nroDocumento?: string
+  telefono?: string
+  domicilio?: string
+  mail?: string
+}
+
 // --- Compra types ---
 export interface CompraItemDto {
    productoId: number          // 0 → create new product inline
@@ -224,8 +257,12 @@ export interface CompraItemDto {
    // Inline creation fields (required when productoId === 0)
    codigoBarra?: string
    nombre?: string
-   precio?: number             // price to set (new product or update existing)
-   costo?: number              // optional — defaults to 0 for new products
+   precio?: number
+   costo?: number
+   categoriaId?: number
+   descAdicional?: string
+   contenido?: number
+   unidadMedidaId?: number
    tamano?: string
  }
 
@@ -237,11 +274,13 @@ export interface CompraItemDto {
    tamano?: string
  }
 
- export interface CompraRequestDto {
-   sucursalId: number
-   proveedor: string
-   items: CompraItemDto[]
- }
+  export interface CompraRequestDto {
+    sucursalId: number
+    proveedorId: number
+    userId?: number
+    items: CompraItemDto[]
+    montoPagado?: number
+  }
 
  export interface CompraItemResultDto {
    productoId: number
@@ -252,8 +291,8 @@ export interface CompraItemDto {
  }
 
  export interface CompraResponseDto {
+   compraId: number
    gastoId: number
-   proveedor: string
    totalGasto: number
    fecha: string
    items: CompraItemResultDto[]
@@ -306,4 +345,21 @@ export interface CrearGastoRequest {
 
 export interface GastoListResponse {
   items: GastoDto[]
+}
+
+// --- Deuda types ---
+export interface DeudaDto {
+  id: number
+  proveedorNombre: string
+  monto: number
+  fecha: string
+  fechaPago?: string
+  pago: boolean
+  compraId?: number
+  montoPagado: number
+  saldoPendiente: number
+}
+
+export interface PagarDeudaRequestDto {
+  monto?: number
 }

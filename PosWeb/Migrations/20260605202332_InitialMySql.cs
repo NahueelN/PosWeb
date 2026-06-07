@@ -18,7 +18,7 @@ namespace PosWeb.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "CATEGORIAS",
+                name: "CATEGORIA",
                 columns: table => new
                 {
                     ID_CATEGORIA = table.Column<int>(type: "int", nullable: false)
@@ -30,12 +30,12 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CATEGORIAS", x => x.ID_CATEGORIA);
+                    table.PrimaryKey("PK_CATEGORIA", x => x.ID_CATEGORIA);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "CLIENTES",
+                name: "CLIENTE",
                 columns: table => new
                 {
                     ID_CLIENTE = table.Column<int>(type: "int", nullable: false)
@@ -58,12 +58,12 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CLIENTES", x => x.ID_CLIENTE);
+                    table.PrimaryKey("PK_CLIENTE", x => x.ID_CLIENTE);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "MEDIOS_PAGO",
+                name: "MEDIO_PAGO",
                 columns: table => new
                 {
                     ID_MEDIO_PAGO = table.Column<int>(type: "int", nullable: false)
@@ -77,12 +77,12 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_MEDIOS_PAGO", x => x.ID_MEDIO_PAGO);
+                    table.PrimaryKey("PK_MEDIO_PAGO", x => x.ID_MEDIO_PAGO);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "PROVEEDORES",
+                name: "PROVEEDOR",
                 columns: table => new
                 {
                     ID_PROVEEDOR = table.Column<int>(type: "int", nullable: false)
@@ -105,12 +105,12 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PROVEEDORES", x => x.ID_PROVEEDOR);
+                    table.PrimaryKey("PK_PROVEEDOR", x => x.ID_PROVEEDOR);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "UNIDADES_MEDIDA",
+                name: "UNIDAD_MEDIDA",
                 columns: table => new
                 {
                     ID_UNIDAD_MEDIDA = table.Column<int>(type: "int", nullable: false)
@@ -122,12 +122,12 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UNIDADES_MEDIDA", x => x.ID_UNIDAD_MEDIDA);
+                    table.PrimaryKey("PK_UNIDAD_MEDIDA", x => x.ID_UNIDAD_MEDIDA);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "USUARIOS",
+                name: "USUARIO",
                 columns: table => new
                 {
                     ID_USUARIO = table.Column<int>(type: "int", nullable: false)
@@ -149,18 +149,18 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_USUARIOS", x => x.ID_USUARIO);
+                    table.PrimaryKey("PK_USUARIO", x => x.ID_USUARIO);
                     table.ForeignKey(
-                        name: "FK_USUARIOS_USUARIOS_ID_USUARIO_RESP",
+                        name: "FK_USUARIO_USUARIO_ID_USUARIO_RESP",
                         column: x => x.ID_USUARIO_RESP,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "PRODUCTOS",
+                name: "PRODUCTO",
                 columns: table => new
                 {
                     ID_PRODUCTO = table.Column<int>(type: "int", nullable: false)
@@ -185,24 +185,24 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PRODUCTOS", x => x.ID_PRODUCTO);
+                    table.PrimaryKey("PK_PRODUCTO", x => x.ID_PRODUCTO);
                     table.ForeignKey(
-                        name: "FK_PRODUCTOS_CATEGORIAS_ID_CATEGORIA",
+                        name: "FK_PRODUCTO_CATEGORIA_ID_CATEGORIA",
                         column: x => x.ID_CATEGORIA,
-                        principalTable: "CATEGORIAS",
+                        principalTable: "CATEGORIA",
                         principalColumn: "ID_CATEGORIA",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_PRODUCTOS_UNIDADES_MEDIDA_ID_UNIDAD_MEDIDA",
+                        name: "FK_PRODUCTO_UNIDAD_MEDIDA_ID_UNIDAD_MEDIDA",
                         column: x => x.ID_UNIDAD_MEDIDA,
-                        principalTable: "UNIDADES_MEDIDA",
+                        principalTable: "UNIDAD_MEDIDA",
                         principalColumn: "ID_UNIDAD_MEDIDA",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "SUSCRIPCIONES",
+                name: "SUSCRIPCION",
                 columns: table => new
                 {
                     ID_SUSCRIPCION = table.Column<int>(type: "int", nullable: false)
@@ -224,18 +224,18 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SUSCRIPCIONES", x => x.ID_SUSCRIPCION);
+                    table.PrimaryKey("PK_SUSCRIPCION", x => x.ID_SUSCRIPCION);
                     table.ForeignKey(
-                        name: "FK_SUSCRIPCIONES_USUARIOS_ID_USUARIO_TITULAR",
+                        name: "FK_SUSCRIPCION_USUARIO_ID_USUARIO_TITULAR",
                         column: x => x.ID_USUARIO_TITULAR,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "EMPRESAS",
+                name: "EMPRESA",
                 columns: table => new
                 {
                     ID_EMPRESA = table.Column<int>(type: "int", nullable: false)
@@ -248,18 +248,18 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EMPRESAS", x => x.ID_EMPRESA);
+                    table.PrimaryKey("PK_EMPRESA", x => x.ID_EMPRESA);
                     table.ForeignKey(
-                        name: "FK_EMPRESAS_SUSCRIPCIONES_ID_SUSCRIPCION",
+                        name: "FK_EMPRESA_SUSCRIPCION_ID_SUSCRIPCION",
                         column: x => x.ID_SUSCRIPCION,
-                        principalTable: "SUSCRIPCIONES",
+                        principalTable: "SUSCRIPCION",
                         principalColumn: "ID_SUSCRIPCION",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "SUCURSALES",
+                name: "SUCURSAL",
                 columns: table => new
                 {
                     ID_SUCURSAL = table.Column<int>(type: "int", nullable: false)
@@ -273,18 +273,18 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SUCURSALES", x => x.ID_SUCURSAL);
+                    table.PrimaryKey("PK_SUCURSAL", x => x.ID_SUCURSAL);
                     table.ForeignKey(
-                        name: "FK_SUCURSALES_EMPRESAS_ID_EMPRESA",
+                        name: "FK_SUCURSAL_EMPRESA_ID_EMPRESA",
                         column: x => x.ID_EMPRESA,
-                        principalTable: "EMPRESAS",
+                        principalTable: "EMPRESA",
                         principalColumn: "ID_EMPRESA",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "CAJAS",
+                name: "CAJA",
                 columns: table => new
                 {
                     ID_CAJA = table.Column<int>(type: "int", nullable: false)
@@ -304,30 +304,30 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CAJAS", x => x.ID_CAJA);
+                    table.PrimaryKey("PK_CAJA", x => x.ID_CAJA);
                     table.ForeignKey(
-                        name: "FK_CAJAS_SUCURSALES_ID_SUCURSAL",
+                        name: "FK_CAJA_SUCURSAL_ID_SUCURSAL",
                         column: x => x.ID_SUCURSAL,
-                        principalTable: "SUCURSALES",
+                        principalTable: "SUCURSAL",
                         principalColumn: "ID_SUCURSAL",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_CAJAS_USUARIOS_ID_USUARIO_APERTURA",
+                        name: "FK_CAJA_USUARIO_ID_USUARIO_APERTURA",
                         column: x => x.ID_USUARIO_APERTURA,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_CAJAS_USUARIOS_ID_USUARIO_CIERRE",
+                        name: "FK_CAJA_USUARIO_ID_USUARIO_CIERRE",
                         column: x => x.ID_USUARIO_CIERRE,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "STOCK_POR_SUCURSAL",
+                name: "STOCK_SUCURSAL",
                 columns: table => new
                 {
                     ID_PRODUCTO = table.Column<int>(type: "int", nullable: false),
@@ -336,24 +336,24 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_STOCK_POR_SUCURSAL", x => new { x.ID_PRODUCTO, x.ID_SUCURSAL });
+                    table.PrimaryKey("PK_STOCK_SUCURSAL", x => new { x.ID_PRODUCTO, x.ID_SUCURSAL });
                     table.ForeignKey(
-                        name: "FK_STOCK_POR_SUCURSAL_PRODUCTOS_ID_PRODUCTO",
+                        name: "FK_STOCK_SUCURSAL_PRODUCTO_ID_PRODUCTO",
                         column: x => x.ID_PRODUCTO,
-                        principalTable: "PRODUCTOS",
+                        principalTable: "PRODUCTO",
                         principalColumn: "ID_PRODUCTO",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_STOCK_POR_SUCURSAL_SUCURSALES_ID_SUCURSAL",
+                        name: "FK_STOCK_SUCURSAL_SUCURSAL_ID_SUCURSAL",
                         column: x => x.ID_SUCURSAL,
-                        principalTable: "SUCURSALES",
+                        principalTable: "SUCURSAL",
                         principalColumn: "ID_SUCURSAL",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "VENTAS",
+                name: "VENTA",
                 columns: table => new
                 {
                     ID_VENTA = table.Column<int>(type: "int", nullable: false)
@@ -366,30 +366,30 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_VENTAS", x => x.ID_VENTA);
+                    table.PrimaryKey("PK_VENTA", x => x.ID_VENTA);
                     table.ForeignKey(
-                        name: "FK_VENTAS_CLIENTES_ID_CLIENTE",
+                        name: "FK_VENTA_CLIENTE_ID_CLIENTE",
                         column: x => x.ID_CLIENTE,
-                        principalTable: "CLIENTES",
+                        principalTable: "CLIENTE",
                         principalColumn: "ID_CLIENTE",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_VENTAS_SUCURSALES_ID_SUCURSAL",
+                        name: "FK_VENTA_SUCURSAL_ID_SUCURSAL",
                         column: x => x.ID_SUCURSAL,
-                        principalTable: "SUCURSALES",
+                        principalTable: "SUCURSAL",
                         principalColumn: "ID_SUCURSAL",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_VENTAS_USUARIOS_ID_USUARIO",
+                        name: "FK_VENTA_USUARIO_ID_USUARIO",
                         column: x => x.ID_USUARIO,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "GASTOS",
+                name: "GASTO",
                 columns: table => new
                 {
                     ID_GASTO = table.Column<int>(type: "int", nullable: false)
@@ -402,18 +402,18 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GASTOS", x => x.ID_GASTO);
+                    table.PrimaryKey("PK_GASTO", x => x.ID_GASTO);
                     table.ForeignKey(
-                        name: "FK_GASTOS_CAJAS_ID_CAJA",
+                        name: "FK_GASTO_CAJA_ID_CAJA",
                         column: x => x.ID_CAJA,
-                        principalTable: "CAJAS",
+                        principalTable: "CAJA",
                         principalColumn: "ID_CAJA",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "PAGOS",
+                name: "PAGO",
                 columns: table => new
                 {
                     ID_PAGO = table.Column<int>(type: "int", nullable: false)
@@ -427,30 +427,30 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PAGOS", x => x.ID_PAGO);
+                    table.PrimaryKey("PK_PAGO", x => x.ID_PAGO);
                     table.ForeignKey(
-                        name: "FK_PAGOS_CAJAS_ID_CAJA",
+                        name: "FK_PAGO_CAJA_ID_CAJA",
                         column: x => x.ID_CAJA,
-                        principalTable: "CAJAS",
+                        principalTable: "CAJA",
                         principalColumn: "ID_CAJA",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_PAGOS_MEDIOS_PAGO_ID_MEDIO_PAGO",
+                        name: "FK_PAGO_MEDIO_PAGO_ID_MEDIO_PAGO",
                         column: x => x.ID_MEDIO_PAGO,
-                        principalTable: "MEDIOS_PAGO",
+                        principalTable: "MEDIO_PAGO",
                         principalColumn: "ID_MEDIO_PAGO",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_PAGOS_VENTAS_ID_VENTA",
+                        name: "FK_PAGO_VENTA_ID_VENTA",
                         column: x => x.ID_VENTA,
-                        principalTable: "VENTAS",
+                        principalTable: "VENTA",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RENGLONES_VENTA",
+                name: "RENGLON_VENTA",
                 columns: table => new
                 {
                     ID_RENGLON_VENTA = table.Column<int>(type: "int", nullable: false)
@@ -463,24 +463,24 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RENGLONES_VENTA", x => x.ID_RENGLON_VENTA);
+                    table.PrimaryKey("PK_RENGLON_VENTA", x => x.ID_RENGLON_VENTA);
                     table.ForeignKey(
-                        name: "FK_RENGLONES_VENTA_PRODUCTOS_ID_PRODUCTO",
+                        name: "FK_RENGLON_VENTA_PRODUCTO_ID_PRODUCTO",
                         column: x => x.ID_PRODUCTO,
-                        principalTable: "PRODUCTOS",
+                        principalTable: "PRODUCTO",
                         principalColumn: "ID_PRODUCTO",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_RENGLONES_VENTA_VENTAS_ID_VENTA",
+                        name: "FK_RENGLON_VENTA_VENTA_ID_VENTA",
                         column: x => x.ID_VENTA,
-                        principalTable: "VENTAS",
+                        principalTable: "VENTA",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "COMPRAS",
+                name: "COMPRA",
                 columns: table => new
                 {
                     ID_COMPRA = table.Column<int>(type: "int", nullable: false)
@@ -495,36 +495,36 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_COMPRAS", x => x.ID_COMPRA);
+                    table.PrimaryKey("PK_COMPRA", x => x.ID_COMPRA);
                     table.ForeignKey(
-                        name: "FK_COMPRAS_GASTOS_ID_GASTO",
+                        name: "FK_COMPRA_GASTO_ID_GASTO",
                         column: x => x.ID_GASTO,
-                        principalTable: "GASTOS",
+                        principalTable: "GASTO",
                         principalColumn: "ID_GASTO",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_COMPRAS_PROVEEDORES_ID_PROVEEDOR",
+                        name: "FK_COMPRA_PROVEEDOR_ID_PROVEEDOR",
                         column: x => x.ID_PROVEEDOR,
-                        principalTable: "PROVEEDORES",
+                        principalTable: "PROVEEDOR",
                         principalColumn: "ID_PROVEEDOR",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_COMPRAS_SUCURSALES_ID_SUCURSAL",
+                        name: "FK_COMPRA_SUCURSAL_ID_SUCURSAL",
                         column: x => x.ID_SUCURSAL,
-                        principalTable: "SUCURSALES",
+                        principalTable: "SUCURSAL",
                         principalColumn: "ID_SUCURSAL",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_COMPRAS_USUARIOS_ID_USUARIO",
+                        name: "FK_COMPRA_USUARIO_ID_USUARIO",
                         column: x => x.ID_USUARIO,
-                        principalTable: "USUARIOS",
+                        principalTable: "USUARIO",
                         principalColumn: "ID_USUARIO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "DEUDAS",
+                name: "DEUDA",
                 columns: table => new
                 {
                     ID_DEUDA = table.Column<int>(type: "int", nullable: false)
@@ -536,40 +536,54 @@ namespace PosWeb.Migrations
                     FECHA_PAGO = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     PAGO = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ID_VENTA = table.Column<int>(type: "int", nullable: true),
-                    ID_COMPRA = table.Column<int>(type: "int", nullable: true)
+                    ID_COMPRA = table.Column<int>(type: "int", nullable: true),
+                    ProveedorID_PROVEEDOR = table.Column<int>(type: "int", nullable: false),
+                    CompraID_COMPRA = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DEUDAS", x => x.ID_DEUDA);
+                    table.PrimaryKey("PK_DEUDA", x => x.ID_DEUDA);
                     table.ForeignKey(
-                        name: "FK_DEUDAS_CLIENTES_ID_CLIENTE",
+                        name: "FK_DEUDA_CLIENTE_ID_CLIENTE",
                         column: x => x.ID_CLIENTE,
-                        principalTable: "CLIENTES",
+                        principalTable: "CLIENTE",
                         principalColumn: "ID_CLIENTE",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_DEUDAS_COMPRAS_ID_COMPRA",
+                        name: "FK_DEUDA_COMPRA_CompraID_COMPRA",
+                        column: x => x.CompraID_COMPRA,
+                        principalTable: "COMPRA",
+                        principalColumn: "ID_COMPRA",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DEUDA_COMPRA_ID_COMPRA",
                         column: x => x.ID_COMPRA,
-                        principalTable: "COMPRAS",
+                        principalTable: "COMPRA",
                         principalColumn: "ID_COMPRA",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_DEUDAS_PROVEEDORES_ID_PROVEEDOR",
+                        name: "FK_DEUDA_PROVEEDOR_ID_PROVEEDOR",
                         column: x => x.ID_PROVEEDOR,
-                        principalTable: "PROVEEDORES",
+                        principalTable: "PROVEEDOR",
                         principalColumn: "ID_PROVEEDOR",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_DEUDAS_VENTAS_ID_VENTA",
+                        name: "FK_DEUDA_PROVEEDOR_ProveedorID_PROVEEDOR",
+                        column: x => x.ProveedorID_PROVEEDOR,
+                        principalTable: "PROVEEDOR",
+                        principalColumn: "ID_PROVEEDOR",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DEUDA_VENTA_ID_VENTA",
                         column: x => x.ID_VENTA,
-                        principalTable: "VENTAS",
+                        principalTable: "VENTA",
                         principalColumn: "ID_VENTA",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RENGLONES_COMPRA",
+                name: "RENGLON_COMPRA",
                 columns: table => new
                 {
                     ID_RENGLON_COMPRA = table.Column<int>(type: "int", nullable: false)
@@ -582,24 +596,24 @@ namespace PosWeb.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RENGLONES_COMPRA", x => x.ID_RENGLON_COMPRA);
+                    table.PrimaryKey("PK_RENGLON_COMPRA", x => x.ID_RENGLON_COMPRA);
                     table.ForeignKey(
-                        name: "FK_RENGLONES_COMPRA_COMPRAS_ID_COMPRA",
+                        name: "FK_RENGLON_COMPRA_COMPRA_ID_COMPRA",
                         column: x => x.ID_COMPRA,
-                        principalTable: "COMPRAS",
+                        principalTable: "COMPRA",
                         principalColumn: "ID_COMPRA",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_RENGLONES_COMPRA_PRODUCTOS_ID_PRODUCTO",
+                        name: "FK_RENGLON_COMPRA_PRODUCTO_ID_PRODUCTO",
                         column: x => x.ID_PRODUCTO,
-                        principalTable: "PRODUCTOS",
+                        principalTable: "PRODUCTO",
                         principalColumn: "ID_PRODUCTO",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.InsertData(
-                table: "MEDIOS_PAGO",
+                table: "MEDIO_PAGO",
                 columns: new[] { "ID_MEDIO_PAGO", "ACTIVO", "COD_MEDIO_PAGO", "DESC_MEDIO_PAGO", "PAGA_VUELTO" },
                 values: new object[,]
                 {
@@ -611,7 +625,7 @@ namespace PosWeb.Migrations
                 });
 
             migrationBuilder.InsertData(
-                table: "UNIDADES_MEDIDA",
+                table: "UNIDAD_MEDIDA",
                 columns: new[] { "ID_UNIDAD_MEDIDA", "COD_UNIDAD_MEDIDA", "DESC_UNIDAD_MEDIDA" },
                 values: new object[,]
                 {
@@ -621,207 +635,217 @@ namespace PosWeb.Migrations
                 });
 
             migrationBuilder.InsertData(
-                table: "USUARIOS",
+                table: "USUARIO",
                 columns: new[] { "ID_USUARIO", "ACTIVO", "ID_SUCURSAL_DEFAULT", "ID_USUARIO_RESP", "MAIL", "NOMBRE_USUARIO", "PASSWORD_HASH", "PIN_HASH", "ROL", "SUSCRIPCION_ACTIVA" },
                 values: new object[] { 1, true, null, null, "admin@posweb.com", "admin", "$2a$11$K4YfGqJ1e4YHIpRMTfoxYO0R9i0RDxG.h1X0As95JXQOYGMjs4eIy", null, "SuperAdmin", false });
 
             migrationBuilder.CreateIndex(
-                name: "IX_CAJAS_ID_SUCURSAL",
-                table: "CAJAS",
+                name: "IX_CAJA_ID_SUCURSAL",
+                table: "CAJA",
                 column: "ID_SUCURSAL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CAJAS_ID_USUARIO_APERTURA",
-                table: "CAJAS",
+                name: "IX_CAJA_ID_USUARIO_APERTURA",
+                table: "CAJA",
                 column: "ID_USUARIO_APERTURA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CAJAS_ID_USUARIO_CIERRE",
-                table: "CAJAS",
+                name: "IX_CAJA_ID_USUARIO_CIERRE",
+                table: "CAJA",
                 column: "ID_USUARIO_CIERRE");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CATEGORIAS_COD_CATEGORIA",
-                table: "CATEGORIAS",
+                name: "IX_CATEGORIA_COD_CATEGORIA",
+                table: "CATEGORIA",
                 column: "COD_CATEGORIA",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_CLIENTES_COD_CLIENTE",
-                table: "CLIENTES",
+                name: "IX_CLIENTE_COD_CLIENTE",
+                table: "CLIENTE",
                 column: "COD_CLIENTE",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_COMPRAS_ID_GASTO",
-                table: "COMPRAS",
+                name: "IX_COMPRA_ID_GASTO",
+                table: "COMPRA",
                 column: "ID_GASTO");
 
             migrationBuilder.CreateIndex(
-                name: "IX_COMPRAS_ID_PROVEEDOR",
-                table: "COMPRAS",
+                name: "IX_COMPRA_ID_PROVEEDOR",
+                table: "COMPRA",
                 column: "ID_PROVEEDOR");
 
             migrationBuilder.CreateIndex(
-                name: "IX_COMPRAS_ID_SUCURSAL",
-                table: "COMPRAS",
+                name: "IX_COMPRA_ID_SUCURSAL",
+                table: "COMPRA",
                 column: "ID_SUCURSAL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_COMPRAS_ID_USUARIO",
-                table: "COMPRAS",
+                name: "IX_COMPRA_ID_USUARIO",
+                table: "COMPRA",
                 column: "ID_USUARIO");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DEUDAS_ID_CLIENTE",
-                table: "DEUDAS",
+                name: "IX_DEUDA_CompraID_COMPRA",
+                table: "DEUDA",
+                column: "CompraID_COMPRA");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DEUDA_ID_CLIENTE",
+                table: "DEUDA",
                 column: "ID_CLIENTE");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DEUDAS_ID_COMPRA",
-                table: "DEUDAS",
+                name: "IX_DEUDA_ID_COMPRA",
+                table: "DEUDA",
                 column: "ID_COMPRA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DEUDAS_ID_PROVEEDOR",
-                table: "DEUDAS",
+                name: "IX_DEUDA_ID_PROVEEDOR",
+                table: "DEUDA",
                 column: "ID_PROVEEDOR");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DEUDAS_ID_VENTA",
-                table: "DEUDAS",
+                name: "IX_DEUDA_ID_VENTA",
+                table: "DEUDA",
                 column: "ID_VENTA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_EMPRESAS_ID_SUSCRIPCION",
-                table: "EMPRESAS",
+                name: "IX_DEUDA_ProveedorID_PROVEEDOR",
+                table: "DEUDA",
+                column: "ProveedorID_PROVEEDOR");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EMPRESA_ID_SUSCRIPCION",
+                table: "EMPRESA",
                 column: "ID_SUSCRIPCION");
 
             migrationBuilder.CreateIndex(
-                name: "IX_GASTOS_ID_CAJA",
-                table: "GASTOS",
+                name: "IX_GASTO_ID_CAJA",
+                table: "GASTO",
                 column: "ID_CAJA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MEDIOS_PAGO_COD_MEDIO_PAGO",
-                table: "MEDIOS_PAGO",
+                name: "IX_MEDIO_PAGO_COD_MEDIO_PAGO",
+                table: "MEDIO_PAGO",
                 column: "COD_MEDIO_PAGO",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PAGOS_ID_CAJA",
-                table: "PAGOS",
+                name: "IX_PAGO_ID_CAJA",
+                table: "PAGO",
                 column: "ID_CAJA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PAGOS_ID_MEDIO_PAGO",
-                table: "PAGOS",
+                name: "IX_PAGO_ID_MEDIO_PAGO",
+                table: "PAGO",
                 column: "ID_MEDIO_PAGO");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PAGOS_ID_VENTA",
-                table: "PAGOS",
+                name: "IX_PAGO_ID_VENTA",
+                table: "PAGO",
                 column: "ID_VENTA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PRODUCTOS_COD_PRODUCTO",
-                table: "PRODUCTOS",
+                name: "IX_PRODUCTO_COD_PRODUCTO",
+                table: "PRODUCTO",
                 column: "COD_PRODUCTO",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PRODUCTOS_ID_CATEGORIA",
-                table: "PRODUCTOS",
+                name: "IX_PRODUCTO_ID_CATEGORIA",
+                table: "PRODUCTO",
                 column: "ID_CATEGORIA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PRODUCTOS_ID_UNIDAD_MEDIDA",
-                table: "PRODUCTOS",
+                name: "IX_PRODUCTO_ID_UNIDAD_MEDIDA",
+                table: "PRODUCTO",
                 column: "ID_UNIDAD_MEDIDA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PROVEEDORES_COD_PROVEEDOR",
-                table: "PROVEEDORES",
+                name: "IX_PROVEEDOR_COD_PROVEEDOR",
+                table: "PROVEEDOR",
                 column: "COD_PROVEEDOR",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RENGLONES_COMPRA_ID_COMPRA",
-                table: "RENGLONES_COMPRA",
+                name: "IX_RENGLON_COMPRA_ID_COMPRA",
+                table: "RENGLON_COMPRA",
                 column: "ID_COMPRA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RENGLONES_COMPRA_ID_PRODUCTO",
-                table: "RENGLONES_COMPRA",
+                name: "IX_RENGLON_COMPRA_ID_PRODUCTO",
+                table: "RENGLON_COMPRA",
                 column: "ID_PRODUCTO");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RENGLONES_VENTA_ID_PRODUCTO",
-                table: "RENGLONES_VENTA",
+                name: "IX_RENGLON_VENTA_ID_PRODUCTO",
+                table: "RENGLON_VENTA",
                 column: "ID_PRODUCTO");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RENGLONES_VENTA_ID_VENTA",
-                table: "RENGLONES_VENTA",
+                name: "IX_RENGLON_VENTA_ID_VENTA",
+                table: "RENGLON_VENTA",
                 column: "ID_VENTA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_STOCK_POR_SUCURSAL_ID_SUCURSAL",
-                table: "STOCK_POR_SUCURSAL",
+                name: "IX_STOCK_SUCURSAL_ID_SUCURSAL",
+                table: "STOCK_SUCURSAL",
                 column: "ID_SUCURSAL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SUCURSALES_COD_SUCURSAL",
-                table: "SUCURSALES",
+                name: "IX_SUCURSAL_COD_SUCURSAL",
+                table: "SUCURSAL",
                 column: "COD_SUCURSAL",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SUCURSALES_ID_EMPRESA",
-                table: "SUCURSALES",
+                name: "IX_SUCURSAL_ID_EMPRESA",
+                table: "SUCURSAL",
                 column: "ID_EMPRESA");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SUSCRIPCIONES_ID_USUARIO_TITULAR",
-                table: "SUSCRIPCIONES",
+                name: "IX_SUSCRIPCION_ID_USUARIO_TITULAR",
+                table: "SUSCRIPCION",
                 column: "ID_USUARIO_TITULAR");
 
             migrationBuilder.CreateIndex(
-                name: "IX_UNIDADES_MEDIDA_COD_UNIDAD_MEDIDA",
-                table: "UNIDADES_MEDIDA",
+                name: "IX_UNIDAD_MEDIDA_COD_UNIDAD_MEDIDA",
+                table: "UNIDAD_MEDIDA",
                 column: "COD_UNIDAD_MEDIDA",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_USUARIOS_ID_USUARIO_RESP",
-                table: "USUARIOS",
+                name: "IX_USUARIO_ID_USUARIO_RESP",
+                table: "USUARIO",
                 column: "ID_USUARIO_RESP");
 
             migrationBuilder.CreateIndex(
-                name: "IX_USUARIOS_NOMBRE_USUARIO",
-                table: "USUARIOS",
+                name: "IX_USUARIO_NOMBRE_USUARIO",
+                table: "USUARIO",
                 column: "NOMBRE_USUARIO",
                 unique: true,
                 filter: "ACTIVO = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_VENTAS_ID_CLIENTE",
-                table: "VENTAS",
+                name: "IX_VENTA_ID_CLIENTE",
+                table: "VENTA",
                 column: "ID_CLIENTE");
 
             migrationBuilder.CreateIndex(
-                name: "IX_VENTAS_ID_SUCURSAL",
-                table: "VENTAS",
+                name: "IX_VENTA_ID_SUCURSAL",
+                table: "VENTA",
                 column: "ID_SUCURSAL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_VENTAS_ID_USUARIO",
-                table: "VENTAS",
+                name: "IX_VENTA_ID_USUARIO",
+                table: "VENTA",
                 column: "ID_USUARIO");
         }
 
@@ -829,61 +853,61 @@ namespace PosWeb.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "DEUDAS");
+                name: "DEUDA");
 
             migrationBuilder.DropTable(
-                name: "PAGOS");
+                name: "PAGO");
 
             migrationBuilder.DropTable(
-                name: "RENGLONES_COMPRA");
+                name: "RENGLON_COMPRA");
 
             migrationBuilder.DropTable(
-                name: "RENGLONES_VENTA");
+                name: "RENGLON_VENTA");
 
             migrationBuilder.DropTable(
-                name: "STOCK_POR_SUCURSAL");
+                name: "STOCK_SUCURSAL");
 
             migrationBuilder.DropTable(
-                name: "MEDIOS_PAGO");
+                name: "MEDIO_PAGO");
 
             migrationBuilder.DropTable(
-                name: "COMPRAS");
+                name: "COMPRA");
 
             migrationBuilder.DropTable(
-                name: "VENTAS");
+                name: "VENTA");
 
             migrationBuilder.DropTable(
-                name: "PRODUCTOS");
+                name: "PRODUCTO");
 
             migrationBuilder.DropTable(
-                name: "GASTOS");
+                name: "GASTO");
 
             migrationBuilder.DropTable(
-                name: "PROVEEDORES");
+                name: "PROVEEDOR");
 
             migrationBuilder.DropTable(
-                name: "CLIENTES");
+                name: "CLIENTE");
 
             migrationBuilder.DropTable(
-                name: "CATEGORIAS");
+                name: "CATEGORIA");
 
             migrationBuilder.DropTable(
-                name: "UNIDADES_MEDIDA");
+                name: "UNIDAD_MEDIDA");
 
             migrationBuilder.DropTable(
-                name: "CAJAS");
+                name: "CAJA");
 
             migrationBuilder.DropTable(
-                name: "SUCURSALES");
+                name: "SUCURSAL");
 
             migrationBuilder.DropTable(
-                name: "EMPRESAS");
+                name: "EMPRESA");
 
             migrationBuilder.DropTable(
-                name: "SUSCRIPCIONES");
+                name: "SUSCRIPCION");
 
             migrationBuilder.DropTable(
-                name: "USUARIOS");
+                name: "USUARIO");
         }
     }
 }

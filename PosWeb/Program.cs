@@ -7,7 +7,9 @@ using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
+using PosWeb.Application.Deudas;
 using PosWeb.Application.Gastos;
+using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
@@ -83,6 +85,8 @@ builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();
 builder.Services.AddScoped<CompraService>();
+builder.Services.AddScoped<ProveedorService>();
+builder.Services.AddScoped<DeudaService>();
 builder.Services.AddScoped<GastoService>();
 
 // HTTP context for user tracking
@@ -122,7 +126,7 @@ using (var scope = app.Services.CreateScope())
     EnsureUsuariosColumns(ctx);
     EnsureSucursalesColumns(ctx);
 
-    var admin = ctx.Usuarios.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
+    var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
     {
         admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));

@@ -22,16 +22,16 @@ public class UsuariosController : ControllerBase
     [HttpGet]
     public IActionResult Listar()
     {
-        var usuariosPorId = _context.Usuarios
+        var usuariosPorId = _context.Usuario
             .ToDictionary(u => u.ID_USUARIO);
 
         var responsables = usuariosPorId
             .ToDictionary(u => u.Key, u => u.Value.NOMBRE_USUARIO);
 
-        var suscripcionesPorTitular = _context.Suscripciones
+        var suscripcionesPorTitular = _context.Suscripcion
             .ToDictionary(s => s.ID_USUARIO_TITULAR, s => s);
 
-        var usuarios = _context.Usuarios
+        var usuarios = _context.Usuario
             .OrderBy(u => u.NOMBRE_USUARIO)
             .AsEnumerable()
             .Select(u => new UsuarioDto
@@ -63,7 +63,7 @@ public class UsuariosController : ControllerBase
     [HttpPut("{id:int}/suscripcion")]
     public IActionResult CambiarSuscripcion(int id, [FromBody] CambiarSuscripcionRequest request)
     {
-        var usuario = _context.Usuarios.FirstOrDefault(u => u.ID_USUARIO == id);
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == id);
         if (usuario == null)
         {
             return NotFound($"El usuario con ID {id} no existe");
@@ -74,11 +74,11 @@ public class UsuariosController : ControllerBase
             return BadRequest("La suscripción solo se gestiona sobre usuarios admin");
         }
 
-        var suscripcion = _context.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO);
+        var suscripcion = _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO);
         if (suscripcion == null)
         {
             suscripcion = Suscripcion.CrearBasica(usuario.ID_USUARIO);
-            _context.Suscripciones.Add(suscripcion);
+            _context.Suscripcion.Add(suscripcion);
         }
 
         if (request.Activa)
@@ -105,7 +105,7 @@ public class UsuariosController : ControllerBase
     [HttpDelete("{id:int}")]
     public IActionResult Desactivar(int id)
     {
-        var usuario = _context.Usuarios.FirstOrDefault(u => u.ID_USUARIO == id);
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == id);
         if (usuario == null)
         {
             return NotFound($"El usuario con ID {id} no existe");
