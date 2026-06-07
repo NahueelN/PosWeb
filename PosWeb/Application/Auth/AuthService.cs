@@ -157,6 +157,8 @@ public class AuthService
 
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
 
+        int? empresaId = request.EmpresaId;
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         var nuevoUsuario = new Usuario(
@@ -165,7 +167,7 @@ public class AuthService
             rol,
             mail,
             usuarioResponsableId: usuarioResponsableId,
-            empresaRepresenta: empresaRepresenta);
+            empresaId: empresaId);
 
         _context.Usuario.Add(nuevoUsuario);
         _context.SaveChanges();
@@ -173,7 +175,7 @@ public class AuthService
         if (rol == Roles.Admin)
         {
             var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
-            _context.Suscripciones.Add(suscripcion);
+            _context.Suscripcion.Add(suscripcion);
             _context.SaveChanges();
         }
 
@@ -195,7 +197,7 @@ public class AuthService
             return usuario.SUSCRIPCION_ACTIVA;
         }
 
-        var suscripcion = _context.Suscripciones
+        var suscripcion = _context.Suscripcion
             .FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
 
         if (suscripcion == null)
@@ -213,7 +215,7 @@ public class AuthService
             return usuario;
         }
 
-        return _context.Usuarios
+        return _context.Usuario
             .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
     }
 }

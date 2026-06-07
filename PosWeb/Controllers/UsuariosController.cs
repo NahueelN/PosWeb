@@ -45,13 +45,14 @@ public class UsuariosController : ControllerBase
                     ? nombreResponsable
                     : null,
                 Activo = u.ACTIVO,
+                EmpresaId = u.ID_EMPRESA,
                 SuscripcionActiva = TieneSuscripcionActiva(u, usuariosPorId, suscripcionesPorTitular),
                 AccesoHabilitado = TieneAccesoHabilitado(u, usuariosPorId, suscripcionesPorTitular),
                 SuscripcionNivel = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.NIVEL,
                 SuscripcionEstado = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.ESTADO,
                 CostoMensual = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.COSTO_MENSUAL,
                 MaxSucursales = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_SUCURSALES,
-                MaxAdmins = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_ADMINS,
+                MaxAdmins = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_ADMIN,
                 MaxUsuarios = ObtenerSuscripcion(u, usuariosPorId, suscripcionesPorTitular)?.MAX_USUARIOS,
                 PinConfigurado = u.PIN_HASH != null && u.PIN_HASH != string.Empty
             })

@@ -19,8 +19,6 @@ using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
 using System.Security.Claims;
-using Microsoft.Data.Sqlite;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -123,8 +121,6 @@ using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
     ctx.Database.Migrate();
-    EnsureUsuariosColumns(ctx);
-    EnsureSucursalesColumns(ctx);
 
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
@@ -133,28 +129,10 @@ using (var scope = app.Services.CreateScope())
         ctx.SaveChanges();
     }
 
-    if (admin != null && !ctx.Suscripciones.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
+    if (admin != null && !ctx.Suscripcion.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
     {
-        ctx.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        ctx.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         ctx.SaveChanges();
-    }
-
-    if (admin != null)
-    {
-        var adminSubscription = ctx.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
-        if (adminSubscription != null)
-        {
-            var sucursalesSinSuscripcion = ctx.Sucursales.Where(s => s.ID_SUSCRIPCION == null).ToList();
-            foreach (var sucursal in sucursalesSinSuscripcion)
-            {
-                sucursal.VincularSuscripcion(adminSubscription.ID_SUSCRIPCION);
-            }
-
-            if (sucursalesSinSuscripcion.Count > 0)
-            {
-                ctx.SaveChanges();
-            }
-        }
     }
 }
 
@@ -180,7 +158,7 @@ app.Use(async (context, next) =>
         if (int.TryParse(userIdValue, out var userId))
         {
             var db = context.RequestServices.GetRequiredService<PosDbContext>();
-            var usuario = db.Usuarios.FirstOrDefault(u => u.ID_USUARIO == userId);
+            var usuario = db.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
 
             if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
             {
@@ -208,69 +186,6 @@ app.MapControllers();
 
 app.Run();
 
-static void EnsureUsuariosColumns(PosDbContext ctx)
-{
-    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
-    var shouldClose = connection.State != System.Data.ConnectionState.Open;
-    if (shouldClose)
-    {
-        connection.Open();
-    }
-
-    try
-    {
-        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using (var pragma = connection.CreateCommand())
-        {
-            pragma.CommandText = "PRAGMA table_info('USUARIOS');";
-            using var reader = pragma.ExecuteReader();
-            while (reader.Read())
-            {
-                var columnName = reader["name"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(columnName))
-                {
-                    existingColumns.Add(columnName);
-                }
-            }
-        }
-
-        if (!existingColumns.Contains("MAIL"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN MAIL TEXT NULL;";
-            alter.ExecuteNonQuery();
-        }
-
-        if (!existingColumns.Contains("ID_USUARIO_RESPONSABLE"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN ID_USUARIO_RESPONSABLE INTEGER NULL;";
-            alter.ExecuteNonQuery();
-        }
-
-        if (!existingColumns.Contains("EMPRESA_REPRESENTA"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN EMPRESA_REPRESENTA TEXT NULL;";
-            alter.ExecuteNonQuery();
-        }
-
-        if (!existingColumns.Contains("SUSCRIPCION_ACTIVA"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE USUARIOS ADD COLUMN SUSCRIPCION_ACTIVA INTEGER NOT NULL DEFAULT 1;";
-            alter.ExecuteNonQuery();
-        }
-
-    }
-    finally
-    {
-        if (shouldClose)
-        {
-            connection.Close();
-        }
-    }
-}
 
 static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
 {
@@ -280,7 +195,7 @@ static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
     }
 
     var titular = usuario.ID_USUARIO_RESPONSABLE.HasValue
-        ? ctx.Usuarios.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value)
+        ? ctx.Usuario.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value)
         : usuario;
 
     if (titular == null || !titular.ACTIVO)
@@ -288,7 +203,7 @@ static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
         return false;
     }
 
-    var suscripcion = ctx.Suscripciones.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
+    var suscripcion = ctx.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
     if (suscripcion != null)
     {
         return suscripcion.EstaActiva();
@@ -297,90 +212,4 @@ static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
     return titular.SUSCRIPCION_ACTIVA;
 }
 
-static void EnsureSucursalesColumns(PosDbContext ctx)
-{
-    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
-    var shouldClose = connection.State != System.Data.ConnectionState.Open;
-    if (shouldClose)
-    {
-        connection.Open();
-    }
-
-    try
-    {
-        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using (var pragma = connection.CreateCommand())
-        {
-            pragma.CommandText = "PRAGMA table_info('SUCURSALES');";
-            using var reader = pragma.ExecuteReader();
-            while (reader.Read())
-            {
-                var columnName = reader["name"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(columnName))
-                {
-                    existingColumns.Add(columnName);
-                }
-            }
-        }
-
-        if (!existingColumns.Contains("ID_SUSCRIPCION"))
-        {
-            using var alter = connection.CreateCommand();
-            alter.CommandText = "ALTER TABLE SUCURSALES ADD COLUMN ID_SUSCRIPCION INTEGER NULL;";
-            alter.ExecuteNonQuery();
-        }
-    }
-    finally
-    {
-        if (shouldClose)
-        {
-            connection.Close();
-        }
-    }
-}
-
-static void EnsureSuscripcionesTable(PosDbContext ctx)
-{
-    var connection = (SqliteConnection)ctx.Database.GetDbConnection();
-    var shouldClose = connection.State != System.Data.ConnectionState.Open;
-    if (shouldClose)
-    {
-        connection.Open();
-    }
-
-    try
-    {
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-CREATE TABLE IF NOT EXISTS SUSCRIPCIONES (
-    ID_SUSCRIPCION INTEGER PRIMARY KEY AUTOINCREMENT,
-    ID_USUARIO_TITULAR INTEGER NOT NULL,
-    NIVEL TEXT NOT NULL,
-    ESTADO TEXT NOT NULL,
-    COSTO_MENSUAL NUMERIC(18,2) NOT NULL,
-    MAX_SUCURSALES INTEGER NULL,
-    MAX_ADMINS INTEGER NULL,
-    MAX_USUARIOS INTEGER NULL,
-    FECHA_INICIO TEXT NOT NULL,
-    FECHA_FIN TEXT NULL,
-    PROXIMO_COBRO TEXT NULL,
-    MERCADOPAGO_PREAPPROVAL_ID TEXT NULL,
-    FOREIGN KEY (ID_USUARIO_TITULAR) REFERENCES USUARIOS(ID_USUARIO) ON DELETE CASCADE
-);";
-        command.ExecuteNonQuery();
-
-        using var indexCommand = connection.CreateCommand();
-        indexCommand.CommandText = @"
-CREATE UNIQUE INDEX IF NOT EXISTS IX_SUSCRIPCIONES_ID_USUARIO_TITULAR
-ON SUSCRIPCIONES (ID_USUARIO_TITULAR);";
-        indexCommand.ExecuteNonQuery();
-    }
-    finally
-    {
-        if (shouldClose)
-        {
-            connection.Close();
-        }
-    }
-}
 

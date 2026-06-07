@@ -12,7 +12,7 @@ export default function AltaUsuarioPage() {
   const [password, setPassword] = useState('')
   const [mail, setMail] = useState('')
   const [rol, setRol] = useState<'UsuarioComun' | 'Admin'>('UsuarioComun')
-  const [empresaRepresenta, setEmpresaRepresenta] = useState('')
+  const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const [formError, setFormError] = useState('')
@@ -57,14 +57,14 @@ export default function AltaUsuarioPage() {
         password,
         mail,
         rol,
-        empresaRepresenta: rol === 'Admin' ? empresaRepresenta : null,
+        empresaId: rol === 'Admin' && empresaId ? parseInt(empresaId) : null,
       })
       setSuccess(`Usuario ${rol === 'Admin' ? 'admin' : 'común'} creado correctamente.`)
       setUsuario('')
       setPassword('')
       setMail('')
       setRol('UsuarioComun')
-      setEmpresaRepresenta('')
+      setEmpresaId('')
       await loadUsuarios()
     } catch (err: any) {
       const msg = err.message || 'Error al crear usuario'
@@ -207,11 +207,11 @@ export default function AltaUsuarioPage() {
 
           {rol === 'Admin' && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa representa</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa ID</label>
               <input
-                type="text"
-                value={empresaRepresenta}
-                onChange={e => setEmpresaRepresenta(e.target.value)}
+                type="number"
+                value={empresaId}
+                onChange={e => setEmpresaId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Opcional"
               />
@@ -315,7 +315,7 @@ export default function AltaUsuarioPage() {
                       {usuarioItem.usuarioResponsableNombre || '-'}
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
-                      {usuarioItem.empresaRepresenta || '-'}
+                      {usuarioItem.empresaId ?? '-'}
                     </td>
                     <td className="py-3 pr-4">
                       <span

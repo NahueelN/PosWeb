@@ -131,7 +131,7 @@ export interface RegisterRequest {
   password: string
   mail: string
   rol: string
-  empresaRepresenta?: string | null
+  empresaId?: number | null
 }
 
 export interface RegisterResponse {
@@ -140,7 +140,7 @@ export interface RegisterResponse {
   mail: string
   rol: string
   usuarioResponsableId?: number | null
-  empresaRepresenta?: string | null
+  empresaId?: number | null
 }
 
 export interface UsuarioInfo {
@@ -156,7 +156,7 @@ export interface UsuarioListadoDto {
   rol: string
   usuarioResponsableId?: number | null
   usuarioResponsableNombre?: string | null
-  empresaRepresenta?: string | null
+  empresaId?: number | null
   activo: boolean
   suscripcionActiva: boolean
   accesoHabilitado: boolean

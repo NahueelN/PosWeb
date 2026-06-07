@@ -51,7 +51,7 @@ public class UsuariosSubscriptionTest
             usuarioResponsableId: responsableId);
 
         TestHelpers.SetId(usuario, id, "ID_USUARIO");
-        context.Usuarios.Add(usuario);
+        context.Usuario.Add(usuario);
         context.SaveChanges();
         return usuario;
     }
@@ -78,15 +78,15 @@ public class UsuariosSubscriptionTest
             Password = "123456",
             Mail = "admin2@test.com",
             Rol = Roles.Admin,
-            EmpresaRepresenta = "Empresa"
+            EmpresaId = 1
         });
 
-        var usuario = Assert.Single(context.Usuarios.Where(u => u.NOMBRE_USUARIO == "admin2"));
-        var suscripcion = Assert.Single(context.Suscripciones.Where(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO));
+        var usuario = Assert.Single(context.Usuario.Where(u => u.NOMBRE_USUARIO == "admin2"));
+        var suscripcion = Assert.Single(context.Suscripcion.Where(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO));
 
         Assert.Equal(NivelesSuscripcion.Basica, suscripcion.NIVEL);
         Assert.Equal(1, suscripcion.MAX_SUCURSALES);
-        Assert.Equal(1, suscripcion.MAX_ADMINS);
+        Assert.Equal(1, suscripcion.MAX_ADMIN);
         Assert.Equal(1, suscripcion.MAX_USUARIOS);
         Assert.True(suscripcion.EstaActiva());
         Assert.Equal(resultado.Id, usuario.ID_USUARIO);
@@ -99,7 +99,7 @@ public class UsuariosSubscriptionTest
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
         var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
         suscripcion.Suspender();
-        context.Suscripciones.Add(suscripcion);
+        context.Suscripcion.Add(suscripcion);
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService());
@@ -119,7 +119,7 @@ public class UsuariosSubscriptionTest
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
         var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
         suscripcion.Suspender();
-        context.Suscripciones.Add(suscripcion);
+        context.Suscripcion.Add(suscripcion);
         CrearUsuario(context, 2, "usuario", Roles.UsuarioComun, responsableId: 1);
         context.SaveChanges();
 
@@ -138,7 +138,7 @@ public class UsuariosSubscriptionTest
     {
         var context = CrearContexto(nameof(CambiarSuscripcion_Admin_ActualizaLaEntidadSuscripcion));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        context.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
         var controller = new UsuariosController(context);
@@ -146,8 +146,8 @@ public class UsuariosSubscriptionTest
         var resultado = controller.CambiarSuscripcion(1, new CambiarSuscripcionRequest(false));
 
         Assert.IsType<OkObjectResult>(resultado);
-        Assert.False(context.Suscripciones.Single(s => s.ID_USUARIO_TITULAR == 1).EstaActiva());
-        Assert.False(context.Usuarios.Single(u => u.ID_USUARIO == 1).SUSCRIPCION_ACTIVA);
+        Assert.False(context.Suscripcion.Single(s => s.ID_USUARIO_TITULAR == 1).EstaActiva());
+        Assert.False(context.Usuario.Single(u => u.ID_USUARIO == 1).SUSCRIPCION_ACTIVA);
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class UsuariosSubscriptionTest
     {
         var context = CrearContexto(nameof(Register_ConPlanBasico_NoPermiteMasUsuariosComunes));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        context.Suscripciones.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService());
@@ -182,7 +182,7 @@ public class UsuariosSubscriptionTest
     {
         var context = CrearContexto(nameof(Register_ConPlanMedia_NoPermiteMasAdmins));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        context.Suscripciones.Add(Suscripcion.CrearMedia(admin.ID_USUARIO));
+        context.Suscripcion.Add(Suscripcion.CrearMedia(admin.ID_USUARIO));
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService());
@@ -193,7 +193,7 @@ public class UsuariosSubscriptionTest
             Password = "123456",
             Mail = "admin2@test.com",
             Rol = Roles.Admin,
-            EmpresaRepresenta = "Empresa"
+            EmpresaId = 1
         }, currentUserId: 1));
     }
 }

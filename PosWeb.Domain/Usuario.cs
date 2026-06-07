@@ -26,7 +26,7 @@ public class Usuario
 
     public int? ID_USUARIO_RESP { get; private set; }
 
-    public string? EMPRESA_REPRESENTA { get; private set; }
+    public int? ID_EMPRESA { get; private set; }
 
     public int? ID_USUARIO_RESPONSABLE { get; private set; }
 
@@ -38,9 +38,9 @@ public class Usuario
         string? mail = null,
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
-        string? empresaRepresenta = null,
+        int? empresaId = null,
         bool suscripcionActiva = true)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaRepresenta, suscripcionActiva)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaId, suscripcionActiva)
     {
         ID_USUARIO = id;
     }
@@ -52,7 +52,7 @@ public class Usuario
         string? mail = null,
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
-        string? empresaRepresenta = null,
+        int? empresaId = null,
         bool suscripcionActiva = true)
     {
         CambiarNombreUsuario(nombreUsuario);
@@ -64,7 +64,7 @@ public class Usuario
         ID_SUCURSAL_DEFAULT = sucursalDefault;
         ID_USUARIO_RESP = usuarioResponsableId;
         ID_USUARIO_RESPONSABLE = usuarioResponsableId;
-        EMPRESA_REPRESENTA = empresaRepresenta;
+        ID_EMPRESA = empresaId;
     }
 
     protected Usuario()

@@ -8,7 +8,7 @@ public class UsuarioDto
     public string Rol { get; set; } = string.Empty;
     public int? UsuarioResponsableId { get; set; }
     public string? UsuarioResponsableNombre { get; set; }
-    public string? EmpresaRepresenta { get; set; }
+    public int? EmpresaId { get; set; }
     public bool Activo { get; set; }
     public bool SuscripcionActiva { get; set; }
     public bool AccesoHabilitado { get; set; }
