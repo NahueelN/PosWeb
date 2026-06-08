@@ -108,6 +108,13 @@ public class ProductosController : ControllerBase
         });
     }
 
+    [HttpGet("proximo-codigo")]
+    public IActionResult GetProximoCodigo()
+    {
+        var codigo = _productoService.ObtenerSiguienteCodigo();
+        return Ok(new { codigo });
+    }
+
     [HttpPost]
     public IActionResult Post([FromBody] ProductoUpsertDto dto)
     {

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using PosWeb.Contracts;
+using PosWeb.Data;
+using PosWeb.Domain;
 
 namespace PosWeb.Application.OpenFoodFacts;
 
@@ -8,6 +10,31 @@ public class OpenFoodFactsService
 {
     private readonly HttpClient _http;
     private readonly ILogger<OpenFoodFactsService> _logger;
+    private readonly PosDbContext _context;
+
+    /// <summary>
+    /// Tags de Open Food Facts que indican que un producto es una bebida.
+    /// Si alguna de estas aparece en categories_tags, se asigna la categoría "Bebidas".
+    /// </summary>
+    private static readonly HashSet<string> BeverageTags = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "en:beverages",
+        "en:carbonated-drinks",
+        "en:non-alcoholic-beverages",
+        "en:sodas",
+        "en:colas",
+        "en:sweetened-beverages",
+        "en:waters",
+        "en:sparkling-waters",
+        "en:juices",
+        "en:fruit-juices",
+        "en:nectars",
+        "en:energy-drinks",
+        "en:sports-drinks",
+        "en:iced-teas",
+        "en:tea-based-beverages",
+        "en:coffee-drinks",
+    };
 
     /// <summary>
     /// Mapea unidades de Open Food Facts a códigos de UnidadMedida locales.
@@ -19,27 +46,28 @@ public class OpenFoodFactsService
         ["milliliter"] = "ML",
         ["millilitre"] = "ML",
         ["cl"] = "ML",
-        ["l"] = "LT",
-        ["liter"] = "LT",
-        ["litre"] = "LT",
+        ["l"] = "L",
+        ["liter"] = "L",
+        ["litre"] = "L",
         ["g"] = "GR",
         ["gram"] = "GR",
         ["gramme"] = "GR",
-        ["kg"] = "KG",
-        ["kilogram"] = "KG",
-        ["kilogramme"] = "KG",
+        ["kg"] = "KILO",
+        ["kilogram"] = "KILO",
+        ["kilogramme"] = "KILO",
         ["mg"] = "GR",
-        ["un"] = "UN",
-        ["unit"] = "UN",
-        ["unidad"] = "UN",
-        ["ud"] = "UN",
+        ["un"] = "UNIDAD",
+        ["unit"] = "UNIDAD",
+        ["unidad"] = "UNIDAD",
+        ["ud"] = "UNIDAD",
         ["pack"] = "PACK",
     };
 
-    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger)
+    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger, PosDbContext context)
     {
         _http = http;
         _logger = logger;
+        _context = context;
     }
 
     /// <summary>
@@ -102,12 +130,12 @@ public class OpenFoodFactsService
         }
     }
 
-    private static OpenFoodFactsResultDto Mapear(JsonElement product, string codigoBarras)
+    private OpenFoodFactsResultDto Mapear(JsonElement product, string codigoBarras)
     {
         var unidad = TryGetString(product, "product_quantity_unit");
         var unidadCod = unidad != null ? ResolverUnidad(unidad) : null;
 
-        return new OpenFoodFactsResultDto
+        var dto = new OpenFoodFactsResultDto
         {
             CodigoBarras = codigoBarras,
             Descripcion = product.GetProperty("product_name").GetString() ?? string.Empty,
@@ -117,6 +145,60 @@ public class OpenFoodFactsService
                 ?? TryParseQuantity(product),
             Unidad = unidadCod,
         };
+
+        // Resolver categoría sugerida desde categories_tags
+        dto.CategoriaIdSugerido = ResolverCategoriaSugerida(product);
+
+        // Auto-convertir ML → L cuando el contenido supera 1000
+        // ej: 2250 ml → 2.250 L
+        if (unidadCod == "ML" && dto.Contenido.HasValue && dto.Contenido.Value > 1000)
+        {
+            dto.Contenido = Math.Round(dto.Contenido.Value / 1000m, 3);
+            dto.Unidad = "L";
+        }
+
+        return dto;
+    }
+
+    /// <summary>
+    /// Si el producto tiene categories_tags que matchean una bebida, busca o crea
+    /// la categoría "Bebidas" y devuelve su ID.
+    /// </summary>
+    private int? ResolverCategoriaSugerida(JsonElement product)
+    {
+        if (!product.TryGetProperty("categories_tags", out var tags) || tags.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var esBebida = false;
+        foreach (var tag in tags.EnumerateArray())
+        {
+            if (tag.ValueKind == JsonValueKind.String)
+            {
+                var tagStr = tag.GetString();
+                if (tagStr != null && BeverageTags.Contains(tagStr))
+                {
+                    esBebida = true;
+                    break;
+                }
+            }
+        }
+
+        if (!esBebida)
+            return null;
+
+        // Buscar categoría Bebidas existente
+        var bebidas = _context.Categoria
+            .FirstOrDefault(c => c.COD_CATEGORIA == "BEBIDAS" || c.DESC_CATEGORIA == "Bebidas");
+
+        if (bebidas != null)
+            return bebidas.ID_CATEGORIA;
+
+        // Crear categoría Bebidas
+        var nueva = new Categoria("BEBIDAS", "Bebidas");
+        _context.Categoria.Add(nueva);
+        _context.SaveChanges();
+
+        return nueva.ID_CATEGORIA;
     }
 
     /// <summary>

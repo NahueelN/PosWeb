@@ -1,0 +1,335 @@
+import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { api } from '../api/client'
+import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
+
+interface ProductFormModalProps {
+  open: boolean
+  prefillData?: OpenFoodFactsResultDto | null
+  initialCodigo?: string
+  onCreated: (producto: ProductoDto) => void
+  onClose: () => void
+}
+
+export default function ProductFormModal({
+  open,
+  prefillData,
+  initialCodigo,
+  onCreated,
+  onClose,
+}: ProductFormModalProps) {
+  const [codigoBarra, setCodigoBarra] = useState(prefillData?.codigoBarras || initialCodigo || '')
+  const [codigoProducto, setCodigoProducto] = useState('')
+  const [nombre, setNombre] = useState(prefillData?.descripcion || '')
+  const [marca, setMarca] = useState(prefillData?.marca || '')
+  const [contenido, setContenido] = useState(prefillData?.contenido?.toString() || '')
+  const [precio, setPrecio] = useState('')
+  const [costo, setCosto] = useState('')
+  const [categoriaId, setCategoriaId] = useState('')
+  const [unidadMedidaId, setUnidadMedidaId] = useState('')
+  const [descripcion, setDescripcion] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const [categorias, setCategorias] = useState<CategoriaDto[]>([])
+  const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([])
+
+  // Barcode uniqueness check
+  const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  const nombreRef = useRef<HTMLInputElement>(null)
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setCodigoBarra(prefillData?.codigoBarras || initialCodigo || '')
+      setNombre(prefillData?.descripcion || '')
+      setMarca(prefillData?.marca || '')
+      setContenido(prefillData?.contenido?.toString() || '')
+      setPrecio('')
+      setCosto('')
+      setCategoriaId('')
+      setUnidadMedidaId('')
+      setDescripcion('')
+      setError('')
+      setBarcodeStatus('idle')
+      // Fetch next available product code
+      api.productos.obtenerProximoCodigo()
+        .then(res => setCodigoProducto(res.codigo))
+        .catch(() => setCodigoProducto(''))
+    }
+  }, [open, prefillData, initialCodigo])
+
+  useEffect(() => {
+    api.categorias.listar().then(setCategorias).catch(() => {})
+    api.unidadesMedida.listar().then(setUnidades).catch(() => {})
+  }, [])
+
+  // Preselect unit from OFF data
+  useEffect(() => {
+    if (prefillData?.unidad && unidades.length > 0) {
+      const match = unidades.find(u =>
+        u.codigo?.toUpperCase() === prefillData.unidad!.toUpperCase()
+      )
+      if (match) setUnidadMedidaId(match.id.toString())
+    }
+  }, [prefillData, unidades])
+
+  // Preselect category from OFF data
+  useEffect(() => {
+    if (prefillData?.categoriaIdSugerido && categorias.length > 0) {
+      const match = categorias.find(c => c.id === prefillData.categoriaIdSugerido)
+      if (match) setCategoriaId(match.id.toString())
+    }
+  }, [prefillData, categorias])
+
+  // Barcode uniqueness check (debounced)
+  useEffect(() => {
+    const codigo = codigoBarra.trim()
+    if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
+    if (!codigo || prefillData?.codigoBarras) {
+      setBarcodeStatus('idle')
+      return
+    }
+    setBarcodeStatus('checking')
+    barcodeTimerRef.current = setTimeout(async () => {
+      try {
+        const existing = await api.productos.obtenerPorBarra(codigo)
+        if (existing) setBarcodeStatus('taken')
+        else setBarcodeStatus('available')
+      } catch {
+        setBarcodeStatus('available')
+      }
+    }, 400)
+    return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current) }
+  }, [codigoBarra, prefillData])
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+
+    const precioNum = Number(precio)
+    const costoNum = Number(costo)
+
+    if (!codigoBarra.trim()) {
+      setError('El código de barras es obligatorio')
+      return
+    }
+    if (!nombre.trim()) {
+      setError('El nombre del producto es obligatorio')
+      return
+    }
+    if (!precio || precioNum <= 0) {
+      setError('El precio debe ser mayor a 0')
+      return
+    }
+    if (!costo || costoNum < 0) {
+      setError('El costo no puede ser negativo')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const created = await api.productos.crear({
+        codigoBarra: codigoBarra.trim(),
+        nombre: nombre.trim(),
+        precio: precioNum,
+        costo: costoNum,
+        marca: marca.trim() || undefined,
+        contenido: contenido ? Number(contenido) : undefined,
+        categoriaId: categoriaId ? Number(categoriaId) : undefined,
+        unidadMedidaId: unidadMedidaId ? Number(unidadMedidaId) : undefined,
+        descAdicional: descripcion.trim() || undefined,
+        codigoProducto: codigoProducto.trim() || undefined,
+      })
+      onCreated(created)
+    } catch (e: any) {
+      setError(e.message || 'Error al crear producto')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open) return null
+
+  const isReadonlyCodigo = !!(prefillData?.codigoBarras)
+  const canSubmit = nombre.trim()
+    && barcodeStatus !== 'checking'
+    && barcodeStatus !== 'taken'
+    && codigoBarra.trim()
+
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between mb-4">
+          <h3 className="text-lg font-bold text-indigo-900">
+            {prefillData ? 'Completar producto' : 'Nuevo producto'}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Código de barras + Código interno */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Código de barras</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={codigoBarra}
+                  onChange={e => setCodigoBarra(e.target.value)}
+                  readOnly={isReadonlyCodigo}
+                  required
+                  className={`w-full px-3 py-2 border rounded-lg text-sm font-mono pr-8 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none ${
+                    isReadonlyCodigo ? 'bg-gray-50 text-gray-500' : ''
+                  }`}
+                  placeholder="Código de barras"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                  {barcodeStatus === 'checking' && (
+                    <svg className="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {barcodeStatus === 'available' && (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  )}
+                  {barcodeStatus === 'taken' && (
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </span>
+              </div>
+              {barcodeStatus === 'taken' && (
+                <p className="text-xs text-red-600 mt-0.5">Este código ya está registrado</p>
+              )}
+              {barcodeStatus === 'available' && codigoBarra.trim() && !isReadonlyCodigo && (
+                <p className="text-xs text-green-600 mt-0.5">Código disponible</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Código interno</label>
+              <input
+                type="text"
+                value={codigoProducto}
+                onChange={e => setCodigoProducto(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                placeholder="Auto-generado"
+              />
+            </div>
+          </div>
+
+          {/* Nombre — full width */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Nombre *</label>
+            <input ref={nombreRef} type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+              autoFocus
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              placeholder="Nombre del producto" />
+          </div>
+
+          {/* Marca + Categoría */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Marca</label>
+              <input type="text" value={marca} onChange={e => setMarca(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                placeholder="Marca" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Categoría</label>
+              <select value={categoriaId} onChange={e => setCategoriaId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                <option value="">Sin categoría</option>
+                {categorias.map(c => (
+                  <option key={c.id} value={c.id}>{c.descripcion}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Contenido + Unidad de Medida (con código) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Contenido</label>
+              <input type="number" step="0.01" value={contenido} onChange={e => setContenido(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                placeholder="ej: 1750" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Unidad de medida</label>
+              <select value={unidadMedidaId} onChange={e => setUnidadMedidaId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                <option value="">Sin unidad</option>
+                {unidades.map(u => (
+                  <option key={u.id} value={u.id}>{u.codigo} - {u.descripcion}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Precio + Costo */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Precio venta *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
+                <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
+                  className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0.00" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Costo *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
+                <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
+                  className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0.00" />
+              </div>
+            </div>
+          </div>
+
+          {/* Descripción adicional — full width abajo */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Descripción adicional</label>
+            <input type="text" value={descripcion} onChange={e => setDescripcion(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              placeholder="Descripción" />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={!canSubmit || loading}
+              className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Creando...
+                </span>
+              ) : 'Crear producto'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

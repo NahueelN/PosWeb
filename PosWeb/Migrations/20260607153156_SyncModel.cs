@@ -5,7 +5,7 @@
 namespace PosWeb.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMarcaToProducto : Migration
+    public partial class SyncModel : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,14 +17,6 @@ namespace PosWeb.Migrations
                 maxLength: 200,
                 nullable: true)
                 .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AlterColumn<decimal>(
-                name: "MONTO_PAGADO",
-                table: "DEUDA",
-                type: "decimal(65,30)",
-                nullable: false,
-                oldClrType: typeof(decimal),
-                oldType: "decimal(18,2)");
         }
 
         /// <inheritdoc />
@@ -33,14 +25,6 @@ namespace PosWeb.Migrations
             migrationBuilder.DropColumn(
                 name: "MARCA",
                 table: "PRODUCTO");
-
-            migrationBuilder.AlterColumn<decimal>(
-                name: "MONTO_PAGADO",
-                table: "DEUDA",
-                type: "decimal(18,2)",
-                nullable: false,
-                oldClrType: typeof(decimal),
-                oldType: "decimal(65,30)");
         }
     }
 }

@@ -12,8 +12,8 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    [Migration("20260606204753_AddMarcaToProducto")]
-    partial class AddMarcaToProducto
+    [Migration("20260607153156_SyncModel")]
+    partial class SyncModel
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

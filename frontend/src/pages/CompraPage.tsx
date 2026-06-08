@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto } from '../types';
 import { api } from '../api/client';
+import ProductFormModal from '../components/ProductFormModal';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -132,16 +133,8 @@ export default function CompraPage() {
 
   // New product modal
   const [showNewModal, setShowNewModal] = useState(false);
-  const [newNombre, setNewNombre] = useState(''); const [newCodigo, setNewCodigo] = useState('');
-  const [newPrecio, setNewPrecio] = useState(0); const [newCosto, setNewCosto] = useState('');
-  const [newCant, setNewCant] = useState(1); const [newCatId, setNewCatId] = useState<number>(0);
-  const [newUnidadId, setNewUnidadId] = useState<number>(0); const [newCont, setNewCont] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
-  const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const provInputRef = useRef<HTMLInputElement>(null);
-  const newNombreRef = useRef<HTMLInputElement>(null);
 
   // Load data
   useEffect(() => {
@@ -165,24 +158,6 @@ export default function CompraPage() {
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [state.cart.length]);
-
-  // Barcode uniqueness check
-  useEffect(() => {
-    const codigo = newCodigo.trim();
-    if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
-    if (!codigo) { setBarcodeStatus('idle'); return; }
-    setBarcodeStatus('checking');
-    barcodeTimerRef.current = setTimeout(async () => {
-      try {
-        const existing = await api.productos.obtenerPorBarra(codigo);
-        if (existing) setBarcodeStatus('taken');
-        else setBarcodeStatus('available');
-      } catch {
-        setBarcodeStatus('available');
-      }
-    }, 400);
-    return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current); };
-  }, [newCodigo]);
 
   // Keyboard handler
   useEffect(() => {
@@ -242,20 +217,14 @@ export default function CompraPage() {
     setEditingIdx(null);
   };
 
-  const handleNewProduct = () => {
-    if (!newNombre.trim()) return;
-    const item: CartItem = {
-      productoId: 0, productoNombre: newNombre.trim(), codigoBarra: newCodigo || newNombre.trim(),
-      cantidad: newCant, costoUnitario: parseFloat(newCosto) || 0, subtotal: newCant * (parseFloat(newCosto) || 0),
-      precio: newPrecio || undefined, costo: parseFloat(newCosto) || undefined,
-      categoriaId: newCatId || undefined, unidadMedidaId: newUnidadId || undefined,
-      contenido: parseFloat(newCont) || undefined, descAdicional: newDesc || undefined,
-    };
-    dispatch({ type: 'ADD_TO_CART', item });
+  const handleProductCreatedInModal = (producto: ProductoDto) => {
+    // Add the newly created product to cart with quantity 1
+    addToCart(producto);
     setShowNewModal(false);
-    setNewNombre(''); setNewCodigo(''); setNewPrecio(0); setNewCosto('');
-    setNewCant(1); setNewCatId(0); setNewUnidadId(0); setNewCont(''); setNewDesc('');
-    setBarcodeStatus('idle');
+    setProductos(prev => {
+      if (prev.find(p => p.id === producto.id)) return prev;
+      return [...prev, producto];
+    });
   };
 
   const handleConfirm = async () => {
@@ -578,57 +547,11 @@ export default function CompraPage() {
       )}
 
       {/* New Product Modal */}
-      {showNewModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowNewModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-bold text-indigo-900">Nuevo producto</h3>
-              <button onClick={() => setShowNewModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="col-span-2">
-                <label className="text-xs font-semibold text-gray-700">Código de barras</label>
-                <div className="relative">
-                  <input type="text" value={newCodigo} onChange={e => setNewCodigo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm pr-8" />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                    {barcodeStatus === 'checking' && (
-                      <svg className="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                    )}
-                    {barcodeStatus === 'available' && (
-                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    )}
-                    {barcodeStatus === 'taken' && (
-                      <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                    )}
-                  </span>
-                </div>
-                {barcodeStatus === 'taken' && (
-                  <p className="text-xs text-red-600 mt-0.5">Este código ya está registrado</p>
-                )}
-                {barcodeStatus === 'available' && newCodigo.trim() && (
-                  <p className="text-xs text-green-600 mt-0.5">Código disponible</p>
-                )}
-              </div>
-              <div className="col-span-2"><label className="text-xs font-semibold text-gray-700">Nombre *</label><input ref={newNombreRef} type="text" value={newNombre} onChange={e => setNewNombre(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" autoFocus /></div>
-              <div><label className="text-xs font-semibold text-gray-700">Precio</label><input type="number" step="0.01" value={newPrecio} onChange={e => setNewPrecio(parseFloat(e.target.value)||0)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div><label className="text-xs font-semibold text-gray-700">Costo</label><input type="number" step="0.01" value={newCosto} onChange={e => setNewCosto(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div><label className="text-xs font-semibold text-gray-700">Cantidad</label><input type="number" min={1} value={newCant} onChange={e => setNewCant(Math.max(1,parseInt(e.target.value)||1))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div><label className="text-xs font-semibold text-gray-700">Categoría</label><select value={newCatId} onChange={e => setNewCatId(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm"><option value={0}>Sin categoría</option>{categorias.map(c=>(<option key={c.id} value={c.id}>{c.descripcion}</option>))}</select></div>
-              <div><label className="text-xs font-semibold text-gray-700">U. Medida</label><select value={newUnidadId} onChange={e => setNewUnidadId(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm"><option value={0}>Sin unidad</option>{unidades.map(u=>(<option key={u.id} value={u.id}>{u.descripcion}</option>))}</select></div>
-              <div><label className="text-xs font-semibold text-gray-700">Contenido</label><input type="number" step="0.01" value={newCont} onChange={e => setNewCont(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-              <div className="col-span-2"><label className="text-xs font-semibold text-gray-700">Descripción adicional</label><input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-            </div>
-            <button onClick={handleNewProduct}
-              disabled={!newNombre.trim() || barcodeStatus === 'checking' || barcodeStatus === 'taken'}
-              className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-              {barcodeStatus === 'checking' ? 'Verificando código...'
-                : barcodeStatus === 'taken' ? 'Código no disponible'
-                : 'Crear y agregar'}
-            </button>
-          </div>
-        </div>
-      )}
+      <ProductFormModal
+        open={showNewModal}
+        onCreated={handleProductCreatedInModal}
+        onClose={() => setShowNewModal(false)}
+      />
     </div>
   );
 }

@@ -1,9 +1,12 @@
-﻿namespace PosWeb.Contracts;
+﻿using System.Text.Json.Serialization;
+
+namespace PosWeb.Contracts;
 
 public class ProductoDto
 {
     public int Id { get; set; }
 
+    [JsonPropertyName("codigoBarra")]
     public string CodigoBarras { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
 
@@ -19,4 +22,9 @@ public class ProductoDto
     public int? CategoriaId { get; set; }
     public int? UnidadMedidaId { get; set; }
     public string? DescAdicional { get; set; }
+
+    /// <summary>
+    /// Código interno del producto.
+    /// </summary>
+    public string? CodigoProducto { get; set; }
 }

@@ -12,4 +12,10 @@ public class OpenFoodFactsResultDto
     public string? Categoria { get; set; }
     public decimal? Contenido { get; set; }
     public string? Unidad { get; set; }
+
+    /// <summary>
+    /// ID de categoría local resuelta desde categories_tags de Open Food Facts.
+    /// Por ejemplo, si el producto es una bebida, apunta a la categoría "Bebidas".
+    /// </summary>
+    public int? CategoriaIdSugerido { get; set; }
 }

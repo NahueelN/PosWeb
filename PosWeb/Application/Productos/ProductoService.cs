@@ -2,6 +2,7 @@
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
+using PosWeb.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace PosWeb.Application.Productos;
@@ -27,7 +28,13 @@ public class ProductoService
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
-                Activo = p.ACTIVO
+                Activo = p.ACTIVO,
+                Marca = p.MARCA,
+                Contenido = p.CONTENIDO,
+                CategoriaId = p.ID_CATEGORIA,
+                UnidadMedidaId = p.ID_UNIDAD_MEDIDA,
+                DescAdicional = p.DESC_ADICIONAL,
+                CodigoProducto = p.COD_PRODUCTO
             })
             .ToList();
     }
@@ -42,8 +49,21 @@ public class ProductoService
             throw new ProductoCodigoDuplicadoException(dto.CodigoBarras);
         }
 
+        string codProducto = !string.IsNullOrWhiteSpace(dto.CodigoProducto)
+            ? dto.CodigoProducto.Trim()
+            : ObtenerSiguienteCodigo();
+
+        // Validar que el código interno no exista ya
+        bool codigoProductoExiste = _context.Producto
+            .Any(p => p.COD_PRODUCTO == codProducto && p.ACTIVO);
+
+        if (codigoProductoExiste)
+        {
+            throw new CodigoProductoDuplicadoException(codProducto);
+        }
+
         Producto producto = new Producto(
-            dto.CodigoBarras,
+            codProducto,
             dto.CodigoBarras,
             dto.Nombre,
             dto.Precio,
@@ -59,6 +79,26 @@ public class ProductoService
         _context.SaveChanges();
 
         return MapToDto(producto);
+    }
+
+    /// <summary>
+    /// Devuelve el próximo código interno disponible (max numérico + 1, o "1" si no hay).
+    /// </summary>
+    public string ObtenerSiguienteCodigo()
+    {
+        // Busca todos los COD_PRODUCTO que sean numéricos, toma el max y suma 1
+        var todos = _context.Producto
+            .Where(p => p.ACTIVO)
+            .Select(p => p.COD_PRODUCTO)
+            .ToList();
+
+        var numericos = todos
+            .Select(c => int.TryParse(c, out var n) ? n : (int?)null)
+            .Where(n => n.HasValue)
+            .Select(n => n.Value);
+
+        int max = numericos.Any() ? numericos.Max() : 0;
+        return (max + 1).ToString();
     }
 
     public ProductoDto ObtenerPorCodigoBarra(string codigoBarras)
@@ -120,7 +160,8 @@ public class ProductoService
             Contenido = producto.CONTENIDO,
             CategoriaId = producto.ID_CATEGORIA,
             UnidadMedidaId = producto.ID_UNIDAD_MEDIDA,
-            DescAdicional = producto.DESC_ADICIONAL
+            DescAdicional = producto.DESC_ADICIONAL,
+            CodigoProducto = producto.COD_PRODUCTO
         };
     }
 

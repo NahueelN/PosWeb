@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import ProductCardPanel from '../components/ProductCardPanel'
 import BarcodeLookup from '../components/BarcodeLookup'
-import ProductFormEnriched from '../components/ProductFormEnriched'
+import ProductFormModal from '../components/ProductFormModal'
 import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
 
 interface EditState {
@@ -20,12 +20,12 @@ export default function ProductosPage() {
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
   const [postCreateProduct, setPostCreateProduct] = useState<ProductoDto | null>(null)
-  const [showForm, setShowForm] = useState(false)
   const [editState, setEditState] = useState<EditState | null>(null)
 
-  // Lookup state
-  const [prefillData, setPrefillData] = useState<OpenFoodFactsResultDto | null>(null)
-  const [lookupCodigo, setLookupCodigo] = useState('')
+  // Product creation modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
+  const [modalCodigo, setModalCodigo] = useState('')
 
   const [query, setQuery] = useState('')
 
@@ -54,36 +54,37 @@ export default function ProductosPage() {
   }
 
   function handlePrefillForm(data: OpenFoodFactsResultDto) {
-    setPrefillData(data)
-    setShowForm(true)
+    setModalPrefill(data)
+    setModalCodigo('')
+    setModalOpen(true)
     setError('')
   }
 
   function handleNotFound(codigo: string) {
-    setLookupCodigo(codigo)
-    setPrefillData(null)
-    setShowForm(true)
+    setModalPrefill(null)
+    setModalCodigo(codigo)
+    setModalOpen(true)
     setError('')
   }
 
   function handleProductCreated(product: ProductoDto) {
-    setPrefillData(null)
-    setLookupCodigo('')
-    setShowForm(false)
+    setModalOpen(false)
+    setModalPrefill(null)
+    setModalCodigo('')
     setPostCreateProduct(product)
     listar()
   }
 
-  function handleCancelForm() {
-    setPrefillData(null)
-    setLookupCodigo('')
-    setShowForm(false)
+  function handleCloseModal() {
+    setModalOpen(false)
+    setModalPrefill(null)
+    setModalCodigo('')
   }
 
   function handleOpenForm() {
-    setPrefillData(null)
-    setLookupCodigo('')
-    setShowForm(true)
+    setModalPrefill(null)
+    setModalCodigo('')
+    setModalOpen(true)
     setError('')
   }
 
@@ -202,15 +203,14 @@ export default function ProductosPage() {
         </div>
       )}
 
-      {/* ProductFormEnriched */}
-      {showForm && (
-        <ProductFormEnriched
-          prefillData={prefillData}
-          initialCodigo={lookupCodigo}
-          onCreated={handleProductCreated}
-          onCancel={handleCancelForm}
-        />
-      )}
+      {/* Product creation modal */}
+      <ProductFormModal
+        open={modalOpen}
+        prefillData={modalPrefill}
+        initialCodigo={modalCodigo}
+        onCreated={handleProductCreated}
+        onClose={handleCloseModal}
+      />
 
       {/* Panel de productos con búsqueda y grilla */}
       {filteredProductos.length === 0 ? (

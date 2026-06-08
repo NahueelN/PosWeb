@@ -12,6 +12,7 @@ export interface ProductoDto {
   categoriaId?: number | null
   unidadMedidaId?: number | null
   descAdicional?: string | null
+  codigoProducto?: string | null
 }
 
 export interface CategoriaDto {
@@ -36,6 +37,7 @@ export interface ProductoUpsertDto {
   categoriaId?: number | null
   unidadMedidaId?: number | null
   descAdicional?: string | null
+  codigoProducto?: string | null
 }
 
 // --- Open Food Facts ---
@@ -46,6 +48,7 @@ export interface OpenFoodFactsResultDto {
   categoria?: string | null
   contenido?: number | null
   unidad?: string | null
+  categoriaIdSugerido?: number | null
 }
 
 export interface ProductoLookupResponseDto {
@@ -376,4 +379,8 @@ export interface DeudaDto {
 
 export interface PagarDeudaRequestDto {
   monto?: number
+}
+
+export interface ProximoCodigoResponse {
+  codigo: string
 }

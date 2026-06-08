@@ -855,9 +855,11 @@ public class PosDbContext : DbContext
 
         // Seed Unidades de Medida (use anonymous type — constructor doesn't accept ID)
         modelBuilder.Entity<UnidadMedida>().HasData(
-            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidad" },
-            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramo" },
-            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "LITRO", DESC_UNIDAD_MEDIDA = "Litro" }
+            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidades" },
+            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramos" },
+            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "L", DESC_UNIDAD_MEDIDA = "Litros" },
+            new { ID_UNIDAD_MEDIDA = 4, COD_UNIDAD_MEDIDA = "ML", DESC_UNIDAD_MEDIDA = "Mililitros" },
+            new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos" }
         );
 
         // Seed admin user (password: admin123)
