@@ -16,7 +16,7 @@ public class SucursalService
 
     public List<SucursalDto> ObtenerActivas()
     {
-        return _context.Sucursales
+        return _context.Sucursal
             .Where(s => s.ACTIVO)
             .OrderBy(s => s.COD_SUCURSAL)
             .Select(s => new SucursalDto
@@ -38,7 +38,7 @@ public class SucursalService
             1 // Default ID_EMPRESA = 1
         );
 
-        _context.Sucursales.Add(sucursal);
+        _context.Sucursal.Add(sucursal);
         _context.SaveChanges();
 
         return new SucursalDto
@@ -53,7 +53,7 @@ public class SucursalService
 
     public SucursalDto ObtenerPorId(int id)
     {
-        Sucursal? sucursal = _context.Sucursales
+        Sucursal? sucursal = _context.Sucursal
             .FirstOrDefault(s => s.ID_SUCURSAL == id && s.ACTIVO);
 
         if (sucursal == null)
@@ -73,7 +73,7 @@ public class SucursalService
 
     public void Eliminar(int id)
     {
-        Sucursal? sucursal = _context.Sucursales.Find(id);
+        Sucursal? sucursal = _context.Sucursal.Find(id);
 
         if (sucursal == null)
         {

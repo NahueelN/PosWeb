@@ -3,8 +3,10 @@ namespace PosWeb.Contracts;
 public class CompraRequestDto
 {
     public int SucursalId { get; set; }
-    public string Proveedor { get; set; } = string.Empty;
+    public int ProveedorId { get; set; }
+    public int? UserId { get; set; }
     public List<CompraItemDto> Items { get; set; } = new();
+    public decimal? MontoPagado { get; set; }
 }
 
 public class CompraItemDto
@@ -17,7 +19,12 @@ public class CompraItemDto
     public string? CodigoBarra { get; set; }
     public string? Nombre { get; set; }
     public decimal Precio { get; set; }
-    public decimal? Costo { get; set; }          // Optional — defaults to 0 if null
+    public decimal? Costo { get; set; }
+    public int? CategoriaId { get; set; }
+    public string? DescAdicional { get; set; }
+    public decimal? Contenido { get; set; }
+    public int? UnidadMedidaId { get; set; }
+    public string? Tamano { get; set; }
 }
 
 public class NuevoProductoDto
@@ -26,4 +33,9 @@ public class NuevoProductoDto
     public string Nombre { get; set; } = null!;
     public decimal Precio { get; set; }
     public decimal Costo { get; set; }
+    public int? CategoriaId { get; set; }
+    public string? DescAdicional { get; set; }
+    public decimal? Contenido { get; set; }
+    public int? UnidadMedidaId { get; set; }
+    public string? Tamano { get; set; }
 }

@@ -29,7 +29,7 @@ public class AuthService
             throw new CredencialesInvalidasException();
         }
 
-        Usuario? usuario = _context.Usuarios
+        Usuario? usuario = _context.Usuario
             .FirstOrDefault(u => u.NOMBRE_USUARIO == request.Usuario);
 
         if (usuario == null)
@@ -69,7 +69,7 @@ public class AuthService
             throw new PinNoConfiguradoException();
         }
 
-        Usuario? usuario = _context.Usuarios
+        Usuario? usuario = _context.Usuario
             .FirstOrDefault(u => u.NOMBRE_USUARIO == request.Usuario);
 
         if (usuario == null)
@@ -140,7 +140,7 @@ public class AuthService
             ? Roles.Admin
             : (request.Rol?.Trim() ?? string.Empty);
 
-        if (_context.Usuarios.Any(u => u.NOMBRE_USUARIO == nombreUsuario))
+        if (_context.Usuario.Any(u => u.NOMBRE_USUARIO == nombreUsuario))
         {
             throw new ArgumentException("El usuario ya existe");
         }
@@ -155,7 +155,7 @@ public class AuthService
             mail,
             usuarioResponsableId: usuarioResponsableId);
 
-        _context.Usuarios.Add(nuevoUsuario);
+        _context.Usuario.Add(nuevoUsuario);
         _context.SaveChanges();
 
         return new RegisterResponseDto

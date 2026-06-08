@@ -17,7 +17,7 @@ public class ProductoService
 
     public List<ProductoDto> ObtenerActivos()
     {
-        return _context.Productos
+        return _context.Producto
             .Where(p => p.ACTIVO)
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
@@ -34,7 +34,7 @@ public class ProductoService
 
     public ProductoDto Crear(ProductoUpsertDto dto)
     {
-        bool codigoExiste = _context.Productos
+        bool codigoExiste = _context.Producto
             .Any(p => p.CODIGO_BARRAS == dto.CodigoBarras && p.ACTIVO);
 
         if (codigoExiste)
@@ -50,7 +50,7 @@ public class ProductoService
             dto.Costo
         );
 
-        _context.Productos.Add(producto);
+        _context.Producto.Add(producto);
         _context.SaveChanges();
 
         return MapToDto(producto);
@@ -68,7 +68,7 @@ public class ProductoService
             throw new CodigoBarraRequeridoException();
         }
 
-        Producto? producto = _context.Productos
+        Producto? producto = _context.Producto
             .FirstOrDefault(p => p.CODIGO_BARRAS == codigoBarras && p.ACTIVO);
 
         if (producto == null)
@@ -80,7 +80,7 @@ public class ProductoService
 
         if (sucursalId.HasValue)
         {
-            StockSucursal? stock = _context.StockSucursales
+            StockSucursal? stock = _context.StockSucursal
                 .FirstOrDefault(s => s.ID_PRODUCTO == producto.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value);
             dto.Stock = (int)(stock?.STOCK ?? 0);
         }
@@ -90,7 +90,7 @@ public class ProductoService
 
     public void Eliminar(int id)
     {
-        Producto? producto = _context.Productos.Find(id);
+        Producto? producto = _context.Producto.Find(id);
 
         if (producto == null)
         {
@@ -116,14 +116,14 @@ public class ProductoService
 
     public ProductoDto Modificar(int id, ProductoUpsertDto dto)
     {
-        Producto? producto = _context.Productos.Find(id);
+        Producto? producto = _context.Producto.Find(id);
         
         if (producto == null)
         {
             throw new ProductoNoEncontradoException(id);
         }
         
-        bool codigoDuplicado = _context.Productos
+        bool codigoDuplicado = _context.Producto
             .Any(p => p.CODIGO_BARRAS == dto.CodigoBarras
                       && p.ID_PRODUCTO != id
                       && p.ACTIVO);
@@ -150,7 +150,7 @@ public class ProductoService
             return new List<ProductoDto>();
         }
 
-        return _context.Productos
+        return _context.Producto
             .Where(p => p.ACTIVO && (EF.Functions.Like(p.DESC_PRODUCTO, $"%{term}%") || EF.Functions.Like(p.CODIGO_BARRAS, $"%{term}%")))
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
@@ -174,7 +174,7 @@ public class ProductoService
 
         string pattern = $"%{term}%";
 
-        return _context.Productos
+        return _context.Producto
             .Where(p => p.ACTIVO && (EF.Functions.Like(p.DESC_PRODUCTO, pattern) || EF.Functions.Like(p.CODIGO_BARRAS, pattern)))
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
@@ -184,7 +184,7 @@ public class ProductoService
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
-                    Stock = _context.StockSucursales
+                    Stock = _context.StockSucursal
                         .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId)
                         .Select(s => (int)s.STOCK)
                         .FirstOrDefault(),

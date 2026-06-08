@@ -10,37 +10,32 @@ public class PosDbContext : DbContext
     {
     }
 
-    // Existing entities (kept as-is)
-    public DbSet<Caja> Cajas { get; set; }
-
-    // Modified entities
-    public DbSet<Producto> Productos { get; set; }
-    public DbSet<Sucursal> Sucursales { get; set; }
-    public DbSet<StockSucursal> StockPorSucursal { get; set; }
-    public DbSet<Usuario> Usuarios { get; set; }
-    public DbSet<Cliente> Clientes { get; set; }
-    public DbSet<Venta> Ventas { get; set; }
-    public DbSet<RenglonVenta> RenglonesVenta { get; set; }
-    public DbSet<MedioPago> MediosPago { get; set; }
-    public DbSet<Pago> Pagos { get; set; }
-    public DbSet<Gasto> Gastos { get; set; }
-
-    // New entities
-    public DbSet<Suscripcion> Suscripciones { get; set; }
-    public DbSet<Empresa> Empresas { get; set; }
-    public DbSet<Categoria> Categorias { get; set; }
-    public DbSet<UnidadMedida> UnidadesMedida { get; set; }
-    public DbSet<Proveedor> Proveedores { get; set; }
-    public DbSet<Compra> Compras { get; set; }
-    public DbSet<RenglonCompra> RenglonesCompra { get; set; }
-    public DbSet<Deuda> Deudas { get; set; }
+    public DbSet<Caja> Caja { get; set; }
+    public DbSet<Producto> Producto { get; set; }
+    public DbSet<Sucursal> Sucursal { get; set; }
+    public DbSet<StockSucursal> StockSucursal { get; set; }
+    public DbSet<Usuario> Usuario { get; set; }
+    public DbSet<Cliente> Cliente { get; set; }
+    public DbSet<Venta> Venta { get; set; }
+    public DbSet<RenglonVenta> RenglonVenta { get; set; }
+    public DbSet<MedioPago> MedioPago { get; set; }
+    public DbSet<Pago> Pago { get; set; }
+    public DbSet<Gasto> Gasto { get; set; }
+    public DbSet<Suscripcion> Suscripcion { get; set; }
+    public DbSet<Empresa> Empresa { get; set; }
+    public DbSet<Categoria> Categoria { get; set; }
+    public DbSet<UnidadMedida> UnidadMedida { get; set; }
+    public DbSet<Proveedor> Proveedor { get; set; }
+    public DbSet<Compra> Compra { get; set; }
+    public DbSet<RenglonCompra> RenglonCompra { get; set; }
+    public DbSet<Deuda> Deuda { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // ── CAJA ──────────────────────────────────────────────────────
         modelBuilder.Entity<Caja>(entity =>
         {
-            entity.ToTable("CAJAS");
+            entity.ToTable("CAJA");
             entity.HasKey(e => e.ID_CAJA);
             entity.Property(e => e.ID_CAJA).HasColumnName("ID_CAJA").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_SUCURSAL).HasColumnName("ID_SUCURSAL").IsRequired();
@@ -62,7 +57,7 @@ public class PosDbContext : DbContext
         // ── PRODUCTO ──────────────────────────────────────────────────
         modelBuilder.Entity<Producto>(entity =>
         {
-            entity.ToTable("PRODUCTOS");
+            entity.ToTable("PRODUCTO");
             entity.HasKey(e => e.ID_PRODUCTO);
             entity.Property(e => e.ID_PRODUCTO).HasColumnName("ID_PRODUCTO").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_PRODUCTO).HasColumnName("COD_PRODUCTO").HasMaxLength(50).IsRequired();
@@ -97,7 +92,7 @@ public class PosDbContext : DbContext
         // ── SUCURSAL ──────────────────────────────────────────────────
         modelBuilder.Entity<Sucursal>(entity =>
         {
-            entity.ToTable("SUCURSALES");
+            entity.ToTable("SUCURSAL");
             entity.HasKey(e => e.ID_SUCURSAL);
             entity.Property(e => e.ID_SUCURSAL).HasColumnName("ID_SUCURSAL").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_SUCURSAL).HasColumnName("COD_SUCURSAL").IsRequired();
@@ -116,7 +111,7 @@ public class PosDbContext : DbContext
         // ── STOCK_POR_SUCURSAL ────────────────────────────────────────
         modelBuilder.Entity<StockSucursal>(entity =>
         {
-            entity.ToTable("STOCK_POR_SUCURSAL");
+            entity.ToTable("STOCK_SUCURSAL");
             entity.HasKey(e => new { e.ID_PRODUCTO, e.ID_SUCURSAL });
             entity.Property(e => e.ID_PRODUCTO).HasColumnName("ID_PRODUCTO").IsRequired();
             entity.Property(e => e.ID_SUCURSAL).HasColumnName("ID_SUCURSAL").IsRequired();
@@ -136,7 +131,7 @@ public class PosDbContext : DbContext
         // ── USUARIO ───────────────────────────────────────────────────
         modelBuilder.Entity<Usuario>(entity =>
         {
-            entity.ToTable("USUARIOS");
+            entity.ToTable("USUARIO");
             entity.HasKey(e => e.ID_USUARIO);
             entity.Property(e => e.ID_USUARIO).HasColumnName("ID_USUARIO").ValueGeneratedOnAdd();
             entity.Property(e => e.NOMBRE_USUARIO).HasColumnName("NOMBRE_USUARIO").HasMaxLength(50).IsRequired();
@@ -160,7 +155,7 @@ public class PosDbContext : DbContext
         // ── CLIENTE ───────────────────────────────────────────────────
         modelBuilder.Entity<Cliente>(entity =>
         {
-            entity.ToTable("CLIENTES");
+            entity.ToTable("CLIENTE");
             entity.HasKey(e => e.ID_CLIENTE);
             entity.Property(e => e.ID_CLIENTE).HasColumnName("ID_CLIENTE").ValueGeneratedOnAdd();
             entity.Property(e => e.NOMBRE).HasColumnName("NOMBRE").HasMaxLength(200).IsRequired();
@@ -179,7 +174,7 @@ public class PosDbContext : DbContext
         // ── VENTA ─────────────────────────────────────────────────────
         modelBuilder.Entity<Venta>(entity =>
         {
-            entity.ToTable("VENTAS");
+            entity.ToTable("VENTA");
             entity.HasKey(e => e.ID_VENTA);
             entity.Property(e => e.ID_VENTA).HasColumnName("ID_VENTA").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_SUCURSAL).HasColumnName("ID_SUCURSAL").IsRequired();
@@ -207,7 +202,7 @@ public class PosDbContext : DbContext
         // ── RENGLON_VENTA ─────────────────────────────────────────────
         modelBuilder.Entity<RenglonVenta>(entity =>
         {
-            entity.ToTable("RENGLONES_VENTA");
+            entity.ToTable("RENGLON_VENTA");
             entity.HasKey(e => e.ID_RENGLON_VENTA);
             entity.Property(e => e.ID_RENGLON_VENTA).HasColumnName("ID_RENGLON_VENTA").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_VENTA).HasColumnName("ID_VENTA").IsRequired();
@@ -225,7 +220,7 @@ public class PosDbContext : DbContext
         // ── MEDIO_PAGO ────────────────────────────────────────────────
         modelBuilder.Entity<MedioPago>(entity =>
         {
-            entity.ToTable("MEDIOS_PAGO");
+            entity.ToTable("MEDIO_PAGO");
             entity.HasKey(e => e.ID_MEDIO_PAGO);
             entity.Property(e => e.ID_MEDIO_PAGO).HasColumnName("ID_MEDIO_PAGO").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_MEDIO_PAGO).HasColumnName("COD_MEDIO_PAGO").HasMaxLength(20).IsRequired();
@@ -239,7 +234,7 @@ public class PosDbContext : DbContext
         // ── PAGO ──────────────────────────────────────────────────────
         modelBuilder.Entity<Pago>(entity =>
         {
-            entity.ToTable("PAGOS");
+            entity.ToTable("PAGO");
             entity.HasKey(e => e.ID_PAGO);
             entity.Property(e => e.ID_PAGO).HasColumnName("ID_PAGO").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_VENTA).HasColumnName("ID_VENTA").IsRequired();
@@ -273,7 +268,7 @@ public class PosDbContext : DbContext
         // ── GASTO ─────────────────────────────────────────────────────
         modelBuilder.Entity<Gasto>(entity =>
         {
-            entity.ToTable("GASTOS");
+            entity.ToTable("GASTO");
             entity.HasKey(e => e.ID_GASTO);
             entity.Property(e => e.ID_GASTO).HasColumnName("ID_GASTO").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_CAJA).HasColumnName("ID_CAJA").IsRequired();
@@ -290,7 +285,7 @@ public class PosDbContext : DbContext
         // ── SUSCRIPCION ───────────────────────────────────────────────
         modelBuilder.Entity<Suscripcion>(entity =>
         {
-            entity.ToTable("SUSCRIPCIONES");
+            entity.ToTable("SUSCRIPCION");
             entity.HasKey(e => e.ID_SUSCRIPCION);
             entity.Property(e => e.ID_SUSCRIPCION).HasColumnName("ID_SUSCRIPCION").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_USUARIO_TITULAR).HasColumnName("ID_USUARIO_TITULAR").IsRequired();
@@ -314,7 +309,7 @@ public class PosDbContext : DbContext
         // ── EMPRESA ───────────────────────────────────────────────────
         modelBuilder.Entity<Empresa>(entity =>
         {
-            entity.ToTable("EMPRESAS");
+            entity.ToTable("EMPRESA");
             entity.HasKey(e => e.ID_EMPRESA);
             entity.Property(e => e.ID_EMPRESA).HasColumnName("ID_EMPRESA").ValueGeneratedOnAdd();
             entity.Property(e => e.NOMBRE).HasColumnName("NOMBRE").HasMaxLength(200).IsRequired();
@@ -330,7 +325,7 @@ public class PosDbContext : DbContext
         // ── CATEGORIA ─────────────────────────────────────────────────
         modelBuilder.Entity<Categoria>(entity =>
         {
-            entity.ToTable("CATEGORIAS");
+            entity.ToTable("CATEGORIA");
             entity.HasKey(e => e.ID_CATEGORIA);
             entity.Property(e => e.ID_CATEGORIA).HasColumnName("ID_CATEGORIA").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_CATEGORIA).HasColumnName("COD_CATEGORIA").HasMaxLength(50).IsRequired();
@@ -342,7 +337,7 @@ public class PosDbContext : DbContext
         // ── UNIDAD_MEDIDA ─────────────────────────────────────────────
         modelBuilder.Entity<UnidadMedida>(entity =>
         {
-            entity.ToTable("UNIDADES_MEDIDA");
+            entity.ToTable("UNIDAD_MEDIDA");
             entity.HasKey(e => e.ID_UNIDAD_MEDIDA);
             entity.Property(e => e.ID_UNIDAD_MEDIDA).HasColumnName("ID_UNIDAD_MEDIDA").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_UNIDAD_MEDIDA).HasColumnName("COD_UNIDAD_MEDIDA").HasMaxLength(20).IsRequired();
@@ -355,7 +350,7 @@ public class PosDbContext : DbContext
         // ── PROVEEDOR ─────────────────────────────────────────────────
         modelBuilder.Entity<Proveedor>(entity =>
         {
-            entity.ToTable("PROVEEDORES");
+            entity.ToTable("PROVEEDOR");
             entity.HasKey(e => e.ID_PROVEEDOR);
             entity.Property(e => e.ID_PROVEEDOR).HasColumnName("ID_PROVEEDOR").ValueGeneratedOnAdd();
             entity.Property(e => e.COD_PROVEEDOR).HasColumnName("COD_PROVEEDOR").HasMaxLength(50).IsRequired();
@@ -373,7 +368,7 @@ public class PosDbContext : DbContext
         // ── COMPRA ────────────────────────────────────────────────────
         modelBuilder.Entity<Compra>(entity =>
         {
-            entity.ToTable("COMPRAS");
+            entity.ToTable("COMPRA");
             entity.HasKey(e => e.ID_COMPRA);
             entity.Property(e => e.ID_COMPRA).HasColumnName("ID_COMPRA").ValueGeneratedOnAdd();
             entity.Property(e => e.NUMERO_COMPROBANTE).HasColumnName("NUMERO_COMPROBANTE").IsRequired();
@@ -408,7 +403,7 @@ public class PosDbContext : DbContext
         // ── RENGLON_COMPRA ────────────────────────────────────────────
         modelBuilder.Entity<RenglonCompra>(entity =>
         {
-            entity.ToTable("RENGLONES_COMPRA");
+            entity.ToTable("RENGLON_COMPRA");
             entity.HasKey(e => e.ID_RENGLON_COMPRA);
             entity.Property(e => e.ID_RENGLON_COMPRA).HasColumnName("ID_RENGLON_COMPRA").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_COMPRA).HasColumnName("ID_COMPRA").IsRequired();
@@ -431,7 +426,7 @@ public class PosDbContext : DbContext
         // ── DEUDA ─────────────────────────────────────────────────────
         modelBuilder.Entity<Deuda>(entity =>
         {
-            entity.ToTable("DEUDAS");
+            entity.ToTable("DEUDA");
             entity.HasKey(e => e.ID_DEUDA);
             entity.Property(e => e.ID_DEUDA).HasColumnName("ID_DEUDA").ValueGeneratedOnAdd();
             entity.Property(e => e.ID_CLIENTE).HasColumnName("ID_CLIENTE");

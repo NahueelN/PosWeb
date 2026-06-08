@@ -6,6 +6,18 @@ Manage API client configuration and request handling for the frontend applicatio
 
 ## Requirements
 
+### Requirement: Proveedores API Methods
+
+The API client MUST expose `getProveedores(search?)`, `createProveedor(data)`, and `getProveedor(id)` matching the proveedor endpoints.
+
+#### Scenario: Type definitions align
+
+- GIVEN the frontend types are updated
+- WHEN TypeScript compiles
+- THEN no type errors exist for the new DTOs
+
+### Requirement: Runtime API Base URL Resolution
+
 ### Requirement: Runtime API Base URL Resolution
 
 The system MUST resolve the API base URL at runtime based on the deployment context (web/dev vs desktop/Tauri).

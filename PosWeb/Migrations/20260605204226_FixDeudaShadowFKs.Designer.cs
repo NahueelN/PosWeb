@@ -12,8 +12,8 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    [Migration("20260604235037_InitialMySql")]
-    partial class InitialMySql
+    [Migration("20260605204226_FixDeudaShadowFKs")]
+    partial class FixDeudaShadowFKs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -88,7 +88,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_USUARIO_CIERRE");
 
-                    b.ToTable("CAJAS", (string)null);
+                    b.ToTable("CAJA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Categoria", b =>
@@ -117,7 +117,7 @@ namespace PosWeb.Migrations
                     b.HasIndex("COD_CATEGORIA")
                         .IsUnique();
 
-                    b.ToTable("CATEGORIAS", (string)null);
+                    b.ToTable("CATEGORIA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Cliente", b =>
@@ -172,7 +172,7 @@ namespace PosWeb.Migrations
                         .IsUnique()
                         .HasFilter("ACTIVO = 1");
 
-                    b.ToTable("CLIENTES", (string)null);
+                    b.ToTable("CLIENTE", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Compra", b =>
@@ -222,7 +222,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_USUARIO");
 
-                    b.ToTable("COMPRAS", (string)null);
+                    b.ToTable("COMPRA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Deuda", b =>
@@ -276,7 +276,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_VENTA");
 
-                    b.ToTable("DEUDAS", (string)null);
+                    b.ToTable("DEUDA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Empresa", b =>
@@ -308,7 +308,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_SUSCRIPCION");
 
-                    b.ToTable("EMPRESAS", (string)null);
+                    b.ToTable("EMPRESA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
@@ -342,7 +342,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_CAJA");
 
-                    b.ToTable("GASTOS", (string)null);
+                    b.ToTable("GASTO", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
@@ -380,7 +380,7 @@ namespace PosWeb.Migrations
                         .IsUnique()
                         .HasFilter("ACTIVO = 1");
 
-                    b.ToTable("MEDIOS_PAGO", (string)null);
+                    b.ToTable("MEDIO_PAGO", (string)null);
 
                     b.HasData(
                         new
@@ -465,7 +465,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_VENTA");
 
-                    b.ToTable("PAGOS", (string)null);
+                    b.ToTable("PAGO", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Producto", b =>
@@ -541,7 +541,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_UNIDAD_MEDIDA");
 
-                    b.ToTable("PRODUCTOS", (string)null);
+                    b.ToTable("PRODUCTO", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Proveedor", b =>
@@ -600,7 +600,7 @@ namespace PosWeb.Migrations
                         .IsUnique()
                         .HasFilter("ACTIVO = 1");
 
-                    b.ToTable("PROVEEDORES", (string)null);
+                    b.ToTable("PROVEEDOR", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonCompra", b =>
@@ -638,7 +638,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_PRODUCTO");
 
-                    b.ToTable("RENGLONES_COMPRA", (string)null);
+                    b.ToTable("RENGLON_COMPRA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonVenta", b =>
@@ -676,7 +676,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_VENTA");
 
-                    b.ToTable("RENGLONES_VENTA", (string)null);
+                    b.ToTable("RENGLON_VENTA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.StockSucursal", b =>
@@ -697,7 +697,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_SUCURSAL");
 
-                    b.ToTable("STOCK_POR_SUCURSAL", (string)null);
+                    b.ToTable("STOCK_SUCURSAL", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Sucursal", b =>
@@ -737,7 +737,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_EMPRESA");
 
-                    b.ToTable("SUCURSALES", (string)null);
+                    b.ToTable("SUCURSAL", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Suscripcion", b =>
@@ -802,7 +802,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_USUARIO_TITULAR");
 
-                    b.ToTable("SUSCRIPCIONES", (string)null);
+                    b.ToTable("SUSCRIPCION", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.UnidadMedida", b =>
@@ -831,7 +831,7 @@ namespace PosWeb.Migrations
                     b.HasIndex("COD_UNIDAD_MEDIDA")
                         .IsUnique();
 
-                    b.ToTable("UNIDADES_MEDIDA", (string)null);
+                    b.ToTable("UNIDAD_MEDIDA", (string)null);
 
                     b.HasData(
                         new
@@ -912,7 +912,7 @@ namespace PosWeb.Migrations
                         .IsUnique()
                         .HasFilter("ACTIVO = 1");
 
-                    b.ToTable("USUARIOS", (string)null);
+                    b.ToTable("USUARIO", (string)null);
 
                     b.HasData(
                         new
@@ -964,7 +964,7 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_USUARIO");
 
-                    b.ToTable("VENTAS", (string)null);
+                    b.ToTable("VENTA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Caja", b =>
@@ -1020,12 +1020,12 @@ namespace PosWeb.Migrations
                         .HasForeignKey("ID_CLIENTE")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PosWeb.Domain.Compra", null)
+                    b.HasOne("PosWeb.Domain.Compra", "Compra")
                         .WithMany()
                         .HasForeignKey("ID_COMPRA")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PosWeb.Domain.Proveedor", null)
+                    b.HasOne("PosWeb.Domain.Proveedor", "Proveedor")
                         .WithMany()
                         .HasForeignKey("ID_PROVEEDOR")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -1034,6 +1034,10 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_VENTA")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Compra");
+
+                    b.Navigation("Proveedor");
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Empresa", b =>

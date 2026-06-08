@@ -37,7 +37,7 @@ public class StockSucursalServiceTest
             producto.Desactivar();
         }
 
-        context.Productos.Add(producto);
+        context.Producto.Add(producto);
         context.SaveChanges();
         return producto;
     }
@@ -52,7 +52,7 @@ public class StockSucursalServiceTest
             sucursal.Desactivar();
         }
 
-        context.Sucursales.Add(sucursal);
+        context.Sucursal.Add(sucursal);
         context.SaveChanges();
         return sucursal;
     }
@@ -60,7 +60,7 @@ public class StockSucursalServiceTest
     private static void CrearStock(PosDbContext context, int productoId, int sucursalId, int stock)
     {
         StockSucursal stockSucursal = new StockSucursal(productoId, sucursalId, stock);
-        context.StockSucursales.Add(stockSucursal);
+        context.StockSucursal.Add(stockSucursal);
         context.SaveChanges();
     }
 
@@ -120,7 +120,7 @@ public class StockSucursalServiceTest
 
         service.AjustarStock(producto.ID_PRODUCTO, 1, 8);
 
-        StockSucursal creado = Assert.Single(context.StockSucursales);
+        StockSucursal creado = Assert.Single(context.StockSucursal);
         Assert.Equal(producto.ID_PRODUCTO, creado.ID_PRODUCTO);
         Assert.Equal(1, creado.ID_SUCURSAL);
         Assert.Equal(8, creado.STOCK);

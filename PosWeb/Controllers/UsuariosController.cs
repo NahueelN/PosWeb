@@ -21,10 +21,10 @@ public class UsuariosController : ControllerBase
     [HttpGet]
     public IActionResult Listar()
     {
-        var responsables = _context.Usuarios
+        var responsables = _context.Usuario
             .ToDictionary(u => u.ID_USUARIO, u => u.NOMBRE_USUARIO);
 
-        var usuarios = _context.Usuarios
+        var usuarios = _context.Usuario
             .OrderBy(u => u.NOMBRE_USUARIO)
             .AsEnumerable()
             .Select(u => new UsuarioDto

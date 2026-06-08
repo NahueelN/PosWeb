@@ -17,7 +17,7 @@ public class ClienteService
 
     public PagedResult<ClienteDto> Listar(string? q, int page, int pageSize)
     {
-        IQueryable<Cliente> query = _context.Clientes;
+        IQueryable<Cliente> query = _context.Cliente;
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -58,7 +58,7 @@ public class ClienteService
 
     public ClienteDto? Obtener(int id)
     {
-        Cliente? cliente = _context.Clientes.Find(id);
+        Cliente? cliente = _context.Cliente.Find(id);
         if (cliente == null) return null;
 
         return MapToDto(cliente);
@@ -67,7 +67,7 @@ public class ClienteService
     public ClienteDto Crear(ClienteDto dto)
     {
         // Check duplicate document
-        bool duplicado = _context.Clientes
+        bool duplicado = _context.Cliente
             .Any(c => c.TIPO_DOCUMENTO == dto.TipoDocumento
                       && c.NRO_DOCUMENTO == dto.NumeroDocumento
                       && c.ACTIVO);
@@ -87,7 +87,7 @@ public class ClienteService
             dto.Mail
         );
 
-        _context.Clientes.Add(cliente);
+        _context.Cliente.Add(cliente);
         _context.SaveChanges();
 
         return MapToDto(cliente);
@@ -95,14 +95,14 @@ public class ClienteService
 
     public ClienteDto Actualizar(int id, ClienteDto dto)
     {
-        Cliente? cliente = _context.Clientes.Find(id);
+        Cliente? cliente = _context.Cliente.Find(id);
         if (cliente == null)
         {
             throw new ClienteNoEncontradoException(id);
         }
 
         // Check duplicate document excluding self
-        bool duplicado = _context.Clientes
+        bool duplicado = _context.Cliente
             .Any(c => c.TIPO_DOCUMENTO == dto.TipoDocumento
                       && c.NRO_DOCUMENTO == dto.NumeroDocumento
                       && c.ID_CLIENTE != id

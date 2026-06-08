@@ -14,6 +14,8 @@ import CajaPage from './pages/CajaPage'
 import AltaUsuarioPage from './pages/AltaUsuarioPage'
 import CompraPage from './pages/CompraPage'
 import GastosPage from './pages/GastosPage'
+import ProveedoresPage from './pages/ProveedoresPage'
+import DeudaPage from './pages/DeudaPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -80,6 +82,8 @@ export default function App() {
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/compras" element={<CompraPage />} />
             <Route path="/gastos" element={<GastosPage />} />
+            <Route path="/proveedores" element={<ProveedoresPage />} />
+            <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>
           </Route>

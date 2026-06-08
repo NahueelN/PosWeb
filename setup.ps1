@@ -1,49 +1,74 @@
 <#
 .SYNOPSIS
-  Setup PosWeb project — installs MySQL, creates database, applies migrations, seeds data.
+  Setup PosWeb project - installs MySQL, creates database, applies migrations, seeds data.
   Run this ONCE after cloning the repo on a new machine.
+  Ejecutar: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; .\setup.ps1
 #>
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 $MysqlDataDir = Join-Path $ProjectRoot "mysql-data"
 $SqlFile = Join-Path $ProjectRoot "seed.sql"
-$MysqlBin = "C:\Program Files\MySQL\MySQL Server 8.4\bin"
 
-Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     PosWeb — Setup completo              ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "     PosWeb - Setup completo" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ─── 1. Check/Install MySQL ─────────────────────────────────────────
-Write-Host "🔍 Paso 1: Verificando MySQL..." -ForegroundColor Yellow
-$mysqlInstalled = Test-Path "$MysqlBin\mysqld.exe"
+# --- Helper: find MySQL bin folder ---
+function Find-MySqlBin {
+    $candidates = @(
+        Get-ChildItem -Path "C:\Program Files\MySQL" -Directory -ErrorAction SilentlyContinue `
+            | Sort-Object Name -Descending `
+            | ForEach-Object { Join-Path $_.FullName "bin" }
+        Get-ChildItem -Path "C:\Program Files (x86)\MySQL" -Directory -ErrorAction SilentlyContinue `
+            | Sort-Object Name -Descending `
+            | ForEach-Object { Join-Path $_.FullName "bin" }
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path (Join-Path $c "mysqld.exe")) { return $c }
+    }
+    $fromPath = (Get-Command "mysqld" -ErrorAction SilentlyContinue).Source
+    if ($fromPath) { return (Split-Path $fromPath -Parent) }
+    return $null
+}
 
-if (-not $mysqlInstalled) {
+# ====================================================================
+# 1. Check / Install MySQL
+# ====================================================================
+Write-Host "[1/7] Verificando MySQL..." -ForegroundColor Yellow
+$MysqlBin = Find-MySqlBin
+
+if (-not $MysqlBin) {
     Write-Host "   MySQL no encontrado. Instalando via winget..." -ForegroundColor Yellow
     winget install --id Oracle.MySQL --accept-source-agreements --accept-package-agreements
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "✖ Error instalando MySQL. Instalalo manualmente: winget install Oracle.MySQL" -ForegroundColor Red
+        Write-Host "ERROR: No se pudo instalar MySQL. Instalalo manualmente:" -ForegroundColor Red
+        Write-Host "  winget install Oracle.MySQL" -ForegroundColor White
         exit 1
     }
-    Write-Host "✔ MySQL instalado correctamente" -ForegroundColor Green
-} else {
-    Write-Host "✔ MySQL ya está instalado" -ForegroundColor Green
+    Write-Host "   MySQL instalado. Detectando ruta..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
+    $MysqlBin = Find-MySqlBin
+    if (-not $MysqlBin) {
+        Write-Host "ERROR: MySQL se instaló pero no se encuentra mysqld.exe." -ForegroundColor Red
+        Write-Host "  Buscalo manualmente en C:\Program Files\MySQL\ y volvé a correr setup.ps1" -ForegroundColor Red
+        exit 1
+    }
 }
 
-# ─── 2. Initialize MySQL data directory ──────────────────────────────
-Write-Host ""
-Write-Host "🔍 Paso 2: Inicializando data directory..." -ForegroundColor Yellow
+Write-Host "   MySQL bin: $MysqlBin" -ForegroundColor Green
 
-# Check if MySQL is already initialized (look for mysql dir with data)
+# ====================================================================
+# 2. Initialize MySQL data directory (if needed)
+# ====================================================================
+Write-Host "[2/7] Verificando data directory..." -ForegroundColor Yellow
+
 $mysqlDataExists = Test-Path (Join-Path $MysqlDataDir "mysql")
-$mysqlRunning = $false
+$mysqlRunning = (Get-Process -Name "mysqld" -ErrorAction SilentlyContinue).Count -gt 0
 
-# Check if mysqld is already running
-$proc = Get-Process -Name "mysqld" -ErrorAction SilentlyContinue
-if ($proc) {
-    $mysqlRunning = $true
-    Write-Host "✔ MySQL ya está corriendo (PID: $($proc.Id))" -ForegroundColor Green
+if ($mysqlRunning) {
+    Write-Host "   MySQL ya está corriendo" -ForegroundColor Green
 }
 
 if (-not $mysqlRunning -and -not $mysqlDataExists) {
@@ -51,100 +76,122 @@ if (-not $mysqlRunning -and -not $mysqlDataExists) {
     New-Item -ItemType Directory -Path $MysqlDataDir -Force | Out-Null
     & "$MysqlBin\mysqld" --initialize-insecure --datadir="$MysqlDataDir" --console
     if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
-        Write-Host "✖ Error inicializando MySQL" -ForegroundColor Red
+        Write-Host "ERROR: No se pudo inicializar MySQL" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✔ Data directory inicializado" -ForegroundColor Green
+    Write-Host "   Data directory inicializado" -ForegroundColor Green
 } elseif (-not $mysqlRunning) {
-    Write-Host "✔ Data directory ya existe" -ForegroundColor Green
+    Write-Host "   Data directory ya existe" -ForegroundColor Green
 }
 
-# ─── 3. Start MySQL ─────────────────────────────────────────────────
+# ====================================================================
+# 3. Start MySQL
+# ====================================================================
 if (-not $mysqlRunning) {
-    Write-Host ""
-    Write-Host "🔍 Paso 3: Arrancando MySQL..." -ForegroundColor Yellow
+    Write-Host "[3/7] Arrancando MySQL..." -ForegroundColor Yellow
     $logFile = Join-Path $MysqlDataDir "mysql.log"
-    Start-Process -FilePath "$MysqlBin\mysqld" -ArgumentList "--datadir=$MysqlDataDir --port=3306" -WindowStyle Hidden -RedirectStandardOutput $logFile
-    Start-Sleep -Seconds 4
+    Start-Process -FilePath "$MysqlBin\mysqld" `
+        -ArgumentList "--datadir=$MysqlDataDir --port=3306" `
+        -WindowStyle Hidden -RedirectStandardOutput $logFile
+    Start-Sleep -Seconds 5
     $proc = Get-Process -Name "mysqld" -ErrorAction SilentlyContinue
     if (-not $proc) {
-        Write-Host "✖ Error arrancando MySQL. Revisá: $logFile" -ForegroundColor Red
+        Write-Host "ERROR: MySQL no arrancó. Revisá el log:" -ForegroundColor Red
+        Write-Host "  $logFile" -ForegroundColor White
         exit 1
     }
-    Write-Host "✔ MySQL corriendo (PID: $($proc[0].Id))" -ForegroundColor Green
+    Write-Host "   MySQL corriendo (PID: $($proc[0].Id))" -ForegroundColor Green
 }
 
-# ─── 4. Create database ─────────────────────────────────────────────
-Write-Host ""
-Write-Host "🔍 Paso 4: Creando base de datos posweb..." -ForegroundColor Yellow
+# ====================================================================
+# 4. Create database
+# ====================================================================
+Write-Host "[4/7] Creando base de datos posweb..." -ForegroundColor Yellow
 & "$MysqlBin\mysql" -u root -e "CREATE DATABASE IF NOT EXISTS posweb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "✖ Error creando la base de datos" -ForegroundColor Red
+    Write-Host "ERROR: No se pudo crear la base de datos" -ForegroundColor Red
     exit 1
 }
-Write-Host "✔ Base de datos 'posweb' creada" -ForegroundColor Green
+Write-Host "   Base de datos 'posweb' creada" -ForegroundColor Green
 
-# ─── 5. EF Core Migration ──────────────────────────────────────────
-Write-Host ""
-Write-Host "🔍 Paso 5: Aplicando migrations EF Core..." -ForegroundColor Yellow
+# ====================================================================
+# 5. Install dotnet-ef tool (if needed)
+# ====================================================================
+Write-Host "[5/7] Verificando dotnet-ef tool..." -ForegroundColor Yellow
+$efInstalled = dotnet tool list --global 2>&1 | Select-String "dotnet-ef"
+if (-not $efInstalled) {
+    Write-Host "   Instalando dotnet-ef..." -ForegroundColor Yellow
+    dotnet tool install --global dotnet-ef 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: No se pudo instalar dotnet-ef. Instalalo manualmente:" -ForegroundColor Red
+        Write-Host "  dotnet tool install --global dotnet-ef" -ForegroundColor White
+        exit 1
+    }
+}
+Write-Host "   dotnet-ef listo" -ForegroundColor Green
+
+# ====================================================================
+# 6. EF Core migrations
+# ====================================================================
+Write-Host "[6/7] Aplicando migrations EF Core..." -ForegroundColor Yellow
 Push-Location (Join-Path $ProjectRoot "PosWeb")
 dotnet ef database update 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "✖ Error aplicando migrations" -ForegroundColor Red
+    Write-Host "ERROR: Fallaron las migrations" -ForegroundColor Red
     Pop-Location
     exit 1
 }
 Pop-Location
-Write-Host "✔ Migrations aplicadas correctamente" -ForegroundColor Green
+Write-Host "   Migrations aplicadas" -ForegroundColor Green
 
-# ─── 6. Seed data ──────────────────────────────────────────────────
-Write-Host ""
-Write-Host "🔍 Paso 6: Insertando datos semilla..." -ForegroundColor Yellow
+# ====================================================================
+# 7. Seed data + npm install
+# ====================================================================
+Write-Host "[7/7] Insertando datos semilla y preparando frontend..." -ForegroundColor Yellow
+
+# Seed SQL
 if (Test-Path $SqlFile) {
-    & "$MysqlBin\mysql" -u root posweb < $SqlFile 2>&1
+    Get-Content $SqlFile | & "$MysqlBin\mysql" -u root posweb 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "✖ Error insertando seed data" -ForegroundColor Red
-        exit 1
+        Write-Host "WARNING: Error insertando seed data (puede que ya exista)" -ForegroundColor Yellow
+    } else {
+        Write-Host "   Datos semilla insertados" -ForegroundColor Green
     }
-    Write-Host "✔ Datos semilla insertados" -ForegroundColor Green
 } else {
-    Write-Host "✖ No se encuentra seed.sql en $SqlFile" -ForegroundColor Red
-    exit 1
+    Write-Host "WARNING: No se encuentra seed.sql en $SqlFile" -ForegroundColor Yellow
 }
 
-# ─── 7. npm install ─────────────────────────────────────────────────
-Write-Host ""
-Write-Host "🔍 Paso 7: Instalando dependencias del frontend..." -ForegroundColor Yellow
+# npm install
 if (Test-Path (Join-Path $ProjectRoot "frontend\package.json")) {
     Push-Location (Join-Path $ProjectRoot "frontend")
     npm install 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "⚠ npm install tuvo errores, revisá manualmente" -ForegroundColor Yellow
+        Write-Host "WARNING: npm install tuvo errores. Revisá manualmente." -ForegroundColor Yellow
     } else {
-        Write-Host "✔ Dependencias del frontend instaladas" -ForegroundColor Green
+        Write-Host "   Dependencias del frontend instaladas" -ForegroundColor Green
     }
     Pop-Location
-} else {
-    Write-Host "⚠ No se encontró frontend/package.json" -ForegroundColor Yellow
 }
 
-# ─── Done ──────────────────────────────────────────────────────────
+# ====================================================================
+# Done
+# ====================================================================
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║  ✅  Setup completado                      ║" -ForegroundColor Green
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  Setup completado!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Para levantar el proyecto:"
+Write-Host "Para levantar el proyecto:" -ForegroundColor White
+Write-Host ""
 Write-Host "  1. Backend (no cerrar):" -ForegroundColor Cyan
-Write-Host "     cd PosWeb" -ForegroundColor White
-Write-Host "     dotnet run" -ForegroundColor White
+Write-Host "     dotnet run --project PosWeb" -ForegroundColor White
 Write-Host ""
 Write-Host "  2. Frontend (otra terminal):" -ForegroundColor Cyan
 Write-Host "     cd frontend" -ForegroundColor White
 Write-Host "     npm run dev" -ForegroundColor White
 Write-Host ""
 Write-Host "  3. Abrir http://localhost:5173" -ForegroundColor Cyan
-Write-Host "     Usuario: admin / Contraseña: 123" -ForegroundColor White
+Write-Host "     Usuario: admin / Contrasena: 123" -ForegroundColor White
 Write-Host ""
-Write-Host "⚠ Para APAGAR MySQL al terminar:" -ForegroundColor Yellow
-Write-Host "  C:\Dev\Pos\stop-mysql.ps1" -ForegroundColor White
+Write-Host "Para APAGAR MySQL al terminar:" -ForegroundColor Yellow
+Write-Host "  .\stop-mysql.ps1" -ForegroundColor White
