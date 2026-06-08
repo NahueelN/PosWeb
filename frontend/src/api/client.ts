@@ -109,7 +109,10 @@ export const api = {
 
   // Productos
   productos: {
-    listar: () => request<ProductoDto[]>('/productos'),
+    listar: (sucursalId?: number) => {
+      const query = sucursalId ? `?sucursalId=${sucursalId}` : '';
+      return request<ProductoDto[]>(`/productos${query}`);
+    },
     buscar: (q: string) => request<ProductoDto[]>(`/productos/buscar?q=${encodeURIComponent(q)}`),
     buscarParaVenta: (q: string, sucursalId: number) =>
       request<ProductoDto[]>(`/productos/buscar-venta?q=${encodeURIComponent(q)}&sucursalId=${sucursalId}`),

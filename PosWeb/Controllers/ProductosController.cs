@@ -16,9 +16,9 @@ public class ProductosController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult Get()
+    public IActionResult Get([FromQuery] int? sucursalId = null)
     {
-        return Ok(_productoService.ObtenerActivos());
+        return Ok(_productoService.ObtenerActivos(sucursalId));
     }
 
     [HttpGet("barra/{codigoBarra}")]
