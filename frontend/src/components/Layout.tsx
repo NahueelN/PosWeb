@@ -21,6 +21,7 @@ const menuGroups = [
       { to: '/stock', label: 'Stock', icon: '📊' },
       { to: '/productos', label: 'Productos', icon: '📦' },
       { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
+      { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
   },
   {

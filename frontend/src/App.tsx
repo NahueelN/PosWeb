@@ -18,6 +18,7 @@ import CompraPage from './pages/CompraPage'
 import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
+import EstadisticasPage from './pages/EstadisticasPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -87,7 +88,8 @@ export default function App() {
             <Route path="/compras" element={<CompraPage />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/proveedores" element={<ProveedoresPage />} />
-            <Route path="/deudas" element={<DeudaPage />} />
+              <Route path="/deudas" element={<DeudaPage />} />
+              <Route path="/estadisticas" element={<EstadisticasPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>
           </Route>

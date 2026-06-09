@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, EstadisticasDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -299,5 +299,14 @@ export const api = {
     },
     unidadesMedida: {
       listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
+    },
+
+  // Estadísticas
+    estadisticas: {
+      obtener: (desde: string, hasta: string, sucursalId?: number) =>
+        request<EstadisticasDto>('/estadisticas', {
+          method: 'POST',
+          body: JSON.stringify({ desde, hasta, sucursalId }),
+        }),
     },
 }
