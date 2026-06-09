@@ -5,10 +5,14 @@ import { useAuth } from '../context/AuthContext'
 
 const menuGroups = [
   {
-    label: 'Personas',
+    label: 'Operaciones',
     links: [
-      { to: '/clientes', label: 'Clientes', icon: '👤' },
-      { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
+      { to: '/ventas', label: 'Ventas', icon: '🛒' },
+      { to: '/historial', label: 'Historial', icon: '📋' },
+      { to: '/compras', label: 'Compras', icon: '📥' },
+      { to: '/gastos', label: 'Gastos', icon: '💸' },
+      { to: '/deudas', label: 'Deudas', icon: '📝' },
+      { to: '/caja', label: 'Caja', icon: '💰' },
     ],
   },
   {
@@ -20,14 +24,10 @@ const menuGroups = [
     ],
   },
   {
-    label: 'Operaciones',
+    label: 'Personas',
     links: [
-      { to: '/ventas', label: 'Ventas', icon: '🛒' },
-      { to: '/historial', label: 'Historial', icon: '📋' },
-      { to: '/compras', label: 'Compras', icon: '📥' },
-      { to: '/gastos', label: 'Gastos', icon: '💸' },
-      { to: '/deudas', label: 'Deudas', icon: '📝' },
-      { to: '/caja', label: 'Caja', icon: '💰' },
+      { to: '/clientes', label: 'Clientes', icon: '👤' },
+      { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
     ],
   },
 ]
