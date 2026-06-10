@@ -13,6 +13,35 @@ function formatDate(d: string) {
   return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function exportarCSV(data: EstadisticasDto) {
+  const lines: string[] = []
+
+  lines.push('Estadísticas,' + formatDate(data.desde) + ' - ' + formatDate(data.hasta))
+  lines.push('')
+  lines.push('Total ventas,' + data.totalVentas)
+  lines.push('Facturación,' + formatCurrency(data.facturacion))
+  lines.push('Costo total,' + formatCurrency(data.costoTotal))
+  lines.push('Resultado neto,' + formatCurrency(data.resultadoNeto))
+  lines.push('Ticket promedio,' + formatCurrency(data.ticketPromedio))
+  if (data.mejorDia) {
+    lines.push('Mejor día,' + formatDate(data.mejorDia) + ',' + formatCurrency(data.mejorDiaFacturacion))
+  }
+  lines.push('')
+  lines.push('#,Producto,Código,Cantidad,Subtotal')
+  data.topProductos.forEach((p, i) => {
+    lines.push([i + 1, p.productoNombre, p.codigoBarra, p.cantidadVendida, formatCurrency(p.subtotal)].join(','))
+  })
+
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `estadisticas_${data.desde}_${data.hasta}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function EstadisticasPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const { notifyError } = useNotification()
@@ -40,11 +69,24 @@ export default function EstadisticasPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Estadísticas</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {sucursal ? `Sucursal: ${sucursal.nombre}` : 'Todas las sucursales'}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Estadísticas</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {sucursal ? `Sucursal: ${sucursal.nombre}` : 'Todas las sucursales'}
+          </p>
+        </div>
+        {data && (
+          <button
+            onClick={() => exportarCSV(data)}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Exportar
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
