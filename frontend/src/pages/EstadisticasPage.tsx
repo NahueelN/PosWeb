@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
@@ -43,22 +43,32 @@ function exportarCSV(data: EstadisticasDto) {
 }
 
 export default function EstadisticasPage() {
-  const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
+  const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const { notifyError } = useNotification()
 
   const hoy = new Date().toISOString().slice(0, 10)
   const hace30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
 
+  const [sucursales, setSucursales] = useState<SucursalDto[]>([])
+  const [sucursalId, setSucursalId] = useState<number | null>(ctxSucursal?.id ?? null)
   const [desde, setDesde] = useState(hace30)
   const [hasta, setHasta] = useState(hoy)
   const [data, setData] = useState<EstadisticasDto | null>(null)
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    api.sucursales.listar().then(setSucursales).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (ctxSucursal) setSucursalId(ctxSucursal.id)
+  }, [ctxSucursal])
+
   async function consultar() {
     if (!desde || !hasta) return
     setLoading(true)
     try {
-      const res = await api.estadisticas.obtener(desde, hasta, sucursal?.id)
+      const res = await api.estadisticas.obtener(desde, hasta, sucursalId ?? undefined)
       setData(res)
     } catch (e: any) {
       notifyError(e.message)
@@ -73,7 +83,7 @@ export default function EstadisticasPage() {
         <div>
           <h2 className="text-xl font-bold text-gray-900">Estadísticas</h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            {sucursal ? `Sucursal: ${sucursal.nombre}` : 'Todas las sucursales'}
+            {sucursalId ? sucursales.find(s => s.id === sucursalId)?.nombre : 'Todas las sucursales'}
           </p>
         </div>
         {data && (
@@ -92,6 +102,19 @@ export default function EstadisticasPage() {
       {/* Filtros */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
         <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Sucursal</label>
+            <select
+              value={sucursalId ?? ''}
+              onChange={e => setSucursalId(e.target.value ? Number(e.target.value) : null)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white"
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Desde</label>
             <input
