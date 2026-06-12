@@ -272,6 +272,9 @@ public class PosDbContext : DbContext
             entity.Property(v => v.ID_CLIENTE)
                 .HasColumnName("ID_CLIENTE");
 
+            entity.Property(v => v.ANULADA)
+                .HasColumnName("ANULADA");
+
             entity.Navigation(v => v.RENGLONES)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
 

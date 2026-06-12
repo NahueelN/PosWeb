@@ -3,6 +3,13 @@ import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { VentaHistorialDto, VentaDetalleDto, PagedResult, SucursalDto } from '../types'
 
+function isWithinLastMonth(dateStr: string): boolean {
+  const date = new Date(dateStr)
+  const limit = new Date()
+  limit.setMonth(limit.getMonth() - 1)
+  return date >= limit
+}
+
 function toDateInputValue(date: Date): string {
   return date.toISOString().split('T')[0]
 }
@@ -28,7 +35,7 @@ export default function HistorialVentasPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<PagedResult<VentaHistorialDto> | null>(null)
   const [loading, setLoading] = useState(true)
-  const { notifyError } = useNotification()
+  const { notifyError, notifySuccess } = useNotification()
   const [searchId, setSearchId] = useState(0)
 
   // Detail expand
@@ -100,6 +107,26 @@ export default function HistorialVentasPage() {
       } finally {
         setDetailLoadingId(null)
       }
+    }
+  }
+
+  const [undoVentaId, setUndoVentaId] = useState<number | null>(null)
+  const [undoLoading, setUndoLoading] = useState(false)
+
+  async function handleUndo(conDevolucion: boolean) {
+    if (undoVentaId === null) return
+    setUndoLoading(true)
+    try {
+      await api.ventas.deshacer(undoVentaId, conDevolucion)
+      notifySuccess(conDevolucion
+        ? 'Venta anulada con devolución de dinero'
+        : 'Venta anulada sin devolución')
+      setUndoVentaId(null)
+      fetchData()
+    } catch (e: any) {
+      notifyError(e.message)
+    } finally {
+      setUndoLoading(false)
     }
   }
 
@@ -225,8 +252,10 @@ export default function HistorialVentasPage() {
                   <th className="px-4 py-3">N° Venta</th>
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Sucursal</th>
+                  <th className="px-4 py-3">Usuario</th>
                   <th className="px-4 py-3">Artículos</th>
                   <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 w-10"></th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
@@ -235,16 +264,19 @@ export default function HistorialVentasPage() {
                   <Fragment key={venta.ventaId}>
                     <tr
                       onClick={() => handleToggleExpand(venta.ventaId)}
-                      className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      className={`hover:bg-gray-50/50 transition-colors cursor-pointer ${venta.anulada ? 'bg-red-50/50' : ''}`}
                     >
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">
                         #{venta.ventaId}
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
+                      <td className="px-4 py-3 text-gray-700 text-xs">
                         {new Date(venta.fecha).toLocaleString('es-AR')}
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
+                      <td className="px-4 py-3 text-gray-700 text-xs">
                         {venta.sucursalNombre}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 text-xs">
+                        {venta.usuarioNombre || '—'}
                       </td>
                       <td className="px-4 py-3 text-gray-700">
                         {venta.cantidadItems} items
@@ -253,19 +285,34 @@ export default function HistorialVentasPage() {
                         ${venta.total.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
-                        <svg
-                          className={`w-4 h-4 text-gray-400 transition-transform ${expandedId === venta.ventaId ? 'rotate-180' : ''}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
+                        {venta.anulada ? (
+                          <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Anulada</span>
+                        ) : (
+                          <svg
+                            className={`w-4 h-4 text-gray-400 transition-transform ${expandedId === venta.ventaId ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!venta.anulada && isWithinLastMonth(venta.fecha) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setUndoVentaId(venta.ventaId) }}
+                            className="text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors"
+                            title="Deshacer venta"
+                          >
+                            Deshacer
+                          </button>
+                        )}
                       </td>
                     </tr>
 
                     {/* Expanded detail row */}
                     {expandedId === venta.ventaId && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-4 bg-gray-50">
+                        <td colSpan={8} className="px-4 py-4 bg-gray-50">
                           {detailLoadingId === venta.ventaId ? (
                             <div className="flex items-center justify-center py-8">
                               <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -351,6 +398,41 @@ export default function HistorialVentasPage() {
           >
             Siguiente →
           </button>
+        </div>
+      )}
+
+      {/* Undo confirmation modal */}
+      {undoVentaId !== null && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setUndoVentaId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Deshacer venta #{undoVentaId}</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              El stock se restaurará automáticamente. ¿Devolver el dinero en efectivo?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleUndo(true)}
+                disabled={undoLoading}
+                className="w-full bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {undoLoading ? 'Procesando...' : 'Deshacer con devolución'}
+              </button>
+              <button
+                onClick={() => handleUndo(false)}
+                disabled={undoLoading}
+                className="w-full bg-amber-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                {undoLoading ? 'Procesando...' : 'Deshacer sin devolución'}
+              </button>
+              <button
+                onClick={() => setUndoVentaId(null)}
+                disabled={undoLoading}
+                className="w-full bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-300 disabled:opacity-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

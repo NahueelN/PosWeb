@@ -255,8 +255,13 @@ public class VentaService
                     .Where(s => s.ID_SUCURSAL == v.ID_SUCURSAL)
                     .Select(s => s.DESC_SUCURSAL)
                     .FirstOrDefault(),
+                UsuarioNombre = _context.Usuario
+                    .Where(u => u.ID_USUARIO == v.ID_USUARIO)
+                    .Select(u => u.NOMBRE_USUARIO)
+                    .FirstOrDefault(),
                 Total = v.TOTAL,
-                CantidadItems = v.RENGLONES.Count
+                CantidadItems = v.RENGLONES.Count,
+                Anulada = v.ANULADA
             })
             .ToListAsync();
 
@@ -303,5 +308,51 @@ public class VentaService
             Total = venta.TOTAL,
             Items = items
         };
+    }
+
+    public void DeshacerVenta(int ventaId, bool conDevolucion = false)
+    {
+        var venta = _context.Venta.Find(ventaId)
+            ?? throw new VentaNoEncontradaException(ventaId);
+
+        if (venta.ANULADA)
+            throw new InvalidOperationException("La venta ya fue anulada");
+
+        var limite = DateTime.Now.AddMonths(-1);
+        if (venta.FECHA_VENTA < limite)
+            throw new InvalidOperationException("Solo se pueden deshacer ventas del último mes");
+
+        var renglones = _context.RenglonVenta
+            .Where(r => r.ID_VENTA == ventaId)
+            .ToList();
+
+        foreach (var r in renglones)
+        {
+            var stock = _context.StockSucursal
+                .FirstOrDefault(s => s.ID_PRODUCTO == r.ID_PRODUCTO && s.ID_SUCURSAL == venta.ID_SUCURSAL);
+            if (stock != null)
+            {
+                stock.AjustarStock(stock.STOCK + r.CANTIDAD);
+            }
+        }
+
+        if (conDevolucion)
+        {
+            var cajaActiva = _context.Caja
+                .FirstOrDefault(c => c.ID_SUCURSAL == venta.ID_SUCURSAL && c.ESTADO == "Abierta");
+
+            if (cajaActiva != null)
+            {
+                var gastoDevolucion = new Gasto(
+                    cajaActiva.ID_CAJA,
+                    venta.TOTAL,
+                    $"Devolución venta #{ventaId}"
+                );
+                _context.Gasto.Add(gastoDevolucion);
+            }
+        }
+
+        venta.Anular();
+        _context.SaveChanges();
     }
 }

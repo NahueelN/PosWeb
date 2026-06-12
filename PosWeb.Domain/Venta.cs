@@ -18,6 +18,8 @@ public class Venta
 
     public int? ID_CLIENTE { get; private set; }
 
+    public bool ANULADA { get; private set; }
+
     private readonly List<RenglonVenta> _RENGLONES = new();
 
     public IReadOnlyCollection<RenglonVenta> RENGLONES => _RENGLONES;
@@ -75,5 +77,10 @@ public class Venta
     private void RecalcularTotal()
     {
         TOTAL = _RENGLONES.Sum(r => r.SUBTOTAL);
+    }
+
+    public void Anular()
+    {
+        ANULADA = true;
     }
 }

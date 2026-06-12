@@ -74,8 +74,10 @@ export interface VentaHistorialDto {
   ventaId: number
   fecha: string
   sucursalNombre: string
+  usuarioNombre?: string
   total: number
   cantidadItems: number
+  anulada: boolean
 }
 
 export interface VentaDetalleDto {

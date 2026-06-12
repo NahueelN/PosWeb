@@ -75,4 +75,12 @@ public class VentasController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("{id}/deshacer")]
+    [Authorize]
+    public IActionResult Deshacer(int id, [FromBody] DeshacerVentaRequest request)
+    {
+        _ventaService.DeshacerVenta(id, request.ConDevolucion);
+        return Ok(new { message = "Venta anulada y stock restaurado" });
+    }
 }
