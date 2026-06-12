@@ -260,7 +260,8 @@ namespace PosWeb.Migrations
                         .HasColumnName("MONTO_DEUDA");
 
                     b.Property<decimal>("MONTO_PAGADO")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO_PAGADO");
 
                     b.Property<bool>("PAGO")
                         .HasColumnType("tinyint(1)")
@@ -843,19 +844,31 @@ namespace PosWeb.Migrations
                         {
                             ID_UNIDAD_MEDIDA = 1,
                             COD_UNIDAD_MEDIDA = "UNIDAD",
-                            DESC_UNIDAD_MEDIDA = "Unidad"
+                            DESC_UNIDAD_MEDIDA = "Unidades"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 2,
                             COD_UNIDAD_MEDIDA = "KILO",
-                            DESC_UNIDAD_MEDIDA = "Kilogramo"
+                            DESC_UNIDAD_MEDIDA = "Kilogramos"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 3,
-                            COD_UNIDAD_MEDIDA = "LITRO",
-                            DESC_UNIDAD_MEDIDA = "Litro"
+                            COD_UNIDAD_MEDIDA = "L",
+                            DESC_UNIDAD_MEDIDA = "Litros"
+                        },
+                        new
+                        {
+                            ID_UNIDAD_MEDIDA = 4,
+                            COD_UNIDAD_MEDIDA = "ML",
+                            DESC_UNIDAD_MEDIDA = "Mililitros"
+                        },
+                        new
+                        {
+                            ID_UNIDAD_MEDIDA = 5,
+                            COD_UNIDAD_MEDIDA = "GR",
+                            DESC_UNIDAD_MEDIDA = "Gramos"
                         });
                 });
 

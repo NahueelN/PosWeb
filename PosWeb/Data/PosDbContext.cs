@@ -808,6 +808,10 @@ public class PosDbContext : DbContext
             entity.Property(d => d.FECHA_PAGO)
                 .HasColumnName("FECHA_PAGO");
 
+            entity.Property(d => d.MONTO_PAGADO)
+                .HasColumnName("MONTO_PAGADO")
+                .HasColumnType("decimal(18,2)");
+
             entity.Property(d => d.PAGO)
                 .HasColumnName("PAGO");
 
