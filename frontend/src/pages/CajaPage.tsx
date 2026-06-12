@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import type { CajaDto, SucursalDto, CierrePreviewDto } from '../types'
 
 export default function CajaPage() {
@@ -8,8 +9,7 @@ export default function CajaPage() {
   const [caja, setCaja] = useState<CajaDto | null>(null)
   const [activa, setActiva] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { notifyError, notifySuccess } = useNotification()
   const [reporteCierre, setReporteCierre] = useState<CajaDto | null>(null)
   const [preview, setPreview] = useState<CierrePreviewDto | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -32,7 +32,7 @@ export default function CajaPage() {
         loadPreview(res.caja.id)
       }
     } catch (err: any) {
-      setError(err.message || 'Error al cargar caja')
+      notifyError(err.message || 'Error al cargar caja')
     } finally {
       setLoading(false)
     }
@@ -56,8 +56,6 @@ export default function CajaPage() {
     e.preventDefault()
     if (!sucursal) return
     setLoading(true)
-    setError('')
-    setSuccess('')
 
     try {
       const result = await api.cajas.abrir({
@@ -69,9 +67,9 @@ export default function CajaPage() {
       setReporteCierre(null)
       setPreview(null)
       setMontoInicial('')
-      setSuccess('Caja abierta correctamente')
+      notifySuccess('Caja abierta correctamente')
     } catch (err: any) {
-      setError(err.message || 'Error al abrir caja')
+      notifyError(err.message || 'Error al abrir caja')
     } finally {
       setLoading(false)
     }
@@ -81,8 +79,6 @@ export default function CajaPage() {
     e.preventDefault()
     if (!caja) return
     setLoading(true)
-    setError('')
-    setSuccess('')
 
     try {
       const result = await api.cajas.cerrar(caja.id, {
@@ -96,7 +92,7 @@ export default function CajaPage() {
       setMontoEfectivo('')
       setMontoTarjetas('')
     } catch (err: any) {
-      setError(err.message || 'Error al cerrar caja')
+      notifyError(err.message || 'Error al cerrar caja')
     } finally {
       setLoading(false)
     }
@@ -120,13 +116,6 @@ export default function CajaPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Caja - {sucursal.nombre}</h1>
-
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
-      )}
-      {success && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-lg">{success}</div>
-      )}
 
       {loading && !caja ? (
         <div className="text-center py-8 text-gray-500">Cargando...</div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
 import type { ProductoDto } from '../types'
 
@@ -21,7 +22,7 @@ export default function ProductosPage() {
   const [precio, setPrecio] = useState('')
   const [costo, setCosto] = useState('')
   const [tamano, setTamano] = useState('')
-  const [error, setError] = useState('')
+  const { notifyError } = useNotification()
   const [postCreateProduct, setPostCreateProduct] = useState<ProductoDto | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editState, setEditState] = useState<EditState | null>(null)
@@ -41,15 +42,13 @@ export default function ProductosPage() {
 
   async function listar() {
     try {
-      setError('')
       setProductos(await api.productos.listar())
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   async function handleCrear(e: FormEvent) {
     e.preventDefault()
     try {
-      setError('')
       const created = await api.productos.crear({
         codigoBarra, nombre, tamano: tamano || undefined,
         precio: Number(precio), costo: Number(costo),
@@ -58,15 +57,14 @@ export default function ProductosPage() {
       setPostCreateProduct(created)
       setShowForm(false)
       await listar()
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   async function handleEliminar(id: number) {
     try {
-      setError('')
       await api.productos.eliminar(id)
       await listar()
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   function startEdit(p: ProductoDto) {
@@ -78,19 +76,16 @@ export default function ProductosPage() {
       costo: p.costo.toString(),
       tamano: p.tamano || '',
     })
-    setError('')
   }
 
   function cancelEdit() {
     setEditState(null)
-    setError('')
   }
 
   async function saveEdit() {
     if (!editState) return
     const id = editState.id
     try {
-      setError('')
       const updated = await api.productos.actualizar(id, {
         codigoBarra: editState.codigoBarra,
         nombre: editState.nombre,
@@ -100,7 +95,7 @@ export default function ProductosPage() {
       })
       setProductos(prev => prev.map(p => p.id === updated.id ? updated : p))
       setEditState(null)
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   function focusCard(id: number) {
@@ -132,15 +127,6 @@ export default function ProductosPage() {
           Nuevo producto
         </button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
-          {error}
-        </div>
-      )}
 
       {postCreateProduct && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-2xl px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useNotification } from '../context/NotificationContext'
 import type { UsuarioListadoDto } from '../types'
 
 export default function AltaUsuarioPage() {
@@ -15,9 +16,7 @@ export default function AltaUsuarioPage() {
   const [empresaRepresenta, setEmpresaRepresenta] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
-  const [formError, setFormError] = useState('')
-  const [listError, setListError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { notifyError, notifySuccess } = useNotification()
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
@@ -31,13 +30,12 @@ export default function AltaUsuarioPage() {
 
   async function loadUsuarios() {
     setLoadingList(true)
-    setListError('')
     try {
       const result = await api.usuarios.listar()
       setUsuarios(result)
     } catch (err: any) {
       const msg = err.message || 'Error al cargar usuarios'
-      setListError(msg)
+      notifyError(msg)
     } finally {
       setLoadingList(false)
     }
@@ -45,8 +43,6 @@ export default function AltaUsuarioPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setFormError('')
-    setSuccess('')
     setLoading(true)
 
     try {
@@ -57,7 +53,7 @@ export default function AltaUsuarioPage() {
         rol,
         empresaRepresenta: rol === 'Admin' ? empresaRepresenta : null,
       })
-      setSuccess(`Usuario ${rol === 'Admin' ? 'admin' : 'común'} creado correctamente.`)
+      notifySuccess(`Usuario ${rol === 'Admin' ? 'admin' : 'común'} creado correctamente.`)
       setUsuario('')
       setPassword('')
       setMail('')
@@ -70,9 +66,9 @@ export default function AltaUsuarioPage() {
         const parts = msg.split(': ')
         const jsonPart = parts[parts.length - 1]
         const parsed = JSON.parse(jsonPart)
-        setFormError(parsed.error || msg)
+        notifyError(parsed.error || msg)
       } catch {
-        setFormError(msg)
+        notifyError(msg)
       }
     } finally {
       setLoading(false)
@@ -157,18 +153,6 @@ export default function AltaUsuarioPage() {
             </div>
           )}
 
-          {formError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
-              {formError}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-lg">
-              {success}
-            </div>
-          )}
-
           <div className="flex gap-3">
             <button
               type="submit"
@@ -207,15 +191,6 @@ export default function AltaUsuarioPage() {
         {loadingList ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             Cargando usuarios...
-          </div>
-        ) : listError ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-            {listError}
-            {listError.includes('404') && (
-              <div className="mt-1 text-xs text-amber-600">
-                Si acabas de agregar esta pantalla, reiniciá el backend para cargar el nuevo endpoint /api/usuarios.
-              </div>
-            )}
           </div>
         ) : usuarios.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">

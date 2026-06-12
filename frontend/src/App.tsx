@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
+import DialogContainer from './components/ui/DialogContainer'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -67,8 +69,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+      <NotificationProvider>
+        <AuthProvider>
+          <DialogContainer />
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
@@ -88,7 +92,8 @@ export default function App() {
             </Route>
           </Route>
         </Routes>
-      </AuthProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </BrowserRouter>
   )
 }

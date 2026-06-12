@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import type { DeudaDto, ProveedorDto } from '../types';
 import { api } from '../api/client';
+import { useNotification } from '../context/NotificationContext';
 
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,12 +34,11 @@ export default function DeudaPage() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<number | null>(null);
   const [payMonto, setPayMonto] = useState<Record<number, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const { notifyError, notifySuccess } = useNotification();
 
   // Pago masivo
   const [pagoMasivoMonto, setPagoMasivoMonto] = useState('');
   const [pagandoMasivo, setPagandoMasivo] = useState(false);
-  const [exitoMasivo, setExitoMasivo] = useState<string | null>(null);
 
   // Deudas pendientes del proveedor seleccionado, ordenadas ASC (más vieja primero)
   const deudasProveedor = useMemo(() => {
@@ -63,7 +63,6 @@ export default function DeudaPage() {
 
   const loadDeudas = async () => {
     setLoading(true);
-    setError(null);
     try {
       const data = await api.deudas.listar(
         proveedorId || undefined,
@@ -71,7 +70,7 @@ export default function DeudaPage() {
       );
       setDeudas(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar deudas');
+      notifyError(err instanceof Error ? err.message : 'Error al cargar deudas');
     } finally {
       setLoading(false);
     }
@@ -84,13 +83,12 @@ export default function DeudaPage() {
   const handlePagar = async (id: number, monto?: number) => {
     if (monto === undefined && !confirm('¿Pagar el saldo restante de esta deuda?')) return;
     setPaying(id);
-    setError(null);
     try {
       await api.deudas.pagar(id, monto);
       setPayMonto(prev => { const n = { ...prev }; delete n[id]; return n; });
       await loadDeudas();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al registrar pago');
+      notifyError(err instanceof Error ? err.message : 'Error al registrar pago');
     } finally {
       setPaying(null);
     }
@@ -101,15 +99,13 @@ export default function DeudaPage() {
     if (!monto || monto <= 0) return;
     if (!proveedorId) return;
     setPagandoMasivo(true);
-    setError(null);
-    setExitoMasivo(null);
     try {
       await api.deudas.pagarMultiple(proveedorId, monto);
       setPagoMasivoMonto('');
-      setExitoMasivo(`Pago de ${formatCurrency(monto)} registrado correctamente`);
+      notifySuccess(`Pago de ${formatCurrency(monto)} registrado correctamente`);
       await loadDeudas();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al procesar el pago');
+      notifyError(err instanceof Error ? err.message : 'Error al procesar el pago');
     } finally {
       setPagandoMasivo(false);
     }
@@ -123,22 +119,6 @@ export default function DeudaPage() {
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Deudas a proveedores</h1>
-
-        {/* Error banner */}
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-lg">
-            <p className="text-red-700 text-sm">{error}</p>
-            <button onClick={() => setError(null)} className="text-red-500 text-xs mt-1">Cerrar</button>
-          </div>
-        )}
-
-        {/* Éxito banner */}
-        {exitoMasivo && (
-          <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4 rounded-r-lg">
-            <p className="text-green-700 text-sm">{exitoMasivo}</p>
-            <button onClick={() => setExitoMasivo(null)} className="text-green-500 text-xs mt-1">Cerrar</button>
-          </div>
-        )}
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">

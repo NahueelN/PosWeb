@@ -80,8 +80,20 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       localStorage.removeItem('jwt_expires')
       localStorage.removeItem('user_info')
     }
-    console.error(`[API Error] ${options?.method ?? 'GET'} ${url} - ${res.status} ${res.statusText}: ${text} (${duration}ms)`)
-    throw new Error(`${res.status} ${res.statusText}: ${text}`)
+    let message = text
+    try {
+      const parsed = JSON.parse(text)
+      message = parsed.error || parsed.title || parsed.message || text
+    } catch {}
+    const err = new Error(message)
+    console.error(`[API] ${res.status} ${res.statusText} — ${options?.method ?? 'GET'} ${url} (${duration}ms)`, {
+      status: res.status,
+      statusText: res.statusText,
+      url: `${BASE}${url}`,
+      responseBody: text,
+      duration,
+    }, err)
+    throw err
   }
 
   console.log(`[API Success] ${options?.method ?? 'GET'} ${url} - ${res.status} (${duration}ms)`)
@@ -109,7 +121,10 @@ export const api = {
 
   // Productos
   productos: {
-    listar: () => request<ProductoDto[]>('/productos'),
+    listar: (sucursalId?: number) => {
+      const query = sucursalId ? `?sucursalId=${sucursalId}` : '';
+      return request<ProductoDto[]>(`/productos${query}`);
+    },
     buscar: (q: string) => request<ProductoDto[]>(`/productos/buscar?q=${encodeURIComponent(q)}`),
     buscarParaVenta: (q: string, sucursalId: number) =>
       request<ProductoDto[]>(`/productos/buscar-venta?q=${encodeURIComponent(q)}&sucursalId=${sucursalId}`),
