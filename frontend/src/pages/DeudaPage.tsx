@@ -34,6 +34,10 @@ export default function DeudaPage() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<number | null>(null);
   const [payMonto, setPayMonto] = useState<Record<number, string>>({});
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'alfabetico'>('fecha');
+  const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc');
   const { notifyError, notifySuccess } = useNotification();
 
   // Pago masivo
@@ -115,6 +119,30 @@ export default function DeudaPage() {
     .filter(d => !d.pago)
     .reduce((sum, d) => sum + d.saldoPendiente, 0);
 
+  // Filtered + sorted deudas
+  const deudasFiltradas = useMemo(() => {
+    let result = [...deudas];
+    // Date filter
+    if (fechaDesde) {
+      const desde = new Date(fechaDesde + 'T00:00:00');
+      result = result.filter(d => new Date(d.fecha) >= desde);
+    }
+    if (fechaHasta) {
+      const hasta = new Date(fechaHasta + 'T23:59:59');
+      result = result.filter(d => new Date(d.fecha) <= hasta);
+    }
+    // Sort
+    result.sort((a, b) => {
+      if (ordenarPor === 'alfabetico') {
+        const cmp = (a.proveedorNombre || '').localeCompare(b.proveedorNombre || '');
+        return ordenDir === 'asc' ? cmp : -cmp;
+      }
+      const cmp = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+      return ordenDir === 'asc' ? cmp : -cmp;
+    });
+    return result;
+  }, [deudas, fechaDesde, fechaHasta, ordenarPor, ordenDir]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
@@ -135,6 +163,17 @@ export default function DeudaPage() {
                   <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+              <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+              <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36" />
             </div>
 
             <div className="flex items-center gap-2 pt-5">
@@ -221,7 +260,7 @@ export default function DeudaPage() {
         {/* Table */}
         {loading ? (
           <div className="text-center py-12 text-gray-500">Cargando deudas...</div>
-        ) : deudas.length === 0 ? (
+        ) : deudasFiltradas.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
             <p className="text-gray-500 text-sm">No hay deudas{proveedorId > 0 ? ' para este proveedor' : ''}</p>
             {soloPendientes && (
@@ -233,17 +272,21 @@ export default function DeudaPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-3">Proveedor</th>
+                  <th className="px-4 py-3 cursor-pointer select-none hover:text-gray-700" onClick={() => { setOrdenarPor('alfabetico'); setOrdenDir(ordenarPor === 'alfabetico' && ordenDir === 'asc' ? 'desc' : 'asc'); }}>
+                    Proveedor {ordenarPor === 'alfabetico' ? (ordenDir === 'asc' ? '▲' : '▼') : ''}
+                  </th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-right">Pagado</th>
                   <th className="px-4 py-3 text-right">Saldo</th>
-                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3 cursor-pointer select-none hover:text-gray-700" onClick={() => { setOrdenarPor('fecha'); setOrdenDir(ordenarPor === 'fecha' && ordenDir === 'asc' ? 'desc' : 'asc'); }}>
+                    Fecha {ordenarPor === 'fecha' ? (ordenDir === 'asc' ? '▲' : '▼') : ''}
+                  </th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {deudas.map(d => (
+                {deudasFiltradas.map(d => (
                   <tr key={d.id} className={d.pago ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50'}>
                     <td className="px-4 py-3 font-medium text-gray-900">{d.proveedorNombre || '—'}</td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(d.monto)}</td>

@@ -18,6 +18,7 @@ import CompraPage from './pages/CompraPage'
 import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
+import PedidosPage from './pages/PedidosPage'
 import EstadisticasPage from './pages/EstadisticasPage'
 import { esperarBackend } from './api/client'
 
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/proveedores" element={<ProveedoresPage />} />
               <Route path="/deudas" element={<DeudaPage />} />
+              <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/estadisticas" element={<EstadisticasPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260613211515_AddDescripcionRenglonPedido")]
+    partial class AddDescripcionRenglonPedido
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -266,8 +269,7 @@ namespace PosWeb.Migrations
                         .HasColumnName("MONTO_DEUDA");
 
                     b.Property<decimal>("MONTO_PAGADO")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("MONTO_PAGADO");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<bool>("PAGO")
                         .HasColumnType("tinyint(1)")
@@ -595,11 +597,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("int")
                         .HasColumnName("ID_UNIDAD_MEDIDA");
 
-                    b.Property<string>("MARCA")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasColumnName("MARCA");
-
                     b.Property<decimal>("PRECIO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("PRECIO");
@@ -742,7 +739,7 @@ namespace PosWeb.Migrations
                         .HasColumnType("int")
                         .HasColumnName("ID_PEDIDO");
 
-                    b.Property<int?>("ID_PRODUCTO")
+                    b.Property<int>("ID_PRODUCTO")
                         .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
@@ -960,31 +957,19 @@ namespace PosWeb.Migrations
                         {
                             ID_UNIDAD_MEDIDA = 1,
                             COD_UNIDAD_MEDIDA = "UNIDAD",
-                            DESC_UNIDAD_MEDIDA = "Unidades"
+                            DESC_UNIDAD_MEDIDA = "Unidad"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 2,
                             COD_UNIDAD_MEDIDA = "KILO",
-                            DESC_UNIDAD_MEDIDA = "Kilogramos"
+                            DESC_UNIDAD_MEDIDA = "Kilogramo"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 3,
-                            COD_UNIDAD_MEDIDA = "L",
-                            DESC_UNIDAD_MEDIDA = "Litros"
-                        },
-                        new
-                        {
-                            ID_UNIDAD_MEDIDA = 4,
-                            COD_UNIDAD_MEDIDA = "ML",
-                            DESC_UNIDAD_MEDIDA = "Mililitros"
-                        },
-                        new
-                        {
-                            ID_UNIDAD_MEDIDA = 5,
-                            COD_UNIDAD_MEDIDA = "GR",
-                            DESC_UNIDAD_MEDIDA = "Gramos"
+                            COD_UNIDAD_MEDIDA = "LITRO",
+                            DESC_UNIDAD_MEDIDA = "Litro"
                         });
                 });
 
@@ -1287,7 +1272,8 @@ namespace PosWeb.Migrations
                     b.HasOne("PosWeb.Domain.Producto", null)
                         .WithMany()
                         .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonVenta", b =>

@@ -15,6 +15,25 @@ export interface ProductoDto {
   codigoProducto?: string | null
 }
 
+export interface ProductoDetailDto {
+  id: number
+  codigoBarra: string
+  codProducto: string
+  nombre: string
+  precio: number
+  costo: number
+  stock: number
+  categoria?: string
+  descAdicional?: string
+  contenido?: number
+  unidadMedida?: string
+  tamano?: string
+  fechaAlta: string
+  fechaUltimaMod: string
+  fechaBaja?: string
+  activo: boolean
+}
+
 export interface CategoriaDto {
   id: number
   descripcion: string
@@ -406,4 +425,64 @@ export interface ProductoEstadisticaDto {
   codigoBarra: string
   cantidadVendida: number
   subtotal: number
+}
+
+// --- Pedido types ---
+export interface PedidoListDto {
+  id: number
+  proveedorNombre: string
+  total: number
+  fecha: string
+  fechaEsperada?: string
+  estado: string
+  cantidadItems: number
+}
+
+export interface PedidoDetailDto {
+  id: number
+  proveedorNombre: string
+  fecha: string
+  fechaEsperada?: string
+  total: number
+  estado: string
+  items: PedidoItemDto[]
+  idPedidoOrigen?: number
+}
+
+export interface PedidoItemDto {
+  id: number
+  productoId: number
+  productoNombre: string
+  codigoBarra: string
+  cantidadPedida: number
+  precioUnitarioEstimado: number
+  subtotal: number
+  estado: string
+  descripcion?: string
+}
+
+export interface PedidoRequestDto {
+  sucursalId: number
+  proveedorId: number
+  items: PedidoItemRequestDto[]
+  fechaEsperada?: string
+  observaciones?: string
+}
+
+export interface PedidoItemRequestDto {
+  productoId: number
+  cantidad: number
+  precioUnitarioEstimado: number
+  descripcion?: string
+}
+
+export interface RecibirPedidoRequestDto {
+  items: RecibirItemDto[]
+}
+
+export interface RecibirItemDto {
+  renglonPedidoId: number
+  cantidadRecibida: number
+  esFaltante: boolean
+  precioUnitarioReal: number
 }

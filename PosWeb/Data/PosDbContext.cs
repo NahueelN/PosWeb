@@ -29,6 +29,8 @@ public class PosDbContext : DbContext
     public DbSet<Compra> Compra { get; set; }
     public DbSet<RenglonCompra> RenglonCompra { get; set; }
     public DbSet<Deuda> Deuda { get; set; }
+    public DbSet<Pedido> Pedido { get; set; }
+    public DbSet<RenglonPedido> RenglonPedido { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -715,6 +717,9 @@ public class PosDbContext : DbContext
             entity.Property(c => c.ID_GASTO)
                 .HasColumnName("ID_GASTO");
 
+            entity.Property(c => c.ID_PEDIDO)
+                .HasColumnName("ID_PEDIDO");
+
             entity.Property(c => c.FECHA_COMPRA)
                 .HasColumnName("FECHA_COMPRA");
 
@@ -743,6 +748,11 @@ public class PosDbContext : DbContext
             entity.HasOne<Gasto>()
                 .WithMany()
                 .HasForeignKey(c => c.ID_GASTO)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Pedido>()
+                .WithMany()
+                .HasForeignKey(c => c.ID_PEDIDO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -842,6 +852,121 @@ public class PosDbContext : DbContext
             entity.HasOne(d => d.Compra)
                 .WithMany()
                 .HasForeignKey(d => d.ID_COMPRA)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- PEDIDO ----
+        modelBuilder.Entity<Pedido>(entity =>
+        {
+            entity.ToTable("PEDIDO");
+
+            entity.HasKey(p => p.ID_PEDIDO);
+
+            entity.Property(p => p.ID_PEDIDO)
+                .HasColumnName("ID_PEDIDO");
+
+            entity.Property(p => p.ID_SUCURSAL)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(p => p.ID_PROVEEDOR)
+                .HasColumnName("ID_PROVEEDOR")
+                .IsRequired();
+
+            entity.Property(p => p.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.FECHA_PEDIDO)
+                .HasColumnName("FECHA_PEDIDO");
+
+            entity.Property(p => p.FECHA_ESPERADA)
+                .HasColumnName("FECHA_ESPERADA");
+
+            entity.Property(p => p.TOTAL)
+                .HasColumnName("TOTAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(p => p.OBSERVACIONES)
+                .HasColumnName("OBSERVACIONES")
+                .HasMaxLength(500);
+
+            entity.Property(p => p.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(p => p.ID_PEDIDO_ORIGEN)
+                .HasColumnName("ID_PEDIDO_ORIGEN");
+
+            entity.Navigation(p => p.RENGLONES)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            entity.HasOne<Sucursal>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Proveedor>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_PROVEEDOR)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Pedido>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_PEDIDO_ORIGEN)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- RENGLON PEDIDO ----
+        modelBuilder.Entity<RenglonPedido>(entity =>
+        {
+            entity.ToTable("RENGLON_PEDIDO");
+
+            entity.HasKey(r => r.ID_RENGLON_PEDIDO);
+
+            entity.Property(r => r.ID_RENGLON_PEDIDO)
+                .HasColumnName("ID_RENGLON_PEDIDO");
+
+            entity.Property(r => r.ID_PEDIDO)
+                .HasColumnName("ID_PEDIDO");
+
+            entity.Property(r => r.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO")
+                .IsRequired(false);
+
+            entity.Property(r => r.CANTIDAD_PEDIDA)
+                .HasColumnName("CANTIDAD_PEDIDA")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(r => r.PRECIO_UNITARIO_ESTIMADO)
+                .HasColumnName("PRECIO_UNITARIO_ESTIMADO")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(r => r.SUBTOTAL)
+                .HasColumnName("SUBTOTAL")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(r => r.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(r => r.DESCRIPCION)
+                .HasColumnName("DESCRIPCION")
+                .HasMaxLength(200);
+
+            entity.HasOne<Pedido>()
+                .WithMany(p => p.RENGLONES)
+                .HasForeignKey(r => r.ID_PEDIDO)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Producto>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_PRODUCTO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

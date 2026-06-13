@@ -60,6 +60,52 @@ public class ProductoService
             .ToList();
     }
 
+    public ProductoDetailDto? ObtenerDetalle(int id, int? sucursalId = null)
+    {
+        var query = _context.Producto
+            .Where(p => p.ID_PRODUCTO == id && p.ACTIVO);
+
+        var result = query.Select(p => new ProductoDetailDto
+        {
+            Id = p.ID_PRODUCTO,
+            CodigoBarra = p.CODIGO_BARRAS,
+            CodProducto = p.COD_PRODUCTO,
+            Nombre = p.DESC_PRODUCTO,
+            Precio = p.PRECIO,
+            Costo = p.COSTO,
+            Stock = sucursalId.HasValue
+                ? _context.StockSucursal
+                    .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value)
+                    .Select(s => (int)s.STOCK)
+                    .FirstOrDefault()
+                : 0,
+            DescAdicional = p.DESC_ADICIONAL,
+            Contenido = p.CONTENIDO,
+            Tamano = null,
+            FechaAlta = p.FECHA_ALTA,
+            FechaUltimaMod = p.FECHA_ULTIMA_MOD,
+            FechaBaja = p.FECHA_BAJA,
+            Activo = p.ACTIVO
+        }).FirstOrDefault();
+
+        if (result == null) return null;
+
+        // Resolve categoria
+        var prod = query.First();
+        if (prod.ID_CATEGORIA.HasValue)
+        {
+            var cat = _context.Categoria.Find(prod.ID_CATEGORIA.Value);
+            result.Categoria = cat?.DESC_CATEGORIA;
+        }
+        if (prod.ID_UNIDAD_MEDIDA.HasValue)
+        {
+            var um = _context.UnidadMedida.Find(prod.ID_UNIDAD_MEDIDA.Value);
+            result.UnidadMedida = um?.DESC_UNIDAD_MEDIDA;
+        }
+
+        return result;
+    }
+
     public ProductoDto Crear(ProductoUpsertDto dto)
     {
         bool codigoExiste = _context.Producto

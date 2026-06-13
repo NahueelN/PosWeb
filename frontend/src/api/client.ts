@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -133,7 +133,11 @@ export const api = {
       if (sucursalId) url += `?sucursalId=${sucursalId}`;
       return request<ProductoDto>(url);
     },
-    obtenerProximoCodigo: () => request<ProximoCodigoResponse>('/productos/proximo-codigo'),
+	detalle: (id: number) => request<ProductoDetailDto>(`/productos/${id}/detalle`),
+    crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    })	obtenerProximoCodigo: () => request<ProximoCodigoResponse>('/productos/proximo-codigo'),
     crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
       method: 'POST',
       body: JSON.stringify(dto),
@@ -299,6 +303,29 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ proveedorId, monto }),
         }),
+    },
+
+  // Pedidos
+    pedidos: {
+      listar: (proveedor?: string, estado?: string) => {
+        const params = new URLSearchParams();
+        if (proveedor) params.set('proveedor', proveedor);
+        if (estado) params.set('estado', estado);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request<PedidoListDto[]>(`/pedidos${query}`);
+      },
+      obtener: (id: number) => request<PedidoDetailDto>(`/pedidos/${id}`),
+      crear: (dto: PedidoRequestDto) => request<PedidoDetailDto>('/pedidos', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      recibir: (id: number, dto: RecibirPedidoRequestDto) => request<PedidoDetailDto>(`/pedidos/${id}/recibir`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      cancelar: (id: number) => request<void>(`/pedidos/${id}/cancelar`, {
+        method: 'POST',
+      }),
     },
 
   // Lookups
