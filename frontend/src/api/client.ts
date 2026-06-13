@@ -177,6 +177,11 @@ export const api = {
 
     detalle: (id: number) =>
       request<VentaDetalleDto>(`/ventas/${id}`),
+
+    deshacer: (id: number, conDevolucion: boolean) => request<{ message: string }>(`/ventas/${id}/deshacer`, {
+      method: 'POST',
+      body: JSON.stringify({ conDevolucion }),
+    }),
   },
 
   // Stock por sucursal

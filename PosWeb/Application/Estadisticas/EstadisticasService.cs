@@ -18,7 +18,7 @@ public class EstadisticasService
         hasta = hasta.Date.AddDays(1).AddTicks(-1);
 
         var ventasQuery = _context.Venta
-            .Where(v => v.FECHA_VENTA >= desde && v.FECHA_VENTA <= hasta);
+            .Where(v => v.FECHA_VENTA >= desde && v.FECHA_VENTA <= hasta && !v.ANULADA);
 
         if (sucursalId.HasValue)
             ventasQuery = ventasQuery.Where(v => v.ID_SUCURSAL == sucursalId.Value);

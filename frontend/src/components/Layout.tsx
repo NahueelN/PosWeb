@@ -8,7 +8,6 @@ const menuGroups = [
     label: 'Operaciones',
     links: [
       { to: '/ventas', label: 'Ventas', icon: '🛒' },
-      { to: '/historial', label: 'Historial', icon: '📋' },
       { to: '/compras', label: 'Compras', icon: '📥' },
       { to: '/gastos', label: 'Gastos', icon: '💸' },
       { to: '/deudas', label: 'Deudas', icon: '📝' },
@@ -21,6 +20,7 @@ const menuGroups = [
       { to: '/stock', label: 'Stock', icon: '📊' },
       { to: '/productos', label: 'Productos', icon: '📦' },
       { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
+      { to: '/historial', label: 'Historial', icon: '📋' },
       { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
   },
