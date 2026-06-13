@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612222521_AddPedidos")]
+    partial class AddPedidos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -721,11 +724,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD_PEDIDA");
 
-                    b.Property<string>("DESCRIPCION")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasColumnName("DESCRIPCION");
-
                     b.Property<string>("ESTADO")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -736,7 +734,7 @@ namespace PosWeb.Migrations
                         .HasColumnType("int")
                         .HasColumnName("ID_PEDIDO");
 
-                    b.Property<int?>("ID_PRODUCTO")
+                    b.Property<int>("ID_PRODUCTO")
                         .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
@@ -1269,7 +1267,8 @@ namespace PosWeb.Migrations
                     b.HasOne("PosWeb.Domain.Producto", null)
                         .WithMany()
                         .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonVenta", b =>

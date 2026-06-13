@@ -21,6 +21,14 @@ public class ProductosController : ControllerBase
         return Ok(_productoService.ObtenerActivos(sucursalId));
     }
 
+    [HttpGet("{id}/detalle")]
+    public IActionResult Detalle(int id, [FromQuery] int? sucursalId = null)
+    {
+        var detalle = _productoService.ObtenerDetalle(id, sucursalId);
+        if (detalle == null) return NotFound();
+        return Ok(detalle);
+    }
+
     [HttpGet("barra/{codigoBarra}")]
     public IActionResult GetPorCodigoBarra(string codigoBarra, [FromQuery] int? sucursalId = null)
     {

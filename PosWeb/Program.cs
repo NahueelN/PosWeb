@@ -10,6 +10,7 @@ using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
 using PosWeb.Application.Estadisticas;
 using PosWeb.Application.Gastos;
+using PosWeb.Application.Pedidos;
 using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.Productos;
@@ -87,6 +88,7 @@ builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<DeudaService>();
 builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
+builder.Services.AddScoped<PedidoService>();
 
 // HTTP context for user tracking
 builder.Services.AddHttpContextAccessor();

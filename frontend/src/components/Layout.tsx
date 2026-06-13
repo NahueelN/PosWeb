@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
+import ProductLookupModal from './ProductLookupModal'
 
 const menuGroups = [
   {
@@ -11,6 +12,7 @@ const menuGroups = [
       { to: '/compras', label: 'Compras', icon: '📥' },
       { to: '/gastos', label: 'Gastos', icon: '💸' },
       { to: '/deudas', label: 'Deudas', icon: '📝' },
+      { to: '/pedidos', label: 'Pedidos', icon: '📋' },
       { to: '/caja', label: 'Caja', icon: '💰' },
     ],
   },
@@ -119,6 +121,19 @@ export default function Layout() {
   const { sucursal, limpiar } = useSucursalActiva()
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [lookupOpen, setLookupOpen] = useState(false)
+
+  // F2 global: quick product lookup
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setLookupOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const canCreateUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
 
@@ -259,6 +274,8 @@ export default function Layout() {
           <Outlet context={{ sucursal }} />
         </div>
       </main>
+
+      <ProductLookupModal open={lookupOpen} onClose={() => setLookupOpen(false)} />
     </div>
   )
 }
