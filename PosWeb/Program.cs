@@ -91,7 +91,7 @@ builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<PedidoService>();
 
-// Open Food Facts â€” optional barcode lookup
+// Open Food Facts — optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
 {
     client.BaseAddress = new Uri("https://world.openfoodfacts.org/");

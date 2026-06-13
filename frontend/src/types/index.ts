@@ -34,6 +34,25 @@ export interface ProductoDetailDto {
   activo: boolean
 }
 
+export interface ProductoDetailDto {
+  id: number
+  codigoBarra: string
+  codProducto: string
+  nombre: string
+  precio: number
+  costo: number
+  stock: number
+  categoria?: string
+  descAdicional?: string
+  contenido?: number
+  unidadMedida?: string
+  tamano?: string
+  fechaAlta: string
+  fechaUltimaMod: string
+  fechaBaja?: string
+  activo: boolean
+}
+
 export interface CategoriaDto {
   id: number
   descripcion: string
