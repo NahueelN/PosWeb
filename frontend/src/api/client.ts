@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -133,15 +133,12 @@ export const api = {
       if (sucursalId) url += `?sucursalId=${sucursalId}`;
       return request<ProductoDto>(url);
     },
-	detalle: (id: number) => request<ProductoDetailDto>(`/productos/${id}/detalle`),
-    crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
-      method: 'POST',
-      body: JSON.stringify(dto),
-    })	obtenerProximoCodigo: () => request<ProximoCodigoResponse>('/productos/proximo-codigo'),
+    detalle: (id: number) => request<ProductoDetailDto>(`/productos/${id}/detalle`),
     crear: (dto: ProductoUpsertDto) => request<ProductoDto>('/productos', {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
+    obtenerProximoCodigo: () => request<ProximoCodigoResponse>('/productos/proximo-codigo'),
     eliminar: (id: number) => request<void>(`/productos/${id}`, { method: 'DELETE' }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
