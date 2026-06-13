@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
 import BarcodeLookup from '../components/BarcodeLookup'
 import ProductFormModal from '../components/ProductFormModal'
@@ -19,6 +20,7 @@ export default function ProductosPage() {
   const navigate = useNavigate()
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
+  const { notifyError } = useNotification()
   const [postCreateProduct, setPostCreateProduct] = useState<ProductoDto | null>(null)
   const [editState, setEditState] = useState<EditState | null>(null)
 
@@ -42,14 +44,11 @@ export default function ProductosPage() {
 
   async function listar() {
     try {
-      setError('')
       setProductos(await api.productos.listar())
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
-  // --- Lookup callbacks ---
   function handleProductFound(product: ProductoDto) {
-    // Producto ya existe — scrollear a la tarjeta o mostrar info
     setPostCreateProduct(product)
   }
 
@@ -90,10 +89,9 @@ export default function ProductosPage() {
 
   async function handleEliminar(id: number) {
     try {
-      setError('')
       await api.productos.eliminar(id)
       await listar()
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   function startEdit(p: ProductoDto) {
@@ -105,19 +103,16 @@ export default function ProductosPage() {
       costo: p.costo.toString(),
       tamano: p.tamano || '',
     })
-    setError('')
   }
 
   function cancelEdit() {
     setEditState(null)
-    setError('')
   }
 
   async function saveEdit() {
     if (!editState) return
     const id = editState.id
     try {
-      setError('')
       const updated = await api.productos.actualizar(id, {
         codigoBarra: editState.codigoBarra,
         nombre: editState.nombre,
@@ -127,7 +122,7 @@ export default function ProductosPage() {
       })
       setProductos(prev => prev.map(p => p.id === updated.id ? updated : p))
       setEditState(null)
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) { notifyError(e.message) }
   }
 
   function focusCard(id: number) {
@@ -160,7 +155,6 @@ export default function ProductosPage() {
         </button>
       </div>
 
-      {/* Barcode Lookup */}
       <BarcodeLookup
         onProductFound={handleProductFound}
         onPrefillForm={handlePrefillForm}
@@ -175,6 +169,7 @@ export default function ProductosPage() {
           {error}
         </div>
       )}
+
 
       {postCreateProduct && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-2xl px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

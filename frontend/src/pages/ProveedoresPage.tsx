@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ProveedorDto, CrearProveedorRequestDto } from '../types';
 import { api } from '../api/client';
+import { useNotification } from '../context/NotificationContext';
 
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -10,7 +11,7 @@ export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { notifyError } = useNotification();
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -26,7 +27,7 @@ export default function ProveedoresPage() {
       const data = await api.proveedores.listar(search || undefined);
       setProveedores(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar proveedores');
+      notifyError(err instanceof Error ? err.message : 'Error al cargar proveedores');
     } finally {
       setLoading(false);
     }
@@ -54,7 +55,7 @@ export default function ProveedoresPage() {
       });
       setShowModal(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar proveedor');
+      notifyError(err instanceof Error ? err.message : 'Error al cargar proveedor');
     }
   };
 
@@ -70,7 +71,7 @@ export default function ProveedoresPage() {
       setShowModal(false);
       await load();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar proveedor');
+      notifyError(err instanceof Error ? err.message : 'Error al guardar proveedor');
     } finally {
       setSaving(false);
     }
@@ -88,13 +89,6 @@ export default function ProveedoresPage() {
             + Nuevo proveedor
           </button>
         </div>
-
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-lg">
-            <p className="text-red-700 text-sm">{error}</p>
-            <button onClick={() => setError(null)} className="text-red-500 text-xs mt-1">Cerrar</button>
-          </div>
-        )}
 
         {/* Filters bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">

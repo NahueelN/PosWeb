@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import type { StockSucursalDto, SucursalDto } from '../types'
 
 export default function StockPage() {
@@ -10,7 +11,7 @@ export default function StockPage() {
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
   const [stockList, setStockList] = useState<StockSucursalDto[]>([])
   const [filter, setFilter] = useState('')
-  const [error, setError] = useState('')
+  const { notifyError } = useNotification()
   const [loading, setLoading] = useState(false)
 
   // Inline edit state
@@ -39,12 +40,11 @@ export default function StockPage() {
 
   async function loadStock() {
     setLoading(true)
-    setError('')
     try {
       const data = await api.stock.listar(sucursalId)
       setStockList(data)
     } catch (e: any) {
-      setError(e.message)
+      notifyError(e.message)
     } finally {
       setLoading(false)
     }
@@ -86,13 +86,12 @@ export default function StockPage() {
     if (isNaN(nuevoStock) || nuevoStock < 0) return
 
     try {
-      setError('')
       await api.stock.ajustar(item.productoId, item.sucursalId, nuevoStock)
       setEditProductoId(null)
       setEditValue('')
       await loadStock()
     } catch (e: any) {
-      setError(e.message)
+      notifyError(e.message)
     }
   }
 
@@ -223,16 +222,6 @@ export default function StockPage() {
           Actualizar
         </button>
       </div>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
-          {error}
-        </div>
-      )}
 
       {/* Loading */}
       {loading && (

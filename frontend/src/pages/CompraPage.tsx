@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
+import { useNotification } from '../context/NotificationContext';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ function formatFecha(iso: string): string {
 export default function CompraPage() {
   const [state, dispatch] = useReducer(compraReducer, initialState);
   const navigate = useNavigate();
+  const { notifyError } = useNotification();
   const searchRef = useRef<HTMLInputElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
   const cartListRef = useRef<HTMLDivElement>(null);
@@ -228,7 +230,7 @@ export default function CompraPage() {
   };
 
   const handleConfirm = async () => {
-    setIsConfirming(true); dispatch({ type: 'CLEAR_ERROR' });
+    setIsConfirming(true);
     try {
       const montoPagado = pagoType === 'none' ? undefined
         : pagoType === 'total' ? cartTotal
@@ -248,7 +250,9 @@ export default function CompraPage() {
       const res = await api.compras.crear(req);
       dispatch({ type: 'CONFIRM_SUCCESS', response: res });
     } catch (err: any) {
-      dispatch({ type: 'CONFIRM_ERROR', error: err.message || 'Error al crear la compra' });
+      const errorMsg = err.message || 'Error al crear la compra';
+      notifyError(errorMsg);
+      dispatch({ type: 'CONFIRM_ERROR', error: errorMsg });
     } finally { setIsConfirming(false); }
   };
 
@@ -371,7 +375,7 @@ export default function CompraPage() {
                     addToCart(match);
                     setSearchQuery('');
                   } else {
-                    dispatch({ type: 'SET_ERROR', error: `Producto no encontrado: "${q}"` });
+                    notifyError(`Producto no encontrado: "${q}"`);
                   }
                 }
               }}
@@ -385,14 +389,6 @@ export default function CompraPage() {
               </button>
             )}
           </div>
-
-          {/* Error */}
-          {state.error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-              <span className="flex-1">{state.error}</span>
-              <button onClick={() => dispatch({ type: 'CLEAR_ERROR' })} className="text-red-500 hover:text-red-700 font-medium shrink-0">Cerrar</button>
-            </div>
-          )}
         </div>
 
         {/* Product Grid */}

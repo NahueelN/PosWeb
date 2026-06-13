@@ -16,15 +16,36 @@ public class ProductoService
         _context = context;
     }
 
-    public List<ProductoDto> ObtenerActivos()
+    public List<ProductoDto> ObtenerActivos(int? sucursalId = null)
     {
+        if (sucursalId.HasValue)
+        {
+            return _context.Producto
+                .Where(p => p.ACTIVO)
+                .OrderBy(p => p.DESC_PRODUCTO)
+                .Select(p => new ProductoDto
+                {
+                    Id = p.ID_PRODUCTO,
+                    CodigoBarra = p.CODIGO_BARRAS,
+                    Nombre = p.DESC_PRODUCTO,
+                    Precio = p.PRECIO,
+                    Costo = p.COSTO,
+                    Stock = _context.StockSucursal
+                        .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value)
+                        .Select(s => (int)s.STOCK)
+                        .FirstOrDefault(),
+                    Activo = p.ACTIVO
+                })
+                .ToList();
+        }
+
         return _context.Producto
             .Where(p => p.ACTIVO)
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
-                CodigoBarras = p.CODIGO_BARRAS,
+                CodigoBarra = p.CODIGO_BARRAS,
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
@@ -42,11 +63,11 @@ public class ProductoService
     public ProductoDto Crear(ProductoUpsertDto dto)
     {
         bool codigoExiste = _context.Producto
-            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarras && p.ACTIVO);
+            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra && p.ACTIVO);
 
         if (codigoExiste)
         {
-            throw new ProductoCodigoDuplicadoException(dto.CodigoBarras);
+            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
         }
 
         string codProducto = !string.IsNullOrWhiteSpace(dto.CodigoProducto)
@@ -64,7 +85,7 @@ public class ProductoService
 
         Producto producto = new Producto(
             codProducto,
-            dto.CodigoBarras,
+            dto.CodigoBarra,
             dto.Nombre,
             dto.Precio,
             dto.Costo,
@@ -151,7 +172,7 @@ public class ProductoService
         return new ProductoDto
         {
             Id = producto.ID_PRODUCTO,
-            CodigoBarras = producto.CODIGO_BARRAS,
+            CodigoBarra = producto.CODIGO_BARRAS,
             Nombre = producto.DESC_PRODUCTO,
             Precio = producto.PRECIO,
             Costo = producto.COSTO,
@@ -175,16 +196,16 @@ public class ProductoService
         }
         
         bool codigoDuplicado = _context.Producto
-            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarras
+            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra
                       && p.ID_PRODUCTO != id
                       && p.ACTIVO);
 
         if (codigoDuplicado)
         {
-            throw new ProductoCodigoDuplicadoException(dto.CodigoBarras);
+            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
         }
 
-        producto.CambiarCodigoBarras(dto.CodigoBarras);
+        producto.CambiarCodigoBarras(dto.CodigoBarra);
         producto.CambiarDescripcion(dto.Nombre);
         producto.CambiarPrecio(dto.Precio);
         producto.CambiarCosto(dto.Costo);
@@ -212,7 +233,7 @@ public class ProductoService
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
-                CodigoBarras = p.CODIGO_BARRAS,
+                CodigoBarra = p.CODIGO_BARRAS,
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
@@ -236,7 +257,7 @@ public class ProductoService
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
-                CodigoBarras = p.CODIGO_BARRAS,
+                CodigoBarra = p.CODIGO_BARRAS,
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,

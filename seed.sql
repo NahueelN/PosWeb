@@ -1,5 +1,5 @@
 -- ============================================================
--- Seed data para PosWeb
+-- Seed data para PosWeb (MySQL)
 -- Ejecutar después de: dotnet ef database update
 -- USO: & "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql" -u root -D posweb < seed.sql
 -- ============================================================
@@ -122,7 +122,6 @@ WHERE NOT EXISTS (SELECT 1 FROM PROVEEDOR WHERE COD_PROVEEDOR = 'PROV003');
 -- ============================================================
 -- SUSCRIPCION + EMPRESA + SUCURSAL (obligatorio para operar)
 -- ============================================================
-
 -- Suscripcion (requiere ID_USUARIO=1 admin)
 INSERT INTO SUSCRIPCION (ID_SUSCRIPCION, ID_USUARIO_TITULAR, NIVEL, ESTADO, COSTO_MENSUAL, MAX_SUCURSALES, MAX_ADMIN, MAX_USUARIOS, FECHA_INICIO)
 SELECT 1, 1, 'Premium', 'Activa', 0, 10, 5, 50, NOW()

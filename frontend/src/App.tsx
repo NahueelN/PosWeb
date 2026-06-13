@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
+import DialogContainer from './components/ui/DialogContainer'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -16,6 +18,7 @@ import CompraPage from './pages/CompraPage'
 import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
+import EstadisticasPage from './pages/EstadisticasPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -67,8 +70,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+      <NotificationProvider>
+        <AuthProvider>
+          <DialogContainer />
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
@@ -83,12 +88,14 @@ export default function App() {
             <Route path="/compras" element={<CompraPage />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/proveedores" element={<ProveedoresPage />} />
-            <Route path="/deudas" element={<DeudaPage />} />
+              <Route path="/deudas" element={<DeudaPage />} />
+              <Route path="/estadisticas" element={<EstadisticasPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>
           </Route>
         </Routes>
-      </AuthProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </BrowserRouter>
   )
 }

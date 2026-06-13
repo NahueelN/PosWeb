@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import type { SucursalDto, GastoDto, CajaDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
 import PageHeader from '../components/ui/PageHeader'

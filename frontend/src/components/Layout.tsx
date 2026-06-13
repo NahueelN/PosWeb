@@ -3,19 +3,35 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
 
-  const links = [
-    { to: '/ventas', label: 'Ventas', icon: '🛒' },
-    { to: '/historial', label: 'Historial', icon: '📋' },
-    { to: '/productos', label: 'Productos', icon: '📦' },
-    { to: '/stock', label: 'Stock', icon: '📊' },
-    { to: '/clientes', label: 'Clientes', icon: '👤' },
-    { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
-    { to: '/caja', label: 'Caja', icon: '💰' },
-    { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
-    { to: '/compras', label: 'Compras', icon: '🛒' },
-    { to: '/deudas', label: 'Deudas', icon: '📝' },
-    { to: '/gastos', label: 'Gastos', icon: '💸' },
-  ]
+const menuGroups = [
+  {
+    label: 'Operaciones',
+    links: [
+      { to: '/ventas', label: 'Ventas', icon: '🛒' },
+      { to: '/historial', label: 'Historial', icon: '📋' },
+      { to: '/compras', label: 'Compras', icon: '📥' },
+      { to: '/gastos', label: 'Gastos', icon: '💸' },
+      { to: '/deudas', label: 'Deudas', icon: '📝' },
+      { to: '/caja', label: 'Caja', icon: '💰' },
+    ],
+  },
+  {
+    label: 'Gestión',
+    links: [
+      { to: '/stock', label: 'Stock', icon: '📊' },
+      { to: '/productos', label: 'Productos', icon: '📦' },
+      { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
+      { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
+    ],
+  },
+  {
+    label: 'Personas',
+    links: [
+      { to: '/clientes', label: 'Clientes', icon: '👤' },
+      { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
+    ],
+  },
+]
 
 const hiddenForUsuarioComun = new Set(['/stock', '/clientes', '/sucursales'])
 
@@ -48,6 +64,55 @@ function useSucursalActiva() {
 
 export { useSucursalActiva }
 
+function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; links: { to: string; label: string; icon: string }[]; defaultOpen: boolean; onLinkClick: () => void }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const location = useLocation()
+
+  const hasActive = links.some(l => location.pathname === l.to || location.pathname.startsWith(l.to + '/'))
+
+  if (links.length === 0) return null
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
+          hasActive ? 'text-indigo-300' : 'text-slate-500 hover:text-slate-300'
+        }`}
+      >
+        <span>{label}</span>
+        <svg
+          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="ml-2 mt-0.5 space-y-0.5">
+          {links.map(l => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              onClick={onLinkClick}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  isActive
+                    ? 'bg-indigo-500/15 text-indigo-300 shadow-sm'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`
+              }
+            >
+              <span className="text-sm w-5 text-center">{l.icon}</span>
+              {l.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -55,9 +120,6 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const visibleLinks = user?.rol === 'UsuarioComun'
-    ? links.filter(link => !hiddenForUsuarioComun.has(link.to))
-    : links
   const canCreateUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
 
   function handleLogout() {
@@ -81,24 +143,22 @@ export default function Layout() {
         </span>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
-        {visibleLinks.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            onClick={closeSidebar}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-indigo-500/15 text-indigo-300 shadow-sm'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`
-            }
-          >
-            <span className="text-base">{l.icon}</span>
-            {l.label}
-          </NavLink>
-        ))}
+      <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
+        {menuGroups.map(group => {
+          const visibleLinks = user?.rol === 'UsuarioComun'
+            ? group.links.filter(l => !hiddenForUsuarioComun.has(l.to))
+            : group.links
+
+          return (
+            <MenuGroup
+              key={group.label}
+              label={group.label}
+              links={visibleLinks}
+              defaultOpen={false}
+              onLinkClick={closeSidebar}
+            />
+          )
+        })}
       </nav>
 
       <div className="p-3 border-t border-slate-700 space-y-2">

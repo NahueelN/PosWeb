@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
+import { useNotification } from '../context/NotificationContext'
 import type { ClienteDto, PagedResult } from '../types'
 
 const TIPOS_DOCUMENTO = ['DNI', 'CUIT', 'CUIL', 'ConsumidorFinal']
@@ -12,7 +13,7 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [error, setError] = useState('')
+  const { notifyError } = useNotification()
 
   // Form state
   const [form, setForm] = useState<ClienteDto>({
@@ -26,12 +27,11 @@ export default function ClientesPage() {
 
   const load = useCallback(async (q?: string, p: number = 1) => {
     setLoading(true)
-    setError('')
     try {
       const result = await api.clientes.listar(q || undefined, p)
       setData(result)
     } catch (err: any) {
-      setError(err.message || 'Error al cargar clientes')
+      notifyError(err.message || 'Error al cargar clientes')
     } finally {
       setLoading(false)
     }
@@ -49,7 +49,6 @@ export default function ClientesPage() {
     setForm({ nombre: '', tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
     setEditingId(null)
     setShowForm(false)
-    setError('')
   }
 
   function openEdit(cliente: ClienteDto) {
@@ -68,7 +67,6 @@ export default function ClientesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError('')
 
     try {
       if (editingId) {
@@ -82,9 +80,9 @@ export default function ClientesPage() {
       try {
         const parts = err.message.split(': ')
         const parsed = JSON.parse(parts[parts.length - 1])
-        setError(parsed.error || err.message)
+        notifyError(parsed.error || err.message)
       } catch {
-        setError(err.message || 'Error al guardar cliente')
+        notifyError(err.message || 'Error al guardar cliente')
       }
     } finally {
       setLoading(false)
@@ -116,10 +114,6 @@ export default function ClientesPage() {
           Buscar
         </button>
       </form>
-
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
-      )}
 
       {/* Form modal */}
       {showForm && (

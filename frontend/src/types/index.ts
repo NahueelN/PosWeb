@@ -384,3 +384,24 @@ export interface PagarDeudaRequestDto {
 export interface ProximoCodigoResponse {
   codigo: string
 }
+
+export interface EstadisticasDto {
+  desde: string
+  hasta: string
+  totalVentas: number
+  facturacion: number
+  costoTotal: number
+  resultadoNeto: number
+  ticketPromedio: number
+  mejorDia?: string
+  mejorDiaFacturacion: number
+  topProductos: ProductoEstadisticaDto[]
+}
+
+export interface ProductoEstadisticaDto {
+  productoId: number
+  productoNombre: string
+  codigoBarra: string
+  cantidadVendida: number
+  subtotal: number
+}

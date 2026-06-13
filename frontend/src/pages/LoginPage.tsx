@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import type { SucursalDto } from '../types'
 
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
   const [sucursalId, setSucursalId] = useState<number>(0)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { notifyError, notifySuccess } = useNotification()
   const [loadingSucursales, setLoadingSucursales] = useState(true)
   const [showRegister, setShowRegister] = useState(false)
   const [regUsuario, setRegUsuario] = useState('')
@@ -23,7 +24,6 @@ export default function LoginPage() {
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
-  const [registerMessage, setRegisterMessage] = useState('')
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -48,13 +48,12 @@ export default function LoginPage() {
           setSucursalId(s[0].id)
         }
       })
-      .catch(() => setError('Error al cargar sucursales'))
+      .catch(() => notifyError('Error al cargar sucursales'))
       .finally(() => setLoadingSucursales(false))
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
     setLoading(true)
 
     try {
@@ -70,9 +69,9 @@ export default function LoginPage() {
         const parts = msg.split(': ')
         const jsonPart = parts[parts.length - 1]
         const parsed = JSON.parse(jsonPart)
-        setError(parsed.error || msg)
+        notifyError(parsed.error || msg)
       } catch {
-        setError(msg)
+        notifyError(msg)
       }
     } finally {
       setLoading(false)
@@ -81,8 +80,6 @@ export default function LoginPage() {
 
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
-    setRegisterMessage('')
     setRegisterLoading(true)
 
     try {
@@ -93,7 +90,7 @@ export default function LoginPage() {
         rol: 'Admin',
         empresaRepresenta: regEmpresa,
       })
-      setRegisterMessage('Administrador registrado correctamente. Ya podés iniciar sesión.')
+      notifySuccess('Administrador registrado correctamente. Ya podés iniciar sesión.')
       setRegUsuario('')
       setRegPassword('')
       setRegMail('')
@@ -105,9 +102,9 @@ export default function LoginPage() {
         const parts = msg.split(': ')
         const jsonPart = parts[parts.length - 1]
         const parsed = JSON.parse(jsonPart)
-        setError(parsed.error || msg)
+        notifyError(parsed.error || msg)
       } catch {
-        setError(msg)
+        notifyError(msg)
       }
     } finally {
       setRegisterLoading(false)
@@ -204,12 +201,6 @@ export default function LoginPage() {
               </select>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
-                {error}
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading || loadingSucursales}
@@ -222,8 +213,6 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setShowRegister(true)
-                setError('')
-                setRegisterMessage('')
               }}
               className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >
@@ -283,18 +272,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            {registerMessage && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-lg">
-                {registerMessage}
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={registerLoading}
@@ -307,8 +284,6 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setShowRegister(false)
-                setError('')
-                setRegisterMessage('')
               }}
               className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >

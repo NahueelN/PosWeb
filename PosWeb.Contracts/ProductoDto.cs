@@ -6,8 +6,7 @@ public class ProductoDto
 {
     public int Id { get; set; }
 
-    [JsonPropertyName("codigoBarra")]
-    public string CodigoBarras { get; set; } = string.Empty;
+    public string CodigoBarra { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
 
     public decimal Precio { get; set; }

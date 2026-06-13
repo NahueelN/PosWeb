@@ -8,6 +8,7 @@ using PosWeb.Application.Cajas;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
+using PosWeb.Application.Estadisticas;
 using PosWeb.Application.Gastos;
 using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
@@ -86,6 +87,7 @@ builder.Services.AddScoped<CompraService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<DeudaService>();
 builder.Services.AddScoped<GastoService>();
+builder.Services.AddScoped<EstadisticasService>();
 
 // Open Food Facts — optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
