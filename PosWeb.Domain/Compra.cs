@@ -17,6 +17,8 @@ public class Compra
 
     public int? ID_GASTO { get; private set; }
 
+    public int? ID_PEDIDO { get; private set; }
+
     public DateTime FECHA_COMPRA { get; private set; }
 
     public decimal TOTAL { get; private set; }
@@ -79,6 +81,14 @@ public class Compra
     public void AsignarGasto(int? idGasto)
     {
         ID_GASTO = idGasto;
+    }
+
+    public void AsignarPedido(int idPedido)
+    {
+        if (idPedido <= 0)
+            throw new ArgumentException("Pedido inválido", nameof(idPedido));
+
+        ID_PEDIDO = idPedido;
     }
 
     private void RecalcularTotal()
