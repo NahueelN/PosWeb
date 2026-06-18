@@ -1,5 +1,6 @@
-﻿using PosWeb.Domain.Exceptions;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using PosWeb.Domain.Exceptions;
 
 namespace PosWeb.Domain;
 
@@ -10,7 +11,9 @@ public class RenglonVenta
 
     public int ID_VENTA { get; private set; }
 
-    public int ID_PRODUCTO { get; private set; }
+    public int? ID_PRODUCTO { get; private set; }
+
+    public int? ID_COMBO { get; private set; }
 
     public decimal CANTIDAD { get; private set; }
 
@@ -23,6 +26,18 @@ public class RenglonVenta
         ID_PRODUCTO = SetProductoId(productoId);
         CANTIDAD = SetCantidad(cantidad);
         PRECIO_UNITARIO = SetPrecioUnitario(precioUnitario);
+        SUBTOTAL = cantidad * precioUnitario;
+    }
+
+    public RenglonVenta(int? productoId, int? comboId, decimal cantidad, decimal precioUnitario)
+    {
+        if (productoId.HasValue && productoId.Value > 0)
+            ID_PRODUCTO = productoId.Value;
+        if (comboId.HasValue && comboId.Value > 0)
+            ID_COMBO = comboId.Value;
+
+        CANTIDAD = SetCantidad(cantidad);
+        PRECIO_UNITARIO = precioUnitario;
         SUBTOTAL = cantidad * precioUnitario;
     }
 

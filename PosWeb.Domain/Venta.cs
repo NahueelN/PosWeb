@@ -69,6 +69,23 @@ public class Venta
         RecalcularTotal();
     }
 
+    public void AgregarRenglonCombo(Combo combo, int productoId, decimal cantidad, decimal precioUnitario)
+    {
+        if (combo == null)
+            throw new ArgumentNullException(nameof(combo));
+
+        RenglonVenta renglon = new RenglonVenta(
+            productoId > 0 ? productoId : null,
+            combo.ID_COMBO,
+            cantidad,
+            precioUnitario
+        );
+
+        _RENGLONES.Add(renglon);
+
+        RecalcularTotal();
+    }
+
     public void AsignarCliente(int? clienteId)
     {
         ID_CLIENTE = clienteId;

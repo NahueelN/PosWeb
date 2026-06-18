@@ -31,6 +31,8 @@ public class PosDbContext : DbContext
     public DbSet<Deuda> Deuda { get; set; }
     public DbSet<Pedido> Pedido { get; set; }
     public DbSet<RenglonPedido> RenglonPedido { get; set; }
+    public DbSet<Combo> Combo { get; set; }
+    public DbSet<ComboItem> ComboItem { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -316,6 +318,9 @@ public class PosDbContext : DbContext
             entity.Property(r => r.ID_PRODUCTO)
                 .HasColumnName("ID_PRODUCTO");
 
+            entity.Property(r => r.ID_COMBO)
+                .HasColumnName("ID_COMBO");
+
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
                 .HasColumnType("decimal(18,2)");
@@ -336,6 +341,80 @@ public class PosDbContext : DbContext
             entity.HasOne<Producto>()
                 .WithMany()
                 .HasForeignKey(r => r.ID_PRODUCTO)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Combo>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_COMBO)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- COMBO ----
+        modelBuilder.Entity<Combo>(entity =>
+        {
+            entity.ToTable("COMBO");
+
+            entity.HasKey(c => c.ID_COMBO);
+
+            entity.Property(c => c.ID_COMBO)
+                .HasColumnName("ID_COMBO");
+
+            entity.Property(c => c.COD_COMBO)
+                .HasColumnName("COD_COMBO")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.HasIndex(c => c.COD_COMBO)
+                .IsUnique()
+                .HasFilter("ACTIVO = 1");
+
+            entity.Property(c => c.DESC_COMBO)
+                .HasColumnName("DESC_COMBO")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(c => c.PRECIO)
+                .HasColumnName("PRECIO")
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            entity.Property(c => c.ACTIVO)
+                .HasColumnName("ACTIVO");
+
+            entity.Navigation(c => c.ITEMS)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        // ---- COMBO ITEM ----
+        modelBuilder.Entity<ComboItem>(entity =>
+        {
+            entity.ToTable("COMBO_ITEM");
+
+            entity.HasKey(ci => ci.ID_COMBO_ITEM);
+
+            entity.Property(ci => ci.ID_COMBO_ITEM)
+                .HasColumnName("ID_COMBO_ITEM");
+
+            entity.Property(ci => ci.ID_COMBO)
+                .HasColumnName("ID_COMBO");
+
+            entity.Property(ci => ci.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO");
+
+            entity.Property(ci => ci.CANTIDAD)
+                .HasColumnName("CANTIDAD")
+                .HasColumnType("decimal(18,2)");
+
+            entity.HasOne<Combo>()
+                .WithMany(c => c.ITEMS)
+                .HasForeignKey(ci => ci.ID_COMBO)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Producto>()
+                .WithMany()
+                .HasForeignKey(ci => ci.ID_PRODUCTO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

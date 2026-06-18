@@ -34,7 +34,8 @@ public class EstadisticasService
             .ToList();
 
         var topProductos = renglones
-            .GroupBy(r => r.ID_PRODUCTO)
+            .Where(r => r.ID_PRODUCTO.HasValue)
+            .GroupBy(r => r.ID_PRODUCTO!.Value)
             .Select(g => new
             {
                 ProductoId = g.Key,
@@ -50,9 +51,11 @@ public class EstadisticasService
             .Where(p => productosIds.Contains(p.ID_PRODUCTO))
             .ToDictionary(p => p.ID_PRODUCTO, p => p);
 
-        var costoTotal = renglones.Sum(r =>
+        var costoTotal = renglones
+            .Where(r => r.ID_PRODUCTO.HasValue)
+            .Sum(r =>
         {
-            productos.TryGetValue(r.ID_PRODUCTO, out var prod);
+            productos.TryGetValue(r.ID_PRODUCTO!.Value, out var prod);
             return r.CANTIDAD * (prod?.COSTO ?? 0);
         });
 

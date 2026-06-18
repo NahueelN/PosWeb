@@ -20,6 +20,7 @@ import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
 import PedidosPage from './pages/PedidosPage'
 import EstadisticasPage from './pages/EstadisticasPage'
+import CombosPage from './pages/CombosPage'
 import { esperarBackend } from './api/client'
 
 function LoadingScreen() {
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="/proveedores" element={<ProveedoresPage />} />
               <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
+              <Route path="/combos" element={<CombosPage />} />
               <Route path="/estadisticas" element={<EstadisticasPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
             </Route>

@@ -107,6 +107,7 @@ export interface SucursalDto {
 export interface VentaItemDto {
   productoId: number
   cantidad: number
+  comboId?: number
 }
 
 export interface VentaDto {
@@ -504,4 +505,28 @@ export interface RecibirItemDto {
   cantidadRecibida: number
   esFaltante: boolean
   precioUnitarioReal: number
+}
+
+// --- Combo types ---
+export interface ComboDto {
+  id: number
+  codCombo: string
+  descCombo: string
+  precio: number
+  activo: boolean
+  items: ComboItemDto[]
+}
+
+export interface ComboUpsertDto {
+  codCombo: string
+  descCombo: string
+  precio: number
+  items: ComboItemDto[]
+}
+
+export interface ComboItemDto {
+  productoId: number
+  cantidad: number
+  productoNombre?: string | null
+  codigoBarra?: string | null
 }

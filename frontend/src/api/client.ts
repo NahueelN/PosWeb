@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -340,5 +340,21 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ desde, hasta, sucursalId }),
         }),
+    },
+
+  // Combos
+    combos: {
+      listar: () => request<ComboDto[]>('/combos'),
+      obtenerPorId: (id: number) => request<ComboDto>(`/combos/${id}`),
+      obtenerPorCodigo: (codigo: string) => request<ComboDto>(`/combos/codigo/${encodeURIComponent(codigo)}`),
+      crear: (dto: ComboUpsertDto) => request<ComboDto>('/combos', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      actualizar: (id: number, dto: ComboUpsertDto) => request<ComboDto>(`/combos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      }),
+      eliminar: (id: number) => request<void>(`/combos/${id}`, { method: 'DELETE' }),
     },
 }

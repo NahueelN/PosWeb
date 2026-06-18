@@ -2,11 +2,14 @@ import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto } from '../types'
+import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ComboDto } from '../types'
 
 interface Item {
   producto: ProductoDto
   cantidad: number
+  comboId?: number
+  comboNombre?: string
+  comboPrecio?: number
 }
 
 type Step = 'sucursal' | 'venta' | 'resultado'
@@ -39,6 +42,7 @@ export default function VentasPage() {
 
   // Product grid
   const [productos, setProductos] = useState<ProductoDto[]>([])
+  const [combos, setCombos] = useState<ComboDto[]>([])
   const [productosLoading, setProductosLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -59,6 +63,15 @@ export default function VentasPage() {
       p.codigoBarra.toLowerCase().includes(q)
     )
   }, [productos, searchQuery])
+
+  const filteredCombos = useMemo(() => {
+    if (!searchQuery.trim()) return combos
+    const q = searchQuery.toLowerCase()
+    return combos.filter(c =>
+      c.descCombo.toLowerCase().includes(q) ||
+      c.codCombo.toLowerCase().includes(q)
+    )
+  }, [combos, searchQuery])
 
   // --- Load data ---
   useEffect(() => {
@@ -93,6 +106,9 @@ export default function VentasPage() {
         .then(setProductos)
         .catch(() => {})
         .finally(() => setProductosLoading(false))
+      api.combos.listar()
+        .then(setCombos)
+        .catch(() => {})
     }
   }, [step, ctxSucursal])
 
@@ -146,6 +162,25 @@ export default function VentasPage() {
         input.select()
       }
     }, 0)
+  }
+
+  function agregarCombo(combo: ComboDto) {
+    setItems((prev) => {
+      const existente = prev.find((i) => i.comboId === combo.id)
+      if (existente) {
+        return prev.map((i) =>
+          i.comboId === combo.id ? { ...i, cantidad: i.cantidad + 1 } : i
+        )
+      }
+      return [...prev, {
+        producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 0, activo: true },
+        cantidad: 1,
+        comboId: combo.id,
+        comboNombre: combo.descCombo,
+        comboPrecio: combo.precio,
+      } as Item]
+    })
+    setSearchQuery('')
   }
 
   function handleCambiarCantidad(productoId: number, cantidad: number) {
@@ -241,7 +276,11 @@ export default function VentasPage() {
 
       const res = await api.ventas.crear({
         sucursalId: ctxSucursal.id,
-        items: items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
+        items: items.map((i) => ({
+          productoId: i.producto.id,
+          cantidad: i.cantidad,
+          comboId: i.comboId,
+        })),
         pagos: pagosDto,
       })
       setResultado(res)
@@ -465,13 +504,22 @@ export default function VentasPage() {
                 placeholder="Buscá producto por código de barra o nombre…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                   if (e.key === 'Tab' && !e.shiftKey && items.length > 0) {
                     e.preventDefault()
                     medioRefs.current[0]?.focus()
                   }
                   if (e.key === 'ArrowDown' || e.key === 'Enter') {
                     e.preventDefault()
+                    const q = searchQuery.trim().toUpperCase()
+                    if (e.key === 'Enter' && q) {
+                      const combo = combos.find(c => c.codCombo === q)
+                      if (combo) {
+                        agregarCombo(combo)
+                        setSearchQuery('')
+                        return
+                      }
+                    }
                     setTimeout(() => {
                       productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
                     }, 0)
@@ -523,16 +571,23 @@ export default function VentasPage() {
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                   <span className="ml-3 text-gray-500 text-sm">Cargando productos…</span>
                 </div>
-              ) : filteredProductos.length === 0 ? (
+              ) : filteredProductos.length === 0 && filteredCombos.length === 0 && searchQuery.trim() ? (
                 <div className="text-center py-16">
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                     <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 font-medium text-sm">
-                    {searchQuery ? 'Sin resultados para esta búsqueda' : 'No hay productos disponibles'}
-                  </p>
+                  <p className="text-gray-500 font-medium text-sm">Sin resultados para esta búsqueda</p>
+                </div>
+              ) : filteredProductos.length === 0 && filteredCombos.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium text-sm">No hay productos disponibles</p>
                 </div>
               ) : (
                 <div
@@ -580,6 +635,17 @@ export default function VentasPage() {
                   {filteredProductos.map((p) => (
                     <ProductCard key={p.id} producto={p} onAdd={agregarProducto} />
                   ))}
+                  {filteredCombos.map((c) => (
+                    <button key={`combo-${c.id}`} onClick={() => agregarCombo(c)}
+                      className="text-left bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-3 hover:border-purple-400 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/30">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] font-bold bg-purple-500 text-white px-1.5 py-0.5 rounded">COMBO</span>
+                      </div>
+                      <p className="font-medium text-gray-900 text-sm truncate">{c.descCombo}</p>
+                      <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{c.codCombo}</p>
+                      <p className="text-lg font-bold text-purple-700 mt-1.5">${c.precio.toFixed(0)}</p>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -612,11 +678,40 @@ export default function VentasPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {items.map((i) => (
-                    <div key={i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                  {items.map((i, idx) => (
+                    <div key={i.comboId ? `combo-${i.comboId}` : i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 text-sm truncate">{i.producto.nombre}</p>
-                        <p className="text-xs text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
+                        {i.comboId ? (
+                          <>
+                            <p className="font-medium text-gray-800 text-sm truncate flex items-center gap-1">
+                              <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">COMBO</span>
+                              {i.producto.nombre}
+                            </p>
+                            <p className="text-xs text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
+                            {(() => {
+                              const combo = combos.find(c => c.id === i.comboId)
+                              if (combo?.items.length) {
+                                return (
+                                  <div className="mt-1 space-y-0.5">
+                                    {combo.items.map((item, j) => (
+                                      <div key={j} className="flex items-center gap-1.5 text-xs text-gray-400">
+                                        <span className="w-1 h-1 rounded-full bg-purple-300 shrink-0" />
+                                        <span className="truncate">{item.productoNombre ?? `x${item.productoId}`}</span>
+                                        <span className="text-gray-300">x{item.cantidad}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              }
+                              return null
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-gray-800 text-sm truncate">{i.producto.nombre}</p>
+                            <p className="text-xs text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
+                          </>
+                        )}
                         <p className="text-xs text-gray-500 mt-0.5">${i.producto.precio.toFixed(2)} c/u</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">

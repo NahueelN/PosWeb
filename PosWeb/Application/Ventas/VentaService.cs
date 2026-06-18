@@ -100,36 +100,75 @@ public class VentaService
 
         foreach (VentaItemDto item in dto.Items)
         {
-            Producto? producto = _context.Producto.Find(item.ProductoId);
-
-            if (producto == null)
+            if (item.ComboId.HasValue && item.ComboId.Value > 0)
             {
-                throw new ProductoNoExisteException(item.ProductoId);
-            }
+                var combo = _context.Combo
+                    .Include(c => c.ITEMS)
+                    .FirstOrDefault(c => c.ID_COMBO == item.ComboId.Value && c.ACTIVO)
+                    ?? throw new InvalidOperationException($"Combo con ID {item.ComboId} no encontrado o inactivo");
 
-            if (!producto.ACTIVO)
+                foreach (var citem in combo.ITEMS)
+                {
+                    Producto? cproducto = _context.Producto.Find(citem.ID_PRODUCTO);
+                    if (cproducto == null)
+                        throw new ProductoNoExisteException(citem.ID_PRODUCTO);
+                    if (!cproducto.ACTIVO)
+                        throw new ProductoInactivoException(citem.ID_PRODUCTO);
+
+                    StockSucursal? cstock = _context.StockSucursal
+                        .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
+
+                    decimal cantidadNecesaria = citem.CANTIDAD * item.Cantidad;
+                    int cdisponible = (int)(cstock?.STOCK ?? 0);
+
+                    if (cdisponible < cantidadNecesaria)
+                    {
+                        throw new StockSucursalInsuficienteException(
+                            cproducto.DESC_PRODUCTO,
+                            dto.SucursalId,
+                            cdisponible,
+                            (int)cantidadNecesaria
+                        );
+                    }
+
+                    cstock!.DescontarStock(cantidadNecesaria);
+                    venta.AgregarRenglonCombo(combo, citem.ID_PRODUCTO, cantidadNecesaria, 0);
+                }
+
+                venta.AgregarRenglonCombo(combo, 0, item.Cantidad, combo.PRECIO);
+            }
+            else
             {
-                throw new ProductoInactivoException(item.ProductoId);
+                Producto? producto = _context.Producto.Find(item.ProductoId);
+
+                if (producto == null)
+                {
+                    throw new ProductoNoExisteException(item.ProductoId);
+                }
+
+                if (!producto.ACTIVO)
+                {
+                    throw new ProductoInactivoException(item.ProductoId);
+                }
+
+                StockSucursal? stockSuc = _context.StockSucursal
+                    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
+
+                int available = (int)(stockSuc?.STOCK ?? 0);
+
+                if (available < item.Cantidad)
+                {
+                    throw new StockSucursalInsuficienteException(
+                        producto.DESC_PRODUCTO,
+                        dto.SucursalId,
+                        available,
+                        item.Cantidad
+                    );
+                }
+
+                stockSuc!.DescontarStock(item.Cantidad);
+                venta.AgregarRenglon(producto, item.Cantidad);
             }
-
-            // Per-sucursal stock check
-            StockSucursal? stockSuc = _context.StockSucursal
-                .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
-
-            int available = (int)(stockSuc?.STOCK ?? 0);
-
-            if (available < item.Cantidad)
-            {
-                throw new StockSucursalInsuficienteException(
-                    producto.DESC_PRODUCTO,
-                    dto.SucursalId,
-                    available,
-                    item.Cantidad
-                );
-            }
-
-            stockSuc!.DescontarStock(item.Cantidad);
-            venta.AgregarRenglon(producto, item.Cantidad);
         }
 
         // Validate payment total against sale total
@@ -286,13 +325,17 @@ public class VentaService
 
         var items = await (
             from r in _context.RenglonVenta
-            join p in _context.Producto on r.ID_PRODUCTO equals p.ID_PRODUCTO
-            where r.ID_VENTA == ventaId
+            where r.ID_VENTA == ventaId && r.PRECIO_UNITARIO > 0
+            orderby r.ID_RENGLON_VENTA
             select new RenglonHistorialDto
             {
-                ProductoId = r.ID_PRODUCTO,
-                ProductoNombre = p.DESC_PRODUCTO,
-                CodigoBarra = p.CODIGO_BARRAS,
+                ProductoId = r.ID_PRODUCTO ?? 0,
+                ProductoNombre = r.ID_COMBO != null
+                    ? _context.Combo.Where(c => c.ID_COMBO == r.ID_COMBO).Select(c => c.DESC_COMBO).FirstOrDefault() ?? "Combo"
+                    : _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.DESC_PRODUCTO).FirstOrDefault() ?? "",
+                CodigoBarra = r.ID_COMBO != null
+                    ? _context.Combo.Where(c => c.ID_COMBO == r.ID_COMBO).Select(c => c.COD_COMBO).FirstOrDefault() ?? ""
+                    : _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.CODIGO_BARRAS).FirstOrDefault() ?? "",
                 Cantidad = (int)r.CANTIDAD,
                 PrecioUnitario = r.PRECIO_UNITARIO,
                 Subtotal = r.SUBTOTAL
@@ -328,11 +371,14 @@ public class VentaService
 
         foreach (var r in renglones)
         {
-            var stock = _context.StockSucursal
-                .FirstOrDefault(s => s.ID_PRODUCTO == r.ID_PRODUCTO && s.ID_SUCURSAL == venta.ID_SUCURSAL);
-            if (stock != null)
+            if (r.ID_PRODUCTO.HasValue)
             {
-                stock.AjustarStock(stock.STOCK + r.CANTIDAD);
+                var stock = _context.StockSucursal
+                    .FirstOrDefault(s => s.ID_PRODUCTO == r.ID_PRODUCTO.Value && s.ID_SUCURSAL == venta.ID_SUCURSAL);
+                if (stock != null)
+                {
+                    stock.AjustarStock(stock.STOCK + r.CANTIDAD);
+                }
             }
         }
 
