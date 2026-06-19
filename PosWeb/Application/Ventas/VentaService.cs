@@ -56,16 +56,10 @@ public class VentaService
             throw new VentaSinCajaActivaException();
         }
 
-        // Validate pagos
-        if (dto.Pagos == null)
-        {
-            throw new PagosVaciosException();
-        }
-
         decimal totalPagos = 0;
         List<(int medioPagoId, decimal monto, decimal? conCambio)> pagosData = new();
 
-        if (dto.Pagos.Count > 0)
+        if (dto.Pagos is { Count: > 0 })
         {
             foreach (var pago in dto.Pagos)
             {
@@ -172,9 +166,11 @@ public class VentaService
         }
 
         // Validate payment total against sale total
-        if (dto.Pagos.Count > 0)
+        decimal totalVenta = venta.TOTAL;
+        bool isPartialPayment = dto.ClienteId.HasValue && totalPagos < totalVenta - 0.01m;
+
+        if (pagosData.Count > 0 && !isPartialPayment)
         {
-            decimal totalVenta = venta.TOTAL;
             if (Math.Abs(totalPagos - totalVenta) > 0.01m)
             {
                 // Check if it's a cash payment with extra (change scenario)
@@ -206,10 +202,6 @@ public class VentaService
                 }
             }
         }
-        else
-        {
-            throw new PagosVaciosException();
-        }
 
         _context.Venta.Add(venta);
         _context.SaveChanges();
@@ -218,7 +210,7 @@ public class VentaService
         decimal cambioTotal = 0;
         var pagosResult = new List<PagoVentaResultDto>();
 
-        if (dto.Pagos != null && pagosData.Count > 0)
+        if (pagosData.Count > 0)
         {
             foreach (var (medioPagoId, monto, conCambio) in pagosData)
             {
@@ -227,7 +219,8 @@ public class VentaService
                     medioPagoId,
                     monto,
                     usuarioId ?? 0,
-                    cajaActiva.ID_CAJA
+                    cajaActiva.ID_CAJA,
+                    conCambio
                 );
 
                 _context.Pago.Add(pago);
@@ -252,13 +245,36 @@ public class VentaService
             _context.SaveChanges();
         }
 
+        // Auto-create client debt for partial payments
+        int? deudaId = null;
+        decimal? deudaMonto = null;
+        if (isPartialPayment && dto.ClienteId.HasValue)
+        {
+            deudaMonto = totalVenta - totalPagos;
+            var deuda = new Deuda(deudaMonto.Value, idCliente: dto.ClienteId.Value, idVenta: venta.ID_VENTA, montoPagado: totalPagos);
+            _context.Deuda.Add(deuda);
+            _context.SaveChanges();
+            deudaId = deuda.ID_DEUDA;
+        }
+
+        string? clienteNombre = null;
+        if (dto.ClienteId.HasValue)
+        {
+            var cli = _context.Cliente.Find(dto.ClienteId.Value);
+            clienteNombre = cli?.NOMBRE;
+        }
+
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
             Fecha = venta.FECHA_VENTA,
             Total = venta.TOTAL,
             Pagos = pagosResult,
-            Cambio = cambioTotal
+            Cambio = cambioTotal,
+            ClienteId = dto.ClienteId,
+            ClienteNombre = clienteNombre,
+            DeudaId = deudaId,
+            DeudaMonto = deudaMonto
         };
     }
 

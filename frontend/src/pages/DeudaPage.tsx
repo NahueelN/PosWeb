@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import type { DeudaDto, ProveedorDto } from '../types';
+import type { DeudaDto, ProveedorDto, ClienteDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 
@@ -26,10 +26,15 @@ function calcularDistribucion(deudas: DeudaDto[], monto: number): Distribucion[]
   });
 }
 
+type ModoDeuda = 'proveedores' | 'clientes';
+
 export default function DeudaPage() {
+  const [modo, setModo] = useState<ModoDeuda>('proveedores');
   const [deudas, setDeudas] = useState<DeudaDto[]>([]);
   const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
+  const [clientes, setClientes] = useState<ClienteDto[]>([]);
   const [proveedorId, setProveedorId] = useState<number>(0);
+  const [clienteId, setClienteId] = useState<number>(0);
   const [soloPendientes, setSoloPendientes] = useState(true);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<number | null>(null);
@@ -44,34 +49,35 @@ export default function DeudaPage() {
   const [pagoMasivoMonto, setPagoMasivoMonto] = useState('');
   const [pagandoMasivo, setPagandoMasivo] = useState(false);
 
-  // Deudas pendientes del proveedor seleccionado, ordenadas ASC (más vieja primero)
-  const deudasProveedor = useMemo(() => {
-    if (!proveedorId) return [];
+  // Deudas pendientes del proveedor/cliente seleccionado, ordenadas ASC (más vieja primero)
+  const deudasFiltradasPorEntidad = useMemo(() => {
+    const id = modo === 'proveedores' ? proveedorId : clienteId;
+    if (!id) return [];
     return [...deudas]
-      .filter(d => !d.pago && d.proveedorNombre)
+      .filter(d => !d.pago)
       .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-  }, [deudas, proveedorId]);
+  }, [deudas, proveedorId, clienteId, modo]);
 
   // Distribución preview
   const distribucionPreview = useMemo(() => {
     const m = parseFloat(pagoMasivoMonto);
-    if (!m || m <= 0 || deudasProveedor.length === 0) return [];
-    return calcularDistribucion(deudasProveedor, m);
-  }, [deudasProveedor, pagoMasivoMonto]);
+    if (!m || m <= 0 || deudasFiltradasPorEntidad.length === 0) return [];
+    return calcularDistribucion(deudasFiltradasPorEntidad, m);
+  }, [deudasFiltradasPorEntidad, pagoMasivoMonto]);
 
   const totalPreview = distribucionPreview.reduce((s, d) => s + d.pago, 0);
 
   useEffect(() => {
     api.proveedores.listar().then(setProveedores).catch(() => {});
+    api.clientes.listar().then(res => setClientes(res.items ?? [])).catch(() => {});
   }, []);
 
   const loadDeudas = async () => {
     setLoading(true);
     try {
-      const data = await api.deudas.listar(
-        proveedorId || undefined,
-        soloPendientes
-      );
+      const data = modo === 'proveedores'
+        ? await api.deudas.listar(proveedorId || undefined, soloPendientes)
+        : await api.deudas.listarClientes(clienteId || undefined, soloPendientes);
       setDeudas(data);
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al cargar deudas');
@@ -82,7 +88,7 @@ export default function DeudaPage() {
 
   useEffect(() => {
     loadDeudas();
-  }, [proveedorId, soloPendientes]);
+  }, [modo, proveedorId, clienteId, soloPendientes]);
 
   const handlePagar = async (id: number, monto?: number) => {
     if (monto === undefined && !confirm('¿Pagar el saldo restante de esta deuda?')) return;
@@ -101,10 +107,15 @@ export default function DeudaPage() {
   const handlePagarMasivo = async () => {
     const monto = parseFloat(pagoMasivoMonto);
     if (!monto || monto <= 0) return;
-    if (!proveedorId) return;
+    const entidadId = modo === 'proveedores' ? proveedorId : clienteId;
+    if (!entidadId) return;
     setPagandoMasivo(true);
     try {
-      await api.deudas.pagarMultiple(proveedorId, monto);
+      if (modo === 'proveedores') {
+        await api.deudas.pagarMultiple(entidadId, monto);
+      } else {
+        await api.deudas.pagarMultipleCliente(entidadId, monto);
+      }
       setPagoMasivoMonto('');
       notifySuccess(`Pago de ${formatCurrency(monto)} registrado correctamente`);
       await loadDeudas();
@@ -134,7 +145,9 @@ export default function DeudaPage() {
     // Sort
     result.sort((a, b) => {
       if (ordenarPor === 'alfabetico') {
-        const cmp = (a.proveedorNombre || '').localeCompare(b.proveedorNombre || '');
+        const nombreA = modo === 'proveedores' ? (a.proveedorNombre || '') : (a.clienteNombre || '');
+        const nombreB = modo === 'proveedores' ? (b.proveedorNombre || '') : (b.clienteNombre || '');
+        const cmp = nombreA.localeCompare(nombreB);
         return ordenDir === 'asc' ? cmp : -cmp;
       }
       const cmp = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
@@ -146,21 +159,56 @@ export default function DeudaPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Deudas a proveedores</h1>
+        {/* Tab toggle */}
+        <div className="flex items-center gap-1 mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
+          <button
+            onClick={() => { setModo('proveedores'); setProveedorId(0); setClienteId(0); setPagoMasivoMonto(''); }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+              modo === 'proveedores'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            Proveedores
+          </button>
+          <button
+            onClick={() => { setModo('clientes'); setProveedorId(0); setClienteId(0); setPagoMasivoMonto(''); }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+              modo === 'clientes'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            Clientes
+          </button>
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+          {modo === 'proveedores' ? 'Deudas a proveedores' : 'Deudas de clientes'}
+        </h1>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {modo === 'proveedores' ? 'Proveedor' : 'Cliente'}
+              </label>
               <select
-                value={proveedorId}
-                onChange={e => { setProveedorId(Number(e.target.value)); setPagoMasivoMonto(''); }}
+                value={modo === 'proveedores' ? proveedorId : clienteId}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  if (modo === 'proveedores') setProveedorId(val);
+                  else setClienteId(val);
+                  setPagoMasivoMonto('');
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value={0}>Todos los proveedores</option>
-                {proveedores.map(p => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                <option value={0}>
+                  {modo === 'proveedores' ? 'Todos los proveedores' : 'Todos los clientes'}
+                </option>
+                {(modo === 'proveedores' ? proveedores : clientes).map(e => (
+                  <option key={e.id} value={e.id!}>{e.nombre}</option>
                 ))}
               </select>
             </div>
@@ -198,11 +246,14 @@ export default function DeudaPage() {
           </div>
         </div>
 
-        {/* Pago masivo por proveedor */}
-        {proveedorId > 0 && deudasProveedor.length > 0 && (
+        {/* Pago masivo por entidad */}
+        {(modo === 'proveedores' ? proveedorId : clienteId) > 0 && deudasFiltradasPorEntidad.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-indigo-200 p-4 mb-6">
             <h2 className="text-sm font-bold text-indigo-800 mb-3">
-              Pago a {proveedores.find(p => p.id === proveedorId)?.nombre ?? 'proveedor'}
+              Pago a {modo === 'proveedores'
+                ? (proveedores.find(p => p.id === proveedorId)?.nombre ?? 'proveedor')
+                : (clientes.find(c => c.id === clienteId)?.nombre ?? 'cliente')
+              }
             </h2>
             <p className="text-xs text-gray-500 mb-3">
               Ingresá el monto total que le pagás y se distribuye automáticamente desde la deuda más antigua.
@@ -262,7 +313,12 @@ export default function DeudaPage() {
           <div className="text-center py-12 text-gray-500">Cargando deudas...</div>
         ) : deudasFiltradas.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <p className="text-gray-500 text-sm">No hay deudas{proveedorId > 0 ? ' para este proveedor' : ''}</p>
+            <p className="text-gray-500 text-sm">
+              No hay deudas
+              {(modo === 'proveedores' ? proveedorId : clienteId) > 0
+                ? ` para este ${modo === 'proveedores' ? 'proveedor' : 'cliente'}`
+                : ` de ${modo === 'proveedores' ? 'proveedores' : 'clientes'}`}
+            </p>
             {soloPendientes && (
               <p className="text-gray-400 text-xs mt-1">Desmarcá "Solo pendientes" para ver todas</p>
             )}
@@ -273,7 +329,7 @@ export default function DeudaPage() {
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                   <th className="px-4 py-3 cursor-pointer select-none hover:text-gray-700" onClick={() => { setOrdenarPor('alfabetico'); setOrdenDir(ordenarPor === 'alfabetico' && ordenDir === 'asc' ? 'desc' : 'asc'); }}>
-                    Proveedor {ordenarPor === 'alfabetico' ? (ordenDir === 'asc' ? '▲' : '▼') : ''}
+                    {modo === 'proveedores' ? 'Proveedor' : 'Cliente'} {ordenarPor === 'alfabetico' ? (ordenDir === 'asc' ? '▲' : '▼') : ''}
                   </th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-right">Pagado</th>
@@ -288,7 +344,9 @@ export default function DeudaPage() {
               <tbody className="divide-y divide-gray-100">
                 {deudasFiltradas.map(d => (
                   <tr key={d.id} className={d.pago ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50'}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{d.proveedorNombre || '—'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {modo === 'proveedores' ? (d.proveedorNombre || '—') : (d.clienteNombre || '—')}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(d.monto)}</td>
                     <td className="px-4 py-3 text-right font-mono">{d.montoPagado > 0 ? formatCurrency(d.montoPagado) : '—'}</td>
                     <td className={`px-4 py-3 text-right font-mono ${d.saldoPendiente > 0 ? 'text-red-600 font-medium' : 'text-green-600'}`}>

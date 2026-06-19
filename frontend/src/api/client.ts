@@ -306,6 +306,18 @@ export const api = {
         const query = params.toString() ? `?${params.toString()}` : '';
         return request<DeudaDto[]>(`/deudas${query}`);
       },
+      listarClientes: (clienteId?: number, soloPendientes?: boolean) => {
+        const params = new URLSearchParams();
+        if (clienteId) params.set('clienteId', String(clienteId));
+        if (soloPendientes) params.set('soloPendientes', 'true');
+        const qs = params.toString();
+        return request<DeudaDto[]>(`/deudas/clientes${qs ? `?${qs}` : ''}`);
+      },
+      crearDeudaCliente: (clienteId: number, ventaId: number, monto: number, montoPagado?: number) =>
+        request<DeudaDto>(`/deudas/clientes/crear`, {
+          method: 'POST',
+          body: JSON.stringify({ clienteId, ventaId, monto, montoPagado }),
+        }),
       obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
       pagar: (id: number, monto?: number) => {
         const body: PagarDeudaRequestDto = monto !== undefined ? { monto } : {};
@@ -318,6 +330,11 @@ export const api = {
         request<DeudaDto[]>(`/deudas/pagar-multiple`, {
           method: 'POST',
           body: JSON.stringify({ proveedorId, monto }),
+        }),
+      pagarMultipleCliente: (clienteId: number, monto: number) =>
+        request<DeudaDto[]>(`/deudas/pagar-multiple-cliente`, {
+          method: 'POST',
+          body: JSON.stringify({ clienteId, monto }),
         }),
     },
 
