@@ -66,6 +66,22 @@ public class ClienteService
 
     public ClienteDto Crear(ClienteDto dto)
     {
+        // Find-or-create para clientes ocasionales (ConsumidorFinal + s/nro)
+        // El nombre es la UK: mismo nombre → mismo registro
+        if (dto.TipoDocumento == "ConsumidorFinal" && string.IsNullOrEmpty(dto.NumeroDocumento))
+        {
+            var existente = _context.Cliente
+                .FirstOrDefault(c =>
+                    c.NOMBRE == dto.Nombre
+                    && c.TIPO_DOCUMENTO == "ConsumidorFinal"
+                    && c.NRO_DOCUMENTO == "0"
+                    && c.ACTIVO);
+            if (existente != null)
+            {
+                return MapToDto(existente);
+            }
+        }
+
         // Check duplicate document
         bool duplicado = _context.Cliente
             .Any(c => c.TIPO_DOCUMENTO == dto.TipoDocumento

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619015839_MakeCodClienteNullable")]
+    partial class MakeCodClienteNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -169,74 +172,6 @@ namespace PosWeb.Migrations
                         .HasFilter("ACTIVO = 1");
 
                     b.ToTable("CLIENTE", (string)null);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.Combo", b =>
-                {
-                    b.Property<int>("ID_COMBO")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_COMBO");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_COMBO"));
-
-                    b.Property<bool>("ACTIVO")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ACTIVO");
-
-                    b.Property<string>("COD_COMBO")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("COD_COMBO");
-
-                    b.Property<string>("DESC_COMBO")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasColumnName("DESC_COMBO");
-
-                    b.Property<decimal>("PRECIO")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("PRECIO");
-
-                    b.HasKey("ID_COMBO");
-
-                    b.HasIndex("COD_COMBO")
-                        .IsUnique()
-                        .HasFilter("ACTIVO = 1");
-
-                    b.ToTable("COMBO", (string)null);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.ComboItem", b =>
-                {
-                    b.Property<int>("ID_COMBO_ITEM")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_COMBO_ITEM");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_COMBO_ITEM"));
-
-                    b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("CANTIDAD");
-
-                    b.Property<int>("ID_COMBO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_COMBO");
-
-                    b.Property<int>("ID_PRODUCTO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_PRODUCTO");
-
-                    b.HasKey("ID_COMBO_ITEM");
-
-                    b.HasIndex("ID_COMBO");
-
-                    b.HasIndex("ID_PRODUCTO");
-
-                    b.ToTable("COMBO_ITEM", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Compra", b =>
@@ -843,11 +778,7 @@ namespace PosWeb.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
-                    b.Property<int?>("ID_COMBO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_COMBO");
-
-                    b.Property<int?>("ID_PRODUCTO")
+                    b.Property<int>("ID_PRODUCTO")
                         .HasColumnType("int")
                         .HasColumnName("ID_PRODUCTO");
 
@@ -1332,21 +1263,6 @@ namespace PosWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("PosWeb.Domain.ComboItem", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Combo", null)
-                        .WithMany("ITEMS")
-                        .HasForeignKey("ID_COMBO")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PosWeb.Domain.Producto", null)
-                        .WithMany()
-                        .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("PosWeb.Domain.RenglonCompra", b =>
                 {
                     b.HasOne("PosWeb.Domain.Compra", null)
@@ -1378,15 +1294,11 @@ namespace PosWeb.Migrations
 
             modelBuilder.Entity("PosWeb.Domain.RenglonVenta", b =>
                 {
-                    b.HasOne("PosWeb.Domain.Combo", null)
-                        .WithMany()
-                        .HasForeignKey("ID_COMBO")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("PosWeb.Domain.Producto", null)
                         .WithMany()
                         .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("PosWeb.Domain.Venta", null)
                         .WithMany("RENGLONES")

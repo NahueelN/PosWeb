@@ -123,6 +123,10 @@ export interface VentaResultadoDto {
   total: number
   pagos: PagoVentaResultDto[]
   cambio: number
+  clienteId?: number
+  clienteNombre?: string
+  deudaId?: number
+  deudaMonto?: number
 }
 
 export interface StockSucursalDto {
@@ -242,6 +246,8 @@ export interface ClienteDto {
   ivaCondicion: string
   telefono?: string
   domicilio?: string
+  codCliente?: string
+  mail?: string
   activo?: boolean
 }
 
@@ -408,12 +414,16 @@ export interface GastoListResponse {
 // --- Deuda types ---
 export interface DeudaDto {
   id: number
-  proveedorNombre: string
+  proveedorNombre?: string
+  clienteNombre?: string
   monto: number
-  fecha: string
+  fecha?: string
   fechaPago?: string
   pago: boolean
   compraId?: number
+  ventaId?: number
+  proveedorId?: number
+  clienteId?: number
   montoPagado: number
   saldoPendiente: number
 }

@@ -230,7 +230,7 @@ public class PosDbContext : DbContext
             entity.Property(c => c.COD_CLIENTE)
                 .HasColumnName("COD_CLIENTE")
                 .HasMaxLength(50)
-                .IsRequired();
+                .IsRequired(false);
 
             entity.HasIndex(c => c.COD_CLIENTE)
                 .IsUnique()
@@ -1058,10 +1058,10 @@ public class PosDbContext : DbContext
         // Seed Medios de Pago
         modelBuilder.Entity<MedioPago>().HasData(
             new MedioPago(1, "EFECTIVO", "Efectivo", true),
-            new MedioPago(2, "DEBITO", "Tarjeta Débito", true),
+            new MedioPago(2, "DEBITO", "Tarjeta Débito", false),
             new MedioPago(3, "CREDITO", "Tarjeta Crédito", false),
             new MedioPago(4, "TRANSFERENCIA", "Transferencia", false),
-            new MedioPago(5, "QR", "QR", true)
+            new MedioPago(5, "QR", "QR", false)
         );
 
         // Seed Unidades de Medida (use anonymous type — constructor doesn't accept ID)

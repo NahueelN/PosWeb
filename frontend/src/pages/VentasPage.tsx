@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ComboDto } from '../types'
+import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ClienteDto, ComboDto } from '../types'
 
 interface Item {
   producto: ProductoDto
@@ -37,8 +37,26 @@ export default function VentasPage() {
   // Payments
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
-  const [pagoMonto, setPagoMonto] = useState('')
-  const [pagoConCambio, setPagoConCambio] = useState('')
+  const [recibio, setRecibio] = useState('')
+
+  // Deuda flow
+  const [showDebtConfirm, setShowDebtConfirm] = useState(false)
+  const [showClientPopup, setShowClientPopup] = useState(false)
+  const [clientesBusqueda, setClientesBusqueda] = useState('')
+  const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
+  const [buscandoClientes, setBuscandoClientes] = useState(false)
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteDto | null>(null)
+  // Nuevo cliente
+  const [showNuevoCliente, setShowNuevoCliente] = useState(false)
+  const [nuevoClienteNombre, setNuevoClienteNombre] = useState('')
+  const [esOcasional, setEsOcasional] = useState(true)
+  const [formCliente, setFormCliente] = useState({
+    tipoDocumento: 'DNI',
+    numeroDocumento: '',
+    ivaCondicion: 'ConsumidorFinal',
+    telefono: '',
+    domicilio: '',
+  })
 
   // Product grid
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -53,6 +71,11 @@ export default function VentasPage() {
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
   const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  // Sincronizar Recibió con el total
+  useEffect(() => {
+    setRecibio(total.toFixed(2))
+  }, [total])
 
   // Computed: client-side filter by name or barcode
   const filteredProductos = useMemo(() => {
@@ -117,19 +140,57 @@ export default function VentasPage() {
     if (!ctxSucursal && step !== 'sucursal') setStep('sucursal')
   }, [ctxSucursal, step])
 
-  // Auto-focus "Recibió" input when a pagaVuelto medio is selected
-  useEffect(() => {
-    if (selectedMedio?.pagaVuelto) {
-      setTimeout(() => recibioInputRef.current?.focus(), 50)
-    }
-  }, [selectedMedio])
-
   // Auto-scroll del carrito al último item cuando se agrega uno nuevo
   useEffect(() => {
     if (cartListRef.current) {
       cartListRef.current.scrollTop = cartListRef.current.scrollHeight
     }
   }, [items])
+
+  // Búsqueda de clientes
+  useEffect(() => {
+    if (!showClientPopup || clientesBusqueda.trim().length < 1) {
+      setClientesResultados([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setBuscandoClientes(true)
+      try {
+        const res = await api.clientes.listar(clientesBusqueda.trim())
+        setClientesResultados(res.items ?? [])
+      } catch { /* ignore */ }
+      setBuscandoClientes(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [clientesBusqueda, showClientPopup])
+
+  async function crearClienteYRevertir() {
+    if (nuevoClienteNombre.trim().length < 2) return
+    try {
+      const dto: ClienteDto = esOcasional
+        ? {
+            nombre: nuevoClienteNombre.trim(),
+            tipoDocumento: 'ConsumidorFinal',
+            numeroDocumento: '',
+            ivaCondicion: 'ConsumidorFinal',
+          }
+        : {
+            nombre: nuevoClienteNombre.trim(),
+            tipoDocumento: formCliente.tipoDocumento,
+            numeroDocumento: formCliente.numeroDocumento,
+            ivaCondicion: formCliente.ivaCondicion,
+            telefono: formCliente.telefono || undefined,
+            domicilio: formCliente.domicilio || undefined,
+          }
+      const nuevo = await api.clientes.crear(dto)
+      setClienteSeleccionado(nuevo)
+      setShowNuevoCliente(false)
+      setShowClientPopup(false)
+      setNuevoClienteNombre('')
+      setEsOcasional(true)
+      setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
+    } catch (e: any) { notifyError(e.message) }
+  }
 
   function seleccionarSucursal(s: SucursalDto) {
     localStorage.setItem('sucursalActiva', JSON.stringify(s))
@@ -200,8 +261,6 @@ export default function VentasPage() {
   // --- Payment ---
   function selectMedio(mp: MedioPagoDto) {
     setSelectedMedio(mp)
-    setPagoMonto(total.toFixed(2))
-    setPagoConCambio('')
   }
 
   function handleMedioKeyDown(e: React.KeyboardEvent, idx: number) {
@@ -228,17 +287,6 @@ export default function VentasPage() {
     }
   }
 
-  function handlePagoKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      confirmarVenta()
-    }
-  }
-
-  function esPagoCompleto(): boolean {
-    return selectedMedio !== null && parseFloat(pagoMonto) > 0
-  }
-
   async function confirmarVenta() {
     if (!ctxSucursal || items.length === 0) return
 
@@ -256,21 +304,30 @@ export default function VentasPage() {
       }
     }
 
-    try {
-      if (!selectedMedio) {
-        notifyError('Seleccioná un medio de pago.')
-        return
-      }
+    const recibioValor = parseFloat(recibio) || 0
 
-      const monto = parseFloat(pagoMonto)
-      const pagosDto: PagoVentaDto[] = [{
-        medioPagoId: selectedMedio.id,
-        monto,
-      }]
-      if (selectedMedio.pagaVuelto && pagoConCambio) {
-        const conCambioVal = parseFloat(pagoConCambio)
-        if (!isNaN(conCambioVal) && conCambioVal > monto) {
-          pagosDto[0].conCambio = conCambioVal
+    // If total payment wasn't received, ask about debt first
+    if (recibioValor < total && !clienteSeleccionado) {
+      setShowDebtConfirm(true)
+      return
+    }
+
+    await ejecutarVenta(recibioValor)
+  }
+
+  async function ejecutarVenta(recibioValor: number) {
+    if (!ctxSucursal) return
+    try {
+      const pagosDto: PagoVentaDto[] = []
+
+      if (selectedMedio && recibioValor > 0) {
+        const monto = recibioValor < total ? recibioValor : total
+        pagosDto.push({
+          medioPagoId: selectedMedio.id,
+          monto,
+        })
+        if (selectedMedio.pagaVuelto && recibioValor > total) {
+          pagosDto[0].conCambio = recibioValor
         }
       }
 
@@ -281,21 +338,19 @@ export default function VentasPage() {
           cantidad: i.cantidad,
           comboId: i.comboId,
         })),
-        pagos: pagosDto,
+        pagos: pagosDto.length > 0 ? pagosDto : undefined,
+        clienteId: clienteSeleccionado?.id,
       })
       setResultado(res)
       setUltimosItems([...items])
       setItems([])
       setSelectedMedio(null)
-      setPagoMonto('')
-      setPagoConCambio('')
+      setRecibio('')
+      setClienteSeleccionado(null)
+      setShowClientPopup(false)
+      setShowDebtConfirm(false)
       setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
-  }
-
-  async function handleConfirmar(e: FormEvent) {
-    e.preventDefault()
-    await confirmarVenta()
   }
 
   function formatCurrency(n: number): string {
@@ -310,8 +365,10 @@ export default function VentasPage() {
     setUltimosItems([])
     setItems([])
     setSelectedMedio(null)
-    setPagoMonto('')
-    setPagoConCambio('')
+    setRecibio('')
+    setClienteSeleccionado(null)
+    setShowClientPopup(false)
+    setShowDebtConfirm(false)
     setStep('venta')
     setTimeout(() => searchInputRef.current?.focus(), 100)
   }
@@ -321,8 +378,7 @@ export default function VentasPage() {
       e.preventDefault()
       if (selectedMedio) {
         setSelectedMedio(null)
-        setPagoConCambio('')
-        setPagoMonto('')
+        setRecibio(total.toFixed(2))
       }
       searchInputRef.current?.focus()
     }
@@ -805,106 +861,316 @@ export default function VentasPage() {
           </div>
         </div>
 
-        {/* Total — siempre visible abajo */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-5 py-4 flex items-center justify-between shrink-0">
-          <span className="text-sm text-gray-500 font-medium">Total</span>
-          <span className="text-2xl font-bold text-gray-900">${total.toFixed(2)}</span>
+        {/* Footer: Vuelto + Recibió + Total + Confirm */}
+        {items.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-5 py-4 shrink-0 space-y-3">
+            {/* Vuelto */}
+            {selectedMedio?.pagaVuelto && (() => {
+              const recibioNum = parseFloat(recibio || '0')
+              const vuelto = recibioNum > total ? recibioNum - total : 0
+              return vuelto > 0 ? (
+                <div className="flex items-center justify-between pb-3 border-b border-green-100">
+                  <span className="text-sm font-medium text-green-700">Vuelto</span>
+                  <span className="text-xl font-bold text-green-700">${vuelto.toFixed(2)}</span>
+                </div>
+              ) : null
+            })()}
+
+            {/* Recibió */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recibió</label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl pointer-events-none">$</span>
+                <input
+                  ref={recibioInputRef}
+                  type="number" step="0.01" min="0"
+                  value={recibio}
+                  onChange={e => { setRecibio(e.target.value); setClienteSeleccionado(null) }}
+                  onFocus={e => e.target.select()}
+                  className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  placeholder={total.toFixed(2)}
+                />
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500 font-medium">Total</span>
+              <span className="text-2xl font-bold text-gray-900">${total.toFixed(2)}</span>
+            </div>
+
+            {/* Cliente seleccionado para deuda */}
+            {clienteSeleccionado && (
+              <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg">
+                <span className="font-medium">Cliente: {clienteSeleccionado.nombre}</span>
+                <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
+              </div>
+            )}
+
+            {/* Confirm button */}
+            {!cajaActiva ? (
+              <div className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">
+                Sin caja abierta
+              </div>
+            ) : (
+              <button
+                ref={confirmBtnRef}
+                type="button"
+                onClick={confirmarVenta}
+                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors text-sm"
+              >
+                {clienteSeleccionado
+                  ? `Confirmar venta — $${total.toFixed(2)} (deuda $${(total - (parseFloat(recibio) || 0)).toFixed(2)})`
+                  : `Confirmar venta — $${total.toFixed(2)}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom bar — medios de pago */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-56 lg:right-[33.333vw] bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] z-20">
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Medios header */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Medio</span>
+              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">←</kbd>
+                <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">→</kbd>
+                <span>navegar</span>
+              </span>
+            </div>
+
+            {/* Medios */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {mediosPago.map((mp, idx) => {
+                const estaSeleccionado = selectedMedio?.id === mp.id
+                return (
+                  <button
+                    key={mp.id}
+                    ref={(el) => { medioRefs.current[idx] = el }}
+                    type="button"
+                    onClick={() => selectMedio(mp)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && !e.shiftKey) {
+                        e.preventDefault()
+                        confirmBtnRef.current?.focus()
+                        return
+                      }
+                      if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
+                        e.preventDefault()
+                        searchInputRef.current?.focus()
+                        return
+                      }
+                      handleMedioKeyDown(e, idx)
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
+                      estaSeleccionado
+                        ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
+                        : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
+                    }`}
+                  >
+                    {mp.nombre}
+                  </button>
+                )
+              })}
+            </div>
+
+            {selectedMedio && (
+              <span className="text-xs font-medium text-gray-600 shrink-0">
+                {selectedMedio.nombre} · <strong>${total.toFixed(2)}</strong>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom bar — siempre visible */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-56 lg:right-[33.333vw] bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] z-20">
-          <form onSubmit={handleConfirmar} className="max-w-5xl mx-auto px-4 py-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Medios header */}
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Medio</span>
-                <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                  <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">←</kbd>
-                  <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">→</kbd>
-                  <span>navegar</span>
-                </span>
-              </div>
-
-              {/* Medios buttons — horizontal */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {mediosPago.map((mp, idx) => {
-                  const estaSeleccionado = selectedMedio?.id === mp.id
-                  return (
-                    <button
-                      key={mp.id}
-                      ref={(el) => { medioRefs.current[idx] = el }}
-                      type="button"
-                      onClick={() => selectMedio(mp)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Tab' && !e.shiftKey) {
-                          e.preventDefault()
-                          if (selectedMedio?.pagaVuelto) {
-                            recibioInputRef.current?.focus()
-                          } else {
-                            confirmBtnRef.current?.focus()
-                          }
-                          return
-                        }
-                        if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
-                          e.preventDefault()
-                          searchInputRef.current?.focus()
-                          return
-                        }
-                        handleMedioKeyDown(e, idx)
-                      }}
-                      className={`px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
-                        estaSeleccionado
-                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
-                          : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
-                      }`}
-                    >
-                      {mp.nombre}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Selected medio info + Recibió */}
-              {selectedMedio && (
-                <span className="text-xs font-medium text-gray-600 shrink-0">
-                  {selectedMedio.nombre} · <strong>${total.toFixed(2)}</strong>
-                </span>
-              )}
-
-              {/* Recibió input (paga vuelto only) */}
-              {selectedMedio?.pagaVuelto && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <label className="text-[11px] text-gray-500">Recibió</label>
-                  <input
-                    ref={recibioInputRef}
-                    type="number" step="0.01" min="0"
-                    value={pagoConCambio}
-                    onChange={e => setPagoConCambio(e.target.value)}
-                    onKeyDown={handlePagoKeyDown}
-                    className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    placeholder="0.00"
-                  />
-                </div>
-              )}
-
-              {/* Confirm button */}
-              <button
-                ref={confirmBtnRef}
-                type="submit"
-                disabled={!cajaActiva || !esPagoCompleto()}
-                className="ml-auto px-8 py-2 rounded-xl font-semibold text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-500/20 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {!cajaActiva
-                  ? 'Sin caja abierta'
-                  : !esPagoCompleto()
-                    ? 'Seleccioná un medio'
-                    : 'Confirmar'}
+      {/* Debt confirmation dialog */}
+      {showDebtConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDebtConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Fiado — Cuenta Corriente</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              No se recibió el total del pago. {(parseFloat(recibio) || 0) > 0
+                ? `Se pagaron <strong>$${(parseFloat(recibio) || 0).toFixed(2)}</strong> de <strong>$${total.toFixed(2)}</strong> y queda <strong>$${(total - (parseFloat(recibio) || 0)).toFixed(2)}</strong> pendiente.`
+                : `El total de <strong>$${total.toFixed(2)}</strong> queda pendiente.`
+              }
+            </p>
+            <p className="text-sm text-gray-600 mb-6">¿Desea confirmar o rechazar?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => { setShowDebtConfirm(false); setRecibio(total.toFixed(2)) }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+                Rechazar
+              </button>
+              <button onClick={() => { setShowDebtConfirm(false); setShowClientPopup(true) }} className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                Aceptar — Elegir cliente
               </button>
             </div>
-          </form>
+          </div>
         </div>
+      )}
+
+      {/* Client popup */}
+      {showClientPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Seleccionar cliente — Deuda</h3>
+              <button onClick={() => { setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]) }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            {/* Search */}
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscá por nombre o teléfono..."
+              value={clientesBusqueda}
+              onChange={e => setClientesBusqueda(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-3"
+            />
+
+            {/* Loading */}
+            {buscandoClientes && <p className="text-xs text-gray-400 text-center py-4">Buscando...</p>}
+
+            {/* Results */}
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+              {clientesResultados.map(cl => (
+                <button
+                  key={cl.id}
+                  onClick={() => {
+                    setClienteSeleccionado(cl)
+                    setShowClientPopup(false)
+                    setShowDebtConfirm(false)
+                    setClientesBusqueda('')
+                    setClientesResultados([])
+                  }}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  <p className="text-sm font-medium text-gray-900">{cl.nombre}</p>
+                  {cl.telefono && <p className="text-xs text-gray-500">{cl.telefono}</p>}
+                </button>
+              ))}
+            </div>
+
+            {/* Nuevo cliente */}
+            <button onClick={() => { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }} className="mt-3 w-full py-2 text-sm font-semibold text-indigo-600 border border-dashed border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors">
+              + Nuevo cliente (ocasional)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Nuevo cliente form */}
+      {showNuevoCliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setShowNuevoCliente(false); setNuevoClienteNombre(''); setEsOcasional(true) }}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Nuevo cliente</h3>
+
+            {/* Nombre */}
+            <input
+              autoFocus
+              type="text"
+              placeholder="Nombre del cliente"
+              value={nuevoClienteNombre}
+              onChange={e => setNuevoClienteNombre(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-1"
+            />
+            {nuevoClienteNombre.trim().length < 2 && nuevoClienteNombre.length > 0 && (
+              <p className="text-xs text-red-500 mb-2">Al menos 2 caracteres</p>
+            )}
+
+            {/* Ocasional checkbox */}
+            <label className="flex items-center gap-2 cursor-pointer mt-2 mb-3">
+              <input
+                type="checkbox"
+                checked={esOcasional}
+                onChange={e => setEsOcasional(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/30"
+              />
+              <span className="text-sm text-gray-700">Cliente ocasional (solo nombre, sin DNI)</span>
+            </label>
+
+            {/* Full form when ocasional is OFF */}
+            {!esOcasional && (
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Tipo documento</label>
+                    <select
+                      value={formCliente.tipoDocumento}
+                      onChange={e => setFormCliente({ ...formCliente, tipoDocumento: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="DNI">DNI</option>
+                      <option value="CUIT">CUIT</option>
+                      <option value="CUIL">CUIL</option>
+                      <option value="ConsumidorFinal">Consumidor Final</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">N° documento</label>
+                    <input
+                      type="text"
+                      value={formCliente.numeroDocumento}
+                      onChange={e => setFormCliente({ ...formCliente, numeroDocumento: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      disabled={formCliente.tipoDocumento === 'ConsumidorFinal'}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Condición IVA</label>
+                  <select
+                    value={formCliente.ivaCondicion}
+                    onChange={e => setFormCliente({ ...formCliente, ivaCondicion: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    <option value="ResponsableInscripto">Responsable Inscripto</option>
+                    <option value="Monotributo">Monotributo</option>
+                    <option value="Exento">Exento</option>
+                    <option value="ConsumidorFinal">Consumidor Final</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input
+                      type="text"
+                      value={formCliente.telefono}
+                      onChange={e => setFormCliente({ ...formCliente, telefono: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Domicilio</label>
+                    <input
+                      type="text"
+                      value={formCliente.domicilio}
+                      onChange={e => setFormCliente({ ...formCliente, domicilio: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end mt-4">
+              <button onClick={() => { setShowNuevoCliente(false); setNuevoClienteNombre(''); setEsOcasional(true) }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+                Cancelar
+              </button>
+              <button
+                onClick={crearClienteYRevertir}
+                disabled={nuevoClienteNombre.trim().length < 2}
+                className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                Crear y seleccionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   )
 }
 

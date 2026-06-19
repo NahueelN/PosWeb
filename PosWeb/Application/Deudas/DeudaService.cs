@@ -15,9 +15,11 @@ public class DeudaService
         _context = context;
     }
 
+    // ── Proveedores ──
+
     public async Task<List<DeudaDto>> ListarAsync(int? proveedorId = null, bool soloPendientes = false)
     {
-        IQueryable<Deuda> query = _context.Deuda;
+        IQueryable<Deuda> query = _context.Deuda.Where(d => d.ID_PROVEEDOR != null);
 
         if (proveedorId.HasValue && proveedorId.Value > 0)
             query = query.Where(d => d.ID_PROVEEDOR == proveedorId.Value);
@@ -29,7 +31,6 @@ public class DeudaService
             .OrderByDescending(d => d.FECHA_DEUDA)
             .ToListAsync();
 
-        // Load proveedor names separately (avoids InMemory Include issues)
         var proveedorIds = deudas
             .Where(d => d.ID_PROVEEDOR.HasValue)
             .Select(d => d.ID_PROVEEDOR!.Value)
@@ -40,8 +41,49 @@ public class DeudaService
             .Where(p => proveedorIds.Contains(p.ID_PROVEEDOR))
             .ToDictionaryAsync(p => p.ID_PROVEEDOR, p => p.NOMBRE);
 
-        return deudas.Select(d => MapToDto(d, proveedores.TryGetValue(d.ID_PROVEEDOR ?? 0, out var nombre) ? nombre : "")).ToList();
+        return deudas.Select(d => MapToDto(d, proveedorNombre: proveedores.TryGetValue(d.ID_PROVEEDOR ?? 0, out var nombre) ? nombre : "")).ToList();
     }
+
+    // ── Clientes ──
+
+    public async Task<List<DeudaDto>> ListarClientesAsync(int? clienteId = null, bool soloPendientes = false)
+    {
+        IQueryable<Deuda> query = _context.Deuda.Where(d => d.ID_CLIENTE != null);
+
+        if (clienteId.HasValue && clienteId.Value > 0)
+            query = query.Where(d => d.ID_CLIENTE == clienteId.Value);
+
+        if (soloPendientes)
+            query = query.Where(d => !d.PAGO);
+
+        var deudas = await query
+            .OrderByDescending(d => d.FECHA_DEUDA)
+            .ToListAsync();
+
+        var clienteIds = deudas
+            .Where(d => d.ID_CLIENTE.HasValue)
+            .Select(d => d.ID_CLIENTE!.Value)
+            .Distinct()
+            .ToList();
+
+        var clientes = await _context.Cliente
+            .Where(c => clienteIds.Contains(c.ID_CLIENTE))
+            .ToDictionaryAsync(c => c.ID_CLIENTE, c => c.NOMBRE);
+
+        return deudas.Select(d => MapToDto(d, clienteNombre: clientes.TryGetValue(d.ID_CLIENTE ?? 0, out var nombre) ? nombre : "")).ToList();
+    }
+
+    public async Task<DeudaDto> CrearDeudaClienteAsync(int clienteId, int ventaId, decimal monto, decimal? montoPagado = null)
+    {
+        var deuda = new Deuda(monto, idCliente: clienteId, idVenta: ventaId, montoPagado: montoPagado);
+        _context.Deuda.Add(deuda);
+        await _context.SaveChangesAsync();
+
+        var cliente = await _context.Cliente.FindAsync(clienteId);
+        return MapToDto(deuda, clienteNombre: cliente?.NOMBRE ?? "");
+    }
+
+    // ── Común ──
 
     public async Task<DeudaDto> ObtenerPorIdAsync(int id)
     {
@@ -58,7 +100,14 @@ public class DeudaService
             proveedorNombre = prov?.NOMBRE ?? "";
         }
 
-        return MapToDto(deuda, proveedorNombre);
+        string clienteNombre = "";
+        if (deuda.ID_CLIENTE.HasValue)
+        {
+            var cli = await _context.Cliente.FindAsync(deuda.ID_CLIENTE.Value);
+            clienteNombre = cli?.NOMBRE ?? "";
+        }
+
+        return MapToDto(deuda, proveedorNombre, clienteNombre);
     }
 
     public async Task<DeudaDto> RegistrarPagoAsync(int id, decimal? monto = null)
@@ -85,7 +134,7 @@ public class DeudaService
 
         await _context.SaveChangesAsync();
 
-        return MapToDto(deuda, "");
+        return await ObtenerPorIdAsync(id);
     }
 
     public async Task<List<DeudaDto>> PagarMultipleAsync(int proveedorId, decimal monto)
@@ -120,22 +169,58 @@ public class DeudaService
         return await ListarAsync(proveedorId, soloPendientes: false);
     }
 
+    public async Task<List<DeudaDto>> PagarMultipleClienteAsync(int clienteId, decimal monto)
+    {
+        if (monto <= 0)
+            throw new ArgumentException("El monto debe ser mayor a cero");
+
+        var pendientes = await _context.Deuda
+            .Where(d => d.ID_CLIENTE == clienteId && !d.PAGO)
+            .OrderBy(d => d.FECHA_DEUDA)
+            .ToListAsync();
+
+        if (pendientes.Count == 0)
+            throw new ArgumentException("No hay deudas pendientes para este cliente");
+
+        decimal totalRestante = pendientes.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
+        if (monto > totalRestante)
+            throw new ArgumentException($"El monto (${monto:F2}) supera el total de deudas pendientes (${totalRestante:F2})");
+
+        decimal restante = monto;
+        foreach (var deuda in pendientes)
+        {
+            if (restante <= 0) break;
+            decimal saldo = deuda.MONTO_DEUDA - deuda.MONTO_PAGADO;
+            decimal pago = Math.Min(restante, saldo);
+            deuda.RegistrarPago(pago);
+            restante -= pago;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await ListarClientesAsync(clienteId, soloPendientes: false);
+    }
+
     public void CrearDeuda(int proveedorId, int compraId, decimal monto, decimal? montoPagado = null)
     {
         var deuda = new Deuda(monto, idProveedor: proveedorId, idCompra: compraId, montoPagado: montoPagado);
         _context.Deuda.Add(deuda);
     }
 
-    private static DeudaDto MapToDto(Deuda d, string proveedorNombre)
+    private static DeudaDto MapToDto(Deuda d, string proveedorNombre = "", string clienteNombre = "")
     {
         return new DeudaDto(
             Id: d.ID_DEUDA,
             ProveedorNombre: proveedorNombre,
+            ClienteNombre: clienteNombre,
             Monto: d.MONTO_DEUDA,
             Fecha: d.FECHA_DEUDA,
             FechaPago: d.FECHA_PAGO,
             Pago: d.PAGO,
             CompraId: d.ID_COMPRA,
+            VentaId: d.ID_VENTA,
+            ProveedorId: d.ID_PROVEEDOR,
+            ClienteId: d.ID_CLIENTE,
             MontoPagado: d.MONTO_PAGADO,
             SaldoPendiente: d.MONTO_DEUDA - d.MONTO_PAGADO
         );
