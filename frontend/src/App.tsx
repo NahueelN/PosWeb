@@ -7,8 +7,6 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import ProductosPage from './pages/ProductosPage'
-import StockPage from './pages/StockPage'
-import SucursalesPage from './pages/SucursalesPage'
 import VentasPage from './pages/VentasPage'
 import HistorialVentasPage from './pages/HistorialVentasPage'
 import ClientesPage from './pages/ClientesPage'
@@ -81,8 +79,6 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/ventas" replace />} />
             <Route path="/productos" element={<ProductosPage />} />
-            <Route path="/stock" element={<StockPage />} />
-            <Route path="/sucursales" element={<SucursalesPage />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/historial" element={<HistorialVentasPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
