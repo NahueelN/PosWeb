@@ -27,6 +27,29 @@ public class DeudaController : ControllerBase
         return Ok(deudas);
     }
 
+    [HttpGet("clientes")]
+    public async Task<ActionResult<List<DeudaDto>>> ListarClientes(
+        [FromQuery] int? clienteId = null,
+        [FromQuery] bool soloPendientes = false)
+    {
+        var deudas = await _deudaService.ListarClientesAsync(clienteId, soloPendientes);
+        return Ok(deudas);
+    }
+
+    [HttpPost("clientes/crear")]
+    public async Task<ActionResult<DeudaDto>> CrearDeudaCliente([FromBody] CrearDeudaClienteRequestDto request)
+    {
+        try
+        {
+            var deuda = await _deudaService.CrearDeudaClienteAsync(request.ClienteId, request.VentaId, request.Monto, request.MontoPagado);
+            return Ok(deuda);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DeudaDto>> ObtenerPorId(int id)
     {
@@ -69,6 +92,20 @@ public class DeudaController : ControllerBase
         try
         {
             var deudas = await _deudaService.PagarMultipleAsync(request.ProveedorId, request.Monto);
+            return Ok(deudas);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("pagar-multiple-cliente")]
+    public async Task<ActionResult<List<DeudaDto>>> PagarMultipleCliente([FromBody] PagarMultipleClienteRequestDto request)
+    {
+        try
+        {
+            var deudas = await _deudaService.PagarMultipleClienteAsync(request.ClienteId, request.Monto);
             return Ok(deudas);
         }
         catch (ArgumentException ex)

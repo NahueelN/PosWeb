@@ -161,7 +161,7 @@ public class PosDbContext : DbContext
             entity.Property(e => e.NOMBRE).HasColumnName("NOMBRE").HasMaxLength(200).IsRequired();
             entity.Property(e => e.TIPO_DOCUMENTO).HasColumnName("TIPO_DOCUMENTO").HasMaxLength(20).IsRequired();
             entity.Property(e => e.NRO_DOCUMENTO).HasColumnName("NRO_DOCUMENTO").HasMaxLength(20).IsRequired();
-            entity.Property(e => e.COD_CLIENTE).HasColumnName("COD_CLIENTE").HasMaxLength(50);
+            entity.Property(e => e.COD_CLIENTE).HasColumnName("COD_CLIENTE").HasMaxLength(50).IsRequired(false);
             entity.Property(e => e.TELEFONO).HasColumnName("TELEFONO").HasMaxLength(50);
             entity.Property(e => e.DOMICILIO).HasColumnName("DOMICILIO").HasMaxLength(200);
             entity.Property(e => e.MAIL).HasColumnName("MAIL").HasMaxLength(200);

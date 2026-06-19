@@ -25,7 +25,7 @@ public class Pago
     /// </summary>
     public int ID_CAJA { get; private set; }
 
-    public Pago(int idVenta, int idMedioPago, decimal monto, int idUsuarioRegistra, int idCaja)
+    public Pago(int idVenta, int idMedioPago, decimal monto, int idUsuarioRegistra, int idCaja, decimal? conCambio = null)
     {
         if (monto <= 0)
         {
@@ -37,7 +37,15 @@ public class Pago
         MONTO = monto;
         ID_USUARIO_REGISTRA = idUsuarioRegistra;
         ID_CAJA = idCaja;
-        CAMBIO = 0;
+
+        if (conCambio.HasValue && conCambio.Value > monto)
+        {
+            CAMBIO = conCambio.Value - monto;
+        }
+        else
+        {
+            CAMBIO = 0;
+        }
     }
 
     protected Pago()
