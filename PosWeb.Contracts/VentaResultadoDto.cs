@@ -20,4 +20,8 @@ public class VentaResultadoDto
     public decimal? DeudaMonto { get; set; }
 
     public int? DeudaId { get; set; }
+
+    public int? CajaId { get; set; }
+
+    public string? EmpresaNombre { get; set; }
 }
