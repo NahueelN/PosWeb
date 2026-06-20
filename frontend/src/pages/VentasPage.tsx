@@ -78,8 +78,9 @@ export default function VentasPage() {
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const stockAceptarRef = useRef<HTMLButtonElement>(null!)
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
+  const [comboUndoPopup, setComboUndoPopup] = useState<number | null>(null)
+  const pendingAllowSinStock = useRef(false)
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
-  const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
 
   const unidadesMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -126,6 +127,49 @@ export default function VentasPage() {
       c.codCombo.toLowerCase().includes(q)
     )
   }, [combos, searchQuery])
+
+  // Auto-detectar combo: si los productos individuales coinciden con un combo, reemplazar automáticamente
+  const autoComboRef = useRef(false)
+  const [dismissedCombos, setDismissedCombos] = useState<Set<number>>(new Set())
+  // Clear dismissed combos when cart empties
+  useEffect(() => {
+    if (items.length === 0 && dismissedCombos.size > 0) setDismissedCombos(new Set())
+  }, [items.length === 0])
+  useEffect(() => {
+    if (autoComboRef.current) { autoComboRef.current = false; return }
+    if (items.length === 0) return
+
+    const match = combos.find(combo => {
+      if (items.some(i => i.comboId === combo.id)) return false
+      if (dismissedCombos.has(combo.id)) return false
+      return combo.items.every(ci => {
+        const cartItem = items.find(i => !i.comboId && i.producto.id === ci.productoId)
+        return cartItem && cartItem.cantidad >= ci.cantidad
+      })
+    })
+    if (!match) return
+
+    autoComboRef.current = true
+    setItems(prev => {
+      const filtered = prev
+        .map(i => {
+          if (i.comboId) return i
+          const ci = match.items.find(c => c.productoId === i.producto.id)
+          if (!ci) return i
+          const rest = i.cantidad - ci.cantidad
+          if (rest <= 0) return null
+          return { ...i, cantidad: rest }
+        })
+        .filter(Boolean) as Item[]
+      return [...filtered, {
+        producto: { id: 0, codigoBarra: match.codCombo, nombre: match.descCombo, precio: match.precio, costo: 0, stock: 999, activo: true },
+        cantidad: 1,
+        comboId: match.id,
+        comboNombre: match.descCombo,
+        comboPrecio: match.precio,
+      } as Item]
+    })
+  }, [items, combos])
 
   // --- Load data ---
   useEffect(() => {
@@ -300,9 +344,42 @@ export default function VentasPage() {
     setItems((prev) => prev.filter((i) => i.producto.id !== productoId))
   }
 
+  function deshacerCombo(comboId: number) {
+    const combo = combos.find(c => c.id === comboId)
+    if (!combo) return
+    setDismissedCombos(prev => new Set(prev).add(comboId))
+    setItems(prev => {
+      const sinCombo = prev.filter(i => i.comboId !== comboId)
+      const individuales = combo.items.map(ci => ({
+        producto: { id: ci.productoId, codigoBarra: '', nombre: ci.productoNombre ?? `Producto #${ci.productoId}`, precio: 0, costo: 0, stock: 999, activo: true },
+        cantidad: ci.cantidad,
+      })) as Item[]
+      return [...sinCombo, ...individuales]
+    })
+    // Fetch real product data so prices/names appear correctly
+    combo.items.forEach(ci => {
+      if (!ci.productoId) return
+      api.productos.detalle(ci.productoId).then((p) => {
+        if (!p) return
+        setItems(prev => prev.map(item =>
+          item.producto.id === p.id && !item.comboId
+            ? { ...item, producto: { ...item.producto, id: p.id, codigoBarra: p.codigoBarra, nombre: p.nombre, precio: p.precio, costo: p.costo, stock: p.stock, activo: p.activo } }
+            : item
+        ))
+      }).catch(() => {})
+    })
+  }
+
   // --- Payment ---
   function selectMedio(mp: MedioPagoDto) {
     setSelectedMedio(mp)
+    setTimeout(() => {
+      if (mp.pagaVuelto) {
+        recibioInputRef.current?.focus()
+      } else {
+        confirmBtnRef.current?.focus()
+      }
+    }, 0)
   }
 
   function handleMedioKeyDown(e: React.KeyboardEvent, idx: number) {
@@ -354,12 +431,14 @@ export default function VentasPage() {
       return
     }
 
-    // Check stock before sending
-    const sinStock = items.filter(i => i.cantidad > i.producto.stock)
-    if (sinStock.length > 0) {
-      setStockConflictItems(sinStock)
-      setShowStockConfirm(true)
-      return
+    // Check stock before sending (skip if already accepted in this session)
+    if (!pendingAllowSinStock.current) {
+      const sinStock = items.filter(i => i.cantidad > i.producto.stock)
+      if (sinStock.length > 0) {
+        setStockConflictItems(sinStock)
+        setShowStockConfirm(true)
+        return
+      }
     }
 
     // If total payment wasn't received, ask about debt first
@@ -368,7 +447,18 @@ export default function VentasPage() {
       return
     }
 
-    await ejecutarVenta(recibioValor)
+    await ejecutarVenta(recibioValor, pendingAllowSinStock.current)
+    pendingAllowSinStock.current = false
+  }
+
+  function continuarVenta() {
+    const recibioValor = parseFloat(recibio) || 0
+    if (selectedMedio && recibioValor < total && !clienteSeleccionado) {
+      setShowDebtConfirm(true)
+      return
+    }
+    ejecutarVenta(recibioValor, pendingAllowSinStock.current)
+    pendingAllowSinStock.current = false
   }
 
   async function ejecutarVenta(recibioValor: number, allowSinStock = false) {
@@ -567,8 +657,8 @@ export default function VentasPage() {
     <div className="flex-1 flex flex-col min-h-0" onKeyDown={handleVentaSectionKeyDown}>
       <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
         {/* Top section — siempre visible */}
-        <div className="shrink-0 space-y-4 pb-4">
-          <div className="flex flex-col gap-6">
+        <div className="shrink-0 space-y-3 pb-3">
+          <div className="flex flex-col gap-4">
             {/* Sucursal activa */}
             {ctxSucursal && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -609,7 +699,7 @@ export default function VentasPage() {
               <input
                 ref={searchInputRef}
                 id="search-producto"
-                className="w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                 placeholder="Buscá producto por código de barra o nombre…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -769,9 +859,7 @@ export default function VentasPage() {
           <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
             {/* Header — siempre visible */}
             <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-              <h3 className="text-sm font-semibold text-gray-700">
-                {items.length > 0 ? `Venta actual (${cantidadTotal})` : 'Nueva venta'}
-              </h3>
+              <h3 className="text-sm font-semibold text-gray-700">Productos</h3>
             </div>
 
             <div ref={cartListRef} className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
@@ -927,15 +1015,55 @@ export default function VentasPage() {
                           >
                             +
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => quitarItem(i.producto.id)}
-                            className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                          {i.comboId ? (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setComboUndoPopup(comboUndoPopup === i.comboId ? null : i.comboId!)}
+                                className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                              {comboUndoPopup === i.comboId && (
+                                <>
+                                  <div className="fixed inset-0 z-30" onClick={() => setComboUndoPopup(null)} />
+                                  <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px] animate-in fade-in slide-in-from-top-1 duration-100">
+                                    <button
+                                      onClick={() => { deshacerCombo(i.comboId!); setComboUndoPopup(null) }}
+                                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium transition-colors"
+                                    >
+                                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                                      </svg>
+                                      Deshacer combo
+                                    </button>
+                                    <div className="border-t border-gray-100 mx-2" />
+                                    <button
+                                      onClick={() => { quitarItem(i.producto.id); setComboUndoPopup(null) }}
+                                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600 transition-colors"
+                                    >
+                                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => quitarItem(i.producto.id)}
+                              className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -947,22 +1075,21 @@ export default function VentasPage() {
         </div>
 
         {/* Footer: payment summary */}
-        {items.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-5 py-4 shrink-0 space-y-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-4 py-3 shrink-0 space-y-2">
             {/* Diferencia: Falta o Vuelto */}
             {selectedMedio && (() => {
               const r = parseFloat(recibio || '0')
               if (r === 0) return null
               const diff = total - r
               if (diff > 0) return (
-                <div className="flex items-center justify-between pb-3 border-b border-amber-100">
+                <div className="flex items-center justify-between pb-2 border-b border-amber-100">
                   <span className="text-sm font-medium text-amber-700">Falta</span>
                   <span className="text-xl font-bold text-amber-700">${diff.toFixed(2)}</span>
                 </div>
               )
               const vuelto = r - total
               if (vuelto > 0) return (
-                <div className="flex items-center justify-between pb-3 border-b border-emerald-100">
+                <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
                   <span className="text-sm font-medium text-emerald-700">Vuelto</span>
                   <span className="text-xl font-bold text-emerald-700">${vuelto.toFixed(2)}</span>
                 </div>
@@ -973,7 +1100,7 @@ export default function VentasPage() {
             {/* Recibió */}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recibió</label>
-              <div className="relative mt-1">
+              <div className="relative mt-0.5">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl pointer-events-none">$</span>
                 <input
                   ref={recibioInputRef}
@@ -987,26 +1114,64 @@ export default function VentasPage() {
                       confirmarVenta()
                     }
                   }}
-                  className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                   placeholder={total.toFixed(2)}
                 />
               </div>
             </div>
 
-            {/* Total + medios */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-500 font-medium">Total</span>
-                {selectedMedio && (
-                  <span className="text-xs text-gray-400">{selectedMedio.nombre}</span>
-                )}
+            {/* Medio de pago */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Medio de pago</label>
+              <div className="flex items-center gap-1 flex-wrap">
+                {mediosPago.map((mp, idx) => {
+                  const estaSeleccionado = selectedMedio?.id === mp.id
+                  return (
+                    <button
+                      key={mp.id}
+                      ref={(el) => { medioRefs.current[idx] = el }}
+                      type="button"
+                      onClick={() => selectMedio(mp)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab' && !e.shiftKey) {
+                          e.preventDefault()
+                          confirmBtnRef.current?.focus()
+                          return
+                        }
+                        if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
+                          e.preventDefault()
+                          searchInputRef.current?.focus()
+                          return
+                        }
+                        handleMedioKeyDown(e, idx)
+                      }}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
+                        estaSeleccionado
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700 shadow-sm'
+                          : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-600'
+                      }`}
+                    >
+                      {estaSeleccionado && (
+                        <svg className="w-3 h-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      )}
+                      {mp.nombre}
+                    </button>
+                  )
+                })}
               </div>
+            </div>
+
+            {/* Total */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500 font-medium">Total</span>
               <span className="text-2xl font-bold text-gray-900">${total.toFixed(2)}</span>
             </div>
 
             {/* Cliente seleccionado para deuda */}
             {clienteSeleccionado && (
-              <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg">
+              <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg">
                 <span className="font-medium">Cliente: {clienteSeleccionado.nombre}</span>
                 <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
               </div>
@@ -1014,7 +1179,7 @@ export default function VentasPage() {
 
             {/* Confirm button */}
             {!cajaActiva ? (
-              <div className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">
+              <div className="w-full py-2.5 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">
                 Sin caja abierta
               </div>
             ) : (
@@ -1023,7 +1188,7 @@ export default function VentasPage() {
                 type="button"
                 onClick={confirmarVenta}
                 disabled={!selectedMedio}
-                className={`w-full py-3 font-semibold rounded-xl transition-colors text-sm ${
+                className={`w-full py-2.5 font-semibold rounded-xl transition-colors text-sm ${
                   selectedMedio
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -1033,64 +1198,6 @@ export default function VentasPage() {
               </button>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Bottom bar — medios de pago */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-56 lg:right-[33.333vw] bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] z-20">
-        <div className="max-w-5xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Medios header */}
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Medio</span>
-              <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">←</kbd>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded-[3px] text-[9px] font-mono border border-gray-200">→</kbd>
-                <span>navegar</span>
-              </span>
-            </div>
-
-            {/* Medios */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {mediosPago.map((mp, idx) => {
-                const estaSeleccionado = selectedMedio?.id === mp.id
-                return (
-                  <button
-                    key={mp.id}
-                    ref={(el) => { medioRefs.current[idx] = el }}
-                    type="button"
-                    onClick={() => selectMedio(mp)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Tab' && !e.shiftKey) {
-                        e.preventDefault()
-                        confirmBtnRef.current?.focus()
-                        return
-                      }
-                      if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
-                        e.preventDefault()
-                        searchInputRef.current?.focus()
-                        return
-                      }
-                      handleMedioKeyDown(e, idx)
-                    }}
-                    className={`px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
-                      estaSeleccionado
-                        ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700'
-                        : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
-                    }`}
-                  >
-                    {mp.nombre}
-                  </button>
-                )
-              })}
-            </div>
-
-            {selectedMedio && (
-              <span className="text-xs font-medium text-gray-600 shrink-0">
-                {selectedMedio.nombre} · <strong>${total.toFixed(2)}</strong>
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -1098,7 +1205,7 @@ export default function VentasPage() {
       {showDebtConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDebtConfirm(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Fiado — Cuenta Corriente</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Pago insuficiente</h3>
             <p className="text-sm text-gray-600 mb-3">No se recibió el total del pago.</p>
             <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm mb-4">
               <div className="flex justify-between">
@@ -1114,16 +1221,16 @@ export default function VentasPage() {
               <hr className="border-gray-200" />
               <div className="flex justify-between">
                 <span className="text-gray-500">Pendiente</span>
-                <span className="font-semibold text-amber-600">${(total - (parseFloat(recibio) || 0)).toFixed(2)}</span>
+                <span className="font-semibold text-red-600">${(total - (parseFloat(recibio) || 0)).toFixed(2)}</span>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-6">¿Desea confirmar o rechazar?</p>
+            <p className="text-sm text-gray-600 mb-6">¿Desea continuar y registrar la diferencia como deuda?</p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => { setShowDebtConfirm(false); setRecibio(total.toFixed(2)) }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
-                Rechazar
+              <button onClick={() => setShowDebtConfirm(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-lg focus:ring-2 focus:ring-gray-400/30 focus:outline-none">
+                Cancelar
               </button>
-              <button onClick={() => { setShowDebtConfirm(false); setShowClientPopup(true) }} className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                Aceptar — Elegir cliente
+              <button onClick={() => { setShowDebtConfirm(false); setShowClientPopup(true) }} className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500/40 focus:outline-none">
+                Continuar
               </button>
             </div>
           </div>
@@ -1205,8 +1312,8 @@ export default function VentasPage() {
                 onClick={() => {
                   setShowStockConfirm(false)
                   setStockConflictItems([])
-                  const recibioValor = parseFloat(recibio) || 0
-                  ejecutarVenta(recibioValor, true)
+                  pendingAllowSinStock.current = true
+                  continuarVenta()
                 }}
                 className="px-4 py-2 text-sm font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 focus:ring-2 focus:ring-amber-500/40 focus:outline-none"
               >
@@ -1222,7 +1329,10 @@ export default function VentasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Seleccionar cliente — Deuda</h3>
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Cobro pendiente</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Seleccioná el cliente para registrar la deuda</p>
+              </div>
               <button onClick={() => { setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]) }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
 

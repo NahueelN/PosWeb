@@ -117,15 +117,20 @@ public class VentaService
 
                     if (cdisponible < cantidadNecesaria)
                     {
-                        throw new StockSucursalInsuficienteException(
-                            cproducto.DESC_PRODUCTO,
-                            dto.SucursalId,
-                            cdisponible,
-                            (int)cantidadNecesaria
-                        );
+                        if (!dto.AllowSinStock)
+                        {
+                            throw new StockSucursalInsuficienteException(
+                                cproducto.DESC_PRODUCTO,
+                                dto.SucursalId,
+                                cdisponible,
+                                (int)cantidadNecesaria
+                            );
+                        }
                     }
-
-                    cstock!.DescontarStock(cantidadNecesaria);
+                    else if (cstock != null)
+                    {
+                        cstock.DescontarStock(cantidadNecesaria);
+                    }
                     venta.AgregarRenglonCombo(combo, citem.ID_PRODUCTO, cantidadNecesaria, 0);
                 }
 
@@ -160,16 +165,14 @@ if (available < item.Cantidad && !dto.AllowSinStock)
     );
 }
 
-if (stockSuc != null)
+if (stockSuc != null && available >= item.Cantidad)
 {
     stockSuc.DescontarStock(item.Cantidad);
 }
 
-venta.AgregarRenglon(producto, item.Cantidad);
+            venta.AgregarRenglon(producto, item.Cantidad);
             }
 
-            if (stockSuc != null) stockSuc.DescontarStock(item.Cantidad);
-            venta.AgregarRenglon(producto, item.Cantidad);
         }
 
         // Validate payment total against sale total
