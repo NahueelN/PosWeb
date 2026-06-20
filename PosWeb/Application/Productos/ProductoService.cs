@@ -34,7 +34,13 @@ public class ProductoService
                         .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value)
                         .Select(s => (int)s.STOCK)
                         .FirstOrDefault(),
-                    Activo = p.ACTIVO
+                    Activo = p.ACTIVO,
+                    Marca = p.MARCA,
+                    Contenido = p.CONTENIDO,
+                    CategoriaId = p.ID_CATEGORIA,
+                    UnidadMedidaId = p.ID_UNIDAD_MEDIDA,
+                    DescAdicional = p.DESC_ADICIONAL,
+                    CodigoProducto = p.COD_PRODUCTO
                 })
                 .ToList();
         }

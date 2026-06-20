@@ -145,24 +145,31 @@ public class VentaService
                     throw new ProductoInactivoException(item.ProductoId);
                 }
 
-                StockSucursal? stockSuc = _context.StockSucursal
-                    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
+               StockSucursal? stockSuc = _context.StockSucursal
+    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
-                int available = (int)(stockSuc?.STOCK ?? 0);
+int available = (int)(stockSuc?.STOCK ?? 0);
 
-                if (available < item.Cantidad)
-                {
-                    throw new StockSucursalInsuficienteException(
-                        producto.DESC_PRODUCTO,
-                        dto.SucursalId,
-                        available,
-                        item.Cantidad
-                    );
-                }
+if (available < item.Cantidad && !dto.AllowSinStock)
+{
+    throw new StockSucursalInsuficienteException(
+        producto.DESC_PRODUCTO,
+        dto.SucursalId,
+        available,
+        item.Cantidad
+    );
+}
 
-                stockSuc!.DescontarStock(item.Cantidad);
-                venta.AgregarRenglon(producto, item.Cantidad);
+if (stockSuc != null)
+{
+    stockSuc.DescontarStock(item.Cantidad);
+}
+
+venta.AgregarRenglon(producto, item.Cantidad);
             }
+
+            if (stockSuc != null) stockSuc.DescontarStock(item.Cantidad);
+            venta.AgregarRenglon(producto, item.Cantidad);
         }
 
         // Validate payment total against sale total
@@ -264,6 +271,11 @@ public class VentaService
             clienteNombre = cli?.NOMBRE;
         }
 
+        string? empresaNombre = _context.Empresa
+            .Where(e => e.ID_EMPRESA == sucursal.ID_EMPRESA)
+            .Select(e => e.NOMBRE)
+            .FirstOrDefault();
+
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
@@ -274,7 +286,9 @@ public class VentaService
             ClienteId = dto.ClienteId,
             ClienteNombre = clienteNombre,
             DeudaId = deudaId,
-            DeudaMonto = deudaMonto
+            DeudaMonto = deudaMonto,
+            CajaId = cajaActiva.ID_CAJA,
+            EmpresaNombre = empresaNombre
         };
     }
 

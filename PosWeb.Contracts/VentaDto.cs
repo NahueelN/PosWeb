@@ -6,4 +6,5 @@ public class VentaDto
     public List<VentaItemDto> Items { get; set; } = new();
     public List<PagoVentaDto>? Pagos { get; set; }
     public int? ClienteId { get; set; }
+    public bool AllowSinStock { get; set; }
 }
