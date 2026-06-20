@@ -23,7 +23,8 @@ public class CompraService
     /// Uses IDbContextTransaction for atomicity when the provider supports it (e.g. MySQL).
     /// </summary>
     public CompraResponseDto CrearCompra(int sucursalId, int proveedorId, int userId,
-        List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null)
+        List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null,
+        string? fuentePago = null)
     {
         if (items.Count == 0)
             throw new CompraSinItemsException();
@@ -34,17 +35,23 @@ public class CompraService
 
         try
         {
-            // Validate proveedor exists
-            Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
-            if (proveedor == null || !proveedor.ACTIVO)
-                throw new ProveedorNoEncontradoException(proveedorId);
+        bool esAhorro = string.Equals(fuentePago, "ahorro", StringComparison.OrdinalIgnoreCase);
 
-            // Find active caja for the sucursal
-            Caja? cajaActiva = _context.Caja
+        // Validate proveedor exists
+        Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
+        if (proveedor == null || !proveedor.ACTIVO)
+            throw new ProveedorNoEncontradoException(proveedorId);
+
+        // Find active caja for the sucursal (only required for "caja" payments)
+        Caja? cajaActiva = null;
+        if (!esAhorro)
+        {
+            cajaActiva = _context.Caja
                 .FirstOrDefault(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Abierta");
 
             if (cajaActiva == null)
                 throw new CompraSinCajaActivaException();
+        }
 
             // Generate NUMERO_COMPROBANTE: YYYYMMDD + sequential int per day
             DateTime today = fechaCompra?.Date ?? DateTime.Now.Date;
@@ -148,14 +155,20 @@ public class CompraService
                 });
             }
 
-            // Create Gasto linked to active caja with ID_COMPRA
-            string detalleGasto = $"Compra - {proveedor.NOMBRE}";
-            var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
-            _context.Gasto.Add(gasto);
-            _context.SaveChanges(); // Save to generate IDs
+            // Create Gasto (only for "caja" payments; skip for "ahorro")
+            int? gastoId = null;
+            DateTime fechaCompraFinal = fechaCompra ?? DateTime.Now;
 
-            // Link Gasto back to Compra
-            compra.AsignarGasto(gasto.ID_GASTO);
+            if (!esAhorro && cajaActiva != null)
+            {
+                string detalleGasto = $"Compra - {proveedor.NOMBRE}";
+                var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
+                _context.Gasto.Add(gasto);
+                _context.SaveChanges(); // Save to generate IDs
+                compra.AsignarGasto(gasto.ID_GASTO);
+                gastoId = gasto.ID_GASTO;
+                fechaCompraFinal = gasto.FECHA_GASTO;
+            }
 
             // Create Deuda for the proveedor (with optional partial payment)
             _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto, montoPagado);
@@ -167,9 +180,9 @@ public class CompraService
             return new CompraResponseDto
             {
                 CompraId = compra.ID_COMPRA,
-                GastoId = gasto.ID_GASTO,
+                GastoId = gastoId,
                 TotalGasto = totalGasto,
-                Fecha = gasto.FECHA_GASTO,
+                Fecha = fechaCompraFinal,
                 Items = results
             };
         }
@@ -191,7 +204,8 @@ public class CompraService
             request.ProveedorId,
             request.UserId ?? 0,
             request.Items,
-            montoPagado: request.MontoPagado
+            montoPagado: request.MontoPagado,
+            fuentePago: request.FuentePago
         );
     }
 }

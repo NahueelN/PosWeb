@@ -338,6 +338,7 @@ export interface CompraItemDto {
     userId?: number
     items: CompraItemDto[]
     montoPagado?: number
+    fuentePago?: string      // "caja" | "ahorro"
   }
 
  export interface CompraItemResultDto {

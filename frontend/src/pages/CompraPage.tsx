@@ -1,6 +1,6 @@
 ﻿import React, { useReducer, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto } from '../types';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
@@ -32,7 +32,6 @@ interface CompraState {
   error: string | null;
   success: CompraResponseDto | null;
   verified: boolean;
-  sucursalId: number;
 }
 
 type CompraAction =
@@ -46,8 +45,7 @@ type CompraAction =
   | { type: 'CONFIRM_ERROR'; error: string }
   | { type: 'RESET' }
   | { type: 'SET_ERROR'; error: string }
-  | { type: 'CLEAR_ERROR' }
-  | { type: 'SET_SUCURSAL'; sucursalId: number };
+  | { type: 'CLEAR_ERROR' };
 
 function compraReducer(state: CompraState, action: CompraAction): CompraState {
   switch (action.type) {
@@ -73,20 +71,16 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'SET_VERIFIED': return { ...state, verified: action.verified };
     case 'CONFIRM_SUCCESS': return { ...state, step: 'done', success: action.response, error: null };
     case 'CONFIRM_ERROR': return { ...state, error: action.error };
-    case 'RESET': return { ...initialState, sucursalId: state.sucursalId };
+    case 'RESET': return { ...initialState };
     case 'SET_ERROR': return { ...state, error: action.error };
     case 'CLEAR_ERROR': return { ...state, error: null };
-    case 'SET_SUCURSAL': return { ...state, sucursalId: action.sucursalId };
     default: return state;
   }
 }
 
-function getInitialSucursalId(): number {
-  try { const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}'); return s.id ?? 1; } catch { return 1; }
-}
 const initialState: CompraState = {
   step: 'scan', cart: [], proveedorId: 0, proveedorNombre: '',
-  error: null, success: null, verified: false, sucursalId: getInitialSucursalId(),
+  error: null, success: null, verified: false,
 };
 
 function getSucursalNombre(id: number): string {
@@ -104,10 +98,13 @@ function formatFecha(iso: string): string {
 export default function CompraPage() {
   const [state, dispatch] = useReducer(compraReducer, initialState);
   const navigate = useNavigate();
+  const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>();
   const { notifyError } = useNotification();
+  const sucursalId = sucursal?.id ?? 1;
   const searchRef = useRef<HTMLInputElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
   const cartListRef = useRef<HTMLDivElement>(null);
+  const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
   // Data
   const [productos, setProductos] = useState<ProductoDto[]>([]);
@@ -122,16 +119,15 @@ export default function CompraPage() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   // Payment
-  const [pagoType, setPagoType] = useState<'none' | 'total' | 'partial'>('none');
   const [montoPago, setMontoPago] = useState(0);
+  const [fuentePago, setFuentePago] = useState<'caja' | 'ahorro'>('caja');
+  const [deudaGenerada, setDeudaGenerada] = useState(0);
 
   // Editing
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [edNombre, setEdNombre] = useState(''); const [edCodigo, setEdCodigo] = useState('');
-  const [edPrecio, setEdPrecio] = useState(0); const [edCosto, setEdCosto] = useState('');
-  const [edCant, setEdCant] = useState(1); const [edCatId, setEdCatId] = useState<number>(0);
-  const [edUnidadId, setEdUnidadId] = useState<number>(0); const [edCont, setEdCont] = useState('');
-  const [edDesc, setEdDesc] = useState('');
+  const [edPrecio, setEdPrecio] = useState(0);
+  const [edCosto, setEdCosto] = useState('');
+  const [edCant, setEdCant] = useState(1);
 
   // New product modal
   const [showNewModal, setShowNewModal] = useState(false);
@@ -141,17 +137,12 @@ export default function CompraPage() {
   // Load data
   useEffect(() => {
     Promise.all([
-      api.productos.buscar('').then(setProductos).catch(() => {}),
+      api.productos.listar().then(setProductos).catch(() => {}),
       api.proveedores.listar().then(setProveedores).catch(() => {}),
       api.categorias.listar().then(setCategorias).catch(() => {}),
       api.unidadesMedida.listar().then(setUnidades).catch(() => {}),
     ]).finally(() => setProdLoading(false));
   }, []);
-
-  // Auto-focus proveedor if none selected
-  useEffect(() => {
-    if (state.step === 'scan' && state.proveedorId === 0) setTimeout(() => provInputRef.current?.focus(), 200);
-  }, [state.step, state.proveedorId]);
 
   // beforeunload
   useEffect(() => {
@@ -194,26 +185,31 @@ export default function CompraPage() {
       productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra,
       cantidad: 1, costoUnitario: p.costo, subtotal: p.costo,
       precio: p.precio, costo: p.costo,
+      categoriaId: p.categoriaId ?? undefined,
+      unidadMedidaId: p.unidadMedidaId ?? undefined,
+      contenido: p.contenido ?? undefined,
+      descAdicional: p.descAdicional ?? undefined,
     };
     dispatch({ type: 'ADD_TO_CART', item });
+    setTimeout(() => {
+      cantidadRefs.current.get(p.id)?.focus();
+      cantidadRefs.current.get(p.id)?.select();
+    }, 0);
   };
 
   const startEdit = (idx: number) => {
     const i = state.cart[idx];
-    setEditingIdx(idx); setEdNombre(i.productoNombre); setEdCodigo(i.codigoBarra);
-    setEdPrecio(i.precio ?? 0); setEdCosto(String(i.costoUnitario)); setEdCant(i.cantidad);
-    setEdCatId(i.categoriaId ?? 0); setEdUnidadId(i.unidadMedidaId ?? 0);
-    setEdCont(i.contenido?.toString() ?? ''); setEdDesc(i.descAdicional ?? '');
+    setEditingIdx(idx);
+    setEdPrecio(i.precio ?? 0);
+    setEdCosto(String(i.costoUnitario));
+    setEdCant(i.cantidad);
   };
   const saveEdit = (idx: number) => {
     const item: CartItem = {
       ...state.cart[idx],
-      productoNombre: edNombre || state.cart[idx].productoNombre,
-      codigoBarra: edCodigo || state.cart[idx].codigoBarra,
-      cantidad: edCant, costoUnitario: parseFloat(edCosto) || 0,
-      precio: edPrecio, categoriaId: edCatId || undefined,
-      unidadMedidaId: edUnidadId || undefined,
-      contenido: parseFloat(edCont) || undefined, descAdicional: edDesc || undefined,
+      cantidad: edCant,
+      costoUnitario: parseFloat(edCosto) || 0,
+      precio: edPrecio,
     };
     dispatch({ type: 'UPDATE_CART_ITEM', index: idx, item });
     setEditingIdx(null);
@@ -232,11 +228,9 @@ export default function CompraPage() {
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const montoPagado = pagoType === 'none' ? undefined
-        : pagoType === 'total' ? cartTotal
-        : Math.min(montoPago, cartTotal);
+      const montoPagado = montoPago > 0 ? montoPago : undefined;
       const req: CompraRequestDto = {
-        sucursalId: state.sucursalId, proveedorId: state.proveedorId,
+        sucursalId: sucursalId, proveedorId: state.proveedorId,
         items: state.cart.map(i => ({
           productoId: i.productoId, cantidad: i.cantidad, costoUnitario: i.costoUnitario,
           codigoBarra: i.productoId === 0 ? i.codigoBarra : undefined,
@@ -246,8 +240,10 @@ export default function CompraPage() {
           contenido: i.contenido, unidadMedidaId: i.unidadMedidaId,
         })),
         montoPagado,
+        fuentePago,
       };
       const res = await api.compras.crear(req);
+      setDeudaGenerada(res.totalGasto - (montoPago > 0 ? montoPago : 0));
       dispatch({ type: 'CONFIRM_SUCCESS', response: res });
     } catch (err: any) {
       const errorMsg = err.message || 'Error al crear la compra';
@@ -256,42 +252,8 @@ export default function CompraPage() {
     } finally { setIsConfirming(false); }
   };
 
-  const handleNuevaCompra = () => { dispatch({ type: 'RESET' }); searchRef.current?.focus(); };
-  const handleCerrar = () => navigate(-1);
+  const handleNuevaCompra = () => { dispatch({ type: 'RESET' }); setDeudaGenerada(0); searchRef.current?.focus(); };
   const handlePrint = () => window.print();
-
-  // ── Render: DONE step ────────────────────────────────────────────
-  if (state.step === 'done' && state.success) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="no-print text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">✓ COMPRA REGISTRADA</div>
-          </div>
-          <div className="receipt bg-white border border-gray-300 rounded-xl p-6 max-w-[80mm] mx-auto">
-            <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
-            <div className="text-xs mb-3 space-y-0.5">
-              <p><span className="font-semibold">Comprobante:</span> C-{new Date(state.success.fecha).getFullYear()}{String(new Date(state.success.fecha).getMonth()+1).padStart(2,'0')}{String(new Date(state.success.fecha).getDate()).padStart(2,'0')}-{state.success.compraId}</p>
-              <p><span className="font-semibold">Fecha:</span> {formatFecha(state.success.fecha)}</p>
-              <p><span className="font-semibold">Sucursal:</span> {getSucursalNombre(state.sucursalId)}</p>
-              {state.proveedorNombre && <p><span className="font-semibold">Proveedor:</span> {state.proveedorNombre}</p>}
-            </div>
-            <table className="w-full border-collapse text-xs mb-3">
-              <thead><tr className="border-b border-gray-400"><th className="text-left pb-1 pr-1">Producto</th><th className="text-right pb-1 pr-1">Cant</th><th className="text-right pb-1 pr-1">Costo</th><th className="text-right pb-1">Subtotal</th></tr></thead>
-              <tbody>{state.success.items.map((it, i) => (<tr key={i}><td className="py-0.5 pr-1">{it.productoNombre}</td><td className="text-right py-0.5 pr-1">{it.cantidad}</td><td className="text-right py-0.5 pr-1">{formatCurrency(it.costoUnitario)}</td><td className="text-right py-0.5">{formatCurrency(it.subtotal)}</td></tr>))}</tbody>
-              <tfoot><tr className="border-t border-gray-400 font-bold"><td colSpan={3} className="text-right pt-1 pr-1">Total gasto:</td><td className="text-right pt-1">{formatCurrency(state.success.totalGasto)}</td></tr></tfoot>
-            </table>
-            <p className="text-xs text-gray-600 text-center">Unidades: {state.success.items.reduce((s, i) => s + i.cantidad, 0)}</p>
-          </div>
-          <div className="no-print flex justify-center gap-3 mt-6 flex-wrap">
-            <button onClick={handlePrint} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 border border-gray-300">Imprimir</button>
-            <button onClick={handleNuevaCompra} autoFocus className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700">Nueva compra</button>
-            <button onClick={handleCerrar} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
   return (
@@ -299,21 +261,13 @@ export default function CompraPage() {
       <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
         {/* Top bar */}
         <div className="shrink-0 space-y-3 px-4 sm:px-6 pt-4 pb-2">
-          {/* Sucursal + Proveedor */}
+          {/* Proveedor */}
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-500">Suc:</span>
-              <select value={state.sucursalId} onChange={e => dispatch({ type: 'SET_SUCURSAL', sucursalId: Number(e.target.value) })}
-                className="px-2 py-1 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value={1}>Central</option><option value={2}>Norte</option><option value={3}>Sur</option>
-              </select>
-            </div>
-            <div className="h-4 w-px bg-gray-300" />
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <input ref={provInputRef} type="text"
                 value={state.proveedorId > 0 ? state.proveedorNombre : proveedorSearch}
-                onChange={e => { setProveedorSearch(e.target.value); if (state.proveedorId > 0) dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: 0, proveedorNombre: '' }); setShowProvDropdown(true); setProvHighIdx(-1); }}
-                onFocus={() => setShowProvDropdown(true)}
+                onChange={e => { setProveedorSearch(e.target.value); if (state.proveedorId > 0) dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: 0, proveedorNombre: '' }); if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
+                onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
                 onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
                 onKeyDown={e => {
                   if (!showProvDropdown || proveedoresFilt.length === 0) return;
@@ -454,15 +408,15 @@ export default function CompraPage() {
                         <button onClick={() => setEditingIdx(null)} className="text-gray-400 hover:text-gray-600">Cancelar</button>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 mb-2">
-                        <div className="col-span-3"><label className="text-gray-500">Nombre</label><input type="text" value={edNombre} onChange={e => setEdNombre(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-                        <div className="col-span-3"><label className="text-gray-500">Código</label><input type="text" value={edCodigo} onChange={e => setEdCodigo(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div className="col-span-3"><label className="text-gray-500">Nombre</label><p className="text-gray-800 font-medium">{item.productoNombre || '-'}</p></div>
+                        <div className="col-span-3"><label className="text-gray-500">Código</label><p className="text-gray-500 font-mono">{item.codigoBarra || '-'}</p></div>
                         <div><label className="text-gray-500">Precio</label><input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)} className="w-full px-1.5 py-0.5 border rounded" /></div>
                         <div><label className="text-gray-500">Costo</label><input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border border-indigo-300 rounded" autoFocus /></div>
                         <div><label className="text-gray-500">Cant</label><input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-                        <div><label className="text-gray-500">Categ</label><select value={edCatId} onChange={e => setEdCatId(Number(e.target.value))} className="w-full px-1.5 py-0.5 border rounded text-xs"><option value={0}>-</option>{categorias.map(c=>(<option key={c.id} value={c.id}>{c.descripcion}</option>))}</select></div>
-                        <div><label className="text-gray-500">U.Med</label><select value={edUnidadId} onChange={e => setEdUnidadId(Number(e.target.value))} className="w-full px-1.5 py-0.5 border rounded text-xs"><option value={0}>-</option>{unidades.map(u=>(<option key={u.id} value={u.id}>{u.descripcion}</option>))}</select></div>
-                        <div><label className="text-gray-500">Cont</label><input type="number" step="0.01" value={edCont} onChange={e => setEdCont(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-                        <div className="col-span-3"><label className="text-gray-500">Desc</label><input type="text" value={edDesc} onChange={e => setEdDesc(e.target.value)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+                        <div><label className="text-gray-500">Categ</label><p className="text-gray-800">{categorias.find(c => c.id === item.categoriaId)?.descripcion || '-'}</p></div>
+                        <div><label className="text-gray-500">U.Med</label><p className="text-gray-800">{unidades.find(u => u.id === item.unidadMedidaId)?.descripcion || '-'}</p></div>
+                        <div><label className="text-gray-500">Cont</label><p className="text-gray-800">{item.contenido ?? '-'}</p></div>
+                        <div className="col-span-3"><label className="text-gray-500">Desc</label><p className="text-gray-800">{item.descAdicional || '-'}</p></div>
                       </div>
                       <button onClick={() => saveEdit(i)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
                     </div>
@@ -475,13 +429,23 @@ export default function CompraPage() {
                         <p className="text-xs text-gray-500 mt-0.5">{formatCurrency(item.costoUnitario)} c/u</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad - 1, costoUnitario: item.costoUnitario } })}
+                        <button onClick={() => {
+                          if (item.cantidad <= 1) dispatch({ type: 'REMOVE_FROM_CART', index: i })
+                          else dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad - 1, costoUnitario: item.costoUnitario } })
+                        }}
                           className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">−</button>
-                        <input type="number" min={0} value={item.cantidad}
-                          onChange={e => { const v = parseInt(e.target.value); dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: isNaN(v) ? 0 : v, costoUnitario: item.costoUnitario } }); if (isNaN(v) || v <= 0) dispatch({ type: 'REMOVE_FROM_CART', index: i }); }}
+                        <input type="number" min={1} value={item.cantidad}
+                          ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
+                          onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { dispatch({ type: 'REMOVE_FROM_CART', index: i }); return; } dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: v, costoUnitario: item.costoUnitario } }); }}
                           className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
                         <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad + 1, costoUnitario: item.costoUnitario } })}
                           className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">+</button>
+                        <button onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
+                          className="w-6 h-6 rounded hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors ml-1" title="Eliminar">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                     )
@@ -497,34 +461,47 @@ export default function CompraPage() {
               <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
             </div>
 
-            {/* Payment section */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-600">Pago</p>
-              <div className="flex gap-1.5">
-                {(['none', 'total', 'partial'] as const).map(t => (
-                  <button key={t} onClick={() => { setPagoType(t); if (t === 'total') setMontoPago(cartTotal); }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                      pagoType === t
-                        ? 'bg-indigo-100 border-indigo-400 text-indigo-800'
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            {/* Payment card */}
+            <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
+                  <input type="number" min={0} step="0.01"
+                    value={montoPago || ''} onChange={e => setMontoPago(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="0.00" />
+                </div>
+                <button onClick={() => setMontoPago(cartTotal)}
+                  className="px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                  title="Usar el total como monto pagado">
+                  Total
+                </button>
+              </div>
+
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                {(['caja', 'ahorro'] as const).map(f => (
+                  <button key={f} onClick={() => setFuentePago(f)}
+                    className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
+                      fuentePago === f
+                        ? f === 'caja'
+                          ? 'bg-indigo-500 text-white'
+                          : 'bg-emerald-500 text-white'
+                        : 'bg-white text-gray-500 hover:bg-gray-100'
                     }`}>
-                    {t === 'none' ? 'No pagar' : t === 'total' ? 'Pagar todo' : 'Pago parcial'}
+                    {f === 'caja' ? '💵 Caja' : '🏦 Ahorro'}
                   </button>
                 ))}
               </div>
-              {pagoType === 'partial' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 shrink-0">Monto a pagar:</span>
-                  <input type="number" min={0} max={cartTotal} step="0.01"
-                    value={montoPago} onChange={e => setMontoPago(Math.min(parseFloat(e.target.value) || 0, cartTotal))}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs text-right font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
-                  <span className="text-xs text-gray-400">/ {formatCurrency(cartTotal)}</span>
-                </div>
+
+              <p className="text-[10px] text-gray-400 leading-tight text-center">
+                Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
+              </p>
+
+              {montoPago > 0 && montoPago < cartTotal && (
+                <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - montoPago)}</p>
               )}
-              {pagoType !== 'none' && (
-                <p className="text-xs text-gray-500">
-                  {pagoType === 'total' ? '✓ Deuda saldada al momento de la compra' : `↗ Se registra deuda por ${formatCurrency(cartTotal - montoPago)}`}
-                </p>
+              {montoPago >= cartTotal && cartTotal > 0 && (
+                <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
               )}
             </div>
 
@@ -534,7 +511,7 @@ export default function CompraPage() {
               Verifiqué cantidades y costos
             </label>
             <button onClick={handleConfirm}
-              disabled={!state.verified || isConfirming || state.cart.length === 0 || (pagoType === 'partial' && (!montoPago || montoPago <= 0))}
+              disabled={!state.verified || isConfirming || state.cart.length === 0}
               className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {isConfirming ? 'Confirmando...' : `Confirmar compra — ${formatCurrency(cartTotal)}`}
             </button>
@@ -548,6 +525,35 @@ export default function CompraPage() {
         onCreated={handleProductCreatedInModal}
         onClose={() => setShowNewModal(false)}
       />
+
+      {/* Success Popup */}
+      {state.step === 'done' && state.success && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
+             onClick={handleNuevaCompra}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center"
+               onClick={e => e.stopPropagation()}>
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+              ✓ Compra registrada
+            </div>
+            <p className="text-xs text-gray-400">{formatFecha(state.success.fecha)}</p>
+            {state.proveedorNombre && (
+              <p className="text-sm text-gray-600 mt-1">{state.proveedorNombre}</p>
+            )}
+            <p className="text-2xl font-bold text-indigo-700 mt-2">{formatCurrency(state.success.totalGasto)}</p>
+            {deudaGenerada > 0 && (
+              <p className="text-xs text-amber-600 mt-2 font-medium">Deuda generada: {formatCurrency(deudaGenerada)}</p>
+            )}
+            <button onClick={handleNuevaCompra} autoFocus
+              className="w-full mt-6 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors">
+              Nueva compra
+            </button>
+            <button onClick={handleNuevaCompra}
+              className="mt-2 text-xs text-gray-400 hover:text-gray-600">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
