@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ClienteDto } from '../types'
+import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ClienteDto, UnidadMedidaDto } from '../types'
 
 interface Item {
   producto: ProductoDto
@@ -19,10 +19,15 @@ export default function VentasPage() {
   )
 
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems] = useState<Item[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('venta_cart_items')
+      return saved ? JSON.parse(saved) as Item[] : []
+    } catch { return [] }
+  })
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
-  const { notifyError, notifySuccess } = useNotification()
+  const { notifyError } = useNotification()
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
   const recibioInputRef = useRef<HTMLInputElement>(null!)
@@ -35,9 +40,12 @@ export default function VentasPage() {
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
   const [recibio, setRecibio] = useState('')
+  const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([])
 
   // Deuda flow
   const [showDebtConfirm, setShowDebtConfirm] = useState(false)
+  const [showStockConfirm, setShowStockConfirm] = useState(false)
+  const [stockConflictItems, setStockConflictItems] = useState<Item[]>([])
   const [showClientPopup, setShowClientPopup] = useState(false)
   const [clientesBusqueda, setClientesBusqueda] = useState('')
   const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
@@ -64,14 +72,26 @@ export default function VentasPage() {
   const productGridRef = useRef<HTMLDivElement>(null!)
   const cartListRef = useRef<HTMLDivElement>(null!)
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
+  const stockAceptarRef = useRef<HTMLButtonElement>(null!)
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
   const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  const unidadesMap = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const u of unidades) m.set(u.id, u.codigo)
+    return m
+  }, [unidades])
 
   // Sincronizar Recibió con el total
   useEffect(() => {
     setRecibio(total.toFixed(2))
   }, [total])
+
+  // Persistir carrito en sessionStorage al cambiar de pestaña
+  useEffect(() => {
+    sessionStorage.setItem('venta_cart_items', JSON.stringify(items))
+  }, [items])
 
   // Computed: client-side filter by name or barcode
   const filteredProductos = useMemo(() => {
@@ -121,6 +141,10 @@ export default function VentasPage() {
         })
         .catch(() => {})
 
+      api.unidadesMedida.listar()
+        .then(setUnidades)
+        .catch(() => {})
+
       // Load all products for grid browsing
       setProductosLoading(true)
       api.productos.listar(ctxSucursal.id)
@@ -141,6 +165,13 @@ export default function VentasPage() {
       cartListRef.current.scrollTop = cartListRef.current.scrollHeight
     }
   }, [items])
+
+  // Focus "Aceptar" cuando se abre el cartel de stock insuficiente
+  useEffect(() => {
+    if (showStockConfirm) {
+      setTimeout(() => stockAceptarRef.current?.focus(), 50)
+    }
+  }, [showStockConfirm])
 
   // Búsqueda de clientes
   useEffect(() => {
@@ -282,6 +313,20 @@ export default function VentasPage() {
 
     const recibioValor = parseFloat(recibio) || 0
 
+    // Validate: must select a payment method
+    if (!selectedMedio) {
+      notifyError('Seleccioná un medio de pago antes de confirmar.')
+      return
+    }
+
+    // Check stock before sending
+    const sinStock = items.filter(i => i.cantidad > i.producto.stock)
+    if (sinStock.length > 0) {
+      setStockConflictItems(sinStock)
+      setShowStockConfirm(true)
+      return
+    }
+
     // If total payment wasn't received, ask about debt first
     if (recibioValor < total && !clienteSeleccionado) {
       setShowDebtConfirm(true)
@@ -291,7 +336,7 @@ export default function VentasPage() {
     await ejecutarVenta(recibioValor)
   }
 
-  async function ejecutarVenta(recibioValor: number) {
+  async function ejecutarVenta(recibioValor: number, allowSinStock = false) {
     if (!ctxSucursal) return
     try {
       const pagosDto: PagoVentaDto[] = []
@@ -312,6 +357,7 @@ export default function VentasPage() {
         items: items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
         pagos: pagosDto.length > 0 ? pagosDto : undefined,
         clienteId: clienteSeleccionado?.id,
+        allowSinStock,
       })
       setResultado(res)
       setUltimosItems([...items])
@@ -405,12 +451,12 @@ export default function VentasPage() {
 
         {/* Receipt / Factura */}
         <div className="receipt bg-white border border-gray-300 rounded-xl p-6 max-w-[80mm] mx-auto">
-          <h1 className="text-center text-base font-bold mb-3">PosWeb{'\u2014'} Punto de Venta</h1>
+          <h1 className="text-center text-base font-bold mb-3">{resultado.empresaNombre ?? 'PosWeb'}</h1>
 
           <div className="text-xs mb-3 space-y-0.5">
             <p><span className="font-semibold">Comprobante:</span> Venta #{resultado.ventaId}</p>
             <p><span className="font-semibold">Fecha:</span> {formatFecha(resultado.fecha)}</p>
-            <p><span className="font-semibold">Sucursal:</span> {ctxSucursal?.nombre}</p>
+            {resultado.cajaId != null && <p><span className="font-semibold">Caja N°:</span> {resultado.cajaId}</p>}
           </div>
 
           {/* Items table */}
@@ -456,10 +502,6 @@ export default function VentasPage() {
               </div>
             )}
           </div>
-
-          <p className="text-xs text-gray-600 text-center mt-3">
-            Unidades: {ultimosItems.reduce((s, i) => s + i.cantidad, 0)}
-          </p>
         </div>
 
         {/* Action buttons - hidden when printing */}
@@ -680,103 +722,117 @@ export default function VentasPage() {
               ) : (
                 <div className="space-y-3">
                   {items.map((i) => (
-                    <div key={i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                    <div key={i.producto.id} className="flex items-start gap-2 pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 text-sm truncate">{i.producto.nombre}</p>
-                        <p className="text-xs text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">${i.producto.precio.toFixed(2)} c/u</p>
+                        <p className="font-semibold text-gray-900 text-base truncate">
+                          {i.producto.nombre}
+                          {i.producto.unidadMedidaId != null && (() => {
+                            const udm = unidadesMap.get(i.producto.unidadMedidaId)
+                            if (!udm) return null
+                            if (i.producto.contenido != null) {
+                              const fmt = Number.isInteger(i.producto.contenido) ? i.producto.contenido : i.producto.contenido.toFixed(2).replace(/\.?0+$/, '')
+                              return <span className="font-normal text-gray-500"> · {fmt} {udm}</span>
+                            }
+                            return <span className="font-normal text-gray-500"> · {udm}</span>
+                          })()}
+                          {i.cantidad > 1 && <span className="font-normal text-gray-500"> · x{i.cantidad}</span>}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-gray-500 font-medium">${i.producto.precio.toFixed(2)} c/u</p>
+                          <span className="text-gray-300">·</span>
+                          <p className="text-[11px] text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
+                        </div>
                         {i.cantidad > i.producto.stock && (
-                          <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <p className="text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                             </svg>
                             Stock insuficiente: {i.producto.stock} disponible{i.producto.stock !== 1 ? 's' : ''}
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCantidadDrafts((prev) => {
-                              const next = { ...prev }
-                              delete next[i.producto.id]
-                              return next
-                            })
-                            handleCambiarCantidad(i.producto.id, i.cantidad - 1)
-                          }}
-                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-sm"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min={0}
-                          ref={(el) => {
-                            if (el) cantidadRefs.current.set(i.producto.id, el)
-                            else cantidadRefs.current.delete(i.producto.id)
-                          }}
-                          className="w-12 text-center border border-gray-200 rounded-lg px-1 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                          value={cantidadDrafts[i.producto.id] ?? String(i.cantidad)}
-                          onChange={(e) => {
-                            const raw = e.target.value
-                            // Permitir vacío mientras se edita sin borrar el item
-                            setCantidadDrafts((prev) => ({ ...prev, [i.producto.id]: raw }))
-                          }}
-                          onBlur={() => {
-                            const raw = cantidadDrafts[i.producto.id]
-                            if (raw !== undefined) {
-                              const parsed = parseInt(raw, 10)
-                              handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <p className="font-semibold text-gray-900 text-base">${(i.producto.precio * i.cantidad).toFixed(2)}</p>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
                               setCantidadDrafts((prev) => {
                                 const next = { ...prev }
                                 delete next[i.producto.id]
                                 return next
                               })
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
+                              handleCambiarCantidad(i.producto.id, i.cantidad - 1)
+                            }}
+                            className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-base"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            ref={(el) => {
+                              if (el) cantidadRefs.current.set(i.producto.id, el)
+                              else cantidadRefs.current.delete(i.producto.id)
+                            }}
+                            className="w-14 text-center border border-gray-300 rounded-lg px-1 py-1 text-base font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                            value={cantidadDrafts[i.producto.id] ?? String(i.cantidad)}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              setCantidadDrafts((prev) => ({ ...prev, [i.producto.id]: raw }))
+                            }}
+                            onBlur={() => {
                               const raw = cantidadDrafts[i.producto.id]
-                              const parsed = parseInt(raw ?? '', 10)
-                              handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                              if (raw !== undefined) {
+                                const parsed = parseInt(raw, 10)
+                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                                setCantidadDrafts((prev) => {
+                                  const next = { ...prev }
+                                  delete next[i.producto.id]
+                                  return next
+                                })
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const raw = cantidadDrafts[i.producto.id]
+                                const parsed = parseInt(raw ?? '', 10)
+                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                                setCantidadDrafts((prev) => {
+                                  const next = { ...prev }
+                                  delete next[i.producto.id]
+                                  return next
+                                })
+                                searchInputRef.current?.focus()
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
                               setCantidadDrafts((prev) => {
                                 const next = { ...prev }
                                 delete next[i.producto.id]
                                 return next
                               })
-                              searchInputRef.current?.focus()
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCantidadDrafts((prev) => {
-                              const next = { ...prev }
-                              delete next[i.producto.id]
-                              return next
-                            })
-                            handleCambiarCantidad(i.producto.id, i.cantidad + 1)
-                          }}
-                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-sm"
-                        >
-                          +
-                        </button>
+                              handleCambiarCantidad(i.producto.id, i.cantidad + 1)
+                            }}
+                            className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-base"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => quitarItem(i.producto.id)}
+                            className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0 min-w-[60px]">
-                        <p className="font-semibold text-gray-900 text-sm">${(i.producto.precio * i.cantidad).toFixed(2)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => quitarItem(i.producto.id)}
-                        className="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors focus:ring-2 focus:ring-red-500/30 focus:outline-none"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -785,19 +841,28 @@ export default function VentasPage() {
           </div>
         </div>
 
-        {/* Footer: Vuelto + Recibió + Total + Confirm */}
+        {/* Footer: payment summary */}
         {items.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-5 py-4 shrink-0 space-y-3">
-            {/* Vuelto */}
-            {selectedMedio?.pagaVuelto && (() => {
-              const recibioNum = parseFloat(recibio || '0')
-              const vuelto = recibioNum > total ? recibioNum - total : 0
-              return vuelto > 0 ? (
-                <div className="flex items-center justify-between pb-3 border-b border-green-100">
-                  <span className="text-sm font-medium text-green-700">Vuelto</span>
-                  <span className="text-xl font-bold text-green-700">${vuelto.toFixed(2)}</span>
+            {/* Diferencia: Falta o Vuelto */}
+            {selectedMedio && (() => {
+              const r = parseFloat(recibio || '0')
+              if (r === 0) return null
+              const diff = total - r
+              if (diff > 0) return (
+                <div className="flex items-center justify-between pb-3 border-b border-amber-100">
+                  <span className="text-sm font-medium text-amber-700">Falta</span>
+                  <span className="text-xl font-bold text-amber-700">${diff.toFixed(2)}</span>
                 </div>
-              ) : null
+              )
+              const vuelto = r - total
+              if (vuelto > 0) return (
+                <div className="flex items-center justify-between pb-3 border-b border-emerald-100">
+                  <span className="text-sm font-medium text-emerald-700">Vuelto</span>
+                  <span className="text-xl font-bold text-emerald-700">${vuelto.toFixed(2)}</span>
+                </div>
+              )
+              return null
             })()}
 
             {/* Recibió */}
@@ -811,15 +876,26 @@ export default function VentasPage() {
                   value={recibio}
                   onChange={e => { setRecibio(e.target.value); setClienteSeleccionado(null) }}
                   onFocus={e => e.target.select()}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      confirmarVenta()
+                    }
+                  }}
                   className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                   placeholder={total.toFixed(2)}
                 />
               </div>
             </div>
 
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500 font-medium">Total</span>
+            {/* Total + medios */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-500 font-medium">Total</span>
+                {selectedMedio && (
+                  <span className="text-xs text-gray-400">{selectedMedio.nombre}</span>
+                )}
+              </div>
               <span className="text-2xl font-bold text-gray-900">${total.toFixed(2)}</span>
             </div>
 
@@ -841,11 +917,14 @@ export default function VentasPage() {
                 ref={confirmBtnRef}
                 type="button"
                 onClick={confirmarVenta}
-                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors text-sm"
+                disabled={!selectedMedio}
+                className={`w-full py-3 font-semibold rounded-xl transition-colors text-sm ${
+                  selectedMedio
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
               >
-                {clienteSeleccionado
-                  ? `Confirmar venta — $${total.toFixed(2)} (deuda $${(total - (parseFloat(recibio) || 0)).toFixed(2)})`
-                  : `Confirmar venta — $${total.toFixed(2)}`}
+                Confirmar venta
               </button>
             )}
           </div>
@@ -946,6 +1025,93 @@ export default function VentasPage() {
         </div>
       )}
 
+      {/* Stock confirmation dialog */}
+      {showStockConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              if (e.key === 'Tab') {
+                e.preventDefault()
+                if (e.shiftKey) {
+                  if (document.activeElement === stockAceptarRef.current) {
+                    document.querySelector<HTMLButtonElement>('[data-stock-rechazar]')?.focus()
+                  } else {
+                    stockAceptarRef.current?.focus()
+                  }
+                } else {
+                  if (document.activeElement === document.querySelector<HTMLButtonElement>('[data-stock-rechazar]')) {
+                    stockAceptarRef.current?.focus()
+                  } else {
+                    document.querySelector<HTMLButtonElement>('[data-stock-rechazar]')?.focus()
+                  }
+                }
+              } else if (e.key === 'ArrowLeft') {
+                if (document.activeElement === stockAceptarRef.current) {
+                  document.querySelector<HTMLButtonElement>('[data-stock-rechazar]')?.focus()
+                }
+              } else if (e.key === 'ArrowRight') {
+                const btn = document.querySelector<HTMLButtonElement>('[data-stock-rechazar]')
+                if (document.activeElement === btn) stockAceptarRef.current?.focus()
+              }
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Stock insuficiente</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">Estos productos no tienen stock suficiente:</p>
+            <div className="bg-red-50 rounded-xl p-3 space-y-2 mb-4 max-h-40 overflow-y-auto">
+              {stockConflictItems.map(i => (
+                <div key={i.producto.id} className="flex justify-between text-sm">
+                  <span className="text-gray-700 font-medium truncate mr-2">{i.producto.nombre}</span>
+                  <span className="text-gray-500 shrink-0">disp: {i.producto.stock} · pedido: {i.cantidad}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-gray-600 mb-6">¿Vender igual sin stock?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                data-stock-rechazar
+                onClick={() => {
+                  setShowStockConfirm(false)
+                  setStockConflictItems([])
+                  const first = stockConflictItems[0]
+                  if (first) {
+                    const input = cantidadRefs.current.get(first.producto.id)
+                    if (input) {
+                      cartListRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                      input.focus()
+                      input.select()
+                    }
+                  }
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-lg focus:ring-2 focus:ring-gray-400/30 focus:outline-none"
+              >
+                Rechazar
+              </button>
+              <button
+                ref={stockAceptarRef}
+                onClick={() => {
+                  setShowStockConfirm(false)
+                  setStockConflictItems([])
+                  const recibioValor = parseFloat(recibio) || 0
+                  ejecutarVenta(recibioValor, true)
+                }}
+                className="px-4 py-2 text-sm font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 focus:ring-2 focus:ring-amber-500/40 focus:outline-none"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Client popup */}
       {showClientPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -966,9 +1132,33 @@ export default function VentasPage() {
             />
 
             {/* Loading */}
-            {buscandoClientes && <p className="text-xs text-gray-400 text-center py-4">Buscando...</p>}
+            {buscandoClientes && (
+              <div className="space-y-2 py-4">
+                {[1,2,3].map(i => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                    <div className="w-8 h-8 rounded-full bg-gray-200" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3.5 bg-gray-200 rounded w-3/5" />
+                      <div className="h-2.5 bg-gray-100 rounded w-2/5" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Results header */}
+            {!buscandoClientes && clientesResultados.length > 0 && (
+              <p className="text-xs text-gray-400 mb-1 px-1">
+                {clientesResultados.length} resultado{clientesResultados.length !== 1 ? 's' : ''}
+              </p>
+            )}
 
             {/* Results */}
+            {!buscandoClientes && clientesResultados.length === 0 && clientesBusqueda.trim().length >= 1 && (
+              <p className="text-sm text-gray-400 text-center py-8">
+                No se encontraron clientes con ese nombre
+              </p>
+            )}
             <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
               {clientesResultados.map(cl => (
                 <button
@@ -980,10 +1170,21 @@ export default function VentasPage() {
                     setClientesBusqueda('')
                     setClientesResultados([])
                   }}
-                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-indigo-50 transition-colors"
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-3"
                 >
-                  <p className="text-sm font-medium text-gray-900">{cl.nombre}</p>
-                  {cl.telefono && <p className="text-xs text-gray-500">{cl.telefono}</p>}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 ${
+                    ['bg-indigo-500','bg-emerald-500','bg-amber-500','bg-rose-500','bg-sky-500','bg-violet-500','bg-teal-500','bg-orange-500'][(cl.id ?? 0) % 8]
+                  }`}>
+                    {cl.nombre.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{cl.nombre}</p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {cl.tipoDocumento} {cl.numeroDocumento}
+                      {cl.codCliente && ` · #${cl.codCliente}`}
+                      {cl.telefono && ` · ${cl.telefono}`}
+                    </p>
+                  </div>
                 </button>
               ))}
             </div>
@@ -1119,7 +1320,7 @@ export default function VentasPage() {
 // ===== Inline Components =====
 
 function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: ProductoDto) => void }) {
-  const stockColor = producto.stock === 0 ? 'red' : producto.stock <= 5 ? 'amber' : 'emerald'
+  const estadoStock = producto.stock === 0 ? 'sin-stock' : producto.stock <= 5 ? 'bajo' : 'ok'
   return (
     <button
       type="button"
@@ -1137,16 +1338,16 @@ function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: Pr
       <div className="flex items-end justify-between mt-2 gap-2">
         <p className="text-xl font-bold text-indigo-600">${producto.precio.toFixed(2)}</p>
         <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
-          stockColor === 'red'
+          estadoStock === 'sin-stock'
             ? 'bg-red-50 text-red-600'
-            : stockColor === 'amber'
+            : estadoStock === 'bajo'
               ? 'bg-amber-50 text-amber-700'
               : 'bg-emerald-50 text-emerald-700'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${
-            stockColor === 'red' ? 'bg-red-500' : stockColor === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'
+            estadoStock === 'sin-stock' ? 'bg-red-500' : estadoStock === 'bajo' ? 'bg-amber-500' : 'bg-emerald-500'
           }`} />
-          {producto.stock === 0 ? 'sin stock' : `${producto.stock}`}
+          {producto.stock === 0 ? 'sin stock' : producto.stock <= 5 ? `solo ${producto.stock}` : `${producto.stock}`}
         </span>
       </div>
     </button>

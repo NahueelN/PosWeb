@@ -112,7 +112,7 @@ public class VentaService
 
             int available = (int)(stockSuc?.STOCK ?? 0);
 
-            if (available < item.Cantidad)
+            if (available < item.Cantidad && !dto.AllowSinStock)
             {
                 throw new StockSucursalInsuficienteException(
                     producto.DESC_PRODUCTO,
@@ -122,7 +122,7 @@ public class VentaService
                 );
             }
 
-            stockSuc!.DescontarStock(item.Cantidad);
+            if (stockSuc != null) stockSuc.DescontarStock(item.Cantidad);
             venta.AgregarRenglon(producto, item.Cantidad);
         }
 
@@ -225,6 +225,11 @@ public class VentaService
             clienteNombre = cli?.NOMBRE;
         }
 
+        string? empresaNombre = _context.Empresa
+            .Where(e => e.ID_EMPRESA == sucursal.ID_EMPRESA)
+            .Select(e => e.NOMBRE)
+            .FirstOrDefault();
+
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
@@ -235,7 +240,9 @@ public class VentaService
             ClienteId = dto.ClienteId,
             ClienteNombre = clienteNombre,
             DeudaId = deudaId,
-            DeudaMonto = deudaMonto
+            DeudaMonto = deudaMonto,
+            CajaId = cajaActiva.ID_CAJA,
+            EmpresaNombre = empresaNombre
         };
     }
 

@@ -114,6 +114,7 @@ export interface VentaDto {
   items: VentaItemDto[]
   pagos?: PagoVentaDto[]
   clienteId?: number
+  allowSinStock?: boolean
 }
 
 export interface VentaResultadoDto {
@@ -126,6 +127,8 @@ export interface VentaResultadoDto {
   clienteNombre?: string
   deudaId?: number
   deudaMonto?: number
+  cajaId?: number
+  empresaNombre?: string
 }
 
 export interface StockSucursalDto {

@@ -62,7 +62,10 @@ export default function DialogContainer() {
   const c = colors[current.variant]
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); dismiss() } }}
+    >
       <div
         className={`bg-white rounded-2xl shadow-2xl border-2 ${c.border} max-w-md w-full animate-[fadeIn_0.15s_ease]`}
         role="alertdialog"
