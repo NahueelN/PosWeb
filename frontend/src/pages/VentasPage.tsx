@@ -83,6 +83,17 @@ export default function VentasPage() {
     )
   }, [productos, searchQuery])
 
+  // Barcode auto-add: cuando el texto coincide exactamente con un código de barra,
+  // agrega el producto al carrito automáticamente (sin requerir click)
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) return
+    const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase())
+    if (match) {
+      agregarProducto(match)
+    }
+  }, [searchQuery, productos])
+
   // --- Load data ---
   useEffect(() => {
     if (step === 'sucursal') {
@@ -674,6 +685,14 @@ export default function VentasPage() {
                         <p className="font-medium text-gray-800 text-sm truncate">{i.producto.nombre}</p>
                         <p className="text-xs text-gray-400 font-mono truncate">{i.producto.codigoBarra}</p>
                         <p className="text-xs text-gray-500 mt-0.5">${i.producto.precio.toFixed(2)} c/u</p>
+                        {i.cantidad > i.producto.stock && (
+                          <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                            </svg>
+                            Stock insuficiente: {i.producto.stock} disponible{i.producto.stock !== 1 ? 's' : ''}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -895,13 +914,25 @@ export default function VentasPage() {
       {showDebtConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDebtConfirm(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Fiado — Cuenta Corriente</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              No se recibió el total del pago. {(parseFloat(recibio) || 0) > 0
-                ? `Se pagaron <strong>$${(parseFloat(recibio) || 0).toFixed(2)}</strong> de <strong>$${total.toFixed(2)}</strong> y queda <strong>$${(total - (parseFloat(recibio) || 0)).toFixed(2)}</strong> pendiente.`
-                : `El total de <strong>$${total.toFixed(2)}</strong> queda pendiente.`
-              }
-            </p>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Fiado — Cuenta Corriente</h3>
+            <p className="text-sm text-gray-600 mb-3">No se recibió el total del pago.</p>
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm mb-4">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total</span>
+                <span className="font-semibold text-gray-900">${total.toFixed(2)}</span>
+              </div>
+              {(parseFloat(recibio) || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Pagado</span>
+                  <span className="font-semibold text-emerald-600">${(parseFloat(recibio) || 0).toFixed(2)}</span>
+                </div>
+              )}
+              <hr className="border-gray-200" />
+              <div className="flex justify-between">
+                <span className="text-gray-500">Pendiente</span>
+                <span className="font-semibold text-amber-600">${(total - (parseFloat(recibio) || 0)).toFixed(2)}</span>
+              </div>
+            </div>
             <p className="text-sm text-gray-600 mb-6">¿Desea confirmar o rechazar?</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowDebtConfirm(false); setRecibio(total.toFixed(2)) }} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
@@ -978,6 +1009,12 @@ export default function VentasPage() {
               placeholder="Nombre del cliente"
               value={nuevoClienteNombre}
               onChange={e => setNuevoClienteNombre(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && nuevoClienteNombre.trim().length >= 2) {
+                  e.preventDefault()
+                  crearClienteYRevertir()
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-1"
             />
             {nuevoClienteNombre.trim().length < 2 && nuevoClienteNombre.length > 0 && (
