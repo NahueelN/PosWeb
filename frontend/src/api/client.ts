@@ -272,10 +272,12 @@ export const api = {
 // Gastos
     gastos: {
       listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
+      historial: (excluirCajaId?: number) => request<GastoListResponse>(`/gastos/historial${excluirCajaId ? `?excluirCajaId=${excluirCajaId}` : ''}`),
       crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
         method: 'POST',
         body: JSON.stringify(dto),
       }),
+      anular: (id: number) => request<{ message: string }>(`/gastos/${id}/anular`, { method: 'POST' }),
     },
 
   // Deudas

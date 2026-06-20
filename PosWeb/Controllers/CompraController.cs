@@ -31,7 +31,8 @@ public class CompraController : ControllerBase
                 userId,
                 request.Items,
                 montoPagado: request.MontoPagado,
-                fuentePago: request.FuentePago);
+                fuentePago: request.FuentePago,
+                montoPagadoCaja: request.MontoPagadoCaja);
             return Ok(result);
         }
         catch (ArgumentException ex)

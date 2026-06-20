@@ -120,7 +120,9 @@ export default function CompraPage() {
 
   // Payment
   const [montoPago, setMontoPago] = useState(0);
-  const [fuentePago, setFuentePago] = useState<'caja' | 'ahorro'>('caja');
+  const [fuentePago, setFuentePago] = useState<'caja' | 'ahorro' | 'dividir'>('caja');
+  const [montoCaja, setMontoCaja] = useState(0);
+  const [montoAhorro, setMontoAhorro] = useState(0);
   const [deudaGenerada, setDeudaGenerada] = useState(0);
 
   // Editing
@@ -228,7 +230,10 @@ export default function CompraPage() {
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const montoPagado = montoPago > 0 ? montoPago : undefined;
+      const esDividir = fuentePago === 'dividir';
+      const montoPagadoTotal = esDividir ? (montoCaja + montoAhorro) : montoPago;
+      const montoPagado = montoPagadoTotal > 0 ? montoPagadoTotal : undefined;
+      const montoPagadoCaja = esDividir ? (montoCaja > 0 ? montoCaja : undefined) : undefined;
       const req: CompraRequestDto = {
         sucursalId: sucursalId, proveedorId: state.proveedorId,
         items: state.cart.map(i => ({
@@ -241,9 +246,10 @@ export default function CompraPage() {
         })),
         montoPagado,
         fuentePago,
+        montoPagadoCaja,
       };
       const res = await api.compras.crear(req);
-      setDeudaGenerada(res.totalGasto - (montoPago > 0 ? montoPago : 0));
+      setDeudaGenerada(res.totalGasto - montoPagadoTotal);
       dispatch({ type: 'CONFIRM_SUCCESS', response: res });
     } catch (err: any) {
       const errorMsg = err.message || 'Error al crear la compra';
@@ -463,32 +469,67 @@ export default function CompraPage() {
 
             {/* Payment card */}
             <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
-                  <input type="number" min={0} step="0.01"
-                    value={montoPago || ''} onChange={e => setMontoPago(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="0.00" />
+              {fuentePago === 'dividir' ? (
+                <>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500 font-medium">$ Caja</span>
+                      <input type="number" min={0} step="0.01"
+                        value={montoCaja || ''} onChange={e => setMontoCaja(parseFloat(e.target.value) || 0)}
+                        className="w-full pl-14 pr-3 py-2 bg-white border border-indigo-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="0.00" />
+                    </div>
+                    <button onClick={() => setMontoCaja(cartTotal - montoAhorro)}
+                      className="px-2 py-2 text-xs font-medium bg-indigo-50 border border-indigo-300 rounded-lg hover:bg-indigo-100 text-indigo-700 transition-colors"
+                      title="Caja cubre el resto">
+                      Todo
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-emerald-500 font-medium">$ Ahorro</span>
+                      <input type="number" min={0} step="0.01"
+                        value={montoAhorro || ''} onChange={e => setMontoAhorro(parseFloat(e.target.value) || 0)}
+                        className="w-full pl-16 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                        placeholder="0.00" />
+                    </div>
+                    <button onClick={() => setMontoAhorro(cartTotal - montoCaja)}
+                      className="px-2 py-2 text-xs font-medium bg-emerald-50 border border-emerald-300 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors"
+                      title="Ahorro cubre el resto">
+                      Todo
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
+                    <input type="number" min={0} step="0.01"
+                      value={montoPago || ''} onChange={e => setMontoPago(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      placeholder="0.00" />
+                  </div>
+                  <button onClick={() => setMontoPago(cartTotal)}
+                    className="px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                    title="Usar el total como monto pagado">
+                    Total
+                  </button>
                 </div>
-                <button onClick={() => setMontoPago(cartTotal)}
-                  className="px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
-                  title="Usar el total como monto pagado">
-                  Total
-                </button>
-              </div>
+              )}
 
               <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                {(['caja', 'ahorro'] as const).map(f => (
+                {(['caja', 'ahorro', 'dividir'] as const).map(f => (
                   <button key={f} onClick={() => setFuentePago(f)}
                     className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
                       fuentePago === f
                         ? f === 'caja'
                           ? 'bg-indigo-500 text-white'
-                          : 'bg-emerald-500 text-white'
+                          : f === 'ahorro'
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-amber-500 text-white'
                         : 'bg-white text-gray-500 hover:bg-gray-100'
                     }`}>
-                    {f === 'caja' ? '💵 Caja' : '🏦 Ahorro'}
+                    {f === 'caja' ? '💵 Caja' : f === 'ahorro' ? '🏦 Ahorro' : '↔ Dividir'}
                   </button>
                 ))}
               </div>
@@ -497,12 +538,16 @@ export default function CompraPage() {
                 Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
               </p>
 
-              {montoPago > 0 && montoPago < cartTotal && (
-                <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - montoPago)}</p>
-              )}
-              {montoPago >= cartTotal && cartTotal > 0 && (
-                <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
-              )}
+              {(() => {
+                const pagado = fuentePago === 'dividir' ? (montoCaja + montoAhorro) : montoPago;
+                if (pagado > 0 && pagado < cartTotal) return (
+                  <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - pagado)}</p>
+                );
+                if (pagado >= cartTotal && cartTotal > 0) return (
+                  <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
+                );
+                return null;
+              })()}
             </div>
 
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">

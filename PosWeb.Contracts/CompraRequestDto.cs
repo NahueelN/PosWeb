@@ -7,7 +7,8 @@ public class CompraRequestDto
     public int? UserId { get; set; }
     public List<CompraItemDto> Items { get; set; } = new();
     public decimal? MontoPagado { get; set; }
-    public string? FuentePago { get; set; } // "caja" (default) or "ahorro"
+    public decimal? MontoPagadoCaja { get; set; } // used when FuentePago == "dividir"
+    public string? FuentePago { get; set; } // "caja" (default), "ahorro", or "dividir"
 }
 
 public class CompraItemDto

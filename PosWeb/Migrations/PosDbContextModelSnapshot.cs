@@ -405,13 +405,21 @@ namespace PosWeb.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_GASTO");
 
-                    b.Property<int>("ID_CAJA")
+                    b.Property<int?>("ID_CAJA")
                         .HasColumnType("int")
                         .HasColumnName("ID_CAJA");
 
                     b.Property<decimal>("MONTO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("MONTO");
+
+                    b.Property<bool>("ANULADO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ANULADO");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_USUARIO");
 
                     b.HasKey("ID_GASTO");
 
@@ -1269,8 +1277,7 @@ namespace PosWeb.Migrations
                     b.HasOne("PosWeb.Domain.Caja", null)
                         .WithMany()
                         .HasForeignKey("ID_CAJA")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pago", b =>

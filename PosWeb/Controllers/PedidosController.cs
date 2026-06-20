@@ -77,7 +77,7 @@ public class PedidosController : ControllerBase
     {
         try
         {
-            PedidoDetailDto result = _pedidoService.RecibirPedido(id, request);
+            PedidoDetailDto result = _pedidoService.RecibirPedido(id, request, userId: GetUserId());
             return Ok(result);
         }
         catch (ArgumentException ex)

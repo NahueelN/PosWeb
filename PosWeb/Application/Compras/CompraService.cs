@@ -24,7 +24,7 @@ public class CompraService
     /// </summary>
     public CompraResponseDto CrearCompra(int sucursalId, int proveedorId, int userId,
         List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null,
-        string? fuentePago = null)
+        string? fuentePago = null, decimal? montoPagadoCaja = null)
     {
         if (items.Count == 0)
             throw new CompraSinItemsException();
@@ -36,13 +36,14 @@ public class CompraService
         try
         {
         bool esAhorro = string.Equals(fuentePago, "ahorro", StringComparison.OrdinalIgnoreCase);
+        bool esDividir = string.Equals(fuentePago, "dividir", StringComparison.OrdinalIgnoreCase);
 
         // Validate proveedor exists
         Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
         if (proveedor == null || !proveedor.ACTIVO)
             throw new ProveedorNoEncontradoException(proveedorId);
 
-        // Find active caja for the sucursal (only required for "caja" payments)
+        // Find active caja for the sucursal (only required for "caja" and "dividir" payments)
         Caja? cajaActiva = null;
         if (!esAhorro)
         {
@@ -155,14 +156,15 @@ public class CompraService
                 });
             }
 
-            // Create Gasto (only for "caja" payments; skip for "ahorro")
+            // Create Gasto (skip for "ahorro"; use partial monto for "dividir")
             int? gastoId = null;
             DateTime fechaCompraFinal = fechaCompra ?? DateTime.Now;
 
             if (!esAhorro && cajaActiva != null)
             {
+                decimal montoGasto = esDividir ? (montoPagadoCaja ?? 0) : totalGasto;
                 string detalleGasto = $"Compra - {proveedor.NOMBRE}";
-                var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
+                var gasto = new Gasto(cajaActiva.ID_CAJA, montoGasto, detalleGasto, userId);
                 _context.Gasto.Add(gasto);
                 _context.SaveChanges(); // Save to generate IDs
                 compra.AsignarGasto(gasto.ID_GASTO);
@@ -205,7 +207,8 @@ public class CompraService
             request.UserId ?? 0,
             request.Items,
             montoPagado: request.MontoPagado,
-            fuentePago: request.FuentePago
+            fuentePago: request.FuentePago,
+            montoPagadoCaja: request.MontoPagadoCaja
         );
     }
 }

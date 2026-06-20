@@ -583,9 +583,16 @@ public class PosDbContext : DbContext
             entity.Property(g => g.ID_CAJA)
                 .HasColumnName("ID_CAJA");
 
+            entity.Property(g => g.ANULADO)
+                .HasColumnName("ANULADO");
+
+            entity.Property(g => g.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
             entity.HasOne<Caja>()
                 .WithMany()
                 .HasForeignKey(g => g.ID_CAJA)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

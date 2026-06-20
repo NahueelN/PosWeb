@@ -338,7 +338,8 @@ export interface CompraItemDto {
     userId?: number
     items: CompraItemDto[]
     montoPagado?: number
-    fuentePago?: string      // "caja" | "ahorro"
+    montoPagadoCaja?: number   // when fuentePago == "dividir"
+    fuentePago?: string         // "caja" | "ahorro" | "dividir"
   }
 
  export interface CompraItemResultDto {
@@ -391,15 +392,19 @@ export interface CerrarCajaRequest {
 // --- Gasto types ---
 export interface GastoDto {
   id: number
-  cajaId: number
+  cajaId: number | null
   monto: number
   detalle: string
   fecha: string
+  anulado: boolean
+  usuarioNombre: string
 }
 
 export interface CrearGastoRequest {
   monto: number
   detalle: string
+  fuentePago?: string         // "caja" | "ahorro" | "dividir"
+  montoPagadoCaja?: number    // when fuentePago == "dividir"
 }
 
 export interface GastoListResponse {
