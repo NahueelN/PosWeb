@@ -596,6 +596,25 @@ public class PosDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ---- CATEGORIA_GASTO ----
+        modelBuilder.Entity<CategoriaGasto>(entity =>
+        {
+            entity.ToTable("CATEGORIA_GASTO");
+
+            entity.HasKey(c => c.ID_CATEGORIA_GASTO);
+
+            entity.Property(c => c.ID_CATEGORIA_GASTO)
+                .HasColumnName("ID_CATEGORIA_GASTO");
+
+            entity.Property(c => c.DESCRIPCION)
+                .HasColumnName("DESCRIPCION")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(c => c.ACTIVO)
+                .HasColumnName("ACTIVO");
+        });
+
         // ---- CATEGORIA ----
         modelBuilder.Entity<Categoria>(entity =>
         {

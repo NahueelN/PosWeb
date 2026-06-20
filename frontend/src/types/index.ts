@@ -411,6 +411,16 @@ export interface GastoListResponse {
   items: GastoDto[]
 }
 
+// --- CategoriaGasto types ---
+export interface CategoriaGastoDto {
+  id: number
+  descripcion: string
+}
+
+export interface CategoriaGastoListResponse {
+  items: CategoriaGastoDto[]
+}
+
 // --- Deuda types ---
 export interface DeudaDto {
   id: number

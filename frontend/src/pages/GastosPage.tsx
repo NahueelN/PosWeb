@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { SucursalDto, GastoDto, CajaDto } from '../types'
+import type { SucursalDto, GastoDto, CajaDto, CategoriaGastoDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
 import PageHeader from '../components/ui/PageHeader'
 import AlertBanner from '../components/ui/AlertBanner'
@@ -50,6 +50,10 @@ export default function GastosPage() {
   const [montoAhorro, setMontoAhorro] = useState(0)
   const [undoGastoId, setUndoGastoId] = useState<number | null>(null)
   const [undoLoading, setUndoLoading] = useState(false)
+  const [categorias, setCategorias] = useState<CategoriaGastoDto[]>([])
+  const [nuevaCat, setNuevaCat] = useState('')
+  const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
+  const [creandoCat, setCreandoCat] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!sucursal) return
@@ -88,6 +92,11 @@ export default function GastosPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // Load categories
+  useEffect(() => {
+    api.categoriasGasto.listar().then(r => setCategorias(r.items)).catch(() => {})
+  }, [])
+
   async function handleUndoGasto() {
     if (undoGastoId === null) return
     setUndoLoading(true)
@@ -100,6 +109,22 @@ export default function GastosPage() {
       setError(err.message || 'Error al anular gasto')
     } finally {
       setUndoLoading(false)
+    }
+  }
+
+  async function handleCrearCategoria() {
+    if (!nuevaCat.trim()) return
+    setCreandoCat(true)
+    try {
+      const cat = await api.categoriasGasto.crear(nuevaCat.trim())
+      setCategorias(prev => [...prev, cat])
+      setDetalle(cat.descripcion)
+      setNuevaCat('')
+      setMostrarNuevaCat(false)
+    } catch (err: any) {
+      setFormError(err.message || 'Error al crear categoría')
+    } finally {
+      setCreandoCat(false)
     }
   }
 
@@ -206,15 +231,48 @@ export default function GastosPage() {
               </div>
               <div>
                 <label className={labelClass}>Detalle</label>
-                <input
-                  type="text"
-                  value={detalle}
-                  onChange={e => setDetalle(e.target.value)}
-                  placeholder="Ej: Flete, limpieza, etc."
-                  maxLength={500}
-                  className={inputClass}
-                  required
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={detalle}
+                    onChange={e => {
+                      if (e.target.value === '__nueva__') {
+                        setMostrarNuevaCat(true)
+                        return
+                      }
+                      setDetalle(e.target.value)
+                    }}
+                    className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-white"
+                    required
+                  >
+                    <option value="">Seleccionar categoría...</option>
+                    {categorias.map(c => (
+                      <option key={c.id} value={c.descripcion}>{c.descripcion}</option>
+                    ))}
+                    <option value="__nueva__" className="text-indigo-600 font-medium">+ Nueva categoría...</option>
+                  </select>
+                </div>
+                {mostrarNuevaCat && (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={nuevaCat}
+                      onChange={e => setNuevaCat(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleCrearCategoria())}
+                      placeholder="Nombre de la categoría"
+                      maxLength={100}
+                      className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                      autoFocus
+                    />
+                    <button type="button" onClick={handleCrearCategoria} disabled={creandoCat || !nuevaCat.trim()}
+                      className="px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                      {creandoCat ? '...' : 'Crear'}
+                    </button>
+                    <button type="button" onClick={() => { setMostrarNuevaCat(false); setNuevaCat('') }}
+                      className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700">
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Fuente selector */}
