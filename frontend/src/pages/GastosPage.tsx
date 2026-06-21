@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
@@ -29,16 +29,41 @@ export default function GastosPage() {
   const [historial, setHistorial] = useState<GastoDto[]>([])
   const [historialLoading, setHistorialLoading] = useState(false)
   const [busquedaHistorial, setBusquedaHistorial] = useState('')
+  const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'detalle' | 'usuario' | 'monto' | null>(null)
+  const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc')
+
+  const toggleOrden = (campo: 'fecha' | 'detalle' | 'usuario' | 'monto') => {
+    if (ordenarPor !== campo) {
+      setOrdenarPor(campo)
+      setOrdenDir('asc')
+    } else if (ordenDir === 'asc') {
+      setOrdenDir('desc')
+    } else {
+      setOrdenarPor(null)
+    }
+  }
 
   const historialFiltrado = useMemo(() => {
-    if (!busquedaHistorial.trim()) return historial
-    const q = busquedaHistorial.toLowerCase()
-    return historial.filter(g =>
-      g.detalle.toLowerCase().includes(q) ||
-      g.monto.toString().includes(q) ||
-      formatDate(g.fecha).toLowerCase().includes(q)
-    )
-  }, [historial, busquedaHistorial])
+    let lista = busquedaHistorial.trim()
+      ? historial.filter(g => {
+          const q = busquedaHistorial.toLowerCase()
+          return g.detalle.toLowerCase().includes(q) ||
+            g.monto.toString().includes(q) ||
+            formatDate(g.fecha).toLowerCase().includes(q)
+        })
+      : [...historial]
+    if (ordenarPor) {
+      lista.sort((a, b) => {
+        let cmp = 0
+        if (ordenarPor === 'fecha') cmp = a.fecha.localeCompare(b.fecha)
+        else if (ordenarPor === 'detalle') cmp = a.detalle.localeCompare(b.detalle)
+        else if (ordenarPor === 'usuario') cmp = (a.usuarioNombre || '').localeCompare(b.usuarioNombre || '')
+        else cmp = a.monto - b.monto
+        return ordenDir === 'asc' ? cmp : -cmp
+      })
+    }
+    return lista
+  }, [historial, busquedaHistorial, ordenarPor, ordenDir])
 
   // Form state
   const [monto, setMonto] = useState('')
@@ -50,10 +75,26 @@ export default function GastosPage() {
   const [montoAhorro, setMontoAhorro] = useState(0)
   const [undoGastoId, setUndoGastoId] = useState<number | null>(null)
   const [undoLoading, setUndoLoading] = useState(false)
+  const montoRef = useRef<HTMLInputElement>(null)
+  const detalleRef = useRef<HTMLInputElement>(null)
+  const fuenteRef = useRef<HTMLDivElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
   const [categorias, setCategorias] = useState<CategoriaGastoDto[]>([])
-  const [nuevaCat, setNuevaCat] = useState('')
-  const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
+  const [catSearch, setCatSearch] = useState('')
+  const [showCatDropdown, setShowCatDropdown] = useState(false)
   const [creandoCat, setCreandoCat] = useState(false)
+  const [catHighIdx, setCatHighIdx] = useState(-1)
+
+  const categoriasFiltradas = useMemo(() => {
+    if (!catSearch.trim()) return categorias
+    const q = catSearch.toLowerCase()
+    return categorias.filter(c => c.descripcion.toLowerCase().includes(q))
+  }, [categorias, catSearch])
+
+  const catExactMatch = useMemo(() =>
+    catSearch.trim() && !categorias.some(c => c.descripcion.toLowerCase() === catSearch.trim().toLowerCase()),
+    [categorias, catSearch]
+  )
 
   const loadData = useCallback(async () => {
     if (!sucursal) return
@@ -112,15 +153,15 @@ export default function GastosPage() {
     }
   }
 
-  async function handleCrearCategoria() {
-    if (!nuevaCat.trim()) return
+  async function handleCrearCategoria(nombre: string) {
+    if (!nombre.trim()) return
     setCreandoCat(true)
     try {
-      const cat = await api.categoriasGasto.crear(nuevaCat.trim())
+      const cat = await api.categoriasGasto.crear(nombre.trim())
       setCategorias(prev => [...prev, cat])
       setDetalle(cat.descripcion)
-      setNuevaCat('')
-      setMostrarNuevaCat(false)
+      setCatSearch('')
+      setShowCatDropdown(false)
     } catch (err: any) {
       setFormError(err.message || 'Error al crear categoría')
     } finally {
@@ -161,6 +202,7 @@ export default function GastosPage() {
       })
       setMonto('')
       setDetalle('')
+      setCatSearch('')
       setMontoCaja(0)
       setMontoAhorro(0)
       setFuenteGasto('caja')
@@ -220,9 +262,11 @@ export default function GastosPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
                   <input
+                    ref={montoRef}
                     type="number" step="0.01" min="0.01"
                     value={monto}
                     onChange={e => setMonto(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); detalleRef.current?.focus() } }}
                     placeholder="0.00"
                     className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                     required
@@ -231,56 +275,87 @@ export default function GastosPage() {
               </div>
               <div>
                 <label className={labelClass}>Detalle</label>
-                <div className="flex gap-2">
-                  <select
-                    value={detalle}
-                    onChange={e => {
-                      if (e.target.value === '__nueva__') {
-                        setMostrarNuevaCat(true)
+                <div className="relative">
+                  <input
+                    ref={detalleRef}
+                    type="text"
+                    value={catSearch}
+                    onChange={e => { setCatSearch(e.target.value); setDetalle(e.target.value); setShowCatDropdown(true); setCatHighIdx(-1) }}
+                    onFocus={() => { setShowCatDropdown(true); setCatHighIdx(-1) }}
+                    onBlur={() => setTimeout(() => setShowCatDropdown(false), 150)}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault()
+                        setShowCatDropdown(true)
+                        const total = categoriasFiltradas.length + (catExactMatch ? 1 : 0)
+                        setCatHighIdx(i => Math.min(i + 1, total - 1))
                         return
                       }
-                      setDetalle(e.target.value)
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        setCatHighIdx(i => Math.max(i - 1, -1))
+                        return
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (showCatDropdown && catHighIdx >= 0) {
+                          if (catHighIdx < categoriasFiltradas.length) {
+                            const c = categoriasFiltradas[catHighIdx]
+                            setDetalle(c.descripcion)
+                            setCatSearch(c.descripcion)
+                          } else {
+                            handleCrearCategoria(catSearch)
+                          }
+                          setShowCatDropdown(false)
+                          setCatHighIdx(-1)
+                        } else if (showCatDropdown) {
+                          const match = categorias.find(c => c.descripcion.toLowerCase() === catSearch.trim().toLowerCase())
+                          if (match) {
+                            setDetalle(match.descripcion)
+                            setCatSearch(match.descripcion)
+                          } else if (catSearch.trim()) {
+                            handleCrearCategoria(catSearch)
+                          }
+                          setShowCatDropdown(false)
+                          setCatHighIdx(-1)
+                        } else {
+                          fuenteRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+                        }
+                      }
                     }}
-                    className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-white"
+                    placeholder="Buscar o crear categoría..."
+                    className={inputClass}
                     required
-                  >
-                    <option value="">Seleccionar categoría...</option>
-                    {categorias.map(c => (
-                      <option key={c.id} value={c.descripcion}>{c.descripcion}</option>
-                    ))}
-                    <option value="__nueva__" className="text-indigo-600 font-medium">+ Nueva categoría...</option>
-                  </select>
+                  />
+                  {showCatDropdown && (
+                    <ul className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto text-xs">
+                      {categoriasFiltradas.map((c, i) => (
+                        <li key={c.id}
+                          onMouseDown={() => { setDetalle(c.descripcion); setCatSearch(c.descripcion); setShowCatDropdown(false); setCatHighIdx(-1) }}
+                          onMouseEnter={() => setCatHighIdx(i)}
+                          className={`px-3 py-1.5 cursor-pointer ${i === catHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${detalle === c.descripcion ? 'font-medium' : ''}`}>
+                          {c.descripcion}
+                        </li>
+                      ))}
+                      {catExactMatch && (
+                        <li onMouseDown={() => handleCrearCategoria(catSearch)}
+                          onMouseEnter={() => setCatHighIdx(categoriasFiltradas.length)}
+                          className={`px-3 py-1.5 cursor-pointer border-t border-gray-100 ${catHighIdx === categoriasFiltradas.length ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-indigo-50 text-indigo-600'}`}>
+                          + Crear "{catSearch.trim()}"
+                        </li>
+                      )}
+                    </ul>
+                  )}
                 </div>
-                {mostrarNuevaCat && (
-                  <div className="flex gap-2 mt-2">
-                    <input
-                      type="text"
-                      value={nuevaCat}
-                      onChange={e => setNuevaCat(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleCrearCategoria())}
-                      placeholder="Nombre de la categoría"
-                      maxLength={100}
-                      className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                      autoFocus
-                    />
-                    <button type="button" onClick={handleCrearCategoria} disabled={creandoCat || !nuevaCat.trim()}
-                      className="px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-                      {creandoCat ? '...' : 'Crear'}
-                    </button>
-                    <button type="button" onClick={() => { setMostrarNuevaCat(false); setNuevaCat('') }}
-                      className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700">
-                      Cancelar
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Fuente selector */}
               <div>
                 <label className={labelClass}>Fuente</label>
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                <div ref={fuenteRef} className="flex rounded-lg border border-gray-300 overflow-hidden">
                   {(['caja', 'ahorro', 'dividir'] as const).map(f => (
                     <button key={f} type="button" onClick={() => setFuenteGasto(f)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitRef.current?.focus() } }}
                       className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
                         fuenteGasto === f
                           ? f === 'caja' ? 'bg-indigo-500 text-white'
@@ -322,8 +397,10 @@ export default function GastosPage() {
               )}
 
               <button
+                ref={submitRef}
                 type="submit"
                 disabled={submitting}
+                onKeyDown={e => { if (e.key === 'Enter' && !submitting) { e.preventDefault(); handleSubmit(e as any); setTimeout(() => montoRef.current?.focus(), 100) } }}
                 className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Registrando...' : 'Registrar gasto'}
@@ -385,9 +462,9 @@ export default function GastosPage() {
 
       {/* ── Historial section ─────────────────────────────────────── */}
       {!loading && (
-        <div className="border-t border-gray-200 pt-5">
-          <div className="flex items-center gap-3 mb-3">
-            <h3 className="text-sm font-semibold text-gray-500">
+        <Card padding="lg">
+          <div className="flex items-center gap-3 mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
               Historial de gastos{historial.length > 0 ? ` (${historial.length})` : ''}
             </h3>
             {historial.length > 0 && (
@@ -403,39 +480,47 @@ export default function GastosPage() {
           {historialLoading ? (
             <Spinner text="Cargando historial..." />
           ) : historial.length === 0 ? (
-            <p className="text-xs text-gray-400 py-4 text-center">No hay gastos anteriores</p>
+            <p className="text-sm text-gray-400 text-center py-6">No hay gastos anteriores</p>
           ) : historialFiltrado.length === 0 ? (
-            <p className="text-xs text-gray-400 py-4 text-center">Sin resultados para "{busquedaHistorial}"</p>
+            <p className="text-sm text-gray-400 text-center py-6">Sin resultados para "{busquedaHistorial}"</p>
           ) : (
-            <div className="overflow-x-auto max-h-64 overflow-y-auto border border-gray-100 rounded-lg">
+            <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                    <th className="pb-2 pr-3">Fecha</th>
-                    <th className="pb-2 pr-3">Usuario</th>
-                    <th className="pb-2 pr-3 text-right">Monto</th>
-                    <th className="pb-2">Detalle</th>
+                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                    <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('fecha')}>
+                      Fecha{ordenarPor === 'fecha' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('usuario')}>
+                      Usuario{ordenarPor === 'usuario' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th className="pb-2 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('monto')}>
+                      Monto{ordenarPor === 'monto' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                    <th className="pb-2 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('detalle')}>
+                      Detalle{ordenarPor === 'detalle' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100">
                   {historialFiltrado.map(g => (
-                    <tr key={g.id} className={`hover:bg-gray-100/80 hover:ring-1 hover:ring-gray-300 hover:ring-inset transition-all ${g.anulado ? 'bg-red-50/20' : ''}`}>
-                      <td className="py-2 pr-3 whitespace-nowrap text-xs">
-                        <span className={g.anulado ? 'line-through text-gray-400' : 'text-gray-500'}>{formatDate(g.fecha)}</span>
+                    <tr key={g.id} className={`hover:bg-gray-100/80 hover:ring-1 hover:ring-gray-300 hover:ring-inset transition-all ${g.anulado ? 'bg-red-50/30' : ''}`}>
+                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                        <span className={g.anulado ? 'line-through text-gray-400 text-xs' : 'text-gray-600 text-xs'}>{formatDate(g.fecha)}</span>
                       </td>
-                      <td className="py-2 pr-3 whitespace-nowrap text-xs">
-                        <span className={g.anulado ? 'line-through text-gray-400' : 'text-gray-400'}>{g.usuarioNombre || '-'}</span>
+                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                        <span className={g.anulado ? 'line-through text-gray-400 text-xs' : 'text-gray-500 text-xs'}>{g.usuarioNombre || '-'}</span>
                       </td>
-                      <td className="py-2 pr-3 text-right text-xs">
-                        <span className={g.anulado ? 'line-through text-gray-400' : 'text-gray-600'}>{formatCurrency(g.monto)}</span>
+                      <td className="py-2.5 pr-3 text-right font-medium">
+                        <span className={g.anulado ? 'line-through text-gray-400 text-xs' : 'text-xs'}>{formatCurrency(g.monto)}</span>
                       </td>
-                      <td className="py-2 text-xs flex items-center justify-between gap-4">
-                        <span className={g.anulado ? 'line-through text-gray-400' : 'text-gray-500'}>{g.detalle}</span>
+                      <td className="py-2.5 text-gray-700 flex items-center justify-between gap-4">
+                        <span className={g.anulado ? 'line-through text-gray-400' : ''}>{g.detalle}</span>
                         {g.anulado ? (
-                          <span className="text-[10px] font-medium text-red-500 bg-red-100 px-1 py-0.5 rounded-full whitespace-nowrap">Anulado</span>
+                          <span className="text-[10px] font-medium text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">Anulado</span>
                         ) : (
                           <button onClick={() => setUndoGastoId(g.id)}
-                            className="text-[10px] font-medium text-red-400 hover:text-red-600 hover:bg-red-50 px-1 py-0.5 rounded transition-colors whitespace-nowrap">
+                            className="text-[10px] font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap">
                             Deshacer
                           </button>
                         )}
@@ -446,7 +531,7 @@ export default function GastosPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Undo confirmation modal */}

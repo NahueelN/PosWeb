@@ -105,6 +105,7 @@ export default function CompraPage() {
   const productGridRef = useRef<HTMLDivElement>(null);
   const cartListRef = useRef<HTMLDivElement>(null);
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const montoPagoRef = useRef<HTMLInputElement>(null);
 
   // Data
   const [productos, setProductos] = useState<ProductoDto[]>([]);
@@ -154,7 +155,12 @@ export default function CompraPage() {
     return () => window.removeEventListener('beforeunload', h);
   }, [state.cart.length]);
 
-  // Keyboard handler
+  // Focus search when proveedor selected
+  useEffect(() => {
+    if (state.proveedorId > 0) {
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  }, [state.proveedorId]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -283,6 +289,7 @@ export default function CompraPage() {
                     const p = proveedoresFilt[provHighIdx];
                     dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre });
                     setProveedorSearch(''); setShowProvDropdown(false);
+                    setTimeout(() => searchRef.current?.focus(), 0);
                   }
                 }}
                 placeholder={state.proveedorId > 0 ? state.proveedorNombre : 'Seleccionar proveedor *'}
@@ -290,7 +297,7 @@ export default function CompraPage() {
               {showProvDropdown && proveedoresFilt.length > 0 && (
                 <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
                   {proveedoresFilt.map((p, i) => (
-                    <li key={p.id} onMouseDown={() => { dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre }); setProveedorSearch(''); setShowProvDropdown(false); }}
+                    <li key={p.id} onMouseDown={() => { dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre }); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
                       onMouseEnter={() => setProvHighIdx(i)}
                       className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === state.proveedorId ? 'font-semibold' : ''}`}>
                       <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
@@ -312,7 +319,33 @@ export default function CompraPage() {
             </svg>
             <input ref={searchRef} type="text" autoFocus
               value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => {
+                if (!proveedorOk) return
+                const text = e.clipboardData.getData('text/plain').trim()
+                if (!text) return
+                e.preventDefault()
+                e.stopPropagation()
+                try {
+                  const prod = await api.productos.obtenerPorBarra(text)
+                  if (prod) { addToCart(prod); setSearchQuery(''); return }
+                } catch {}
+                const match = filteredProducts.find(p =>
+                  p.codigoBarra.toLowerCase() === text.toLowerCase()
+                )
+                if (match) { addToCart(match); setSearchQuery('') }
+                else { setSearchQuery(text); notifyError(`Producto no encontrado: "${text}"`) }
+              }}
               onKeyDown={async e => {
+                if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) {
+                  e.preventDefault();
+                  setTimeout(() => productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0);
+                  return;
+                }
+                if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) {
+                  e.preventDefault();
+                  montoPagoRef.current?.focus();
+                  return;
+                }
                 if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) {
                   e.preventDefault();
                   const q = searchQuery.trim();
@@ -369,7 +402,42 @@ export default function CompraPage() {
                   <p className="text-gray-500 font-medium text-sm">{searchQuery ? 'Sin resultados' : 'No hay productos'}</p>
                 </div>
               ) : (
-                <div ref={productGridRef} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div ref={productGridRef} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+                  onKeyDown={(e) => {
+                    const buttons = Array.from(productGridRef.current?.querySelectorAll('button') ?? [])
+                    const currentIdx = buttons.indexOf(e.target as HTMLButtonElement)
+                    if (currentIdx === -1) return
+
+                    const gridEl = productGridRef.current
+                    if (!gridEl) return
+                    let cols = 2
+                    try {
+                      cols = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length
+                    } catch {}
+
+                    if (e.key === 'ArrowRight') {
+                      e.preventDefault()
+                      const next = Math.min(currentIdx + 1, buttons.length - 1)
+                      if (next !== currentIdx) buttons[next]?.focus()
+                    } else if (e.key === 'ArrowLeft') {
+                      e.preventDefault()
+                      if (currentIdx > 0) buttons[currentIdx - 1]?.focus()
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const next = Math.min(currentIdx + cols, buttons.length - 1)
+                      if (next !== currentIdx) buttons[next]?.focus()
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      if (currentIdx - cols < 0) {
+                        searchRef.current?.focus()
+                      } else {
+                        buttons[currentIdx - cols]?.focus()
+                      }
+                    } else if (e.key === 'Escape') {
+                      searchRef.current?.focus()
+                    }
+                  }}
+                >
                   {filteredProducts.map(p => (
                     <button key={p.id} onClick={() => addToCart(p)}
                       className="text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
@@ -383,21 +451,34 @@ export default function CompraPage() {
                   ))}
                 </div>
               )}
-            </div>
           </div>
+
+          {proveedorOk && filteredProducts.length > 0 && (
+            <div className="flex items-center gap-3 text-xs text-gray-400 mt-2 px-4 sm:px-6">
+              <span className="flex items-center gap-1">
+                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">←</kbd>
+                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">↑</kbd>
+                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">→</kbd>
+                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">↓</kbd>
+                <span>Productos</span>
+              </span>
+            </div>
+          )}
+        </div>
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      {proveedorOk && (
-        <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-3">
-          {/* Header */}
-          <div className="flex items-center justify-between shrink-0">
-            <h3 className="text-sm font-semibold text-gray-700">
-              {state.cart.length > 0 ? `Compra (${cartCount})` : 'Nueva compra'}
-            </h3>
+      <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-3">
+        {/* Header */}
+        <div className="flex items-center justify-between shrink-0">
+          <h3 className="text-sm font-semibold text-gray-700">
+            {state.cart.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
+          </h3>
+          {state.proveedorNombre && (
             <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
-          </div>
+          )}
+        </div>
 
           {/* Cart items */}
           <div ref={cartListRef} className="flex-1 overflow-y-auto min-h-0">
@@ -443,6 +524,7 @@ export default function CompraPage() {
                         <input type="number" min={1} value={item.cantidad}
                           ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
                           onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { dispatch({ type: 'REMOVE_FROM_CART', index: i }); return; } dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: v, costoUnitario: item.costoUnitario } }); }}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchRef.current?.focus(); } }}
                           className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
                         <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad + 1, costoUnitario: item.costoUnitario } })}
                           className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">+</button>
@@ -504,7 +586,7 @@ export default function CompraPage() {
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
-                    <input type="number" min={0} step="0.01"
+                    <input ref={montoPagoRef} type="number" min={0} step="0.01"
                       value={montoPago || ''} onChange={e => setMontoPago(parseFloat(e.target.value) || 0)}
                       className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                       placeholder="0.00" />
@@ -556,13 +638,12 @@ export default function CompraPage() {
               Verifiqué cantidades y costos
             </label>
             <button onClick={handleConfirm}
-              disabled={!state.verified || isConfirming || state.cart.length === 0}
+              disabled={!state.verified || isConfirming || state.cart.length === 0 || !proveedorOk}
               className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {isConfirming ? 'Confirmando...' : `Confirmar compra — ${formatCurrency(cartTotal)}`}
             </button>
           </div>
         </div>
-      )}
 
       {/* New Product Modal */}
       <ProductFormModal
