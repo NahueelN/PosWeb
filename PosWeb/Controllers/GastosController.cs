@@ -51,9 +51,12 @@ public class GastosController : ControllerBase
     }
 
     [HttpGet("historial")]
-    public IActionResult ObtenerHistorial([FromQuery] int? excluirCajaId = null)
+    public IActionResult ObtenerHistorial(
+        [FromQuery] int? excluirCajaId = null,
+        [FromQuery] DateTime? fechaDesde = null,
+        [FromQuery] DateTime? fechaHasta = null)
     {
-        var items = _gastoService.ObtenerHistorial(excluirCajaId);
+        var items = _gastoService.ObtenerHistorial(excluirCajaId, fechaDesde, fechaHasta);
         return Ok(new { items });
     }
 

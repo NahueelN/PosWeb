@@ -83,12 +83,24 @@ public class GastoService
         return gastos.Select(g => MapToDto(g, g.ID_USUARIO.HasValue && usuarios.TryGetValue(g.ID_USUARIO.Value, out var nombre) ? nombre : "")).ToList();
     }
 
-    public List<GastoDto> ObtenerHistorial(int? excluirCajaId = null)
+    public List<GastoDto> ObtenerHistorial(int? excluirCajaId = null, DateTime? fechaDesde = null, DateTime? fechaHasta = null)
     {
         IQueryable<Gasto> query = _context.Gasto;
 
         if (excluirCajaId.HasValue)
             query = query.Where(g => g.ID_CAJA != excluirCajaId.Value);
+
+        if (fechaDesde.HasValue)
+        {
+            var desde = fechaDesde.Value.Date;
+            query = query.Where(g => g.FECHA_GASTO >= desde);
+        }
+
+        if (fechaHasta.HasValue)
+        {
+            var hasta = fechaHasta.Value.Date.AddDays(1);
+            query = query.Where(g => g.FECHA_GASTO < hasta);
+        }
 
         var gastos = query
             .OrderByDescending(g => g.FECHA_GASTO)

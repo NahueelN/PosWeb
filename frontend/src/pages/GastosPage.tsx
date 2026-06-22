@@ -31,6 +31,8 @@ export default function GastosPage() {
   const [busquedaHistorial, setBusquedaHistorial] = useState('')
   const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'detalle' | 'usuario' | 'monto' | null>(null)
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
 
   const toggleOrden = (campo: 'fecha' | 'detalle' | 'usuario' | 'monto') => {
     if (ordenarPor !== campo) {
@@ -109,7 +111,7 @@ export default function GastosPage() {
         // Load historial excluding current caja
         setHistorialLoading(true)
         try {
-          const histRes = await api.gastos.historial(res.caja.id)
+          const histRes = await api.gastos.historial(res.caja.id, fechaDesde || undefined, fechaHasta || undefined)
           setHistorial(histRes.items)
         } catch { setHistorial([]) }
         finally { setHistorialLoading(false) }
@@ -119,7 +121,7 @@ export default function GastosPage() {
         // Load all gastos as historial
         setHistorialLoading(true)
         try {
-          const histRes = await api.gastos.historial()
+          const histRes = await api.gastos.historial(undefined, fechaDesde || undefined, fechaHasta || undefined)
           setHistorial(histRes.items)
         } catch { setHistorial([]) }
         finally { setHistorialLoading(false) }
@@ -129,7 +131,7 @@ export default function GastosPage() {
     } finally {
       setLoading(false)
     }
-  }, [sucursal])
+  }, [sucursal, fechaDesde, fechaHasta])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -211,7 +213,7 @@ export default function GastosPage() {
         const gastosRes = await api.gastos.listar(cajaActiva.id)
         setGastos(gastosRes.items)
         // Refresh historial silently (don't break on failure)
-        api.gastos.historial(cajaActiva.id).then(h => setHistorial(h.items)).catch(() => {})
+        api.gastos.historial(cajaActiva.id, fechaDesde || undefined, fechaHasta || undefined).then(h => setHistorial(h.items)).catch(() => {})
       }
     } catch (err: any) {
       setFormError(err.message || 'Error al registrar gasto')
@@ -463,7 +465,7 @@ export default function GastosPage() {
       {/* ── Historial section ─────────────────────────────────────── */}
       {!loading && (
         <Card padding="lg">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
             <h3 className="text-lg font-semibold text-gray-900">
               Historial de gastos{historial.length > 0 ? ` (${historial.length})` : ''}
             </h3>
@@ -476,6 +478,29 @@ export default function GastosPage() {
                 className="w-48 px-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all shadow-sm"
               />
             )}
+            <div className="flex items-center gap-2 text-xs">
+              <label className="text-gray-500">Desde</label>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={e => setFechaDesde(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
+              />
+              <label className="text-gray-500">Hasta</label>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={e => setFechaHasta(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
+              />
+              {(fechaDesde || fechaHasta) && (
+                <button
+                  onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
+                  className="text-gray-400 hover:text-gray-600 px-1"
+                  title="Limpiar filtro de fechas"
+                >✕</button>
+              )}
+            </div>
           </div>
           {historialLoading ? (
             <Spinner text="Cargando historial..." />

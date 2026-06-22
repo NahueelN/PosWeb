@@ -1,6 +1,6 @@
 ﻿import React, { useReducer, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto } from '../types';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
@@ -44,6 +44,7 @@ type CompraAction =
   | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
   | { type: 'CONFIRM_ERROR'; error: string }
   | { type: 'RESET' }
+  | { type: 'CLEAR_CART' }
   | { type: 'SET_ERROR'; error: string }
   | { type: 'CLEAR_ERROR' };
 
@@ -72,6 +73,7 @@ function compraReducer(state: CompraState, action: CompraAction): CompraState {
     case 'CONFIRM_SUCCESS': return { ...state, step: 'done', success: action.response, error: null };
     case 'CONFIRM_ERROR': return { ...state, error: action.error };
     case 'RESET': return { ...initialState };
+    case 'CLEAR_CART': return { ...state, cart: [] };
     case 'SET_ERROR': return { ...state, error: action.error };
     case 'CLEAR_ERROR': return { ...state, error: null };
     default: return state;
@@ -82,6 +84,24 @@ const initialState: CompraState = {
   step: 'scan', cart: [], proveedorId: 0, proveedorNombre: '',
   error: null, success: null, verified: false,
 };
+
+const COMPRA_CART_KEY = 'compra_cart_pending';
+
+function initCompraState(initial: CompraState): CompraState {
+  try {
+    const saved = localStorage.getItem(COMPRA_CART_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        ...initial,
+        cart: Array.isArray(parsed.cart) ? parsed.cart : [],
+        proveedorId: parsed.proveedorId ?? 0,
+        proveedorNombre: parsed.proveedorNombre ?? '',
+      };
+    }
+  } catch {}
+  return initial;
+}
 
 function getSucursalNombre(id: number): string {
   const m: Record<number, string> = { 1: 'Central', 2: 'Norte', 3: 'Sur' };
@@ -96,7 +116,7 @@ function formatFecha(iso: string): string {
 
 // ─── Component ─────────────────────────────────────────────────────
 export default function CompraPage() {
-  const [state, dispatch] = useReducer(compraReducer, initialState);
+  const [state, dispatch] = useReducer(compraReducer, initialState, initCompraState);
   const navigate = useNavigate();
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>();
   const { notifyError } = useNotification();
@@ -134,6 +154,9 @@ export default function CompraPage() {
 
   // New product modal
   const [showNewModal, setShowNewModal] = useState(false);
+  const [offPrefillData, setOffPrefillData] = useState<OpenFoodFactsResultDto | null>(null);
+  const [initialCodigo, setInitialCodigo] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const provInputRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +177,19 @@ export default function CompraPage() {
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [state.cart.length]);
+
+  // persist cart to localStorage
+  useEffect(() => {
+    if (state.cart.length > 0 || state.proveedorId > 0) {
+      localStorage.setItem(COMPRA_CART_KEY, JSON.stringify({
+        cart: state.cart,
+        proveedorId: state.proveedorId,
+        proveedorNombre: state.proveedorNombre,
+      }));
+    } else {
+      localStorage.removeItem(COMPRA_CART_KEY);
+    }
+  }, [state.cart, state.proveedorId, state.proveedorNombre]);
 
   // Focus search when proveedor selected
   useEffect(() => {
@@ -233,6 +269,44 @@ export default function CompraPage() {
     });
   };
 
+  const handleBarcodeLookup = async (codigo: string) => {
+    if (!proveedorOk) return;
+    // 1. Try local DB by exact barcode
+    try {
+      const prod = await api.productos.obtenerPorBarra(codigo);
+      if (prod) { addToCart(prod); setSearchQuery(''); return; }
+    } catch {}
+    // 2. Try local filtered list
+    const localMatch = productos.find(
+      p => p.codigoBarra.toLowerCase() === codigo.toLowerCase()
+    );
+    if (localMatch) { addToCart(localMatch); setSearchQuery(''); return; }
+    // 3. Try external API (Open Food Facts)
+    setSearchLoading(true);
+    try {
+      const res = await api.productos.lookupOpenFoodFacts(codigo);
+      if (res.encontrado && res.datos) {
+        setOffPrefillData(res.datos);
+        setInitialCodigo('');
+        setShowNewModal(true);
+        setSearchQuery('');
+      } else {
+        notifyError(`Producto no encontrado: "${codigo}"`);
+        setOffPrefillData(null);
+        setInitialCodigo(codigo);
+        setShowNewModal(true);
+        setSearchQuery(codigo);
+      }
+    } catch {
+      notifyError(`Error al buscar producto: "${codigo}"`);
+      setOffPrefillData(null);
+      setInitialCodigo(codigo);
+      setShowNewModal(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
@@ -307,7 +381,7 @@ export default function CompraPage() {
               )}
             </div>
             {proveedorOk && (
-              <button onClick={() => { setShowNewModal(true); setBarcodeStatus('idle'); }}
+              <button onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }}
                 className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition-colors">+ Nuevo producto</button>
             )}
           </div>
@@ -325,15 +399,7 @@ export default function CompraPage() {
                 if (!text) return
                 e.preventDefault()
                 e.stopPropagation()
-                try {
-                  const prod = await api.productos.obtenerPorBarra(text)
-                  if (prod) { addToCart(prod); setSearchQuery(''); return }
-                } catch {}
-                const match = filteredProducts.find(p =>
-                  p.codigoBarra.toLowerCase() === text.toLowerCase()
-                )
-                if (match) { addToCart(match); setSearchQuery('') }
-                else { setSearchQuery(text); notifyError(`Producto no encontrado: "${text}"`) }
+                await handleBarcodeLookup(text)
               }}
               onKeyDown={async e => {
                 if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) {
@@ -348,34 +414,18 @@ export default function CompraPage() {
                 }
                 if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) {
                   e.preventDefault();
-                  const q = searchQuery.trim();
-                  // Try barcode lookup first
-                  try {
-                    const prod = await api.productos.obtenerPorBarra(q);
-                    if (prod) {
-                      addToCart(prod);
-                      setSearchQuery('');
-                      return;
-                    }
-                  } catch {
-                    // Not found by barcode, fall through to local search
-                  }
-                  // Local search fallback
-                  const match = filteredProducts.find(p =>
-                    p.codigoBarra.toLowerCase() === q.toLowerCase()
-                  );
-                  if (match) {
-                    addToCart(match);
-                    setSearchQuery('');
-                  } else {
-                    notifyError(`Producto no encontrado: "${q}"`);
-                  }
+                  await handleBarcodeLookup(searchQuery.trim());
                 }
               }}
               placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
               disabled={!proveedorOk}
               className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
-            {searchQuery && (
+            {searchLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            {searchQuery && !searchLoading && (
               <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
@@ -475,9 +525,20 @@ export default function CompraPage() {
           <h3 className="text-sm font-semibold text-gray-700">
             {state.cart.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
           </h3>
-          {state.proveedorNombre && (
-            <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
-          )}
+          <div className="flex items-center gap-2">
+            {state.proveedorNombre && (
+              <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
+            )}
+            {state.cart.length > 0 && (
+              <button onClick={() => dispatch({ type: 'CLEAR_CART' })}
+                className="w-7 h-7 rounded-md hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                title="Vaciar carrito">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
           {/* Cart items */}
@@ -648,8 +709,10 @@ export default function CompraPage() {
       {/* New Product Modal */}
       <ProductFormModal
         open={showNewModal}
+        prefillData={offPrefillData}
+        initialCodigo={initialCodigo || undefined}
         onCreated={handleProductCreatedInModal}
-        onClose={() => setShowNewModal(false)}
+        onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); }}
       />
 
       {/* Success Popup */}

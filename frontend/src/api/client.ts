@@ -272,7 +272,14 @@ export const api = {
 // Gastos
     gastos: {
       listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
-      historial: (excluirCajaId?: number) => request<GastoListResponse>(`/gastos/historial${excluirCajaId ? `?excluirCajaId=${excluirCajaId}` : ''}`),
+      historial: (excluirCajaId?: number, fechaDesde?: string, fechaHasta?: string) => {
+        const params = new URLSearchParams();
+        if (excluirCajaId) params.set('excluirCajaId', String(excluirCajaId));
+        if (fechaDesde) params.set('fechaDesde', fechaDesde);
+        if (fechaHasta) params.set('fechaHasta', fechaHasta);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request<GastoListResponse>(`/gastos/historial${query}`);
+      },
       crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
         method: 'POST',
         body: JSON.stringify(dto),
