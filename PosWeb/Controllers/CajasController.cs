@@ -57,6 +57,13 @@ public class CajasController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("ultimo-cierre")]
+    public IActionResult ObtenerUltimoCierre([FromQuery] int sucursalId)
+    {
+        var result = _cajaService.ObtenerUltimoCierre(sucursalId);
+        return Ok(result);
+    }
+
     private int GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);

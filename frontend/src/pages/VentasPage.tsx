@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ClienteDto, UnidadMedidaDto, ComboDto } from '../types'
@@ -15,7 +15,6 @@ interface Item {
 type Step = 'sucursal' | 'venta' | 'resultado'
 
 export default function VentasPage() {
-  const navigate = useNavigate()
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [step, setStep] = useState<Step>(
     ctxSucursal ? 'venta' : 'sucursal'
@@ -34,6 +33,8 @@ export default function VentasPage() {
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
   const recibioInputRef = useRef<HTMLInputElement>(null!)
+  const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
+  const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
 
   // Caja
   const [cajaActiva, setCajaActiva] = useState<boolean | null>(null)
@@ -505,7 +506,6 @@ export default function VentasPage() {
   }
 
   const handlePrint = () => window.print()
-  const handleCerrar = () => navigate(-1)
 
   function nuevaVenta() {
     setResultado(null)
@@ -635,17 +635,32 @@ export default function VentasPage() {
 
         {/* Action buttons - hidden when printing */}
         <div className="no-print flex justify-center gap-3 mt-6 flex-wrap">
-          <button onClick={handlePrint} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
+          <button
+            ref={imprimirBtnRef}
+            onClick={handlePrint}
+            onKeyDown={e => {
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                nuevaVentaBtnRef.current?.focus()
+              }
+            }}
+            className="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+          >
             Imprimir
           </button>
-          <button onClick={nuevaVenta}
+          <button
+            ref={nuevaVentaBtnRef}
+            onClick={nuevaVenta}
             autoFocus
+            onKeyDown={e => {
+              if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                imprimirBtnRef.current?.focus()
+              }
+            }}
             className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
           >
             Nueva venta
-          </button>
-          <button onClick={handleCerrar} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors">
-            Cerrar
           </button>
         </div>
       </div>
@@ -659,19 +674,6 @@ export default function VentasPage() {
         {/* Top section — siempre visible */}
         <div className="shrink-0 space-y-3 pb-3">
           <div className="flex flex-col gap-4">
-            {/* Sucursal activa */}
-            {ctxSucursal && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                </svg>
-                <span>{ctxSucursal.nombre}</span>
-                <span className="text-gray-300 mx-1">·</span>
-                <span className="text-xs text-gray-400">Cód: {ctxSucursal.codigo}</span>
-              </div>
-            )}
-
             {/* Caja warning */}
             {cajaLoading && (
               <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
@@ -690,6 +692,12 @@ export default function VentasPage() {
                 </div>
               </div>
             )}
+
+            {/* Título */}
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Nueva venta</h2>
+              <p className="text-sm text-gray-500">Seleccione productos para confirmar la operación</p>
+            </div>
 
             {/* Search bar */}
             <div className="relative">
@@ -718,6 +726,11 @@ export default function VentasPage() {
                         setSearchQuery('')
                         return
                       }
+                      setSearchQuery('')
+                    }
+                    if (e.key === 'Enter' && !q && items.length > 0) {
+                      medioRefs.current[0]?.focus()
+                      return
                     }
                     setTimeout(() => {
                       productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
@@ -751,8 +764,8 @@ export default function VentasPage() {
                 </span>
                 {items.length > 0 && (
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Tab</kbd>
-                    <span>Pago</span>
+                    <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Enter</kbd>
+                    <span>Medios de pago</span>
                   </span>
                 )}
               </div>
@@ -1105,29 +1118,6 @@ export default function VentasPage() {
               return null
             })()}
 
-            {/* Recibió */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recibió</label>
-              <div className="relative mt-0.5">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl pointer-events-none">$</span>
-                <input
-                  ref={recibioInputRef}
-                  type="number" step="0.01" min="0"
-                  value={recibio}
-                  onChange={e => { setRecibio(e.target.value); setClienteSeleccionado(null) }}
-                  onFocus={e => e.target.select()}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      confirmarVenta()
-                    }
-                  }}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                  placeholder={total.toFixed(2)}
-                />
-              </div>
-            </div>
-
             {/* Medio de pago */}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Medio de pago</label>
@@ -1171,6 +1161,33 @@ export default function VentasPage() {
               </div>
             </div>
 
+            {/* Recibió */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recibió</label>
+              <div className="relative mt-0.5">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl pointer-events-none">$</span>
+                <input
+                  ref={recibioInputRef}
+                  type="number" step="0.01" min="0"
+                  value={recibio}
+                  onChange={e => { setRecibio(e.target.value); setClienteSeleccionado(null) }}
+                  onFocus={e => e.target.select()}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      return
+                    }
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      confirmBtnRef.current?.focus()
+                    }
+                  }}
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  placeholder={total.toFixed(2)}
+                />
+              </div>
+            </div>
+
             {/* Total */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500 font-medium">Total</span>
@@ -1205,7 +1222,6 @@ export default function VentasPage() {
                 Confirmar venta
               </button>
             )}
-          </div>
         </div>
       </div>
 
