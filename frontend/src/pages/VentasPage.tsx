@@ -955,17 +955,6 @@ export default function VentasPage() {
                             </svg>
                             Stock insuficiente: {i.producto.stock} disponible{i.producto.stock !== 1 ? 's' : ''}
                           </p>
-<<<<<<< HEAD
-                        )}
-                        {i.cantidad > i.producto.stock && (
-                          <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                            </svg>
-                            Stock insuficiente: {i.producto.stock} disponible{i.producto.stock !== 1 ? 's' : ''}
-                          </p>
-=======
->>>>>>> 45b0522e1b9e000fed6c3e2faf115e7f7a41d493
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-0.5 shrink-0">

@@ -261,4 +261,21 @@ public class CajaService
 
         return caja == null ? null : MapToDto(caja);
     }
+
+    public List<CajaDto> ObtenerHistorial(int sucursalId, DateTime? fechaDesde = null, DateTime? fechaHasta = null)
+    {
+        var query = _context.Caja
+            .Where(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Cerrada");
+
+        if (fechaDesde.HasValue)
+            query = query.Where(c => c.FECHA_CIERRE >= fechaDesde.Value);
+        if (fechaHasta.HasValue)
+            query = query.Where(c => c.FECHA_CIERRE <= fechaHasta.Value.AddDays(1));
+
+        var cajas = query
+            .OrderByDescending(c => c.FECHA_CIERRE)
+            .ToList();
+
+        return cajas.Select(MapToDto).ToList();
+    }
 }

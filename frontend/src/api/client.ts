@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -244,6 +244,12 @@ export const api = {
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
     ultimoCierre: (sucursalId: number) => request<CajaDto | null>(`/cajas/ultimo-cierre?sucursalId=${sucursalId}`),
+    historial: (sucursalId: number, fechaDesde?: string, fechaHasta?: string) => {
+      const params = new URLSearchParams({ sucursalId: String(sucursalId) })
+      if (fechaDesde) params.set('fechaDesde', fechaDesde)
+      if (fechaHasta) params.set('fechaHasta', fechaHasta)
+      return request<{ items: CajaDto[] }>(`/cajas/historial?${params}`)
+    },
   },
 
 // Proveedores
@@ -337,6 +343,19 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ clienteId, monto }),
         }),
+      pagos: (params: { clienteId?: number; proveedorId?: number }) => {
+        const q = new URLSearchParams();
+        if (params.clienteId) q.set('clienteId', String(params.clienteId));
+        if (params.proveedorId) q.set('proveedorId', String(params.proveedorId));
+        return request<PagoDeudaDto[]>(`/deudas/pagos?${q}`);
+      },
+      cuentaCorriente: (params: { clienteId?: number; proveedorId?: number }) => {
+        const q = new URLSearchParams();
+        if (params.clienteId) q.set('clienteId', String(params.clienteId));
+        if (params.proveedorId) q.set('proveedorId', String(params.proveedorId));
+        return request<CuentaCorrienteDto>(`/deudas/cuenta-corriente?${q}`);
+      },
+      deshacerPago: (pagoId: number) => request<{ success: boolean }>(`/deudas/pagos/${pagoId}`, { method: 'DELETE' }),
     },
 
   // Pedidos

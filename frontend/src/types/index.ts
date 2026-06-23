@@ -370,6 +370,10 @@ export interface CompraItemDto {
    items: CompraItemResultDto[]
  }
 
+export interface CajaListResponse {
+  items: CajaDto[]
+}
+
 export interface CajaDto {
   id: number
   sucursalId: number
@@ -434,6 +438,31 @@ export interface CategoriaGastoListResponse {
 }
 
 // --- Deuda types ---
+export interface PagoDeudaDto {
+  id: number
+  deudaId: number
+  monto: number
+  fecha: string
+  clienteNombre?: string
+  proveedorNombre?: string
+  usuarioNombre?: string
+}
+
+export interface MovimientoCuentaDto {
+  tipo: 'deuda' | 'pago'
+  fecha: string
+  monto: number
+  descripcion?: string
+  usuario?: string
+  pagoId?: number
+}
+
+export interface CuentaCorrienteDto {
+  entidadNombre: string
+  saldoActual: number
+  movimientos: MovimientoCuentaDto[]
+}
+
 export interface DeudaDto {
   id: number
   proveedorNombre?: string
