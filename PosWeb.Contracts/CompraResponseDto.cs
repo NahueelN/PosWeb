@@ -3,7 +3,7 @@ namespace PosWeb.Contracts;
 public class CompraResponseDto
 {
     public int CompraId { get; set; }
-    public int GastoId { get; set; }
+    public int? GastoId { get; set; }
     public decimal TotalGasto { get; set; }
     public DateTime Fecha { get; set; }
     public List<CompraItemResultDto> Items { get; set; } = new();

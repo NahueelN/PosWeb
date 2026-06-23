@@ -55,7 +55,8 @@ public class ProductoService
                 CategoriaId = p.ID_CATEGORIA,
                 UnidadMedidaId = p.ID_UNIDAD_MEDIDA,
                 DescAdicional = p.DESC_ADICIONAL,
-                CodigoProducto = p.COD_PRODUCTO
+                CodigoProducto = p.COD_PRODUCTO,
+                MargenGanancia = p.MARGEN_GANANCIA
             })
             .ToList();
     }
@@ -129,6 +130,16 @@ public class ProductoService
             throw new CodigoProductoDuplicadoException(codProducto);
         }
 
+        // Auto-fill margen from categoria if not explicitly provided
+        decimal? margen = dto.MargenGanancia;
+        if (!margen.HasValue && dto.CategoriaId.HasValue)
+        {
+            margen = _context.Categoria
+                .Where(c => c.ID_CATEGORIA == dto.CategoriaId.Value)
+                .Select(c => c.MARGEN_GANANCIA)
+                .FirstOrDefault();
+        }
+
         Producto producto = new Producto(
             codProducto,
             dto.CodigoBarra,
@@ -139,7 +150,8 @@ public class ProductoService
             dto.DescAdicional,
             dto.Contenido,
             dto.UnidadMedidaId,
-            dto.Marca
+            dto.Marca,
+            margen
         );
 
         _context.Producto.Add(producto);
@@ -228,7 +240,8 @@ public class ProductoService
             CategoriaId = producto.ID_CATEGORIA,
             UnidadMedidaId = producto.ID_UNIDAD_MEDIDA,
             DescAdicional = producto.DESC_ADICIONAL,
-            CodigoProducto = producto.COD_PRODUCTO
+            CodigoProducto = producto.COD_PRODUCTO,
+            MargenGanancia = producto.MARGEN_GANANCIA
         };
     }
 
@@ -260,6 +273,7 @@ public class ProductoService
         producto.CambiarContenido(dto.Contenido);
         producto.CambiarUnidadMedida(dto.UnidadMedidaId);
         producto.CambiarDescAdicional(dto.DescAdicional);
+        producto.CambiarMargen(dto.MargenGanancia);
         
         _context.SaveChanges();
         

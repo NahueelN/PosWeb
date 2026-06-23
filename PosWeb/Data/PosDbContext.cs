@@ -583,10 +583,36 @@ public class PosDbContext : DbContext
             entity.Property(g => g.ID_CAJA)
                 .HasColumnName("ID_CAJA");
 
+            entity.Property(g => g.ANULADO)
+                .HasColumnName("ANULADO");
+
+            entity.Property(g => g.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
             entity.HasOne<Caja>()
                 .WithMany()
                 .HasForeignKey(g => g.ID_CAJA)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- CATEGORIA_GASTO ----
+        modelBuilder.Entity<CategoriaGasto>(entity =>
+        {
+            entity.ToTable("CATEGORIA_GASTO");
+
+            entity.HasKey(c => c.ID_CATEGORIA_GASTO);
+
+            entity.Property(c => c.ID_CATEGORIA_GASTO)
+                .HasColumnName("ID_CATEGORIA_GASTO");
+
+            entity.Property(c => c.DESCRIPCION)
+                .HasColumnName("DESCRIPCION")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(c => c.ACTIVO)
+                .HasColumnName("ACTIVO");
         });
 
         // ---- CATEGORIA ----

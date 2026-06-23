@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
+using PosWeb.Application.CategoriasGasto;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
@@ -92,6 +93,7 @@ builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
+builder.Services.AddScoped<CategoriaGastoService>();
 
 // Open Food Facts � optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>

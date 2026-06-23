@@ -29,7 +29,10 @@ public class CompraController : ControllerBase
                 request.SucursalId,
                 request.ProveedorId,
                 userId,
-                request.Items);
+                request.Items,
+                montoPagado: request.MontoPagado,
+                fuentePago: request.FuentePago,
+                montoPagadoCaja: request.MontoPagadoCaja);
             return Ok(result);
         }
         catch (ArgumentException ex)

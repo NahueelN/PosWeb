@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -117,6 +117,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
+    me: () => request<UsuarioListadoDto>('/auth/me'),
   },
 
   // Productos
@@ -272,9 +273,27 @@ export const api = {
 // Gastos
     gastos: {
       listar: (cajaId: number) => request<GastoListResponse>(`/gastos?cajaId=${cajaId}`),
+      historial: (excluirCajaId?: number, fechaDesde?: string, fechaHasta?: string) => {
+        const params = new URLSearchParams();
+        if (excluirCajaId) params.set('excluirCajaId', String(excluirCajaId));
+        if (fechaDesde) params.set('fechaDesde', fechaDesde);
+        if (fechaHasta) params.set('fechaHasta', fechaHasta);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request<GastoListResponse>(`/gastos/historial${query}`);
+      },
       crear: (dto: CrearGastoRequest) => request<GastoDto>('/gastos', {
         method: 'POST',
         body: JSON.stringify(dto),
+      }),
+      anular: (id: number) => request<{ message: string }>(`/gastos/${id}/anular`, { method: 'POST' }),
+    },
+
+    // Categorias de gasto
+    categoriasGasto: {
+      listar: () => request<CategoriaGastoListResponse>('/categorias-gasto'),
+      crear: (descripcion: string) => request<CategoriaGastoDto>('/categorias-gasto', {
+        method: 'POST',
+        body: JSON.stringify({ descripcion }),
       }),
     },
 
@@ -328,6 +347,11 @@ export const api = {
   // Lookups
     categorias: {
       listar: () => request<CategoriaDto[]>('/categorias'),
+      actualizarMargen: (id: number, margenGanancia: number | null) =>
+        request<CategoriaDto>(`/categorias/${id}/margen`, {
+          method: 'PUT',
+          body: JSON.stringify({ margenGanancia }),
+        }),
     },
     unidadesMedida: {
       listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),

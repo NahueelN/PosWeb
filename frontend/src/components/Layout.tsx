@@ -19,10 +19,8 @@ const menuGroups = [
   {
     label: 'Gestión',
     links: [
-      { to: '/stock', label: 'Stock', icon: '📊' },
       { to: '/productos', label: 'Productos', icon: '📦' },
       { to: '/combos', label: 'Combos', icon: '🎁' },
-      { to: '/sucursales', label: 'Sucursales', icon: '🏪' },
       { to: '/historial', label: 'Historial', icon: '📋' },
       { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
@@ -194,6 +192,20 @@ export default function Layout() {
             Alta usuario
           </NavLink>
         )}
+        <NavLink
+          to="/configuracion"
+          onClick={closeSidebar}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              isActive
+                ? 'bg-indigo-500/15 text-indigo-300 shadow-sm'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-base">⚙️</span>
+          Configuración
+        </NavLink>
         <p className="px-3 text-xs text-slate-500">PosWeb v0.1</p>
       </div>
     </>

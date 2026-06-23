@@ -60,7 +60,7 @@ public class PedidoService
         return MapToDetail(pedido, proveedor.NOMBRE);
     }
 
-    public PedidoDetailDto RecibirPedido(int pedidoId, RecibirPedidoRequestDto request)
+    public PedidoDetailDto RecibirPedido(int pedidoId, RecibirPedidoRequestDto request, int userId)
     {
         // Load pedido with items
         Pedido? pedido = _context.Pedido
@@ -186,7 +186,7 @@ public class PedidoService
 
                 // Create Gasto
                 string detalleGasto = $"Compra (Pedido #{pedido.ID_PEDIDO}) - {proveedor.NOMBRE}";
-                var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
+                var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto, userId);
                 _context.Gasto.Add(gasto);
                 _context.SaveChanges();
 

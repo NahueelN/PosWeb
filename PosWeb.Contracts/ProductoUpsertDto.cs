@@ -14,6 +14,8 @@ public class ProductoUpsertDto
     public int? UnidadMedidaId { get; set; }
     public string? DescAdicional { get; set; }
 
+    public decimal? MargenGanancia { get; set; }
+
     /// <summary>
     /// Código interno del producto (opcional). Si no se envía, se auto-genera.
     /// </summary>

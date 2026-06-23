@@ -27,6 +27,8 @@ export default function ProductFormModal({
   const [categoriaId, setCategoriaId] = useState('')
   const [unidadMedidaId, setUnidadMedidaId] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [margen, setMargen] = useState('')
+  const [bloquearMargen, setBloquearMargen] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -51,6 +53,8 @@ export default function ProductFormModal({
       setCategoriaId('')
       setUnidadMedidaId('')
       setDescripcion('')
+      setMargen('')
+      setBloquearMargen(false)
       setError('')
       setBarcodeStatus('idle')
       // Fetch next available product code
@@ -82,6 +86,41 @@ export default function ProductFormModal({
       if (match) setCategoriaId(match.id.toString())
     }
   }, [prefillData, categorias])
+
+  // Auto-fill margen when category changes
+  useEffect(() => {
+    if (!categoriaId) return
+    const cat = categorias.find(c => c.id === Number(categoriaId))
+    if (cat?.margenGanancia != null) {
+      setMargen(cat.margenGanancia.toString())
+    }
+  }, [categoriaId, categorias])
+
+  // Auto-calculate precio from costo + margen
+  useEffect(() => {
+    const costoNum = parseFloat(costo)
+    const margenNum = parseFloat(margen)
+    if (!isNaN(costoNum) && costoNum > 0 && !isNaN(margenNum) && margenNum > 0) {
+      const calculado = costoNum * (1 + margenNum / 100)
+      setPrecio(Math.ceil(calculado).toString())
+    }
+  }, [costo, margen])
+
+  // Auto-calculate margen from precio + costo when entered manually
+  useEffect(() => {
+    if (bloquearMargen) return
+    const costoNum = parseFloat(costo)
+    const precioNum = parseFloat(precio)
+    if (!isNaN(costoNum) && costoNum > 0 && !isNaN(precioNum) && precioNum > 0) {
+      const margenActual = parseFloat(margen) || 0
+      const precioDesdeMargen = Math.ceil(costoNum * (1 + margenActual / 100))
+      // Only recalculate if precio differs from what margen would produce
+      if (precioNum !== precioDesdeMargen) {
+        const margenCalculado = ((precioNum - costoNum) / costoNum) * 100
+        setMargen(Math.ceil(margenCalculado).toString())
+      }
+    }
+  }, [precio, costo, bloquearMargen])
 
   // Barcode uniqueness check (debounced)
   useEffect(() => {
@@ -141,6 +180,7 @@ export default function ProductFormModal({
         unidadMedidaId: unidadMedidaId ? Number(unidadMedidaId) : undefined,
         descAdicional: descripcion.trim() || undefined,
         codigoProducto: codigoProducto.trim() || undefined,
+        margenGanancia: margen ? Number(margen) : undefined,
       })
       onCreated(created)
     } catch (e: any) {
@@ -272,26 +312,39 @@ export default function ProductFormModal({
             </div>
           </div>
 
-          {/* Precio + Costo */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-700">Precio venta *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
-                <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="0.00" />
+          {/* Margen + Costo + Precio */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-700">Margen %</label>
+                <div className="relative">
+                  <input type="number" step="0.01" min="0" value={margen} onChange={e => setMargen(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="Auto" />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-700">Costo *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
-                <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="0.00" />
+              <div>
+                <label className="text-xs font-semibold text-gray-700">Costo *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
+                  <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0.00" />
+                </div>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700">Precio venta *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
+                  <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0.00" />
+                </div>
             </div>
+            <p className="text-[11px] text-gray-400 whitespace-nowrap">
+              En configuración podés asignar y actualizar los márgenes de ganancia por categoría.
+            </p>
+          </div>
           </div>
 
           {/* Descripción adicional — full width abajo */}

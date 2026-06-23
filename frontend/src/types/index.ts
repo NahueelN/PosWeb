@@ -13,6 +13,7 @@ export interface ProductoDto {
   unidadMedidaId?: number | null
   descAdicional?: string | null
   codigoProducto?: string | null
+  margenGanancia?: number | null
 }
 
 export interface ProductoDetailDto {
@@ -56,6 +57,7 @@ export interface ProductoDetailDto {
 export interface CategoriaDto {
   id: number
   descripcion: string
+  margenGanancia?: number | null
 }
 
 export interface UnidadMedidaDto {
@@ -76,6 +78,7 @@ export interface ProductoUpsertDto {
   unidadMedidaId?: number | null
   descAdicional?: string | null
   codigoProducto?: string | null
+  margenGanancia?: number | null
 }
 
 // --- Open Food Facts ---
@@ -338,6 +341,8 @@ export interface CompraItemDto {
     userId?: number
     items: CompraItemDto[]
     montoPagado?: number
+    montoPagadoCaja?: number   // when fuentePago == "dividir"
+    fuentePago?: string         // "caja" | "ahorro" | "dividir"
   }
 
  export interface CompraItemResultDto {
@@ -390,19 +395,33 @@ export interface CerrarCajaRequest {
 // --- Gasto types ---
 export interface GastoDto {
   id: number
-  cajaId: number
+  cajaId: number | null
   monto: number
   detalle: string
   fecha: string
+  anulado: boolean
+  usuarioNombre: string
 }
 
 export interface CrearGastoRequest {
   monto: number
   detalle: string
+  fuentePago?: string         // "caja" | "ahorro" | "dividir"
+  montoPagadoCaja?: number    // when fuentePago == "dividir"
 }
 
 export interface GastoListResponse {
   items: GastoDto[]
+}
+
+// --- CategoriaGasto types ---
+export interface CategoriaGastoDto {
+  id: number
+  descripcion: string
+}
+
+export interface CategoriaGastoListResponse {
+  items: CategoriaGastoDto[]
 }
 
 // --- Deuda types ---

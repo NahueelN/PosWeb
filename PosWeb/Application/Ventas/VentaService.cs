@@ -392,7 +392,8 @@ public class VentaService
                 var gastoDevolucion = new Gasto(
                     cajaActiva.ID_CAJA,
                     venta.TOTAL,
-                    $"Devolución venta #{ventaId}"
+                    $"Devolución venta #{ventaId}",
+                    venta.ID_USUARIO
                 );
                 _context.Gasto.Add(gastoDevolucion);
             }

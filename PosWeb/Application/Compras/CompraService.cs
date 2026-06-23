@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Deudas;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.Productos;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -11,11 +12,13 @@ public class CompraService
 {
     private readonly PosDbContext _context;
     private readonly DeudaService _deudaService;
+    private readonly ProductoService _productoService;
 
-    public CompraService(PosDbContext context, DeudaService deudaService)
+    public CompraService(PosDbContext context, DeudaService deudaService, ProductoService productoService)
     {
         _context = context;
         _deudaService = deudaService;
+        _productoService = productoService;
     }
 
     /// <summary>
@@ -23,7 +26,8 @@ public class CompraService
     /// Uses IDbContextTransaction for atomicity when the provider supports it (e.g. MySQL).
     /// </summary>
     public CompraResponseDto CrearCompra(int sucursalId, int proveedorId, int userId,
-        List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null)
+        List<CompraItemDto> items, DateTime? fechaCompra = null, decimal? montoPagado = null,
+        string? fuentePago = null, decimal? montoPagadoCaja = null)
     {
         if (items.Count == 0)
             throw new CompraSinItemsException();
@@ -34,17 +38,24 @@ public class CompraService
 
         try
         {
-            // Validate proveedor exists
-            Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
-            if (proveedor == null || !proveedor.ACTIVO)
-                throw new ProveedorNoEncontradoException(proveedorId);
+        bool esAhorro = string.Equals(fuentePago, "ahorro", StringComparison.OrdinalIgnoreCase);
+        bool esDividir = string.Equals(fuentePago, "dividir", StringComparison.OrdinalIgnoreCase);
 
-            // Find active caja for the sucursal
-            Caja? cajaActiva = _context.Caja
+        // Validate proveedor exists
+        Proveedor? proveedor = _context.Proveedor.Find(proveedorId);
+        if (proveedor == null || !proveedor.ACTIVO)
+            throw new ProveedorNoEncontradoException(proveedorId);
+
+        // Find active caja for the sucursal (only required for "caja" and "dividir" payments)
+        Caja? cajaActiva = null;
+        if (!esAhorro)
+        {
+            cajaActiva = _context.Caja
                 .FirstOrDefault(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Abierta");
 
             if (cajaActiva == null)
                 throw new CompraSinCajaActivaException();
+        }
 
             // Generate NUMERO_COMPROBANTE: YYYYMMDD + sequential int per day
             DateTime today = fechaCompra?.Date ?? DateTime.Now.Date;
@@ -69,36 +80,21 @@ public class CompraService
             {
                 int productoId = item.ProductoId;
 
-                // INLINE CREATION: item with ProductoId == 0 creates a new product
+                // INLINE CREATION: item with ProductoId == 0 creates a new product via ProductoService
                 if (productoId == 0)
                 {
-                    if (string.IsNullOrWhiteSpace(item.CodigoBarra))
-                        throw new ArgumentException("El código de barras es obligatorio para crear un producto nuevo");
-
-                    if (string.IsNullOrWhiteSpace(item.Nombre))
-                        throw new ArgumentException("El nombre es obligatorio para crear un producto nuevo");
-
-                    // Check duplicate barcode
-                    bool codigoExiste = _context.Producto
-                        .Any(p => p.CODIGO_BARRAS == item.CodigoBarra && p.ACTIVO);
-
-                    if (codigoExiste)
-                        throw new ProductoCodigoDuplicadoException(item.CodigoBarra);
-
-                    var nuevoProducto = new Producto(
-                        item.CodigoBarra,
-                        item.CodigoBarra,
-                        item.Nombre,
-                        item.Precio,
-                        item.Costo ?? 0,
-                        idCategoria: item.CategoriaId,
-                        descAdicional: item.DescAdicional,
-                        contenido: item.Contenido,
-                        idUnidadMedida: item.UnidadMedidaId
-                    );
-                    _context.Producto.Add(nuevoProducto);
-                    _context.SaveChanges(); // Generate ID within transaction
-                    productoId = nuevoProducto.ID_PRODUCTO;
+                    var nuevo = _productoService.Crear(new ProductoUpsertDto
+                    {
+                        CodigoBarra = item.CodigoBarra!,
+                        Nombre = item.Nombre!,
+                        Precio = item.Precio,
+                        Costo = item.Costo ?? 0,
+                        CategoriaId = item.CategoriaId,
+                        DescAdicional = item.DescAdicional,
+                        Contenido = item.Contenido,
+                        UnidadMedidaId = item.UnidadMedidaId,
+                    });
+                    productoId = nuevo.Id;
                 }
                 else
                 {
@@ -148,14 +144,21 @@ public class CompraService
                 });
             }
 
-            // Create Gasto linked to active caja with ID_COMPRA
-            string detalleGasto = $"Compra - {proveedor.NOMBRE}";
-            var gasto = new Gasto(cajaActiva.ID_CAJA, totalGasto, detalleGasto);
-            _context.Gasto.Add(gasto);
-            _context.SaveChanges(); // Save to generate IDs
+            // Create Gasto (skip for "ahorro"; use partial monto for "dividir")
+            int? gastoId = null;
+            DateTime fechaCompraFinal = fechaCompra ?? DateTime.Now;
 
-            // Link Gasto back to Compra
-            compra.AsignarGasto(gasto.ID_GASTO);
+            if (!esAhorro && cajaActiva != null)
+            {
+                decimal montoGasto = esDividir ? (montoPagadoCaja ?? 0) : totalGasto;
+                string detalleGasto = $"Compra - {proveedor.NOMBRE}";
+                var gasto = new Gasto(cajaActiva.ID_CAJA, montoGasto, detalleGasto, userId);
+                _context.Gasto.Add(gasto);
+                _context.SaveChanges(); // Save to generate IDs
+                compra.AsignarGasto(gasto.ID_GASTO);
+                gastoId = gasto.ID_GASTO;
+                fechaCompraFinal = gasto.FECHA_GASTO;
+            }
 
             // Create Deuda for the proveedor (with optional partial payment)
             _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto, montoPagado);
@@ -167,9 +170,9 @@ public class CompraService
             return new CompraResponseDto
             {
                 CompraId = compra.ID_COMPRA,
-                GastoId = gasto.ID_GASTO,
+                GastoId = gastoId,
                 TotalGasto = totalGasto,
-                Fecha = gasto.FECHA_GASTO,
+                Fecha = fechaCompraFinal,
                 Items = results
             };
         }
@@ -191,7 +194,9 @@ public class CompraService
             request.ProveedorId,
             request.UserId ?? 0,
             request.Items,
-            montoPagado: request.MontoPagado
+            montoPagado: request.MontoPagado,
+            fuentePago: request.FuentePago,
+            montoPagadoCaja: request.MontoPagadoCaja
         );
     }
 }
