@@ -199,6 +199,39 @@ public class CajaService
                 .FirstOrDefault();
         }
 
+        var desglosePagos = _context.Pago
+            .Where(p => p.ID_CAJA == caja.ID_CAJA)
+            .GroupBy(p => p.ID_MEDIO_PAGO)
+            .Select(g => new PagoPorMedioDto
+            {
+                IdMedioPago = g.Key,
+                MedioPago = _context.MedioPago
+                    .Where(m => m.ID_MEDIO_PAGO == g.Key)
+                    .Select(m => m.DESC_MEDIO_PAGO)
+                    .FirstOrDefault() ?? "Desconocido",
+                Monto = g.Sum(p => p.MONTO),
+            })
+            .OrderByDescending(p => p.Monto)
+            .ToList();
+
+        var ventaIds = _context.Pago
+            .Where(p => p.ID_CAJA == caja.ID_CAJA)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
+            .ToList();
+
+        List<decimal> montosVentas = _context.Venta
+            .Where(v => ventaIds.Contains(v.ID_VENTA))
+            .Select(v => v.TOTAL)
+            .ToList();
+        decimal totalVentas = montosVentas.Sum();
+
+        List<decimal> montosGastos = _context.Gasto
+            .Where(g => g.ID_CAJA == caja.ID_CAJA)
+            .Select(g => g.MONTO)
+            .ToList();
+        decimal gastos = montosGastos.Sum();
+
         return new CajaDto
         {
             Id = caja.ID_CAJA,
@@ -210,8 +243,22 @@ public class CajaService
             MontoContadoEfectivo = caja.MONTO_CONTADO_EFECTIVO,
             MontoContadoTarjetas = caja.MONTO_CONTADO_TARJETAS,
             Diferencia = caja.DIFERENCIA,
+            TotalVentas = totalVentas,
+            Gastos = gastos,
+            Esperado = caja.MONTO_INICIAL + totalVentas - gastos,
+            DesglosePagos = desglosePagos,
             UsuarioApertura = usuarioApertura,
-            UsuarioCierre = usuarioCierre
+            UsuarioCierre = usuarioCierre,
         };
+    }
+
+    public CajaDto? ObtenerUltimoCierre(int sucursalId)
+    {
+        var caja = _context.Caja
+            .Where(c => c.ID_SUCURSAL == sucursalId && c.ESTADO == "Cerrada")
+            .OrderByDescending(c => c.FECHA_CIERRE)
+            .FirstOrDefault();
+
+        return caja == null ? null : MapToDto(caja);
     }
 }

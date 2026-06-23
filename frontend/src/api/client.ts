@@ -242,6 +242,7 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
+    ultimoCierre: (sucursalId: number) => request<CajaDto | null>(`/cajas/ultimo-cierre?sucursalId=${sucursalId}`),
   },
 
 // Proveedores
