@@ -79,6 +79,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       localStorage.removeItem('jwt_token')
       localStorage.removeItem('jwt_expires')
       localStorage.removeItem('user_info')
+      window.dispatchEvent(new CustomEvent('auth:expired'))
     }
     let message = text
     try {

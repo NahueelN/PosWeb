@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { LoginRequest, LoginResponse, UsuarioInfo } from '../types'
 
@@ -52,6 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('jwt_expires')
     localStorage.removeItem('user_info')
     setUser(null)
+  }, [])
+
+  // Listen for forced logout from API 401 responses
+  useEffect(() => {
+    const handler = () => {
+      setUser(null)
+    }
+    window.addEventListener('auth:expired', handler)
+    return () => window.removeEventListener('auth:expired', handler)
   }, [])
 
   return (

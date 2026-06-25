@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { CajaDto, SucursalDto, CierrePreviewDto } from '../types'
+import { PageShell } from '../components/shared'
+import type { CajaDto, SucursalDto, CierrePreviewDto, MedioPagoDto } from '../types'
 import { formatDate, formatCurrency } from '../formats'
 
 export default function CajaPage() {
@@ -14,6 +15,7 @@ export default function CajaPage() {
   const [reporteCierre, setReporteCierre] = useState<CajaDto | null>(null)
   const [preview, setPreview] = useState<CierrePreviewDto | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
 
   // Historial
   const [historial, setHistorial] = useState<CajaDto[]>([])
@@ -23,6 +25,7 @@ export default function CajaPage() {
   const [fechaHasta, setFechaHasta] = useState('')
   const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'usuario' | 'inicial' | 'ventas' | 'ganancia' | null>(null)
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc')
+  const [cierreDetalle, setCierreDetalle] = useState<CajaDto | null>(null)
 
   const toggleOrden = (campo: 'fecha' | 'usuario' | 'inicial' | 'ventas' | 'ganancia') => {
     if (ordenarPor !== campo) { setOrdenarPor(campo); setOrdenDir('asc') }
@@ -76,6 +79,7 @@ export default function CajaPage() {
         loadPreview(res.caja.id)
       }
       loadHistorial()
+      api.mediosPago.listar().then(setMediosPago).catch(() => {})
     } catch (err: any) {
       notifyError(err.message || 'Error al cargar caja')
     } finally {
@@ -125,6 +129,7 @@ export default function CajaPage() {
       setReporteCierre(null)
       setPreview(null)
       setMontoInicial('')
+      loadHistorial()
       notifySuccess('Caja abierta correctamente')
     } catch (err: any) {
       notifyError(err.message || 'Error al abrir caja')
@@ -149,6 +154,7 @@ export default function CajaPage() {
       setReporteCierre(result)
       setMontoEfectivo('')
       setMontoTarjetas('')
+      loadHistorial()
     } catch (err: any) {
       notifyError(err.message || 'Error al cerrar caja')
     } finally {
@@ -217,393 +223,381 @@ export default function CajaPage() {
     )
   }
 
+  const cantidadVentas = preview?.desglosePagos?.reduce((s, p) => s + (p.cantidadVentas ?? 1), 0) ?? 0
+
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Caja</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Gestione la apertura, el cierre y el balance de caja.</p>
-      </div>
+    <PageShell
+      title="Caja"
+      subtitle="Gestione la apertura, el cierre y el balance de caja."
+      loading={loading && !caja && !reporteCierre}
+    >
+      {!loading && (
+        <>
+          {/* ── Status banner ── */}
+          {!activa && !reporteCierre && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 mb-6 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-blue-800">Esperando apertura</p>
+                <p className="text-sm text-blue-600">Abra la caja para comenzar a operar</p>
+              </div>
+            </div>
+          )}
 
-      {loading && !caja && !reporteCierre ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ── Columna izquierda: Caja activa o Último cierre ── */}
-          <div className="space-y-4">
-            {activa && caja ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-green-500 p-5 space-y-5">
+          {/* ── Simple hero (caja activa) ── */}
+          {activa && caja && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+              <div className="flex items-end justify-between flex-wrap gap-6">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Caja abierta</h2>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total vendido</p>
+                  <p className="text-4xl font-bold text-blue-600">
+                    ${(preview?.totalVentas ?? 0).toFixed(2)}
+                  </p>
                 </div>
-                <dl className="space-y-2">
-                  <SummaryRow label="Apertura" value={new Date(caja.fechaApertura).toLocaleString()} />
-                  <SummaryRow label="Usuario" value={caja.usuarioApertura} />
-                  <SummaryRow label="Saldo inicial" value={`$${caja.montoInicial.toFixed(2)}`} />
-                </dl>
+                <div className="flex items-end gap-6">
+                  {totalGastos > 0 && (
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400 mb-0.5">Gastos</p>
+                      <p className="text-2xl font-bold text-red-600">-${totalGastos.toFixed(2)}</p>
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400 mb-0.5">Operaciones</p>
+                    <p className="text-2xl font-bold text-gray-700">{cantidadVentas}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                {loadingPreview ? (
-                  <div className="text-sm text-gray-400">Cargando resumen...</div>
-                ) : preview ? (
-                  <>
-                    <hr className="border-gray-200" />
-                    <div>
-                      <h3 className="text-base font-bold text-gray-700 mb-2">Resumen de caja</h3>
+          {/* ── Main content ── */}
+          {activa && caja && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Resumen financiero */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Resumen financiero</h3>
+                  {loadingPreview ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="ml-2 text-sm text-gray-400">Cargando...</span>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-xl p-4">
                       <dl className="space-y-2">
-                        <SummaryRow label="Saldo inicial" value={`$${preview.montoInicial.toFixed(2)}`} />
-                        <SummaryRow label="Ventas totales" value={`$${preview.totalVentas.toFixed(2)}`} accent="blue" />
+                        <SummaryRow label="Saldo inicial" value={`$${caja.montoInicial.toFixed(2)}`} />
+                        {/* Medios de pago — todos visibles, indentados como subcuenta */}
+                        <div className="pl-4 border-l-2 border-gray-200 space-y-1.5">
+                          {mediosPago.map(mp => {
+                            const monto = preview?.desglosePagos?.find(p => p.idMedioPago === mp.id)?.monto ?? 0
+                            return (
+                              <div key={mp.id} className="flex justify-between items-center">
+                                <dt className="text-sm text-gray-500">{mp.nombre}</dt>
+                                <dd className="text-sm tabular-nums text-gray-700">${monto.toFixed(2)}</dd>
+                              </div>
+                            )
+                          })}
+                        </div>
                         <SummaryRow
                           label="Gastos"
                           value={totalGastos > 0 ? `-$${totalGastos.toFixed(2)}` : '$0.00'}
                           accent={totalGastos > 0 ? 'red' : undefined}
                         />
                         <hr className="border-gray-200" />
-                        <SummaryRow label="Ganancia" value={`$${(preview.totalVentas - totalGastos).toFixed(2)}`} bold accent="green" />
+                        <SummaryRow
+                          label="Total esperado"
+                          value={`$${(caja.montoInicial + (preview?.totalVentas ?? 0) - totalGastos).toFixed(2)}`}
+                          bold
+                        />
                       </dl>
                     </div>
+                  )}
+                </div>
 
-                    {preview.desglosePagos.length > 0 && (
-                      <>
-                        <hr className="border-gray-200" />
-                        <div>
-                          <h3 className="text-base font-bold text-gray-700 mb-2">Medios de pago</h3>
-                          <dl className="space-y-2">
-                            {preview.desglosePagos.map(p => (
-                              <SummaryRow key={p.idMedioPago} label={p.medioPago} value={`$${p.monto.toFixed(2)}`} bold />
-                            ))}
-                          </dl>
+                {/* Conteo final */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Conteo final</h3>
+                  <form onSubmit={handleCerrar} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Efectivo en caja</label>
+                      <input type="number" step="0.01" min="0" value={montoEfectivo}
+                        onChange={e => setMontoEfectivo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
+                      {preview && (ef > 0 || efectivoVentas > 0) && (
+                        <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                          <div className="flex justify-between text-gray-600"><span>Esperado</span><span>${efectivoEsperado.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-gray-600"><span>Contado</span><span>${ef.toFixed(2)}</span></div>
+                          <hr className="border-gray-200" />
+                          <div className="flex justify-between font-semibold">
+                            <span>Diferencia</span>
+                            <span className={diffEfectivo >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {diffEfectivo >= 0 ? '+' : ''}{diffEfectivo.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                      </>
-                    )}
-                  </>
-                ) : null}
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total tarjetas</label>
+                      <input type="number" step="0.01" min="0" value={montoTarjetas}
+                        onChange={e => setMontoTarjetas(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
+                      {preview && (tj > 0 || tarjetasVentas > 0) && (
+                        <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                          <div className="flex justify-between text-gray-600"><span>Esperado</span><span>${tarjetasEsperado.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-gray-600"><span>Contado</span><span>${tj.toFixed(2)}</span></div>
+                          <hr className="border-gray-200" />
+                          <div className="flex justify-between font-semibold">
+                            <span>Diferencia</span>
+                            <span className={diffTarjetas >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {diffTarjetas >= 0 ? '+' : ''}{diffTarjetas.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Gastos</label>
+                      <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
+                        {totalGastos > 0
+                          ? <span className="font-medium text-red-600">-${totalGastos.toFixed(2)}</span>
+                          : <span className="text-gray-400">$0.00</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Los gastos se cargan desde la solapa <strong>Gastos</strong></p>
+                    </div>
+                    <button type="submit" disabled={loading}
+                      className="w-full bg-orange-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-orange-500 disabled:opacity-50 transition-colors">
+                      {loading ? 'Cerrando...' : 'Cerrar caja'}
+                    </button>
+                  </form>
+                </div>
               </div>
-            ) : reporteCierre ? (
-              <>
-                {/* ── 1. Resultado del cierre ── */}
-                <div className={`rounded-2xl p-6 text-center ${
-                  diffEfectivoR === 0 ? 'bg-emerald-50 border-2 border-emerald-300' :
-                  Math.abs(diffEfectivoR) < 10 ? 'bg-amber-50 border-2 border-amber-300' :
-                  'bg-red-50 border-2 border-red-300'
-                }`}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-1 text-gray-600">Resultado del cierre</p>
-                  <p className={`text-4xl font-black ${
-                    diffEfectivoR === 0 ? 'text-emerald-600' :
-                    diffEfectivoR > 0 ? 'text-amber-600' :
-                    'text-red-600'
-                  }`}>
-                    {diffEfectivoR === 0 ? '$0.00' : `${diffEfectivoR > 0 ? '+' : ''}$${Math.abs(diffEfectivoR).toFixed(2)}`}
-                  </p>
-                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${
-                    diffEfectivoR === 0 ? 'bg-emerald-200 text-emerald-800' :
-                    Math.abs(diffEfectivoR) < 10 ? 'bg-amber-200 text-amber-800' :
-                    'bg-red-200 text-red-800'
-                  }`}>
-                    {diffEfectivoR === 0 ? 'Caja cerrada correctamente' :
-                     diffEfectivoR > 0 ? 'Caja cerrada con sobrante' :
-                     'Caja cerrada con faltante'}
-                  </span>
-                  <p className="mt-3 text-sm text-gray-500">
-                    Total vendido <span className="font-bold text-gray-700">${reporteCierre.totalVentas.toFixed(2)}</span>
+            </>
+            )}
+
+          {/* ── Último cierre ── */}
+          {reporteCierre && !activa && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 cursor-pointer hover:border-indigo-300 transition-colors"
+              onClick={() => setCierreDetalle(reporteCierre)}>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Último cierre</h3>
+                  <p className="text-sm text-gray-700">
+                    {formatDate(reporteCierre.fechaCierre ?? reporteCierre.fechaApertura)}
+                    {reporteCierre.usuarioCierre && ` — ${reporteCierre.usuarioCierre}`}
                   </p>
                 </div>
-
-                {/* ── 2. Apertura y cierre ── */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-base font-bold text-gray-700 mb-3">Apertura y cierre</h3>
-                  <dl className="space-y-2">
-                    <SummaryRow label="Apertura" value={new Date(reporteCierre.fechaApertura).toLocaleString()} />
-                    <SummaryRow label="Cierre" value={new Date(reporteCierre.fechaCierre!).toLocaleString()} />
-                    <SummaryRow label="Usuario apertura" value={reporteCierre.usuarioApertura} />
-                    {reporteCierre.usuarioCierre && (
-                      <SummaryRow label="Usuario cierre" value={reporteCierre.usuarioCierre} />
-                    )}
-                  </dl>
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">Vendido</p>
+                    <p className="font-semibold text-gray-900">${reporteCierre.totalVentas.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">Ganancia</p>
+                    <p className={`font-semibold ${(reporteCierre.totalVentas - reporteCierre.gastos) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      ${(reporteCierre.totalVentas - reporteCierre.gastos).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* ── 3. Resumen de ventas ── */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-base font-bold text-gray-700 mb-3">Resumen de ventas</h3>
-                  <dl className="space-y-2">
-                    {ventasEfectivoR > 0 && (
-                      <SummaryRow label="Efectivo" value={`$${ventasEfectivoR.toFixed(2)}`} bold />
-                    )}
-                    {ventasDebitoR > 0 && (
-                      <SummaryRow label="Débito" value={`$${ventasDebitoR.toFixed(2)}`} bold />
-                    )}
-                    {ventasCreditoR > 0 && (
-                      <SummaryRow label="Crédito" value={`$${ventasCreditoR.toFixed(2)}`} bold />
-                    )}
-                    {ventasTransferenciaR > 0 && (
-                      <SummaryRow label="Transferencia" value={`$${ventasTransferenciaR.toFixed(2)}`} bold />
-                    )}
-                    {ventasFiadasR > 0 && (
-                      <SummaryRow label="Fiado" value={`$${ventasFiadasR.toFixed(2)}`} bold />
-                    )}
-                    {ventasOtrasR > 0 && (
-                      <SummaryRow label="Otros" value={`$${ventasOtrasR.toFixed(2)}`} bold />
-                    )}
-                    <hr className="border-gray-200" />
-                    <SummaryRow label="Total vendido" value={`$${reporteCierre.totalVentas.toFixed(2)}`} bold accent="blue" />
-                  </dl>
-                </div>
-
-                {/* ── 4. Movimientos de caja ── */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-base font-bold text-gray-700 mb-3">Movimientos de caja</h3>
-                  <dl className="space-y-2">
-                    <SummaryRow label="Fondo inicial" value={`$${reporteCierre.montoInicial.toFixed(2)}`} />
-                    <SummaryRow
-                      label="Gastos"
-                      value={`-$${reporteCierre.gastos.toFixed(2)}`}
-                      accent={reporteCierre.gastos > 0 ? 'red' : undefined}
-                    />
-                  </dl>
-                </div>
-
-                {/* ── 5. Conteo de efectivo ── */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-base font-bold text-gray-700 mb-3">Conteo de efectivo</h3>
-                  <dl className="space-y-2">
-                    <SummaryRow
-                      label="Efectivo esperado"
-                      value={`$${efectivoEsperadoR.toFixed(2)}`}
-                      muted
-                    />
-                    <SummaryRow label="Efectivo contado" value={`$${contadoEfectivoR.toFixed(2)}`} bold />
-                    <hr className="border-gray-200" />
-                    <SummaryRow
-                      label="Diferencia de caja"
-                      value={`${diffEfectivoR >= 0 ? '+' : ''}$${Math.abs(diffEfectivoR).toFixed(2)}`}
-                      bold
-                      accent={diffEfectivoR > 0 ? 'green' : diffEfectivoR < 0 ? 'red' : 'green'}
-                    />
-                  </dl>
-                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                    Efectivo esperado = Fondo inicial + Ventas en efectivo − Gastos
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          {!activa && (
+            /* ── Hero Abrir caja ── */
+            <div className="max-w-md mx-auto mb-6">
+              <div className="bg-white rounded-2xl shadow-sm border-2 border-green-200 p-6 sm:p-8 text-center">
+                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </div>
-                <p className="text-gray-500 font-medium text-sm">Sin cierres anteriores</p>
-                <p className="text-xs text-gray-400 mt-1">El reporte aparecerá después del primer cierre.</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Abrir nueva caja</h2>
+                <p className="text-sm text-gray-500 mb-5">Ingrese el saldo inicial para comenzar</p>
+                <form onSubmit={handleAbrir} className="space-y-4">
+                  <div className="text-left">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Saldo inicial</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                      <input type="number" step="0.01" min="0" value={montoInicial}
+                        onChange={e => setMontoInicial(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-lg font-semibold text-right focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
+                        required placeholder="0.00" autoFocus />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading}
+                    className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors text-base">
+                    {loading ? 'Abriendo...' : 'Abrir caja'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ── Historial de cierres ── */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Historial de cierres{historial.length > 0 ? ` (${historial.length})` : ''}
+              </h3>
+              {historial.length > 0 && (
+                <input type="text" value={busquedaHistorial} onChange={e => setBusquedaHistorial(e.target.value)}
+                  placeholder="Buscar..." className="w-48 px-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all shadow-sm" />
+              )}
+              <div className="flex items-center gap-2 text-xs">
+                <label className="text-gray-500">Desde</label>
+                <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
+                <label className="text-gray-500">Hasta</label>
+                <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
+                {(fechaDesde || fechaHasta) && (
+                  <button onClick={() => { setFechaDesde(''); setFechaHasta('') }}
+                    className="text-gray-400 hover:text-gray-600 px-1" title="Limpiar filtro de fechas">✕</button>
+                )}
+              </div>
+            </div>
+            {historialLoading ? (
+              <p className="text-sm text-gray-400 text-center py-6">Cargando historial...</p>
+            ) : historial.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">No hay cierres anteriores</p>
+            ) : historialFiltrado.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">Sin resultados para "{busquedaHistorial}"</p>
+            ) : (
+              <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('fecha')}>
+                        Cierre{ordenarPor === 'fecha' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('usuario')}>
+                        Usuario{ordenarPor === 'usuario' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th className="pb-2 pr-3 text-gray-400">Apertura</th>
+                      <th className="pb-2 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('inicial')}>
+                        Inicial{ordenarPor === 'inicial' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th className="pb-2 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('ventas')}>
+                        Ventas{ordenarPor === 'ventas' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th className="pb-2 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('ganancia')}>
+                        Ganancia{ordenarPor === 'ganancia' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {historialFiltrado.map(c => (
+                      <tr key={c.id}
+                        onClick={() => setCierreDetalle(c)}
+                        className="hover:bg-indigo-50 cursor-pointer transition-colors">
+                        <td className="py-2.5 pr-3 whitespace-nowrap">
+                          <span className="text-gray-600 text-xs">{formatDate(c.fechaCierre ?? c.fechaApertura)}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 whitespace-nowrap">
+                          <span className="text-gray-500 text-xs">{c.usuarioApertura || '-'}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 whitespace-nowrap">
+                          <span className="text-gray-500 text-xs">{formatDate(c.fechaApertura)}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-right">
+                          <span className="text-xs">{formatCurrency(c.montoInicial)}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-right">
+                          <span className="text-xs">{formatCurrency(c.totalVentas)}</span>
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <span className={`text-xs font-medium ${(c.totalVentas - c.gastos) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {formatCurrency(c.totalVentas - c.gastos)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
-          {/* ── Columna derecha: Conteo final o Abrir nueva caja ── */}
-          {activa && caja ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Conteo final</h2>
-              <form onSubmit={handleCerrar} className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Efectivo en caja</label>
-                  <input
-                    type="number" step="0.01" min="0"
-                    value={montoEfectivo}
-                    onChange={e => setMontoEfectivo(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    required
-                  />
-                  {preview && (ef > 0 || efectivoVentas > 0) && (
-                    <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-                      <div className="flex justify-between text-gray-600">
-                        <span>Esperado</span>
-                        <span>${efectivoEsperado.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                        <span>Contado</span>
-                        <span>${ef.toFixed(2)}</span>
-                      </div>
-                      <hr className="border-gray-200" />
-                      <div className="flex justify-between font-semibold">
-                        <span>Diferencia</span>
-                        <span className={diffEfectivo >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {diffEfectivo >= 0 ? '+' : ''}{diffEfectivo.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total tarjetas</label>
-                  <input
-                    type="number" step="0.01" min="0"
-                    value={montoTarjetas}
-                    onChange={e => setMontoTarjetas(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    required
-                  />
-                  {preview && (tj > 0 || tarjetasVentas > 0) && (
-                    <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-                      <div className="flex justify-between text-gray-600">
-                        <span>Esperado</span>
-                        <span>${tarjetasEsperado.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                        <span>Contado</span>
-                        <span>${tj.toFixed(2)}</span>
-                      </div>
-                      <hr className="border-gray-200" />
-                      <div className="flex justify-between font-semibold">
-                        <span>Diferencia</span>
-                        <span className={diffTarjetas >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {diffTarjetas >= 0 ? '+' : ''}{diffTarjetas.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gastos</label>
-                  <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
-                    {totalGastos > 0
-                      ? <span className="font-medium text-red-600">-${totalGastos.toFixed(2)}</span>
-                      : <span className="text-gray-400">$0.00</span>
-                    }
+          {/* ── Detalle de cierre (modal) ── */}
+          {cierreDetalle && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+              onClick={() => setCierreDetalle(null)}>
+              <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-900">Detalle del cierre</h2>
+                    <button onClick={() => setCierreDetalle(null)}
+                      className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Los gastos se cargan desde la solapa <strong>Gastos</strong>
-                  </p>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-orange-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-500 disabled:opacity-50"
-                >
-                  {loading ? 'Cerrando...' : 'Cerrar caja'}
-                </button>
-              </form>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Abrir nueva caja</h2>
-              <form onSubmit={handleAbrir} className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Saldo inicial</label>
-                  <input
-                    type="number" step="0.01" min="0"
-                    value={montoInicial}
-                    onChange={e => setMontoInicial(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    required
-                  />
+                  <dl className="space-y-2 mb-6">
+                    <SummaryRow label="Fecha cierre" value={formatDate(cierreDetalle.fechaCierre ?? cierreDetalle.fechaApertura)} />
+                    <SummaryRow label="Usuario" value={cierreDetalle.usuarioCierre || cierreDetalle.usuarioApertura || '-'} />
+                    {cierreDetalle.fechaApertura && (
+                      <SummaryRow label="Apertura" value={new Date(cierreDetalle.fechaApertura).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' })} />
+                    )}
+                    {cierreDetalle.fechaCierre && (
+                      <SummaryRow label="Cierre" value={new Date(cierreDetalle.fechaCierre).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' })} />
+                    )}
+                  </dl>
+
+                  <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resumen financiero</h3>
+                    <dl className="space-y-2">
+                      <SummaryRow label="Saldo inicial" value={`$${cierreDetalle.montoInicial.toFixed(2)}`} />
+                      <SummaryRow label="Ventas" value={`$${cierreDetalle.totalVentas.toFixed(2)}`} accent="blue" />
+                      <SummaryRow label="Gastos" value={cierreDetalle.gastos > 0 ? `-$${cierreDetalle.gastos.toFixed(2)}` : '$0.00'} accent={cierreDetalle.gastos > 0 ? 'red' : undefined} />
+                      <hr className="border-gray-200" />
+                      <SummaryRow label="Ganancia" value={`$${(cierreDetalle.totalVentas - cierreDetalle.gastos).toFixed(2)}`} bold accent="green" />
+                    </dl>
+                  </div>
+
+                  {cierreDetalle.montoContadoEfectivo != null && (() => {
+                    const eR = cierreDetalle.montoInicial
+                      + (cierreDetalle.desglosePagos?.find(p => p.medioPago.toLowerCase().includes('efectivo'))?.monto ?? 0)
+                      - cierreDetalle.gastos
+                    const cR = cierreDetalle.montoContadoEfectivo
+                    const dR = cR - eR
+                    return (
+                      <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Conteo de efectivo</h3>
+                        <dl className="space-y-2">
+                          <SummaryRow label="Efectivo esperado" value={`$${eR.toFixed(2)}`} muted />
+                          <SummaryRow label="Efectivo contado" value={`$${cR.toFixed(2)}`} bold />
+                          <hr className="border-gray-200" />
+                          <SummaryRow
+                            label="Diferencia de caja"
+                            value={`${dR >= 0 ? '+' : ''}$${Math.abs(dR).toFixed(2)}`}
+                            bold
+                            accent={dR === 0 ? undefined : dR > 0 ? 'green' : 'red'}
+                          />
+                        </dl>
+                      </div>
+                    )
+                  })()}
+
+                  {cierreDetalle.desglosePagos?.length ? (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Medios de pago</h3>
+                      <dl className="space-y-2">
+                        {cierreDetalle.desglosePagos.map(p => (
+                          <SummaryRow key={p.idMedioPago} label={p.medioPago} value={`$${p.monto.toFixed(2)}`} />
+                        ))}
+                      </dl>
+                    </div>
+                  ) : null}
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-500 disabled:opacity-50"
-                >
-                  {loading ? 'Abriendo...' : 'Abrir caja'}
-                </button>
-              </form>
+              </div>
             </div>
           )}
-        </div>
+        </>
       )}
-
-      {/* ── Historial de cierres ── */}
-      {!loading && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
-          <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Historial de cierres{historial.length > 0 ? ` (${historial.length})` : ''}
-            </h3>
-            {historial.length > 0 && (
-              <input
-                type="text"
-                value={busquedaHistorial}
-                onChange={e => setBusquedaHistorial(e.target.value)}
-                placeholder="Buscar..."
-                className="w-48 px-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all shadow-sm"
-              />
-            )}
-            <div className="flex items-center gap-2 text-xs">
-              <label className="text-gray-500">Desde</label>
-              <input
-                type="date"
-                value={fechaDesde}
-                onChange={e => setFechaDesde(e.target.value)}
-                className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
-              />
-              <label className="text-gray-500">Hasta</label>
-              <input
-                type="date"
-                value={fechaHasta}
-                onChange={e => setFechaHasta(e.target.value)}
-                className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
-              />
-              {(fechaDesde || fechaHasta) && (
-                <button
-                  onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
-                  className="text-gray-400 hover:text-gray-600 px-1"
-                  title="Limpiar filtro de fechas"
-                >✕</button>
-              )}
-            </div>
-          </div>
-          {historialLoading ? (
-            <p className="text-sm text-gray-400 text-center py-6">Cargando historial...</p>
-          ) : historial.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No hay cierres anteriores</p>
-          ) : historialFiltrado.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">Sin resultados para "{busquedaHistorial}"</p>
-          ) : (
-            <div className="overflow-x-auto max-h-72 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                    <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('fecha')}>
-                      Cierre{ordenarPor === 'fecha' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th className="pb-2 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('usuario')}>
-                      Usuario{ordenarPor === 'usuario' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th className="pb-2 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('inicial')}>
-                      Saldo inicial{ordenarPor === 'inicial' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th className="pb-2 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('ventas')}>
-                      Ventas{ordenarPor === 'ventas' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                    <th className="pb-2 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleOrden('ganancia')}>
-                      Ganancia{ordenarPor === 'ganancia' ? (ordenDir === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {historialFiltrado.map(c => (
-                    <tr key={c.id} className="hover:bg-gray-100/80 hover:ring-1 hover:ring-gray-300 hover:ring-inset transition-all">
-                      <td className="py-2.5 pr-3 whitespace-nowrap">
-                        <span className="text-gray-600 text-xs">{formatDate(c.fechaCierre ?? c.fechaApertura)}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 whitespace-nowrap">
-                        <span className="text-gray-500 text-xs">{c.usuarioApertura || '-'}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-right">
-                        <span className="text-xs">{formatCurrency(c.montoInicial)}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-right">
-                        <span className="text-xs">{formatCurrency(c.totalVentas)}</span>
-                      </td>
-                      <td className="py-2.5 text-right">
-                        <span className={`text-xs font-medium ${(c.totalVentas - c.gastos) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {formatCurrency(c.totalVentas - c.gastos)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    </PageShell>
   )
 }

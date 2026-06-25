@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { ProductoDto, SucursalDto, VentaResultadoDto, MedioPagoDto, PagoVentaDto, ClienteDto, UnidadMedidaDto, ComboDto } from '../types'
+import { CartPanel, PaymentFooter, MontoInput, PageShell } from '../components/shared'
 
 interface Item {
   producto: ProductoDto
@@ -79,6 +79,7 @@ export default function VentasPage() {
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const stockAceptarRef = useRef<HTMLButtonElement>(null!)
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
+  const [verified, setVerified] = useState(false)
   const [comboUndoPopup, setComboUndoPopup] = useState<number | null>(null)
   const pendingAllowSinStock = useRef(false)
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
@@ -139,6 +140,23 @@ export default function VentasPage() {
   useEffect(() => {
     if (autoComboRef.current) { autoComboRef.current = false; return }
     if (items.length === 0) return
+
+    // Un-dismiss combos whose items are no longer all present in cart
+    if (dismissedCombos.size > 0) {
+      setDismissedCombos(prev => {
+        const next = new Set(prev)
+        for (const comboId of prev) {
+          const combo = combos.find(c => c.id === comboId)
+          if (!combo) { next.delete(comboId); continue }
+          const stillPresent = combo.items.every(ci => {
+            const cartItem = items.find(i => !i.comboId && i.producto.id === ci.productoId)
+            return cartItem && cartItem.cantidad >= ci.cantidad
+          })
+          if (!stillPresent) next.delete(comboId)
+        }
+        return next.size === prev.size ? prev : next
+      })
+    }
 
     const match = combos.find(combo => {
       if (items.some(i => i.comboId === combo.id)) return false
@@ -321,7 +339,7 @@ export default function VentasPage() {
         )
       }
       return [...prev, {
-        producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 0, activo: true },
+        producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 999, activo: true },
         cantidad: 1,
         comboId: combo.id,
         comboNombre: combo.descCombo,
@@ -331,18 +349,18 @@ export default function VentasPage() {
     setSearchQuery('')
   }
 
-  function handleCambiarCantidad(productoId: number, cantidad: number) {
+  function handleCambiarCantidad(productoId: number, cantidad: number, comboId?: number) {
     if (cantidad <= 0) {
-      setItems((prev) => prev.filter((i) => i.producto.id !== productoId))
+      setItems((prev) => prev.filter((i) => comboId !== undefined ? i.comboId !== comboId : i.producto.id !== productoId))
     } else {
       setItems((prev) =>
-        prev.map((i) => i.producto.id === productoId ? { ...i, cantidad } : i)
+        prev.map((i) => comboId !== undefined ? (i.comboId === comboId ? { ...i, cantidad } : i) : (i.producto.id === productoId ? { ...i, cantidad } : i))
       )
     }
   }
 
-  function quitarItem(productoId: number) {
-    setItems((prev) => prev.filter((i) => i.producto.id !== productoId))
+  function quitarItem(productoId: number, comboId?: number) {
+    setItems((prev) => prev.filter((i) => comboId !== undefined ? i.comboId !== comboId : i.producto.id !== productoId))
   }
 
   function deshacerCombo(comboId: number) {
@@ -516,6 +534,7 @@ export default function VentasPage() {
     setClienteSeleccionado(null)
     setShowClientPopup(false)
     setShowDebtConfirm(false)
+    setVerified(false)
     setStep('venta')
     setTimeout(() => searchInputRef.current?.focus(), 100)
   }
@@ -671,33 +690,15 @@ export default function VentasPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0" onKeyDown={handleVentaSectionKeyDown}>
       <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
-        {/* Top section — siempre visible */}
-        <div className="shrink-0 space-y-3 pb-3">
-          <div className="flex flex-col gap-4">
-            {/* Caja warning */}
-            {cajaLoading && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />
-                <span>Verificando caja...</span>
-              </div>
-            )}
-            {!cajaLoading && cajaActiva === false && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                </svg>
-                <div className="flex-1">
-                  <span className="font-medium">No hay caja abierta</span>
-                  <p className="text-xs mt-0.5">Andá a la sección Caja para abrir una.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Título */}
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Nueva venta</h2>
-              <p className="text-sm text-gray-500">Seleccione productos para confirmar la operación</p>
-            </div>
+        <PageShell
+          title="Ventas"
+          subtitle="Seleccione productos para confirmar la operación"
+          caja={{
+            loading: cajaLoading,
+            activa: cajaActiva,
+            closedMessage: 'Andá a la sección Caja para abrir una.',
+          }}
+        >
 
             {/* Search bar */}
             <div className="relative">
@@ -771,9 +772,6 @@ export default function VentasPage() {
               </div>
             )}
 
-          </div>
-        </div>
-
         {/* Product Grid — tarjeta con borde, scrollea como el carrito */}
         <div className="flex-1 min-h-0">
           <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -845,17 +843,26 @@ export default function VentasPage() {
                   }}
                 >
                   {filteredProductos.map((p) => (
-                    <ProductCard key={p.id} producto={p} onAdd={agregarProducto} />
+                    <button key={p.id} onClick={() => agregarProducto(p)}
+                      className="text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                      <p className="font-medium text-gray-900 text-sm truncate">{p.nombre}</p>
+                      <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-semibold text-indigo-700">${p.precio.toFixed(2)}</span>
+                      </div>
+                    </button>
                   ))}
                   {filteredCombos.map((c) => (
                     <button key={`combo-${c.id}`} onClick={() => agregarCombo(c)}
-                      className="text-left bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-3 hover:border-purple-400 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/30">
+                      className="text-left bg-white border border-purple-200 rounded-xl p-3 hover:border-purple-400 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/30">
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className="text-[10px] font-bold bg-purple-500 text-white px-1.5 py-0.5 rounded">COMBO</span>
                       </div>
                       <p className="font-medium text-gray-900 text-sm truncate">{c.descCombo}</p>
                       <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{c.codCombo}</p>
-                      <p className="text-lg font-bold text-purple-700 mt-1.5">${c.precio.toFixed(0)}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-semibold text-purple-700">${c.precio.toFixed(2)}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -863,32 +870,130 @@ export default function VentasPage() {
             </div>
           </div>
         </div>
+        </PageShell>
       </div>
 
-      {/* RIGHT PANEL — fixed a la derecha */}
-      <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-4">
-        {/* Cart card (scrollable items) */}
-        <div className="flex-1 min-h-0">
-          <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            {/* Header — siempre visible */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-              <h3 className="text-sm font-semibold text-gray-700">Productos</h3>
+      {/* RIGHT PANEL */}
+      <CartPanel
+        title={items.length > 0 ? `Productos (${items.length})` : 'Nueva venta'}
+        cartRef={cartListRef}
+        footer={
+          <PaymentFooter
+            total={total}
+            confirmLabel="Confirmar venta"
+            onConfirm={confirmarVenta}
+            confirmDisabled={!selectedMedio || !verified}
+            confirmRef={confirmBtnRef}
+            confirmOverride={!cajaActiva ? (
+              <div className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">
+                Sin caja abierta
+              </div>
+            ) : undefined}
+            showVerify
+            verified={verified}
+            onVerifiedChange={setVerified}
+            verifyLabel="Verifiqué productos y medios de pago"
+            extra={clienteSeleccionado && (
+              <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg">
+                <span className="font-medium">Cliente: {clienteSeleccionado.nombre}</span>
+                <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
+              </div>
+            )}
+          >
+            {/* Recibió */}
+            <MontoInput
+              value={recibio}
+              onChange={v => { setRecibio(v); setClienteSeleccionado(null) }}
+              inputRef={recibioInputRef}
+              onFocus={e => e.target.select()}
+              onKeyDown={e => {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  return
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  confirmBtnRef.current?.focus()
+                }
+              }}
+              buttonLabel="Sin pago"
+              onButtonClick={() => setRecibio('0')}
+            />
+
+            {/* Medio de pago */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Medio de pago</label>
+              <div className="flex items-center gap-1 flex-wrap">
+                {mediosPago.map((mp, idx) => {
+                  const estaSeleccionado = selectedMedio?.id === mp.id
+                  return (
+                    <button
+                      key={mp.id}
+                      ref={(el) => { medioRefs.current[idx] = el }}
+                      type="button"
+                      onClick={() => selectMedio(mp)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab' && !e.shiftKey) {
+                          e.preventDefault()
+                          confirmBtnRef.current?.focus()
+                          return
+                        }
+                        if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
+                          e.preventDefault()
+                          searchInputRef.current?.focus()
+                          return
+                        }
+                        handleMedioKeyDown(e, idx)
+                      }}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
+                        estaSeleccionado
+                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700 shadow-sm'
+                          : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-600'
+                      }`}
+                    >
+                      {estaSeleccionado && (
+                        <svg className="w-3 h-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      )}
+                      {mp.nombre}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            <div ref={cartListRef} className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
-              {items.length === 0 ? (
-                /* Empty state */
-                <div className="text-center py-10">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 font-medium text-sm">Agregá productos para armar la venta</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {items.map((i, idx) => (
+            {/* Debt info */}
+            <p className="text-[10px] text-gray-400 leading-tight text-center">
+              Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
+            </p>
+
+            {/* Debt status */}
+            {(() => {
+              const r = parseFloat(recibio || '0')
+              if (r < total && total > 0) return (
+                <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de ${(total - r).toFixed(2)}</p>
+              )
+              if (r >= total && total > 0) return (
+                <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
+              )
+              return null
+            })()}
+          </PaymentFooter>
+        }>
+          {items.length === 0 ? (
+            /* Empty state */
+            <div className="text-center py-10">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                </svg>
+              </div>
+              <p className="text-gray-500 font-medium text-sm">Agregá productos para armar la venta</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {items.map((i, idx) => (
                     <div key={i.comboId ? `combo-${i.comboId}` : i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
                      {i.comboId ? (
@@ -968,7 +1073,7 @@ export default function VentasPage() {
                                 delete next[i.producto.id]
                                 return next
                               })
-                              handleCambiarCantidad(i.producto.id, i.cantidad - 1)
+                              handleCambiarCantidad(i.producto.id, i.cantidad - 1, i.comboId)
                             }}
                             className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-base"
                           >
@@ -991,7 +1096,7 @@ export default function VentasPage() {
                               const raw = cantidadDrafts[i.producto.id]
                               if (raw !== undefined) {
                                 const parsed = parseInt(raw, 10)
-                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed, i.comboId)
                                 setCantidadDrafts((prev) => {
                                   const next = { ...prev }
                                   delete next[i.producto.id]
@@ -1004,7 +1109,7 @@ export default function VentasPage() {
                                 e.preventDefault()
                                 const raw = cantidadDrafts[i.producto.id]
                                 const parsed = parseInt(raw ?? '', 10)
-                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed)
+                                handleCambiarCantidad(i.producto.id, isNaN(parsed) ? 1 : parsed, i.comboId)
                                 setCantidadDrafts((prev) => {
                                   const next = { ...prev }
                                   delete next[i.producto.id]
@@ -1022,7 +1127,7 @@ export default function VentasPage() {
                                 delete next[i.producto.id]
                                 return next
                               })
-                              handleCambiarCantidad(i.producto.id, i.cantidad + 1)
+                              handleCambiarCantidad(i.producto.id, i.cantidad + 1, i.comboId)
                             }}
                             className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors focus:ring-2 focus:ring-gray-400/30 focus:outline-none text-base"
                           >
@@ -1054,7 +1159,7 @@ export default function VentasPage() {
                                     </button>
                                     <div className="border-t border-gray-100 mx-2" />
                                     <button
-                                      onClick={() => { quitarItem(i.producto.id); setComboUndoPopup(null) }}
+                                      onClick={() => { quitarItem(i.producto.id, i.comboId); setComboUndoPopup(null) }}
                                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600 transition-colors"
                                     >
                                       <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1083,139 +1188,8 @@ export default function VentasPage() {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
 
-        {/* Footer: payment summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-4 py-3 shrink-0 space-y-2">
-            {/* Diferencia: Falta o Vuelto */}
-            {selectedMedio && (() => {
-              const r = parseFloat(recibio || '0')
-              if (r === 0) return null
-              const diff = total - r
-              if (diff > 0) return (
-                <div className="flex items-center justify-between pb-2 border-b border-amber-100">
-                  <span className="text-sm font-medium text-amber-700">Falta</span>
-                  <span className="text-xl font-bold text-amber-700">${diff.toFixed(2)}</span>
-                </div>
-              )
-              const vuelto = r - total
-              if (vuelto > 0) return (
-                <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
-                  <span className="text-sm font-medium text-emerald-700">Vuelto</span>
-                  <span className="text-xl font-bold text-emerald-700">${vuelto.toFixed(2)}</span>
-                </div>
-              )
-              return null
-            })()}
-
-            {/* Medio de pago */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Medio de pago</label>
-              <div className="flex items-center gap-1 flex-wrap">
-                {mediosPago.map((mp, idx) => {
-                  const estaSeleccionado = selectedMedio?.id === mp.id
-                  return (
-                    <button
-                      key={mp.id}
-                      ref={(el) => { medioRefs.current[idx] = el }}
-                      type="button"
-                      onClick={() => selectMedio(mp)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Tab' && !e.shiftKey) {
-                          e.preventDefault()
-                          confirmBtnRef.current?.focus()
-                          return
-                        }
-                        if (idx === 0 && e.key === 'Tab' && e.shiftKey) {
-                          e.preventDefault()
-                          searchInputRef.current?.focus()
-                          return
-                        }
-                        handleMedioKeyDown(e, idx)
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium border transition-all focus:ring-2 focus:ring-indigo-500/30 focus:outline-none ${
-                        estaSeleccionado
-                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/30 text-indigo-700 shadow-sm'
-                          : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-600'
-                      }`}
-                    >
-                      {estaSeleccionado && (
-                        <svg className="w-3 h-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
-                      )}
-                      {mp.nombre}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Recibió */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recibió</label>
-              <div className="relative mt-0.5">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl pointer-events-none">$</span>
-                <input
-                  ref={recibioInputRef}
-                  type="number" step="0.01" min="0"
-                  value={recibio}
-                  onChange={e => { setRecibio(e.target.value); setClienteSeleccionado(null) }}
-                  onFocus={e => e.target.select()}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                      e.preventDefault()
-                      return
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      confirmBtnRef.current?.focus()
-                    }
-                  }}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-right text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                  placeholder={total.toFixed(2)}
-                />
-              </div>
-            </div>
-
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500 font-medium">Total</span>
-              <span className="text-2xl font-bold text-gray-900">${total.toFixed(2)}</span>
-            </div>
-
-            {/* Cliente seleccionado para deuda */}
-            {clienteSeleccionado && (
-              <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg">
-                <span className="font-medium">Cliente: {clienteSeleccionado.nombre}</span>
-                <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
-              </div>
-            )}
-
-            {/* Confirm button */}
-            {!cajaActiva ? (
-              <div className="w-full py-2.5 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">
-                Sin caja abierta
-              </div>
-            ) : (
-              <button
-                ref={confirmBtnRef}
-                type="button"
-                onClick={confirmarVenta}
-                disabled={!selectedMedio}
-                className={`w-full py-2.5 font-semibold rounded-xl transition-colors text-sm ${
-                  selectedMedio
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                Confirmar venta
-              </button>
-            )}
-        </div>
-      </div>
+      </CartPanel>
 
       {/* Debt confirmation dialog */}
       {showDebtConfirm && (
@@ -1545,42 +1519,5 @@ export default function VentasPage() {
       )}
     </div>
 
-  )
-}
-
-// ===== Inline Components =====
-
-function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: ProductoDto) => void }) {
-  const estadoStock = producto.stock === 0 ? 'sin-stock' : producto.stock <= 5 ? 'bajo' : 'ok'
-  return (
-    <button
-      type="button"
-      onClick={() => onAdd(producto)}
-      className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none"
-      title={producto.nombre}
-    >
-      <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{producto.nombre}</p>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <p className="text-[10px] text-gray-400 font-mono truncate">{producto.codigoBarra}</p>
-        {producto.tamano && (
-          <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{producto.tamano}</span>
-        )}
-      </div>
-      <div className="flex items-end justify-between mt-2 gap-2">
-        <p className="text-xl font-bold text-indigo-600">${producto.precio.toFixed(2)}</p>
-        <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
-          estadoStock === 'sin-stock'
-            ? 'bg-red-50 text-red-600'
-            : estadoStock === 'bajo'
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-emerald-50 text-emerald-700'
-        }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${
-            estadoStock === 'sin-stock' ? 'bg-red-500' : estadoStock === 'bajo' ? 'bg-amber-500' : 'bg-emerald-500'
-          }`} />
-          {producto.stock === 0 ? 'sin stock' : producto.stock <= 5 ? `solo ${producto.stock}` : `${producto.stock}`}
-        </span>
-      </div>
-    </button>
   )
 }

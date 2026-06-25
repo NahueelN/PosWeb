@@ -138,6 +138,24 @@ public class DeudaService
         // Record individual payment
         _context.PagoDeuda.Add(new PagoDeuda(deuda.ID_DEUDA, montoPagado, userId));
 
+        // If client debt from a sale, reflect payment in active caja
+        if (deuda.ID_CLIENTE != null && deuda.ID_VENTA != null && userId != null)
+        {
+            var cajaActiva = _context.Caja
+                .FirstOrDefault(c => c.ID_USUARIO_APERTURA == userId.Value && c.ESTADO == "Abierta");
+            if (cajaActiva != null)
+            {
+                _context.Pago.Add(new Pago(
+                    deuda.ID_VENTA.Value,
+                    1, // Efectivo
+                    montoPagado,
+                    userId.Value,
+                    cajaActiva.ID_CAJA,
+                    null
+                ));
+            }
+        }
+
         await _context.SaveChangesAsync();
 
         return await ObtenerPorIdAsync(id);
@@ -148,20 +166,20 @@ public class DeudaService
         if (monto <= 0)
             throw new ArgumentException("El monto debe ser mayor a cero");
 
-        var pendientes = await _context.Deuda
-            .Where(d => d.ID_PROVEEDOR == proveedorId && !d.PAGO)
+        var pendientesProveedor = await _context.Deuda
+            .Where(d => d.ID_PROVEEDOR == proveedorId && d.MONTO_DEUDA > d.MONTO_PAGADO)
             .OrderBy(d => d.FECHA_DEUDA)
             .ToListAsync();
 
-        if (pendientes.Count == 0)
+        if (pendientesProveedor.Count == 0)
             throw new ArgumentException("No hay deudas pendientes para este proveedor");
 
-        decimal totalRestante = pendientes.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
-        if (monto > totalRestante)
-            throw new ArgumentException($"El monto (${monto:F2}) supera el total de deudas pendientes (${totalRestante:F2})");
+        decimal totalRestante = pendientesProveedor.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
+        // Cap payment to actual pending total (UI may show slightly different number)
+        decimal montoEfectivo = Math.Min(monto, totalRestante);
 
-        decimal restante = monto;
-        foreach (var deuda in pendientes)
+        decimal restante = montoEfectivo;
+        foreach (var deuda in pendientesProveedor)
         {
             if (restante <= 0) break;
             decimal saldo = deuda.MONTO_DEUDA - deuda.MONTO_PAGADO;
@@ -182,18 +200,22 @@ public class DeudaService
             throw new ArgumentException("El monto debe ser mayor a cero");
 
         var pendientes = await _context.Deuda
-            .Where(d => d.ID_CLIENTE == clienteId && !d.PAGO)
+            .Where(d => d.ID_CLIENTE == clienteId && d.MONTO_DEUDA > d.MONTO_PAGADO)
             .OrderBy(d => d.FECHA_DEUDA)
             .ToListAsync();
 
         if (pendientes.Count == 0)
             throw new ArgumentException("No hay deudas pendientes para este cliente");
 
-        decimal totalRestante = pendientes.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
-        if (monto > totalRestante)
-            throw new ArgumentException($"El monto (${monto:F2}) supera el total de deudas pendientes (${totalRestante:F2})");
+        decimal totalRestanteCliente = pendientes.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
+        // Cap payment to actual pending total
+        decimal montoEfectivoCliente = Math.Min(monto, totalRestanteCliente);
 
-        decimal restante = monto;
+        decimal restante = montoEfectivoCliente;
+        var cajaActiva = userId != null
+            ? _context.Caja.FirstOrDefault(c => c.ID_USUARIO_APERTURA == userId.Value && c.ESTADO == "Abierta")
+            : null;
+
         foreach (var deuda in pendientes)
         {
             if (restante <= 0) break;
@@ -201,6 +223,20 @@ public class DeudaService
             decimal pago = Math.Min(restante, saldo);
             deuda.RegistrarPago(pago);
             _context.PagoDeuda.Add(new PagoDeuda(deuda.ID_DEUDA, pago, userId));
+
+            // Reflect client debt payment in active caja
+            if (deuda.ID_CLIENTE != null && deuda.ID_VENTA != null && cajaActiva != null)
+            {
+                _context.Pago.Add(new Pago(
+                    deuda.ID_VENTA.Value,
+                    1, // Efectivo
+                    pago,
+                    userId!.Value,
+                    cajaActiva.ID_CAJA,
+                    null
+                ));
+            }
+
             restante -= pago;
         }
 
@@ -280,6 +316,7 @@ public class DeudaService
     {
         string nombre;
         List<MovimientoCuentaDto> movimientos = new();
+        decimal saldoActual = 0;
 
         if (clienteId.HasValue)
         {
@@ -318,6 +355,7 @@ public class DeudaService
                     }
                 }
             }
+            saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
         }
         else if (proveedorId.HasValue)
         {
@@ -356,6 +394,7 @@ public class DeudaService
                     }
                 }
             }
+            saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
         }
         else
         {
@@ -363,13 +402,11 @@ public class DeudaService
         }
 
         movimientos = movimientos.OrderBy(m => m.Fecha).ToList();
-        decimal totalDebe = movimientos.Where(m => m.Tipo == "deuda").Sum(m => m.Monto);
-        decimal totalHaber = movimientos.Where(m => m.Tipo == "pago").Sum(m => m.Monto);
 
         return new CuentaCorrienteDto
         {
             EntidadNombre = nombre,
-            SaldoActual = totalDebe - totalHaber,
+            SaldoActual = saldoActual,
             Movimientos = movimientos,
         };
     }

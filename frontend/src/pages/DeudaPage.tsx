@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
+import { PageShell } from '../components/shared';
 
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,6 +24,8 @@ interface EntidadResumen {
   id: number;
   nombre: string;
   total: number;
+  ultimoPago: string | null;
+  ultimaDeuda: string | null;
 }
 
 export default function DeudaPage() {
@@ -84,10 +87,20 @@ export default function DeudaPage() {
     const lista = modo === 'proveedores' ? proveedores : clientes;
     return lista
       .map(e => {
-        const total = deudas
-          .filter(d => (modo === 'proveedores' ? d.proveedorId : d.clienteId) === e.id && !d.pago)
+        const deudasEntidad = deudas.filter(d => (modo === 'proveedores' ? d.proveedorId : d.clienteId) === e.id);
+        const total = deudasEntidad
+          .filter(d => !d.pago)
           .reduce((s, d) => s + d.saldoPendiente, 0);
-        return { id: e.id!, nombre: e.nombre, total };
+        const fechasPago = deudasEntidad
+          .map(d => d.fechaPago)
+          .filter((f): f is string => f != null)
+          .sort((a, b) => b.localeCompare(a));
+        const ultimoPago = fechasPago.length > 0 ? fechasPago[0] : null;
+        const fechasDeuda = deudasEntidad
+          .map(d => d.fecha)
+          .sort((a, b) => b.localeCompare(a));
+        const ultimaDeuda = fechasDeuda.length > 0 ? fechasDeuda[0] : null;
+        return { id: e.id!, nombre: e.nombre, total, ultimoPago, ultimaDeuda };
       })
       .filter(e => {
         if (soloPendientes && e.total === 0) return false;
@@ -236,16 +249,16 @@ export default function DeudaPage() {
     const saldo = cuenta.saldoActual;
 
     return (
-      <div className="h-screen bg-gray-50 p-2 sm:p-4 flex flex-col overflow-hidden">
-        <div className="w-full max-w-full flex flex-col flex-1 min-h-0">
-          <div className="shrink-0 mb-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Deudas</h1>
-            <p className="text-xs sm:text-sm text-gray-500">Administre las cuentas pendientes y registre los pagos.</p>
-          </div>
-
-          <button onClick={closeCuenta} className="mb-2 text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 shrink-0">
+      <PageShell
+        title="Deudas"
+        subtitle={modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}
+        actions={
+          <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1">
             ← Volver
           </button>
+        }
+      >
+        <div className="flex flex-col flex-1 min-h-0">
 
           {/* Encabezado */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-2 sm:mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
@@ -414,21 +427,18 @@ export default function DeudaPage() {
             </div>
           )}
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   // ── Entity list view ──
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="w-full">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Deudas</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Administre las cuentas pendientes y registre los pagos.</p>
-        </div>
-
-        {/* Tab toggle */}
-        <div className="flex items-center gap-1 mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
+    <PageShell
+      title="Deudas"
+      subtitle="Administre las cuentas pendientes y registre los pagos."
+      loading={loading}
+      tabs={
+        <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
           <button onClick={() => setModo('clientes')}
             className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
             Clientes
@@ -438,7 +448,8 @@ export default function DeudaPage() {
             Proveedores
           </button>
         </div>
-
+      }
+    >
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
@@ -492,6 +503,8 @@ export default function DeudaPage() {
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                   <th className="px-4 py-3">{modo === 'proveedores' ? 'Proveedor' : 'Cliente'}</th>
+                  <th className="px-4 py-3">Última deuda</th>
+                  <th className="px-4 py-3">Último pago</th>
                   <th className="px-4 py-3 text-right">Total deuda</th>
                 </tr>
               </thead>
@@ -500,6 +513,12 @@ export default function DeudaPage() {
                   <tr key={e.id} onClick={() => openCuenta(e)}
                     className="hover:bg-indigo-50 cursor-pointer transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{e.nombre}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                      {e.ultimaDeuda ? formatDate(e.ultimaDeuda) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                      {e.ultimoPago ? formatDate(e.ultimoPago) : '—'}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-red-600">{formatCurrency(e.total)}</td>
                   </tr>
                 ))}
@@ -507,7 +526,6 @@ export default function DeudaPage() {
             </table>
           </div>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }
