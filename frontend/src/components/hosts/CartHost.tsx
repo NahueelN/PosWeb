@@ -9,8 +9,8 @@ import type { CartItemBase } from '../../cart/cart-logic'
 export interface CartHostProps<T extends CartItemBase> {
   /** useCart return value — provides items, total, actions */
   cart: UseCartReturn<T>
-  /** Cart panel title (e.g. "Productos (3)") */
-  title: string
+  /** Cart panel title. Defaults to "Productos" / "Productos (N)". */
+  title?: string
   /** Confirm button label */
   confirmLabel: string
   /** Confirm handler */
@@ -59,6 +59,10 @@ export interface CartHostProps<T extends CartItemBase> {
   getItemKey?: (item: T, index: number) => string | number
   /** Extra content after items in CartPanel */
   cartExtra?: ReactNode
+  /** Show keyboard hints bar (arrow keys, Enter) */
+  keyboardHints?: boolean
+  /** Content above the product grid (search bar, proveedor selector) */
+  topContent?: ReactNode
   /** Left panel content (search bar, product grid, etc.) */
   children: ReactNode
 }
@@ -90,10 +94,31 @@ export default function CartHost<T extends CartItemBase>({
   getItemProps,
   getItemKey = (_item, idx) => idx,
   cartExtra,
+  keyboardHints = true,
+  topContent,
   children,
 }: CartHostProps<T>) {
+  const displayTitle = title ?? (cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Productos')
   const leftContent = pageShell ? (
     <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja}>
+      {topContent}
+      {keyboardHints && (
+        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap mb-2">
+          <span className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">←</kbd>
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">↑</kbd>
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">→</kbd>
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">↓</kbd>
+            <span>Productos</span>
+          </span>
+          {cart.items.length > 0 && (
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">Enter</kbd>
+              <span>Medios de pago</span>
+            </span>
+          )}
+        </div>
+      )}
       {children}
     </PageShell>
   ) : (
@@ -107,9 +132,20 @@ export default function CartHost<T extends CartItemBase>({
       </div>
 
       <CartPanel
-        title={title}
+        title={displayTitle}
         cartRef={cartRef as RefObject<HTMLDivElement | null> | undefined}
-        headerExtra={headerExtra}
+        headerExtra={
+          <div className="flex items-center gap-2">
+            {headerExtra}
+            {cart.items.length > 0 && (
+              <button onClick={() => cart.clearCart()} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Vaciar carrito">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+              </button>
+            )}
+          </div>
+        }
         footer={
           <PaymentFooter
             total={cart.total}

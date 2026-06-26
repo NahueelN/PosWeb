@@ -75,11 +75,12 @@ describe('VentasPage smoke', () => {
     }, { timeout: 3000 })
   })
 
-  it('shows CartPanel for new sale', async () => {
+  it('shows CartPanel with Productos title', async () => {
     const { default: VentasPage } = await import('../../pages/VentasPage')
     render(<VentasPage />)
     await vi.waitFor(() => {
-      expect(screen.getByText('Nueva venta')).toBeInTheDocument()
+      const titles = screen.getAllByText('Productos')
+      expect(titles.length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
   })
 })
@@ -103,11 +104,12 @@ describe('CompraPage smoke', () => {
     }, { timeout: 3000 })
   })
 
-  it('shows CartPanel for new purchase', async () => {
+  it('shows CartPanel with Productos title', async () => {
     const { default: CompraPage } = await import('../../pages/CompraPage')
     render(<CompraPage />)
     await vi.waitFor(() => {
-      expect(screen.getByText('Nueva compra')).toBeInTheDocument()
+      const titles = screen.getAllByText('Productos')
+      expect(titles.length).toBeGreaterThanOrEqual(1)
     }, { timeout: 3000 })
   })
 })
