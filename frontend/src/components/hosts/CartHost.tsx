@@ -59,8 +59,6 @@ export interface CartHostProps<T extends CartItemBase> {
   getItemKey?: (item: T, index: number) => string | number
   /** Extra content after items in CartPanel */
   cartExtra?: ReactNode
-  /** Show keyboard hints bar (arrow keys, Enter) */
-  keyboardHints?: boolean
   /** Content above the product grid (search bar, proveedor selector) */
   topContent?: ReactNode
   /** Left panel content (search bar, product grid, etc.) */
@@ -94,7 +92,6 @@ export default function CartHost<T extends CartItemBase>({
   getItemProps,
   getItemKey = (_item, idx) => idx,
   cartExtra,
-  keyboardHints = true,
   topContent,
   children,
 }: CartHostProps<T>) {
@@ -102,23 +99,6 @@ export default function CartHost<T extends CartItemBase>({
   const leftContent = pageShell ? (
     <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja}>
       {topContent}
-      {keyboardHints && (
-        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap mb-2">
-          <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">←</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">↑</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">→</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">↓</kbd>
-            <span>Productos</span>
-          </span>
-          {cart.items.length > 0 && (
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200">Enter</kbd>
-              <span>Medios de pago</span>
-            </span>
-          )}
-        </div>
-      )}
       {children}
     </PageShell>
   ) : (

@@ -6,6 +6,7 @@ import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
 import { useCart } from '../hooks/useCart';
 import CartHost from '../components/hosts/CartHost';
+import KeyboardHints from '../components/shared/KeyboardHints';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -439,6 +440,7 @@ export default function CompraPage() {
       <div className="flex-1 min-h-0 pb-4">
         <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="h-full overflow-y-auto p-4">
+            <KeyboardHints showEnter={cart.items.length > 0} />
             {!proveedorOk ? <div className="text-center py-16 text-gray-500"><p className="font-medium text-sm">Seleccione un proveedor para ver productos</p></div>
             : prodLoading ? <div className="flex items-center justify-center py-16"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="ml-3 text-gray-500 text-sm">Cargando...</span></div>
             : filteredProducts.length === 0 ? <div className="text-center py-16"><p className="text-gray-500 font-medium text-sm">{searchQuery ? 'Sin resultados' : 'No hay productos'}</p></div>
