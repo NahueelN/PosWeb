@@ -348,41 +348,49 @@ export default function CompraPage() {
       montoInputRef={montoPagoRef}
       montoButtonLabel="No pagar"
       onMontoButtonClick={() => setMontoPago('')}
-      itemRenderer={(item, i) => (
-        editingIdx === i ? (
-          <div key={i} className="bg-white border-2 border-indigo-300 rounded-xl p-3 text-xs">
-            <div className="flex justify-between mb-2"><span className="font-bold text-indigo-900">Editar</span><button onClick={() => setEditingIdx(null)} className="text-gray-400 hover:text-gray-600">Cancelar</button></div>
-            <div className="grid grid-cols-3 gap-1.5 mb-2">
-              <div className="col-span-3"><label className="text-gray-500">Nombre</label><p className="text-gray-800 font-medium">{item.productoNombre || '-'}</p></div>
-              <div className="col-span-3"><label className="text-gray-500">Código</label><p className="text-gray-500 font-mono">{item.codigoBarra || '-'}</p></div>
-              <div><label className="text-gray-500">Precio</label><input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-              <div><label className="text-gray-500">Costo</label><input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border border-indigo-300 rounded" autoFocus /></div>
-              <div><label className="text-gray-500">Cant</label><input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))} onKeyDown={e => e.key === 'Enter' && saveEdit(i)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-              <div><label className="text-gray-500">Categ</label><p className="text-gray-800">{categorias.find(c => c.id === item.categoriaId)?.descripcion || '-'}</p></div>
-              <div><label className="text-gray-500">U.Med</label><p className="text-gray-800">{unidades.find(u => u.id === item.unidadMedidaId)?.descripcion || '-'}</p></div>
-              <div><label className="text-gray-500">Cont</label><p className="text-gray-800">{item.contenido ?? '-'}</p></div>
-              <div className="col-span-3"><label className="text-gray-500">Desc</label><p className="text-gray-800">{item.descAdicional || '-'}</p></div>
-            </div>
-            <button onClick={() => saveEdit(i)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
+      getItemProps={(item, i) => 
+        editingIdx === i ? {
+          nombre: 'Editando...',
+          precioUnitario: '',
+          subtotal: '',
+          cantidad: item.cantidad,
+          min: 0,
+          onCantidadChange: () => {},
+          onRemove: () => setEditingIdx(null),
+          removeButton: <button onClick={() => setEditingIdx(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400">✕</button>,
+        } : {
+          nombre: item.productoNombre || '(nuevo)',
+          codigo: item.codigoBarra,
+          precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
+          subtotal: formatCurrency(item.costoUnitario * item.cantidad),
+          cantidad: item.cantidad,
+          min: 1,
+          onCantidadChange: (c) => c <= 0 ? cart.removeItem(item.productoId) : cart.updateQuantity(item.productoId, c),
+          onEnter: () => searchRef.current?.focus(),
+          inputRef: (el) => { if (el) cantidadRefs.current.set(item.productoId, el) },
+          onRemove: () => cart.removeItem(item.productoId),
+          onClickName: () => startEdit(i),
+          badge: item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined,
+        }
+      }
+      getItemKey={(item, i) => i}
+      cartExtra={editingIdx !== null ? (
+        <div className="bg-white border-2 border-indigo-300 rounded-xl p-3 text-xs mt-2">
+          <div className="flex justify-between mb-2"><span className="font-bold text-indigo-900">Editar</span><button onClick={() => setEditingIdx(null)} className="text-gray-400 hover:text-gray-600">Cancelar</button></div>
+          <div className="grid grid-cols-3 gap-1.5 mb-2">
+            <div className="col-span-3"><label className="text-gray-500">Nombre</label><p className="text-gray-800 font-medium">{cart.items[editingIdx]?.productoNombre || '-'}</p></div>
+            <div className="col-span-3"><label className="text-gray-500">Código</label><p className="text-gray-500 font-mono">{cart.items[editingIdx]?.codigoBarra || '-'}</p></div>
+            <div><label className="text-gray-500">Precio</label><input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+            <div><label className="text-gray-500">Costo</label><input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)} className="w-full px-1.5 py-0.5 border border-indigo-300 rounded" autoFocus /></div>
+            <div><label className="text-gray-500">Cant</label><input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))} onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)} className="w-full px-1.5 py-0.5 border rounded" /></div>
+            <div><label className="text-gray-500">Categ</label><p className="text-gray-800">{categorias.find(c => c.id === cart.items[editingIdx]?.categoriaId)?.descripcion || '-'}</p></div>
+            <div><label className="text-gray-500">U.Med</label><p className="text-gray-800">{unidades.find(u => u.id === cart.items[editingIdx]?.unidadMedidaId)?.descripcion || '-'}</p></div>
+            <div><label className="text-gray-500">Cont</label><p className="text-gray-800">{cart.items[editingIdx]?.contenido ?? '-'}</p></div>
+            <div className="col-span-3"><label className="text-gray-500">Desc</label><p className="text-gray-800">{cart.items[editingIdx]?.descAdicional || '-'}</p></div>
           </div>
-        ) : (
-          <CartItemRow
-            key={i}
-            nombre={item.productoNombre || '(nuevo)'}
-            codigo={item.codigoBarra}
-            precioUnitario={`${formatCurrency(item.costoUnitario)} c/u`}
-            subtotal={formatCurrency(item.costoUnitario * item.cantidad)}
-            cantidad={item.cantidad}
-            min={1}
-            onCantidadChange={(c) => c <= 0 ? cart.removeItem(item.productoId) : cart.updateQuantity(item.productoId, c)}
-            onEnter={() => searchRef.current?.focus()}
-            inputRef={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
-            onRemove={() => cart.removeItem(item.productoId)}
-            onClickName={() => startEdit(i)}
-            badge={item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined}
-          />
-        )
-      )}
+          <button onClick={() => saveEdit(editingIdx)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
+        </div>
+      ) : undefined}
     >
       {/* Top bar — Proveedor */}
       <div className="shrink-0 space-y-3 pb-2">

@@ -1,5 +1,6 @@
 import { type ReactNode, type RefObject } from 'react'
-import { CartPanel, PaymentFooter, MontoInput, PageShell } from '../shared'
+import { CartPanel, PaymentFooter, MontoInput, PageShell, CartItemList } from '../shared'
+import type { CartItemRowProps } from '../shared/CartItemRow'
 import type { UseCartReturn } from '../../hooks/useCart'
 import type { CartItemBase } from '../../cart/cart-logic'
 
@@ -52,25 +53,14 @@ export interface CartHostProps<T extends CartItemBase> {
   onMontoButtonClick?: () => void
   /** Override confirm button (e.g. "Sin caja abierta") */
   confirmOverride?: ReactNode
-  /** Custom item renderer */
-  itemRenderer?: (item: T, index: number) => ReactNode
+  /** Extract CartItemRow display props from each item */
+  getItemProps: (item: T, index: number) => CartItemRowProps
+  /** Unique key for each item */
+  getItemKey?: (item: T, index: number) => string | number
   /** Extra content after items in CartPanel */
   cartExtra?: ReactNode
   /** Left panel content (search bar, product grid, etc.) */
   children: ReactNode
-}
-
-// ── Default item renderer ──────────────────────────────────────────
-
-function defaultItemRenderer<T extends CartItemBase>(item: T, index: number): ReactNode {
-  return (
-    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
-      <span className="text-gray-800 font-medium truncate mr-2">
-        Item {index + 1}
-      </span>
-      <span className="text-gray-500 shrink-0">x{item.cantidad}</span>
-    </div>
-  )
 }
 
 // ── Component ──────────────────────────────────────────────────────
@@ -97,7 +87,8 @@ export default function CartHost<T extends CartItemBase>({
   montoButtonLabel,
   onMontoButtonClick,
   confirmOverride,
-  itemRenderer,
+  getItemProps,
+  getItemKey = (_item, idx) => idx,
   cartExtra,
   children,
 }: CartHostProps<T>) {
@@ -145,19 +136,12 @@ export default function CartHost<T extends CartItemBase>({
           </PaymentFooter>
         }
       >
-        {cart.items.length === 0 ? (
-          emptyState ?? (
-            <div className="text-center py-10 text-gray-400 text-sm">
-              Agregá productos para armar la operación
-            </div>
-          )
-        ) : (
-          <div className="space-y-2">
-            {cart.items.map((item, idx) =>
-              itemRenderer ? itemRenderer(item, idx) : defaultItemRenderer(item, idx)
-            )}
-          </div>
-        )}
+        <CartItemList
+          items={cart.items}
+          getItemProps={getItemProps}
+          getKey={getItemKey}
+          emptyState={emptyState}
+        />
         {cartExtra}
       </CartPanel>
     </div>
