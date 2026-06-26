@@ -6,6 +6,7 @@ import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
 import { useCart } from '../hooks/useCart';
 import CartHost from '../components/hosts/CartHost';
+import CartItemRow from '../components/shared/CartItemRow';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -365,33 +366,21 @@ export default function CompraPage() {
             <button onClick={() => saveEdit(i)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
           </div>
         ) : (
-          <div key={i} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(i)}>
-              <p className="font-semibold text-gray-900 text-base truncate">{item.productoNombre || '(nuevo)'}</p>
-              <p className="text-xs text-gray-400 font-mono truncate">{item.codigoBarra}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{formatCurrency(item.costoUnitario)} c/u</p>
-            </div>
-            <div className="flex flex-col items-end gap-0.5 shrink-0">
-              <p className="font-semibold text-gray-900 text-base">{formatCurrency(item.costoUnitario * item.cantidad)}</p>
-              <div className="flex items-center gap-1">
-                <button type="button"
-                  onClick={() => { if (item.cantidad <= 1) cart.removeItem(item.productoId); else cart.updateQuantity(item.productoId, item.cantidad - 1) }}
-                  className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors text-base">−</button>
-                <input type="number" min={0} value={item.cantidad}
-                  ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); else cantidadRefs.current.delete(item.productoId) }}
-                  className="w-14 text-center border border-gray-300 rounded-lg px-1 py-1 text-base font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                  onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId); return; } cart.updateQuantity(item.productoId, v); }}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const raw = (e.target as HTMLInputElement).value; const v = parseInt(raw); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId) } else { cart.updateQuantity(item.productoId, v) }; searchRef.current?.focus() } }} />
-                <button type="button"
-                  onClick={() => cart.updateQuantity(item.productoId, item.cantidad + 1)}
-                  className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors text-base">+</button>
-                <button type="button" onClick={() => cart.removeItem(item.productoId)}
-                  className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            </div>
-          </div>
+          <CartItemRow
+            key={i}
+            nombre={item.productoNombre || '(nuevo)'}
+            codigo={item.codigoBarra}
+            precioUnitario={`${formatCurrency(item.costoUnitario)} c/u`}
+            subtotal={formatCurrency(item.costoUnitario * item.cantidad)}
+            cantidad={item.cantidad}
+            min={1}
+            onCantidadChange={(c) => c <= 0 ? cart.removeItem(item.productoId) : cart.updateQuantity(item.productoId, c)}
+            onEnter={() => searchRef.current?.focus()}
+            inputRef={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
+            onRemove={() => cart.removeItem(item.productoId)}
+            onClickName={() => startEdit(i)}
+            badge={item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined}
+          />
         )
       )}
     >
