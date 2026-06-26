@@ -3,26 +3,22 @@ import CartItemRow, { type CartItemRowProps } from './CartItemRow'
 
 // ── Types ──────────────────────────────────────────────────────────
 
-export interface CartItemListProps<T> {
-  /** Items to render */
-  items: T[]
-  /** Extract display props from each item */
-  getItemProps: (item: T, index: number) => CartItemRowProps
-  /** Unique key for each item */
-  getKey: (item: T, index: number) => string | number
-  /** Empty state content */
+export interface CartItemListProps {
+  items: any[]
+  getItemProps: (item: any, index: number) => CartItemRowProps
+  getKey: (item: any, index: number) => string | number
   emptyState?: ReactNode
 }
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function CartItemList<T>({
+export default function CartItemList({
   items,
   getItemProps,
   getKey,
   emptyState,
-}: CartItemListProps<T>) {
-  if (items.length === 0) {
+}: CartItemListProps) {
+  if (!items || items.length === 0) {
     return (
       <>{emptyState ?? (
         <div className="text-center py-10 text-gray-400 text-sm">
@@ -34,7 +30,7 @@ export default function CartItemList<T>({
 
   return (
     <div className="space-y-2">
-      {items.map((item, idx) => (
+      {items.map((item: any, idx: number) => (
         <CartItemRow key={getKey(item, idx)} {...getItemProps(item, idx)} />
       ))}
     </div>

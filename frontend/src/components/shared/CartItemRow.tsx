@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react'
-import type { CartItemBase } from '../../cart/cart-logic'
 
 // ── Shared cart item row props ──────────────────────────────────────
 

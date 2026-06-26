@@ -6,7 +6,6 @@ import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
 import { useCart } from '../hooks/useCart';
 import CartHost from '../components/hosts/CartHost';
-import CartItemRow from '../components/shared/CartItemRow';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
