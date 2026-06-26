@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { useCart } from '../hooks/useCart'
 import CartHost from '../components/hosts/CartHost'
+import KeyboardHints from '../components/shared/KeyboardHints'
 
 interface Item {
   producto: ProductoDto
@@ -829,6 +830,7 @@ export default function VentasPage() {
       <div className="flex-1 min-h-0">
         <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="h-full overflow-y-auto p-4">
+            <KeyboardHints showEnter={cart.items.length > 0} />
             {productosLoading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
