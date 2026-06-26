@@ -56,16 +56,10 @@ public class VentaService
             throw new VentaSinCajaActivaException();
         }
 
-        // Validate pagos
-        if (dto.Pagos == null)
-        {
-            throw new PagosVaciosException();
-        }
-
         decimal totalPagos = 0;
         List<(int medioPagoId, decimal monto, decimal? conCambio)> pagosData = new();
 
-        if (dto.Pagos.Count > 0)
+        if (dto.Pagos is { Count: > 0 })
         {
             foreach (var pago in dto.Pagos)
             {
@@ -123,15 +117,20 @@ public class VentaService
 
                     if (cdisponible < cantidadNecesaria)
                     {
-                        throw new StockSucursalInsuficienteException(
-                            cproducto.DESC_PRODUCTO,
-                            dto.SucursalId,
-                            cdisponible,
-                            (int)cantidadNecesaria
-                        );
+                        if (!dto.AllowSinStock)
+                        {
+                            throw new StockSucursalInsuficienteException(
+                                cproducto.DESC_PRODUCTO,
+                                dto.SucursalId,
+                                cdisponible,
+                                (int)cantidadNecesaria
+                            );
+                        }
                     }
-
-                    cstock!.DescontarStock(cantidadNecesaria);
+                    else if (cstock != null)
+                    {
+                        cstock.DescontarStock(cantidadNecesaria);
+                    }
                     venta.AgregarRenglonCombo(combo, citem.ID_PRODUCTO, cantidadNecesaria, 0);
                 }
 
@@ -151,30 +150,37 @@ public class VentaService
                     throw new ProductoInactivoException(item.ProductoId);
                 }
 
-                StockSucursal? stockSuc = _context.StockSucursal
-                    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
+               StockSucursal? stockSuc = _context.StockSucursal
+    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
-                int available = (int)(stockSuc?.STOCK ?? 0);
+int available = (int)(stockSuc?.STOCK ?? 0);
 
-                if (available < item.Cantidad)
-                {
-                    throw new StockSucursalInsuficienteException(
-                        producto.DESC_PRODUCTO,
-                        dto.SucursalId,
-                        available,
-                        item.Cantidad
-                    );
-                }
+if (available < item.Cantidad && !dto.AllowSinStock)
+{
+    throw new StockSucursalInsuficienteException(
+        producto.DESC_PRODUCTO,
+        dto.SucursalId,
+        available,
+        item.Cantidad
+    );
+}
 
-                stockSuc!.DescontarStock(item.Cantidad);
-                venta.AgregarRenglon(producto, item.Cantidad);
+if (stockSuc != null && available >= item.Cantidad)
+{
+    stockSuc.DescontarStock(item.Cantidad);
+}
+
+            venta.AgregarRenglon(producto, item.Cantidad);
             }
+
         }
 
         // Validate payment total against sale total
-        if (dto.Pagos.Count > 0)
+        decimal totalVenta = venta.TOTAL;
+        bool isPartialPayment = dto.ClienteId.HasValue && totalPagos < totalVenta - 0.01m;
+
+        if (pagosData.Count > 0 && !isPartialPayment)
         {
-            decimal totalVenta = venta.TOTAL;
             if (Math.Abs(totalPagos - totalVenta) > 0.01m)
             {
                 // Check if it's a cash payment with extra (change scenario)
@@ -206,10 +212,6 @@ public class VentaService
                 }
             }
         }
-        else
-        {
-            throw new PagosVaciosException();
-        }
 
         _context.Venta.Add(venta);
         _context.SaveChanges();
@@ -218,7 +220,7 @@ public class VentaService
         decimal cambioTotal = 0;
         var pagosResult = new List<PagoVentaResultDto>();
 
-        if (dto.Pagos != null && pagosData.Count > 0)
+        if (pagosData.Count > 0)
         {
             foreach (var (medioPagoId, monto, conCambio) in pagosData)
             {
@@ -227,7 +229,8 @@ public class VentaService
                     medioPagoId,
                     monto,
                     usuarioId ?? 0,
-                    cajaActiva.ID_CAJA
+                    cajaActiva.ID_CAJA,
+                    conCambio
                 );
 
                 _context.Pago.Add(pago);
@@ -252,13 +255,43 @@ public class VentaService
             _context.SaveChanges();
         }
 
+        // Auto-create client debt for partial payments
+        int? deudaId = null;
+        decimal? deudaMonto = null;
+        if (isPartialPayment && dto.ClienteId.HasValue)
+        {
+            deudaMonto = totalVenta - totalPagos;
+            var deuda = new Deuda(deudaMonto.Value, idCliente: dto.ClienteId.Value, idVenta: venta.ID_VENTA, montoPagado: totalPagos);
+            _context.Deuda.Add(deuda);
+            _context.SaveChanges();
+            deudaId = deuda.ID_DEUDA;
+        }
+
+        string? clienteNombre = null;
+        if (dto.ClienteId.HasValue)
+        {
+            var cli = _context.Cliente.Find(dto.ClienteId.Value);
+            clienteNombre = cli?.NOMBRE;
+        }
+
+        string? empresaNombre = _context.Empresa
+            .Where(e => e.ID_EMPRESA == sucursal.ID_EMPRESA)
+            .Select(e => e.NOMBRE)
+            .FirstOrDefault();
+
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
             Fecha = venta.FECHA_VENTA,
             Total = venta.TOTAL,
             Pagos = pagosResult,
-            Cambio = cambioTotal
+            Cambio = cambioTotal,
+            ClienteId = dto.ClienteId,
+            ClienteNombre = clienteNombre,
+            DeudaId = deudaId,
+            DeudaMonto = deudaMonto,
+            CajaId = cajaActiva.ID_CAJA,
+            EmpresaNombre = empresaNombre
         };
     }
 

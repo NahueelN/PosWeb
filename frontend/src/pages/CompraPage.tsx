@@ -4,6 +4,7 @@ import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, Ca
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
+import { CartPanel, PaymentFooter, MontoInput } from '../components/shared';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -140,7 +141,7 @@ export default function CompraPage() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   // Payment
-  const [montoPago, setMontoPago] = useState(0);
+  const [montoPago, setMontoPago] = useState('');
   const [fuentePago, setFuentePago] = useState<'caja' | 'ahorro' | 'dividir'>('caja');
   const [montoCaja, setMontoCaja] = useState(0);
   const [montoAhorro, setMontoAhorro] = useState(0);
@@ -226,7 +227,7 @@ export default function CompraPage() {
   // Auto-complete montoPago with cartTotal for caja/ahorro
   useEffect(() => {
     if (fuentePago !== 'dividir') {
-      setMontoPago(cartTotal > 0 ? cartTotal : 0);
+      setMontoPago(cartTotal > 0 ? cartTotal.toFixed(2) : '')
     }
   }, [fuentePago, cartTotal]);
 
@@ -318,7 +319,7 @@ export default function CompraPage() {
     setIsConfirming(true);
     try {
       const esDividir = fuentePago === 'dividir';
-      const montoPagadoTotal = esDividir ? (montoCaja + montoAhorro) : montoPago;
+      const montoPagadoTotal = esDividir ? (montoCaja + montoAhorro) : (parseFloat(montoPago) || 0);
       const montoPagado = montoPagadoTotal > 0 ? montoPagadoTotal : undefined;
       const montoPagadoCaja = esDividir ? (montoCaja > 0 ? montoCaja : undefined) : undefined;
       const req: CompraRequestDto = {
@@ -526,12 +527,10 @@ export default function CompraPage() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-3">
-        {/* Header */}
-        <div className="flex items-center justify-between shrink-0">
-          <h3 className="text-sm font-semibold text-gray-700">
-            {state.cart.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
-          </h3>
+      <CartPanel
+        title={state.cart.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
+        cartRef={cartListRef}
+        headerExtra={
           <div className="flex items-center gap-2">
             {state.proveedorNombre && (
               <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
@@ -546,10 +545,96 @@ export default function CompraPage() {
               </button>
             )}
           </div>
-        </div>
+        }
+        footer={
+          <PaymentFooter
+            total={cartTotal}
+            confirmLabel={isConfirming ? 'Confirmando...' : 'Confirmar compra'}
+            onConfirm={handleConfirm}
+            confirmDisabled={!state.verified || isConfirming || state.cart.length === 0 || !proveedorOk}
+            showVerify
+            verified={state.verified}
+            onVerifiedChange={(checked: boolean) => dispatch({ type: 'SET_VERIFIED', verified: checked })}
+            verifyLabel="Verifiqué cantidades y costos"
+          >
+            {/* Payment card content */}
+            {fuentePago === 'dividir' ? (
+              <>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500 font-medium">$ Caja</span>
+                    <input type="number" min={0} step="0.01"
+                      value={montoCaja || ''} onChange={e => setMontoCaja(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-14 pr-3 py-2 bg-white border border-indigo-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      placeholder="0.00" />
+                  </div>
+                  <button onClick={() => setMontoCaja(cartTotal - montoAhorro)}
+                    className="px-2 py-2 text-xs font-medium bg-indigo-50 border border-indigo-300 rounded-lg hover:bg-indigo-100 text-indigo-700 transition-colors"
+                    title="Caja cubre el resto">
+                    Completar
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-emerald-500 font-medium">$ Ahorro</span>
+                    <input type="number" min={0} step="0.01"
+                      value={montoAhorro || ''} onChange={e => setMontoAhorro(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-16 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      placeholder="0.00" />
+                  </div>
+                  <button onClick={() => setMontoAhorro(cartTotal - montoCaja)}
+                    className="px-2 py-2 text-xs font-medium bg-emerald-50 border border-emerald-300 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors"
+                    title="Ahorro cubre el resto">
+                    Completar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <MontoInput
+                value={montoPago}
+                onChange={v => setMontoPago(v)}
+                inputRef={montoPagoRef}
+                buttonLabel="No pagar"
+                onButtonClick={() => setMontoPago('')}
+              />
+            )}
 
-          {/* Cart items */}
-          <div ref={cartListRef} className="flex-1 overflow-y-auto min-h-0">
+            {/* Fuente selector */}
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+              {(['caja', 'ahorro', 'dividir'] as const).map(f => (
+                <button key={f} onClick={() => setFuentePago(f)}
+                  className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
+                    fuentePago === f
+                      ? f === 'caja'
+                        ? 'bg-indigo-500 text-white'
+                        : f === 'ahorro'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-amber-500 text-white'
+                      : 'bg-white text-gray-500 hover:bg-gray-100'
+                  }`}>
+                  {f === 'caja' ? '💵 Caja' : f === 'ahorro' ? '🏦 Ahorro' : '↔ Dividir'}
+                </button>
+              ))}
+            </div>
+
+            {/* Debt info */}
+            <p className="text-[10px] text-gray-400 leading-tight text-center">
+              Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
+            </p>
+
+            {/* Debt status */}
+            {(() => {
+              const pagado = fuentePago === 'dividir' ? (montoCaja + montoAhorro) : (parseFloat(montoPago) || 0);
+              if (pagado < cartTotal && cartTotal > 0) return (
+                <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - pagado)}</p>
+              );
+              if (pagado >= cartTotal && cartTotal > 0) return (
+                <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
+              );
+              return null;
+            })()}
+          </PaymentFooter>
+        }>
             {state.cart.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">Agregá productos para armar la compra</div>
             ) : (
@@ -608,110 +693,8 @@ export default function CompraPage() {
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Footer */}
-          <div className="shrink-0 space-y-3 border-t border-gray-200 pt-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">Total</span>
-              <span className="text-lg font-bold text-indigo-700">{formatCurrency(cartTotal)}</span>
-            </div>
-
-            {/* Payment card */}
-            <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
-              {fuentePago === 'dividir' ? (
-                <>
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500 font-medium">$ Caja</span>
-                      <input type="number" min={0} step="0.01"
-                        value={montoCaja || ''} onChange={e => setMontoCaja(parseFloat(e.target.value) || 0)}
-                        className="w-full pl-14 pr-3 py-2 bg-white border border-indigo-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="0.00" />
-                    </div>
-                    <button onClick={() => setMontoCaja(cartTotal - montoAhorro)}
-                      className="px-2 py-2 text-xs font-medium bg-indigo-50 border border-indigo-300 rounded-lg hover:bg-indigo-100 text-indigo-700 transition-colors"
-                      title="Caja cubre el resto">
-                      Completar
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-emerald-500 font-medium">$ Ahorro</span>
-                      <input type="number" min={0} step="0.01"
-                        value={montoAhorro || ''} onChange={e => setMontoAhorro(parseFloat(e.target.value) || 0)}
-                        className="w-full pl-16 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                        placeholder="0.00" />
-                    </div>
-                    <button onClick={() => setMontoAhorro(cartTotal - montoCaja)}
-                      className="px-2 py-2 text-xs font-medium bg-emerald-50 border border-emerald-300 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors"
-                      title="Ahorro cubre el resto">
-                      Completar
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-mono">$</span>
-                    <input ref={montoPagoRef} type="number" min={0} step="0.01"
-                      value={montoPago || ''} onChange={e => setMontoPago(parseFloat(e.target.value) || 0)}
-                      className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="0.00" />
-                  </div>
-                  <button onClick={() => setMontoPago(0)}
-                    className="px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
-                    title="No pagar nada">
-                    No pagar
-                  </button>
-                </div>
-              )}
-
-              <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                {(['caja', 'ahorro', 'dividir'] as const).map(f => (
-                  <button key={f} onClick={() => setFuentePago(f)}
-                    className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
-                      fuentePago === f
-                        ? f === 'caja'
-                          ? 'bg-indigo-500 text-white'
-                          : f === 'ahorro'
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-amber-500 text-white'
-                        : 'bg-white text-gray-500 hover:bg-gray-100'
-                    }`}>
-                    {f === 'caja' ? '💵 Caja' : f === 'ahorro' ? '🏦 Ahorro' : '↔ Dividir'}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-[10px] text-gray-400 leading-tight text-center">
-                Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
-              </p>
-
-              {(() => {
-                const pagado = fuentePago === 'dividir' ? (montoCaja + montoAhorro) : montoPago;
-                if (pagado < cartTotal && cartTotal > 0) return (
-                  <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - pagado)}</p>
-                );
-                if (pagado >= cartTotal && cartTotal > 0) return (
-                  <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
-                );
-                return null;
-              })()}
-            </div>
-
-            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={state.verified} onChange={e => dispatch({ type: 'SET_VERIFIED', verified: e.target.checked })}
-                className="h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded" />
-              Verifiqué cantidades y costos
-            </label>
-            <button onClick={handleConfirm}
-              disabled={!state.verified || isConfirming || state.cart.length === 0 || !proveedorOk}
-              className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {isConfirming ? 'Confirmando...' : `Confirmar compra — ${formatCurrency(cartTotal)}`}
-            </button>
-          </div>
-        </div>
+      </CartPanel>
 
       {/* New Product Modal */}
       <ProductFormModal

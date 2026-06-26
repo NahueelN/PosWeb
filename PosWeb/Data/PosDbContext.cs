@@ -33,6 +33,7 @@ public class PosDbContext : DbContext
     public DbSet<RenglonPedido> RenglonPedido { get; set; }
     public DbSet<Combo> Combo { get; set; }
     public DbSet<ComboItem> ComboItem { get; set; }
+    public DbSet<PagoDeuda> PagoDeuda { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -230,7 +231,7 @@ public class PosDbContext : DbContext
             entity.Property(c => c.COD_CLIENTE)
                 .HasColumnName("COD_CLIENTE")
                 .HasMaxLength(50)
-                .IsRequired();
+                .IsRequired(false);
 
             entity.HasIndex(c => c.COD_CLIENTE)
                 .IsUnique()
@@ -960,6 +961,35 @@ public class PosDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ---- PAGO_DEUDA ----
+        modelBuilder.Entity<PagoDeuda>(entity =>
+        {
+            entity.ToTable("PAGO_DEUDA");
+
+            entity.HasKey(p => p.ID_PAGO_DEUDA);
+
+            entity.Property(p => p.ID_PAGO_DEUDA)
+                .HasColumnName("ID_PAGO_DEUDA");
+
+            entity.Property(p => p.ID_DEUDA)
+                .HasColumnName("ID_DEUDA");
+
+            entity.Property(p => p.MONTO)
+                .HasColumnName("MONTO")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(p => p.FECHA)
+                .HasColumnName("FECHA");
+
+            entity.Property(p => p.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.HasOne(p => p.Deuda)
+                .WithMany()
+                .HasForeignKey(p => p.ID_DEUDA)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ---- PEDIDO ----
         modelBuilder.Entity<Pedido>(entity =>
         {
@@ -1084,10 +1114,10 @@ public class PosDbContext : DbContext
         // Seed Medios de Pago
         modelBuilder.Entity<MedioPago>().HasData(
             new MedioPago(1, "EFECTIVO", "Efectivo", true),
-            new MedioPago(2, "DEBITO", "Tarjeta Débito", true),
+            new MedioPago(2, "DEBITO", "Tarjeta Débito", false),
             new MedioPago(3, "CREDITO", "Tarjeta Crédito", false),
             new MedioPago(4, "TRANSFERENCIA", "Transferencia", false),
-            new MedioPago(5, "QR", "QR", true)
+            new MedioPago(5, "QR", "QR", false)
         );
 
         // Seed Unidades de Medida (use anonymous type — constructor doesn't accept ID)

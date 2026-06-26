@@ -27,6 +27,29 @@ public class DeudaController : ControllerBase
         return Ok(deudas);
     }
 
+    [HttpGet("clientes")]
+    public async Task<ActionResult<List<DeudaDto>>> ListarClientes(
+        [FromQuery] int? clienteId = null,
+        [FromQuery] bool soloPendientes = false)
+    {
+        var deudas = await _deudaService.ListarClientesAsync(clienteId, soloPendientes);
+        return Ok(deudas);
+    }
+
+    [HttpPost("clientes/crear")]
+    public async Task<ActionResult<DeudaDto>> CrearDeudaCliente([FromBody] CrearDeudaClienteRequestDto request)
+    {
+        try
+        {
+            var deuda = await _deudaService.CrearDeudaClienteAsync(request.ClienteId, request.VentaId, request.Monto, request.MontoPagado);
+            return Ok(deuda);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DeudaDto>> ObtenerPorId(int id)
     {
@@ -46,7 +69,8 @@ public class DeudaController : ControllerBase
     {
         try
         {
-            var deuda = await _deudaService.RegistrarPagoAsync(id, request?.Monto);
+            var userId = GetUserId();
+            var deuda = await _deudaService.RegistrarPagoAsync(id, request?.Monto, userId);
             return Ok(deuda);
         }
         catch (DeudaNoEncontradaException ex)
@@ -68,12 +92,73 @@ public class DeudaController : ControllerBase
     {
         try
         {
-            var deudas = await _deudaService.PagarMultipleAsync(request.ProveedorId, request.Monto);
+            var userId = GetUserId();
+            var deudas = await _deudaService.PagarMultipleAsync(request.ProveedorId, request.Monto, userId);
             return Ok(deudas);
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    [HttpPost("pagar-multiple-cliente")]
+    public async Task<ActionResult<List<DeudaDto>>> PagarMultipleCliente([FromBody] PagarMultipleClienteRequestDto request)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var deudas = await _deudaService.PagarMultipleClienteAsync(request.ClienteId, request.Monto, userId);
+            return Ok(deudas);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("pagos")]
+    public async Task<ActionResult<List<PagoDeudaDto>>> ListarPagos(
+        [FromQuery] int? clienteId = null,
+        [FromQuery] int? proveedorId = null)
+    {
+        var pagos = await _deudaService.ListarPagosAsync(clienteId, proveedorId);
+        return Ok(pagos);
+    }
+
+    [HttpGet("cuenta-corriente")]
+    public async Task<ActionResult<CuentaCorrienteDto>> CuentaCorriente(
+        [FromQuery] int? clienteId = null,
+        [FromQuery] int? proveedorId = null)
+    {
+        try
+        {
+            var cuenta = await _deudaService.ObtenerCuentaCorrienteAsync(clienteId, proveedorId);
+            return Ok(cuenta);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("pagos/{pagoId:int}")]
+    public async Task<IActionResult> DeshacerPago(int pagoId)
+    {
+        try
+        {
+            await _deudaService.DeshacerPagoAsync(pagoId);
+            return Ok(new { success = true });
+        }
+        catch (DeudaNoEncontradaException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
+    private int GetUserId()
+    {
+        var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        return int.Parse(claim?.Value ?? "0");
     }
 }

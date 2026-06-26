@@ -68,4 +68,11 @@ public class Deuda
             FECHA_PAGO = DateTime.UtcNow;
         }
     }
+
+    public void DeshacerPago(decimal monto)
+    {
+        MONTO_PAGADO -= monto;
+        PAGO = false;
+        FECHA_PAGO = null;
+    }
 }
