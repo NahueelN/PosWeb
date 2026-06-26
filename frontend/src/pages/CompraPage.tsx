@@ -365,33 +365,38 @@ export default function CompraPage() {
             <button onClick={() => saveEdit(i)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
           </div>
         ) : (
-          <div key={i} className="flex items-center gap-3 pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
+          <div key={i} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(i)}>
-              <p className="font-medium text-gray-800 text-xs truncate">{item.productoNombre || '(nuevo)'}</p>
-              <p className="text-[10px] text-gray-400 font-mono truncate">{item.codigoBarra}</p>
+              <p className="font-semibold text-gray-900 text-base truncate">{item.productoNombre || '(nuevo)'}</p>
+              <p className="text-xs text-gray-400 font-mono truncate">{item.codigoBarra}</p>
               <p className="text-xs text-gray-500 mt-0.5">{formatCurrency(item.costoUnitario)} c/u</p>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => { if (item.cantidad <= 1) cart.removeItem(item.productoId); else cart.updateQuantity(item.productoId, item.cantidad - 1) }}
-                className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">−</button>
-              <input type="number" min={1} value={item.cantidad}
-                ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
-                onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId); return; } cart.updateQuantity(item.productoId, v); }}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchRef.current?.focus(); } }}
-                className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-              <button onClick={() => cart.updateQuantity(item.productoId, item.cantidad + 1)}
-                className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">+</button>
-              <button onClick={() => cart.removeItem(item.productoId)}
-                className="w-6 h-6 rounded hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors ml-1" title="Eliminar">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-              </button>
+            <div className="flex flex-col items-end gap-0.5 shrink-0">
+              <p className="font-semibold text-gray-900 text-base">{formatCurrency(item.costoUnitario * item.cantidad)}</p>
+              <div className="flex items-center gap-1">
+                <button type="button"
+                  onClick={() => { if (item.cantidad <= 1) cart.removeItem(item.productoId); else cart.updateQuantity(item.productoId, item.cantidad - 1) }}
+                  className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors text-base">−</button>
+                <input type="number" min={0} value={item.cantidad}
+                  ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); else cantidadRefs.current.delete(item.productoId) }}
+                  className="w-14 text-center border border-gray-300 rounded-lg px-1 py-1 text-base font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId); return; } cart.updateQuantity(item.productoId, v); }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const raw = (e.target as HTMLInputElement).value; const v = parseInt(raw); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId) } else { cart.updateQuantity(item.productoId, v) }; searchRef.current?.focus() } }} />
+                <button type="button"
+                  onClick={() => cart.updateQuantity(item.productoId, item.cantidad + 1)}
+                  className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors text-base">+</button>
+                <button type="button" onClick={() => cart.removeItem(item.productoId)}
+                  className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         )
       )}
     >
       {/* Top bar — Proveedor */}
-      <div className="shrink-0 space-y-3 px-4 sm:px-6 pt-4 pb-2">
+      <div className="shrink-0 space-y-3 pb-2">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <input ref={provInputRef} type="text"
@@ -445,7 +450,7 @@ export default function CompraPage() {
       </div>
 
       {/* Product Grid */}
-      <div className="flex-1 min-h-0 px-4 sm:px-6 pb-4">
+      <div className="flex-1 min-h-0 pb-4">
         <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="h-full overflow-y-auto p-4">
             {!proveedorOk ? <div className="text-center py-16 text-gray-500"><p className="font-medium text-sm">Seleccione un proveedor para ver productos</p></div>
@@ -470,7 +475,7 @@ export default function CompraPage() {
                     className="text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
                     <p className="font-medium text-gray-900 text-sm truncate">{p.nombre}</p>
                     <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</p>
-                    <div className="flex items-center justify-between mt-2"><span className="text-sm font-semibold text-indigo-700">{formatCurrency(p.precio)}</span><span className="text-xs text-gray-400">{formatCurrency(p.costo)} c.</span></div>
+                    <div className="flex items-center justify-between mt-2"><span className="text-sm font-semibold text-indigo-700">{formatCurrency(p.precio)}</span></div>
                   </button>
                 ))}
               </div>
