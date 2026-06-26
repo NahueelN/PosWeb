@@ -34,6 +34,7 @@ function TestCartHost(props: Partial<Parameters<typeof CartHost<TestItem>>[0]> =
       title="Test Title"
       confirmLabel="Confirmar"
       onConfirm={vi.fn()}
+      getItemProps={(item) => ({ nombre: item.nombre, precioUnitario: '', subtotal: '', cantidad: item.cantidad, onCantidadChange: () => {}, onRemove: () => {} })}
       {...props}
     >
       <div data-testid="child">Custom child content</div>
@@ -85,9 +86,8 @@ describe('CartHost', () => {
   })
 
   // ── Items rendering ──────────────────────────────────────────────
-  it('renders items using itemRenderer', () => {
+  it('renders items using getItemProps', () => {
     const { config } = setupCart()
-    // Manually render with items already in storage
     config.storage.setItem(config.storageKey, JSON.stringify([
       { id: 1, cantidad: 2, precio: 100, nombre: 'Test Item' }
     ]))
@@ -100,13 +100,20 @@ describe('CartHost', () => {
           title="With Items"
           confirmLabel="OK"
           onConfirm={vi.fn()}
-          itemRenderer={(item) => <div key={item.id}>{item.nombre} x{item.cantidad}</div>}
+          getItemProps={(item) => ({
+            nombre: item.nombre,
+            precioUnitario: `$${item.precio} c/u`,
+            subtotal: `$${item.precio * item.cantidad}`,
+            cantidad: item.cantidad,
+            onCantidadChange: () => {},
+            onRemove: () => {},
+          })}
         >
           <div>child</div>
         </CartHost>
       )
     }
     render(<TestWithItems />)
-    expect(screen.getByText('Test Item x2')).toBeInTheDocument()
+    expect(screen.getByText('Test Item')).toBeInTheDocument()
   })
 })
