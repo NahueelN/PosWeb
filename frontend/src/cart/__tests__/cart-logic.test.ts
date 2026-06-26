@@ -124,3 +124,69 @@ describe('calcTotal', () => {
     expect(calcTotal(items, getPrecio)).toBe(250)
   })
 })
+
+// ── Regression tests — bugs conocidos ──────────────────────────────
+describe('regression', () => {
+  // Combo double-add: cuando un producto ya está en el carrito como parte
+  // de un combo, agregarlo individualmente NO debe mergear con el combo
+  it('addItem with different id does not merge with existing items', () => {
+    const comboItem = makeItem({ id: 1, cantidad: 1, precio: 150 })
+    const individual = makeItem({ id: 2, cantidad: 1, precio: 100 })
+    const cart = [comboItem]
+    const result = addItem(cart, individual, getId)
+    expect(result).toHaveLength(2)
+    expect(result[0].id).toBe(1)
+    expect(result[1].id).toBe(2)
+  })
+
+  // Stock: updateQuantity con cantidad > stock debe permitirse
+  // (la validación de stock es del backend/UI, no de cart-logic)
+  it('updateQuantity allows any positive quantity', () => {
+    const item = makeItem({ id: 1, cantidad: 1 })
+    const result = updateQuantity([item], 1, 9999, getId)
+    expect(result[0].cantidad).toBe(9999)
+  })
+
+  // Focus/desborde: cantidades grandes no rompen el total
+  it('calcTotal handles large quantities', () => {
+    const items = [makeItem({ id: 1, cantidad: 10000, precio: 999.99 })]
+    const total = calcTotal(items, getPrecio)
+    expect(total).toBeCloseTo(9999900, 0)
+  })
+
+  // Auto-combo: al remover un item, el total se recalcula correctamente
+  it('total updates correctly after removeItem', () => {
+    const a = makeItem({ id: 1, cantidad: 2, precio: 100 })
+    const b = makeItem({ id: 2, cantidad: 1, precio: 50 })
+    const afterRemove = removeItem([a, b], 1, getId)
+    expect(calcTotal(afterRemove, getPrecio)).toBe(50)
+  })
+
+  // Agregar item con cantidad 0
+  it('addItem with cantidad 0 still adds the item', () => {
+    const result = addItem([], makeItem({ cantidad: 0 }), getId)
+    expect(result).toHaveLength(1)
+    expect(result[0].cantidad).toBe(0)
+  })
+
+  // Remover item que no existe no tira error
+  it('removeItem with non-existent id returns same array', () => {
+    const items = [makeItem({ id: 1 })]
+    const result = removeItem(items, 999, getId)
+    expect(result).toHaveLength(1)
+    expect(result).toEqual(items)
+  })
+
+  // updateQuantity con el mismo valor no cambia nada
+  it('updateQuantity with same value returns equivalent array', () => {
+    const item = makeItem({ id: 1, cantidad: 3 })
+    const result = updateQuantity([item], 1, 3, getId)
+    expect(result[0].cantidad).toBe(3)
+  })
+
+  // Total con items de precio 0
+  it('calcTotal with zero-priced items returns 0', () => {
+    const items = [makeItem({ id: 1, cantidad: 5, precio: 0 })]
+    expect(calcTotal(items, getPrecio)).toBe(0)
+  })
+})
