@@ -281,7 +281,6 @@ export default function CompraPage() {
     <>
     <CartHost
       cart={cart as any}
-      title={cart.items.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
       confirmLabel={isConfirming ? 'Confirmando...' : 'Confirmar compra'}
       onConfirm={handleConfirm}
       confirmDisabled={!verified || isConfirming || cart.items.length === 0 || !proveedorOk}
@@ -291,16 +290,9 @@ export default function CompraPage() {
       verified={verified}
       onVerifiedChange={(checked: boolean) => setVerified(checked)}
       verifyLabel="Verifiqué cantidades y costos"
-      headerExtra={
-        <div className="flex items-center gap-2">
-          {proveedorNombre && <span className="text-xs text-gray-500">{proveedorNombre}</span>}
-          {cart.items.length > 0 && (
-            <button onClick={() => cart.clearCart()} className="w-7 h-7 rounded-md hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Vaciar carrito">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-            </button>
-          )}
-        </div>
-      }
+      headerExtra={proveedorNombre ? (
+        <span className="text-xs text-gray-500">{proveedorNombre}</span>
+      ) : undefined}
       paymentSlot={
         <>
           {fuentePago === 'dividir' ? (
@@ -390,61 +382,59 @@ export default function CompraPage() {
           <button onClick={() => saveEdit(editingIdx)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
         </div>
       ) : undefined}
-    >
-      {/* Top bar — Proveedor */}
-      <div className="shrink-0 space-y-3 pb-2">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <input ref={provInputRef} type="text"
-              value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
-              onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
-              onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
-              onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
-              onKeyDown={e => {
-                if (!showProvDropdown || proveedoresFilt.length === 0) return;
-                if (e.key === 'ArrowDown') { e.preventDefault(); setProvHighIdx(Math.min(provHighIdx + 1, proveedoresFilt.length - 1)); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
-                else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault(); const p = proveedoresFilt[provHighIdx]; setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); setTimeout(() => searchRef.current?.focus(), 0); }
+      topContent={
+        <div className="shrink-0 space-y-3 pb-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <input ref={provInputRef} type="text"
+                value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
+                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
+                onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
+                onKeyDown={e => {
+                  if (!showProvDropdown || proveedoresFilt.length === 0) return;
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setProvHighIdx(Math.min(provHighIdx + 1, proveedoresFilt.length - 1)); }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
+                  else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault(); const p = proveedoresFilt[provHighIdx]; setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); setTimeout(() => searchRef.current?.focus(), 0); }
+                }}
+                placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              {showProvDropdown && proveedoresFilt.length > 0 && (
+                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
+                  {proveedoresFilt.map((p, i) => (
+                    <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
+                      onMouseEnter={() => setProvHighIdx(i)}
+                      className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
+                      <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {proveedorOk && <button onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition-colors">+ Nuevo producto</button>}
+          </div>
+          <div className="relative">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            <input ref={searchRef} type="text" autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => { if (!proveedorOk) return; const text = e.clipboardData.getData('text/plain').trim(); if (!text) return; e.preventDefault(); e.stopPropagation(); await handleBarcodeLookup(text) }}
+              onKeyDown={async e => {
+                if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) { e.preventDefault(); setTimeout(() => productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0); return; }
+                if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); montoPagoRef.current?.focus(); return; }
+                if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) { e.preventDefault(); await handleBarcodeLookup(searchQuery.trim()); }
               }}
-              placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            {showProvDropdown && proveedoresFilt.length > 0 && (
-              <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
-                {proveedoresFilt.map((p, i) => (
-                  <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
-                    onMouseEnter={() => setProvHighIdx(i)}
-                    className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
-                    <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
-                  </li>
-                ))}
-              </ul>
+              placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
+              disabled={!proveedorOk}
+              className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
+            {searchLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>}
+            {searchQuery && !searchLoading && (
+              <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              </button>
             )}
           </div>
-          {proveedorOk && <button onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition-colors">+ Nuevo producto</button>}
         </div>
-
-        {/* Search bar */}
-        <div className="relative">
-          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-          <input ref={searchRef} type="text" autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => { if (!proveedorOk) return; const text = e.clipboardData.getData('text/plain').trim(); if (!text) return; e.preventDefault(); e.stopPropagation(); await handleBarcodeLookup(text) }}
-            onKeyDown={async e => {
-              if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) { e.preventDefault(); setTimeout(() => productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0); return; }
-              if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); montoPagoRef.current?.focus(); return; }
-              if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) { e.preventDefault(); await handleBarcodeLookup(searchQuery.trim()); }
-            }}
-            placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
-            disabled={!proveedorOk}
-            className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
-          {searchLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>}
-          {searchQuery && !searchLoading && (
-            <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-            </button>
-          )}
-        </div>
-      </div>
-
+      }
+    >
       {/* Product Grid */}
       <div className="flex-1 min-h-0 pb-4">
         <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -477,17 +467,6 @@ export default function CompraPage() {
               </div>
             )}
           </div>
-          {proveedorOk && filteredProducts.length > 0 && (
-            <div className="flex items-center gap-3 text-xs text-gray-400 mt-2 px-4 sm:px-6">
-              <span className="flex items-center gap-1">
-                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">←</kbd>
-                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">↑</kbd>
-                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">→</kbd>
-                <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 border border-gray-300 text-[10px] font-mono">↓</kbd>
-                <span>Productos</span>
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </CartHost>

@@ -714,7 +714,6 @@ export default function VentasPage() {
     <>
     <CartHost
       cart={cart as any}
-      title={cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Nueva venta'}
       confirmLabel="Confirmar venta"
       onConfirm={confirmarVenta}
       confirmDisabled={!selectedMedio || !verified}
@@ -734,14 +733,14 @@ export default function VentasPage() {
         <div className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">Sin caja abierta</div>
       ) : undefined}
       headerExtra={clienteSeleccionado ? (
-        <div className="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg">
+        <div className="flex items-center text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg">
           <span className="font-medium">Cliente: {clienteSeleccionado.nombre}</span>
           <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
         </div>
       ) : undefined}
       paymentSlot={paymentSlot}
       getItemProps={(i) => ({
-        nombre: i.producto.nombre + (i.producto.unidadMedidaId != null && unidadesMap.has(i.producto.unidadMedidaId) ? ` (${unidadesMap.get(i.producto.unidadMedidaId)})` : ''),
+        nombre: i.producto.nombre,
         codigo: i.producto.codigoBarra,
         precioUnitario: `$${i.producto.precio.toFixed(2)} c/u`,
         subtotal: `$${(i.producto.precio * i.cantidad).toFixed(2)}`,
@@ -797,58 +796,35 @@ export default function VentasPage() {
         ) : undefined,
       })}
       getItemKey={(i) => i.comboId ? `combo-${i.comboId}` : i.producto.id}
-    >
-      {/* Search bar */}
-      <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
-        <input ref={searchInputRef} id="search-producto"
-          className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-          placeholder="Buscá producto por código de barra o nombre…" value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={async (e) => {
-            if (e.key === 'Tab' && !e.shiftKey && cart.items.length > 0) { e.preventDefault(); medioRefs.current[0]?.focus() }
-            if (e.key === 'ArrowDown' || e.key === 'Enter') {
-              e.preventDefault()
-              const q = searchQuery.trim().toUpperCase()
-              if (e.key === 'Enter' && q) {
-                const combo = combos.find(c => c.codCombo === q)
-                if (combo) { agregarCombo(combo); setSearchQuery(''); return }
-                setSearchQuery('')
+      topContent={
+        <div className="relative">
+          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input ref={searchInputRef} id="search-producto"
+            className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+            placeholder="Buscá producto por código de barra o nombre…" value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === 'Tab' && !e.shiftKey && cart.items.length > 0) { e.preventDefault(); medioRefs.current[0]?.focus() }
+              if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                e.preventDefault()
+                const q = searchQuery.trim().toUpperCase()
+                if (e.key === 'Enter' && q) { const combo = combos.find(c => c.codCombo === q); if (combo) { agregarCombo(combo); setSearchQuery(''); return }; setSearchQuery('') }
+                if (e.key === 'Enter' && !q && cart.items.length > 0) { medioRefs.current[0]?.focus(); return }
+                setTimeout(() => { productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus() }, 0)
               }
-              if (e.key === 'Enter' && !q && cart.items.length > 0) { medioRefs.current[0]?.focus(); return }
-              setTimeout(() => { productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus() }, 0)
-            }
-          }}
-          autoFocus />
-        {searchQuery && (
-          <button type="button" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-          </button>
-        )}
-      </div>
-
-      {/* Keyboard hints */}
-      {filteredProductos.length > 0 && (
-        <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-          <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">←</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↑</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">→</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
-            <span>Productos</span>
-          </span>
-          {cart.items.length > 0 && (
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Enter</kbd>
-              <span>Medios de pago</span>
-            </span>
+            }}
+            autoFocus />
+          {searchQuery && (
+            <button type="button" onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
           )}
         </div>
-      )}
-
+      }
+    >
       {/* Product Grid */}
       <div className="flex-1 min-h-0">
         <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
