@@ -4,7 +4,6 @@ import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { useCart } from '../hooks/useCart'
 import CartHost from '../components/hosts/CartHost'
-import CartItemRow from '../components/shared/CartItemRow'
 
 interface Item {
   producto: ProductoDto
@@ -741,65 +740,63 @@ export default function VentasPage() {
         </div>
       ) : undefined}
       paymentSlot={paymentSlot}
-      itemRenderer={(i) => (
-        <CartItemRow
-          key={i.comboId ? `combo-${i.comboId}` : i.producto.id}
-          nombre={i.producto.nombre + (i.producto.unidadMedidaId != null && unidadesMap.has(i.producto.unidadMedidaId) ? ` (${unidadesMap.get(i.producto.unidadMedidaId)})` : '')}
-          codigo={i.producto.codigoBarra}
-          precioUnitario={`$${i.producto.precio.toFixed(2)} c/u`}
-          subtotal={`$${(i.producto.precio * i.cantidad).toFixed(2)}`}
-          cantidad={i.cantidad}
-          onCantidadChange={(c) => { setCantidadDrafts((prev) => { const next = { ...prev }; delete next[i.producto.id]; return next }); handleCambiarCantidad(i.producto.id, c, i.comboId) }}
-          onEnter={() => searchInputRef.current?.focus()}
-          inputRef={(el) => { if (el) cantidadRefs.current.set(i.producto.id, el); else cantidadRefs.current.delete(i.producto.id) }}
-          stockWarning={i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined}
-          badge={i.comboId ? <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span> : undefined}
-          details={i.comboId ? (() => {
-            const combo = combos.find(c => c.id === i.comboId)
-            if (combo?.items.length) {
-              return (
-                <div className="mt-1 space-y-0.5">
-                  {combo.items.map((item, j) => (
-                    <div key={j} className="flex items-center gap-1.5 text-xs text-gray-400">
-                      <span className="w-1 h-1 rounded-full bg-purple-300 shrink-0" />
-                      <span className="truncate">{item.productoNombre ?? `x${item.productoId}`}</span>
-                      <span className="text-gray-300">x{item.cantidad}</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-            return null
-          })() : undefined}
-          onRemove={() => quitarItem(i.producto.id, i.comboId)}
-          removeButton={i.comboId ? (
-            <div className="relative">
-              <button type="button" onClick={() => setComboUndoPopup(comboUndoPopup === i.comboId ? null : i.comboId!)}
-                className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-              </button>
-              {comboUndoPopup === i.comboId && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setComboUndoPopup(null)} />
-                  <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px]">
-                    <button onClick={() => { deshacerCombo(i.comboId!); setComboUndoPopup(null) }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium">
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
-                      Deshacer combo
-                    </button>
-                    <div className="border-t border-gray-100 mx-2" />
-                    <button onClick={() => { quitarItem(i.producto.id, i.comboId); setComboUndoPopup(null) }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600">
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                      Eliminar
-                    </button>
+      getItemProps={(i) => ({
+        nombre: i.producto.nombre + (i.producto.unidadMedidaId != null && unidadesMap.has(i.producto.unidadMedidaId) ? ` (${unidadesMap.get(i.producto.unidadMedidaId)})` : ''),
+        codigo: i.producto.codigoBarra,
+        precioUnitario: `$${i.producto.precio.toFixed(2)} c/u`,
+        subtotal: `$${(i.producto.precio * i.cantidad).toFixed(2)}`,
+        cantidad: i.cantidad,
+        onCantidadChange: (c: number) => { setCantidadDrafts((prev) => { const next = { ...prev }; delete next[i.producto.id]; return next }); handleCambiarCantidad(i.producto.id, c, i.comboId) },
+        onEnter: () => searchInputRef.current?.focus(),
+        inputRef: (el: HTMLInputElement | null) => { if (el) cantidadRefs.current.set(i.producto.id, el); else cantidadRefs.current.delete(i.producto.id) },
+        stockWarning: i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
+        badge: i.comboId ? <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span> : undefined,
+        details: i.comboId ? (() => {
+          const combo = combos.find(c => c.id === i.comboId)
+          if (combo?.items.length) {
+            return (
+              <div className="mt-1 space-y-0.5">
+                {combo.items.map((item, j) => (
+                  <div key={j} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className="w-1 h-1 rounded-full bg-purple-300 shrink-0" />
+                    <span className="truncate">{item.productoNombre ?? `x${item.productoId}`}</span>
+                    <span className="text-gray-300">x{item.cantidad}</span>
                   </div>
-                </>
-              )}
-            </div>
-          ) : undefined}
-        />
-      )}
+                ))}
+              </div>
+            )
+          }
+          return undefined
+        })() : undefined,
+        onRemove: () => quitarItem(i.producto.id, i.comboId),
+        removeButton: i.comboId ? (
+          <div className="relative">
+            <button type="button" onClick={() => setComboUndoPopup(comboUndoPopup === i.comboId ? null : i.comboId!)}
+              className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+            {comboUndoPopup === i.comboId && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setComboUndoPopup(null)} />
+                <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px]">
+                  <button onClick={() => { deshacerCombo(i.comboId!); setComboUndoPopup(null) }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
+                    Deshacer combo
+                  </button>
+                  <div className="border-t border-gray-100 mx-2" />
+                  <button onClick={() => { quitarItem(i.producto.id, i.comboId); setComboUndoPopup(null) }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                    Eliminar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : undefined,
+      })}
+      getItemKey={(i) => i.comboId ? `combo-${i.comboId}` : i.producto.id}
     >
       {/* Search bar */}
       <div className="relative">
