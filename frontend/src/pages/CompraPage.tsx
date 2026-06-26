@@ -1,10 +1,12 @@
-﻿import React, { useReducer, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+﻿import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
-import { CartPanel, PaymentFooter, MontoInput } from '../components/shared';
+import { CartPanel, PaymentFooter, MontoInput, PageShell } from '../components/shared';
+import { useCart } from '../hooks/useCart';
+// import CartHost from '../components/hosts/CartHost'; // available for future migration
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -25,89 +27,9 @@ interface CartItem {
   unidadMedidaId?: number;
 }
 
-interface CompraState {
-  step: Step;
-  cart: CartItem[];
-  proveedorId: number;
-  proveedorNombre: string;
-  error: string | null;
-  success: CompraResponseDto | null;
-  verified: boolean;
-}
-
-type CompraAction =
-  | { type: 'SET_STEP'; step: Step }
-  | { type: 'ADD_TO_CART'; item: CartItem }
-  | { type: 'REMOVE_FROM_CART'; index: number }
-  | { type: 'UPDATE_CART_ITEM'; index: number; item: CartItem }
-  | { type: 'SET_PROVEEDOR_ID'; proveedorId: number; proveedorNombre: string }
-  | { type: 'SET_VERIFIED'; verified: boolean }
-  | { type: 'CONFIRM_SUCCESS'; response: CompraResponseDto }
-  | { type: 'CONFIRM_ERROR'; error: string }
-  | { type: 'RESET' }
-  | { type: 'CLEAR_CART' }
-  | { type: 'SET_ERROR'; error: string }
-  | { type: 'CLEAR_ERROR' };
-
-function compraReducer(state: CompraState, action: CompraAction): CompraState {
-  switch (action.type) {
-    case 'SET_STEP': return { ...state, step: action.step };
-    case 'ADD_TO_CART': {
-      const idx = state.cart.findIndex(i => i.productoId === action.item.productoId && i.productoId !== 0);
-      if (idx >= 0) {
-        const cart = [...state.cart];
-        const old = cart[idx];
-        const nc = old.cantidad + action.item.cantidad;
-        cart[idx] = { ...old, cantidad: nc, subtotal: nc * old.costoUnitario };
-        return { ...state, cart };
-      }
-      return { ...state, cart: [...state.cart, action.item] };
-    }
-    case 'REMOVE_FROM_CART': { const cart = [...state.cart]; cart.splice(action.index, 1); return { ...state, cart }; }
-    case 'UPDATE_CART_ITEM': {
-      const cart = [...state.cart];
-      cart[action.index] = { ...action.item, subtotal: action.item.cantidad * action.item.costoUnitario };
-      return { ...state, cart };
-    }
-    case 'SET_PROVEEDOR_ID': return { ...state, proveedorId: action.proveedorId, proveedorNombre: action.proveedorNombre };
-    case 'SET_VERIFIED': return { ...state, verified: action.verified };
-    case 'CONFIRM_SUCCESS': return { ...state, step: 'done', success: action.response, error: null };
-    case 'CONFIRM_ERROR': return { ...state, error: action.error };
-    case 'RESET': return { ...initialState };
-    case 'CLEAR_CART': return { ...state, cart: [] };
-    case 'SET_ERROR': return { ...state, error: action.error };
-    case 'CLEAR_ERROR': return { ...state, error: null };
-    default: return state;
-  }
-}
-
-const initialState: CompraState = {
-  step: 'scan', cart: [], proveedorId: 0, proveedorNombre: '',
-  error: null, success: null, verified: false,
-};
-
 const COMPRA_CART_KEY = 'compra_cart_pending';
+const COMPRA_PROV_KEY = 'compra_proveedor';
 
-function initCompraState(initial: CompraState): CompraState {
-  try {
-    const saved = localStorage.getItem(COMPRA_CART_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        ...initial,
-        cart: Array.isArray(parsed.cart) ? parsed.cart : [],
-        proveedorId: parsed.proveedorId ?? 0,
-        proveedorNombre: parsed.proveedorNombre ?? '',
-      };
-    }
-  } catch {}
-  return initial;
-}
-
-function getSucursalNombre(id: number): string {
-  const m: Record<number, string> = { 1: 'Central', 2: 'Norte', 3: 'Sur' };
-  return m[id] ?? `#${id}`;
-}
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -117,8 +39,22 @@ function formatFecha(iso: string): string {
 
 // ─── Component ─────────────────────────────────────────────────────
 export default function CompraPage() {
-  const [state, dispatch] = useReducer(compraReducer, initialState, initCompraState);
-  const navigate = useNavigate();
+  const [step, setStep] = useState<Step>('scan');
+  const [proveedorId, setProveedorId] = useState(() => {
+    try { const s = localStorage.getItem(COMPRA_PROV_KEY); return s ? JSON.parse(s).id ?? 0 : 0 } catch { return 0 }
+  });
+  const [proveedorNombre, setProveedorNombre] = useState(() => {
+    try { const s = localStorage.getItem(COMPRA_PROV_KEY); return s ? JSON.parse(s).nombre ?? '' : '' } catch { return '' }
+  });
+  const [success, setSuccess] = useState<CompraResponseDto | null>(null);
+  const [verified, setVerified] = useState(false);
+
+  const cart = useCart<CartItem>({
+    storageKey: COMPRA_CART_KEY,
+    storage: localStorage,
+    getId: (i) => i.productoId,
+    getPrecioUnitario: (i) => i.costoUnitario,
+  });
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>();
   const { notifyError } = useNotification();
   const sucursalId = sucursal?.id ?? 1;
@@ -173,31 +109,27 @@ export default function CompraPage() {
 
   // beforeunload
   useEffect(() => {
-    if (state.cart.length === 0) return;
+    if (cart.items.length === 0) return;
     const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
-  }, [state.cart.length]);
+  }, [cart.items.length]);
 
-  // persist cart to localStorage
+  // Persist proveedor selection
   useEffect(() => {
-    if (state.cart.length > 0 || state.proveedorId > 0) {
-      localStorage.setItem(COMPRA_CART_KEY, JSON.stringify({
-        cart: state.cart,
-        proveedorId: state.proveedorId,
-        proveedorNombre: state.proveedorNombre,
-      }));
+    if (proveedorId > 0) {
+      localStorage.setItem(COMPRA_PROV_KEY, JSON.stringify({ id: proveedorId, nombre: proveedorNombre }));
     } else {
-      localStorage.removeItem(COMPRA_CART_KEY);
+      localStorage.removeItem(COMPRA_PROV_KEY);
     }
-  }, [state.cart, state.proveedorId, state.proveedorNombre]);
+  }, [proveedorId, proveedorNombre]);
 
   // Focus search when proveedor selected
   useEffect(() => {
-    if (state.proveedorId > 0) {
+    if (proveedorId > 0) {
       setTimeout(() => searchRef.current?.focus(), 50);
     }
-  }, [state.proveedorId]);
+  }, [proveedorId]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -220,9 +152,9 @@ export default function CompraPage() {
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
     : proveedores;
 
-  const cartTotal = state.cart.reduce((s, i) => s + i.subtotal, 0);
-  const cartCount = state.cart.reduce((s, i) => s + i.cantidad, 0);
-  const proveedorOk = state.proveedorId > 0;
+  const cartTotal = cart.total;
+  const cartCount = cart.items.reduce((s, i) => s + i.cantidad, 0);
+  const proveedorOk = proveedorId > 0;
 
   // Auto-complete montoPago with cartTotal for caja/ahorro
   useEffect(() => {
@@ -242,7 +174,7 @@ export default function CompraPage() {
       contenido: p.contenido ?? undefined,
       descAdicional: p.descAdicional ?? undefined,
     };
-    dispatch({ type: 'ADD_TO_CART', item });
+    cart.addItem(item);
     setTimeout(() => {
       cantidadRefs.current.get(p.id)?.focus();
       cantidadRefs.current.get(p.id)?.select();
@@ -250,20 +182,17 @@ export default function CompraPage() {
   };
 
   const startEdit = (idx: number) => {
-    const i = state.cart[idx];
+    const i = cart.items[idx];
     setEditingIdx(idx);
     setEdPrecio(i.precio ?? 0);
     setEdCosto(String(i.costoUnitario));
     setEdCant(i.cantidad);
   };
   const saveEdit = (idx: number) => {
-    const item: CartItem = {
-      ...state.cart[idx],
-      cantidad: edCant,
-      costoUnitario: parseFloat(edCosto) || 0,
-      precio: edPrecio,
-    };
-    dispatch({ type: 'UPDATE_CART_ITEM', index: idx, item });
+    const newCosto = parseFloat(edCosto) || 0;
+    cart.setItems(prev => prev.map((i, i2) =>
+      i2 === idx ? { ...i, cantidad: edCant, costoUnitario: newCosto, subtotal: edCant * newCosto, precio: edPrecio } : i
+    ));
     setEditingIdx(null);
   };
 
@@ -323,8 +252,8 @@ export default function CompraPage() {
       const montoPagado = montoPagadoTotal > 0 ? montoPagadoTotal : undefined;
       const montoPagadoCaja = esDividir ? (montoCaja > 0 ? montoCaja : undefined) : undefined;
       const req: CompraRequestDto = {
-        sucursalId: sucursalId, proveedorId: state.proveedorId,
-        items: state.cart.map(i => ({
+        sucursalId: sucursalId, proveedorId: proveedorId,
+        items: cart.items.map(i => ({
           productoId: i.productoId, cantidad: i.cantidad, costoUnitario: i.costoUnitario,
           codigoBarra: i.productoId === 0 ? i.codigoBarra : undefined,
           nombre: i.productoId === 0 ? i.productoNombre : undefined,
@@ -338,29 +267,29 @@ export default function CompraPage() {
       };
       const res = await api.compras.crear(req);
       setDeudaGenerada(res.totalGasto - montoPagadoTotal);
-      dispatch({ type: 'CONFIRM_SUCCESS', response: res });
+      setSuccess(res); setStep('done');
     } catch (err: any) {
       const errorMsg = err.message || 'Error al crear la compra';
       notifyError(errorMsg);
-      dispatch({ type: 'CONFIRM_ERROR', error: errorMsg });
     } finally { setIsConfirming(false); }
   };
 
-  const handleNuevaCompra = () => { dispatch({ type: 'RESET' }); setDeudaGenerada(0); searchRef.current?.focus(); };
+  const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setVerified(false); setDeudaGenerada(0); searchRef.current?.focus(); };
   const handlePrint = () => window.print();
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
+        <PageShell title="Compras" subtitle="Registrar ingreso de mercadería">
         {/* Top bar */}
         <div className="shrink-0 space-y-3 px-4 sm:px-6 pt-4 pb-2">
           {/* Proveedor */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <input ref={provInputRef} type="text"
-                value={state.proveedorId > 0 ? state.proveedorNombre : proveedorSearch}
-                onChange={e => { setProveedorSearch(e.target.value); if (state.proveedorId > 0) dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: 0, proveedorNombre: '' }); if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
+                value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
+                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) setProveedorId(0); setProveedorNombre(''); if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
                 onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
                 onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
                 onKeyDown={e => {
@@ -369,19 +298,19 @@ export default function CompraPage() {
                   else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
                   else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault();
                     const p = proveedoresFilt[provHighIdx];
-                    dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre });
+                    setProveedorId(p.id); setProveedorNombre(p.nombre);
                     setProveedorSearch(''); setShowProvDropdown(false);
                     setTimeout(() => searchRef.current?.focus(), 0);
                   }
                 }}
-                placeholder={state.proveedorId > 0 ? state.proveedorNombre : 'Seleccionar proveedor *'}
+                placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
                 className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               {showProvDropdown && proveedoresFilt.length > 0 && (
                 <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
                   {proveedoresFilt.map((p, i) => (
-                    <li key={p.id} onMouseDown={() => { dispatch({ type: 'SET_PROVEEDOR_ID', proveedorId: p.id, proveedorNombre: p.nombre }); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
+                    <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
                       onMouseEnter={() => setProvHighIdx(i)}
-                      className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === state.proveedorId ? 'font-semibold' : ''}`}>
+                      className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
                       <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
                     </li>
                   ))}
@@ -534,19 +463,20 @@ export default function CompraPage() {
           )}
         </div>
         </div>
+        </PageShell>
       </div>
 
       {/* RIGHT PANEL */}
       <CartPanel
-        title={state.cart.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
+        title={cart.items.length > 0 ? `Productos (${cartCount})` : 'Nueva compra'}
         cartRef={cartListRef}
         headerExtra={
           <div className="flex items-center gap-2">
-            {state.proveedorNombre && (
-              <span className="text-xs text-gray-500">{state.proveedorNombre}</span>
+            {proveedorNombre && (
+              <span className="text-xs text-gray-500">{proveedorNombre}</span>
             )}
-            {state.cart.length > 0 && (
-              <button onClick={() => dispatch({ type: 'CLEAR_CART' })}
+            {cart.items.length > 0 && (
+              <button onClick={() => cart.clearCart()}
                 className="w-7 h-7 rounded-md hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
                 title="Vaciar carrito">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -561,10 +491,10 @@ export default function CompraPage() {
             total={cartTotal}
             confirmLabel={isConfirming ? 'Confirmando...' : 'Confirmar compra'}
             onConfirm={handleConfirm}
-            confirmDisabled={!state.verified || isConfirming || state.cart.length === 0 || !proveedorOk}
+            confirmDisabled={!verified || isConfirming || cart.items.length === 0 || !proveedorOk}
             showVerify
-            verified={state.verified}
-            onVerifiedChange={(checked: boolean) => dispatch({ type: 'SET_VERIFIED', verified: checked })}
+            verified={verified}
+            onVerifiedChange={(checked: boolean) => setVerified(checked)}
             verifyLabel="Verifiqué cantidades y costos"
           >
             {/* Payment card content */}
@@ -644,11 +574,11 @@ export default function CompraPage() {
             })()}
           </>}</PaymentFooter>
         }>
-            {state.cart.length === 0 ? (
+            {cart.items.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">Agregá productos para armar la compra</div>
             ) : (
               <div className="space-y-2">
-                {state.cart.map((item, i) => (
+                {cart.items.map((item, i) => (
                   editingIdx === i ? (
                     /* Edit mode */
                     <div key={i} className="bg-white border-2 border-indigo-300 rounded-xl p-3 text-xs">
@@ -679,18 +609,18 @@ export default function CompraPage() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => {
-                          if (item.cantidad <= 1) dispatch({ type: 'REMOVE_FROM_CART', index: i })
-                          else dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad - 1, costoUnitario: item.costoUnitario } })
+                          if (item.cantidad <= 1) cart.removeItem(item.productoId)
+                          else cart.updateQuantity(item.productoId, item.cantidad - 1)
                         }}
                           className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">−</button>
                         <input type="number" min={1} value={item.cantidad}
                           ref={el => { if (el) cantidadRefs.current.set(item.productoId, el); }}
-                          onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { dispatch({ type: 'REMOVE_FROM_CART', index: i }); return; } dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: v, costoUnitario: item.costoUnitario } }); }}
+                          onChange={e => { const v = parseInt(e.target.value); if (isNaN(v) || v <= 0) { cart.removeItem(item.productoId); return; } cart.updateQuantity(item.productoId, v); }}
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchRef.current?.focus(); } }}
                           className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                        <button onClick={() => dispatch({ type: 'UPDATE_CART_ITEM', index: i, item: { ...item, cantidad: item.cantidad + 1, costoUnitario: item.costoUnitario } })}
+                        <button onClick={() => cart.updateQuantity(item.productoId, item.cantidad + 1)}
                           className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs">+</button>
-                        <button onClick={() => dispatch({ type: 'REMOVE_FROM_CART', index: i })}
+                        <button onClick={() => cart.removeItem(item.productoId)}
                           className="w-6 h-6 rounded hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors ml-1" title="Eliminar">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -716,7 +646,7 @@ export default function CompraPage() {
       />
 
       {/* Success Popup */}
-      {state.step === 'done' && state.success && (
+      {step === 'done' && success && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
              onClick={handleNuevaCompra}>
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center"
@@ -724,11 +654,11 @@ export default function CompraPage() {
             <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
               ✓ Compra registrada
             </div>
-            <p className="text-xs text-gray-400">{formatFecha(state.success.fecha)}</p>
-            {state.proveedorNombre && (
-              <p className="text-sm text-gray-600 mt-1">{state.proveedorNombre}</p>
+            <p className="text-xs text-gray-400">{formatFecha(success.fecha)}</p>
+            {proveedorNombre && (
+              <p className="text-sm text-gray-600 mt-1">{proveedorNombre}</p>
             )}
-            <p className="text-2xl font-bold text-indigo-700 mt-2">{formatCurrency(state.success.totalGasto)}</p>
+            <p className="text-2xl font-bold text-indigo-700 mt-2">{formatCurrency(success.totalGasto)}</p>
             {deudaGenerada > 0 && (
               <p className="text-xs text-amber-600 mt-2 font-medium">Deuda generada: {formatCurrency(deudaGenerada)}</p>
             )}
