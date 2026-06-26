@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
+import { useCart } from '../hooks/useCart'
 import { CartPanel, PaymentFooter, MontoInput, PageShell } from '../components/shared'
 
 interface Item {
@@ -21,12 +22,6 @@ export default function VentasPage() {
   )
 
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
-  const [items, setItems] = useState<Item[]>(() => {
-    try {
-      const saved = sessionStorage.getItem('venta_cart_items')
-      return saved ? JSON.parse(saved) as Item[] : []
-    } catch { return [] }
-  })
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const { notifyError } = useNotification()
@@ -35,6 +30,14 @@ export default function VentasPage() {
   const recibioInputRef = useRef<HTMLInputElement>(null!)
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
+
+  const cart = useCart<Item>({
+    storageKey: 'venta_cart_items',
+    storage: sessionStorage,
+    getId: (i) => i.comboId ?? i.producto.id,
+    getPrecioUnitario: (i) => i.producto.precio,
+  })
+  const total = cart.total
 
   // Caja
   const [cajaActiva, setCajaActiva] = useState<boolean | null>(null)
@@ -82,7 +85,6 @@ export default function VentasPage() {
   const [verified, setVerified] = useState(false)
   const [comboUndoPopup, setComboUndoPopup] = useState<number | null>(null)
   const pendingAllowSinStock = useRef(false)
-  const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0)
 
   const unidadesMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -94,11 +96,6 @@ export default function VentasPage() {
   useEffect(() => {
     setRecibio(total.toFixed(2))
   }, [total])
-
-  // Persistir carrito en sessionStorage al cambiar de pestaña
-  useEffect(() => {
-    sessionStorage.setItem('venta_cart_items', JSON.stringify(items))
-  }, [items])
 
   // Computed: client-side filter by name or barcode
   const filteredProductos = useMemo(() => {
@@ -135,11 +132,11 @@ export default function VentasPage() {
   const [dismissedCombos, setDismissedCombos] = useState<Set<number>>(new Set())
   // Clear dismissed combos when cart empties
   useEffect(() => {
-    if (items.length === 0 && dismissedCombos.size > 0) setDismissedCombos(new Set())
-  }, [items.length === 0])
+    if (cart.items.length === 0 && dismissedCombos.size > 0) setDismissedCombos(new Set())
+  }, [cart.items.length === 0])
   useEffect(() => {
     if (autoComboRef.current) { autoComboRef.current = false; return }
-    if (items.length === 0) return
+    if (cart.items.length === 0) return
 
     // Un-dismiss combos whose items are no longer all present in cart
     if (dismissedCombos.size > 0) {
@@ -149,7 +146,7 @@ export default function VentasPage() {
           const combo = combos.find(c => c.id === comboId)
           if (!combo) { next.delete(comboId); continue }
           const stillPresent = combo.items.every(ci => {
-            const cartItem = items.find(i => !i.comboId && i.producto.id === ci.productoId)
+            const cartItem = cart.items.find(i => !i.comboId && i.producto.id === ci.productoId)
             return cartItem && cartItem.cantidad >= ci.cantidad
           })
           if (!stillPresent) next.delete(comboId)
@@ -159,17 +156,17 @@ export default function VentasPage() {
     }
 
     const match = combos.find(combo => {
-      if (items.some(i => i.comboId === combo.id)) return false
+      if (cart.items.some(i => i.comboId === combo.id)) return false
       if (dismissedCombos.has(combo.id)) return false
       return combo.items.every(ci => {
-        const cartItem = items.find(i => !i.comboId && i.producto.id === ci.productoId)
+        const cartItem = cart.items.find(i => !i.comboId && i.producto.id === ci.productoId)
         return cartItem && cartItem.cantidad >= ci.cantidad
       })
     })
     if (!match) return
 
     autoComboRef.current = true
-    setItems(prev => {
+    cart.setItems(prev => {
       const filtered = prev
         .map(i => {
           if (i.comboId) return i
@@ -188,7 +185,7 @@ export default function VentasPage() {
         comboPrecio: match.precio,
       } as Item]
     })
-  }, [items, combos])
+  }, [cart.items, combos])
 
   // --- Load data ---
   useEffect(() => {
@@ -243,7 +240,7 @@ export default function VentasPage() {
     if (cartListRef.current) {
       cartListRef.current.scrollTop = cartListRef.current.scrollHeight
     }
-  }, [items])
+  }, [cart.items])
 
   // Focus "Aceptar" cuando se abre el cartel de stock insuficiente
   useEffect(() => {
@@ -304,15 +301,7 @@ export default function VentasPage() {
   }
 
   function agregarProducto(producto: ProductoDto) {
-    setItems((prev) => {
-      const existente = prev.find((i) => i.producto.id === producto.id)
-      if (existente) {
-        return prev.map((i) =>
-          i.producto.id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i
-        )
-      }
-      return [...prev, { producto, cantidad: 1 }]
-    })
+    cart.addItem({ producto, cantidad: 1 })
     setSearchQuery('')
     // Limpiar draft para que muestre el valor real del state
     setCantidadDrafts((prev) => {
@@ -331,43 +320,33 @@ export default function VentasPage() {
   }
 
   function agregarCombo(combo: ComboDto) {
-    setItems((prev) => {
-      const existente = prev.find((i) => i.comboId === combo.id)
-      if (existente) {
-        return prev.map((i) =>
-          i.comboId === combo.id ? { ...i, cantidad: i.cantidad + 1 } : i
-        )
-      }
-      return [...prev, {
-        producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 999, activo: true },
-        cantidad: 1,
-        comboId: combo.id,
-        comboNombre: combo.descCombo,
-        comboPrecio: combo.precio,
-      } as Item]
-    })
+    cart.addItem({
+      producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 999, activo: true },
+      cantidad: 1,
+      comboId: combo.id,
+      comboNombre: combo.descCombo,
+      comboPrecio: combo.precio,
+    } as Item)
     setSearchQuery('')
   }
 
   function handleCambiarCantidad(productoId: number, cantidad: number, comboId?: number) {
     if (cantidad <= 0) {
-      setItems((prev) => prev.filter((i) => comboId !== undefined ? i.comboId !== comboId : i.producto.id !== productoId))
+      cart.removeItem(productoId)
     } else {
-      setItems((prev) =>
-        prev.map((i) => comboId !== undefined ? (i.comboId === comboId ? { ...i, cantidad } : i) : (i.producto.id === productoId ? { ...i, cantidad } : i))
-      )
+      cart.updateQuantity(productoId, cantidad)
     }
   }
 
   function quitarItem(productoId: number, comboId?: number) {
-    setItems((prev) => prev.filter((i) => comboId !== undefined ? i.comboId !== comboId : i.producto.id !== productoId))
+    cart.removeItem(productoId)
   }
 
   function deshacerCombo(comboId: number) {
     const combo = combos.find(c => c.id === comboId)
     if (!combo) return
     setDismissedCombos(prev => new Set(prev).add(comboId))
-    setItems(prev => {
+    cart.setItems(prev => {
       const sinCombo = prev.filter(i => i.comboId !== comboId)
       const individuales = combo.items.map(ci => ({
         producto: { id: ci.productoId, codigoBarra: '', nombre: ci.productoNombre ?? `Producto #${ci.productoId}`, precio: 0, costo: 0, stock: 999, activo: true },
@@ -380,7 +359,7 @@ export default function VentasPage() {
       if (!ci.productoId) return
       api.productos.detalle(ci.productoId).then((p) => {
         if (!p) return
-        setItems(prev => prev.map(item =>
+        cart.setItems(prev => prev.map(item =>
           item.producto.id === p.id && !item.comboId
             ? { ...item, producto: { ...item.producto, id: p.id, codigoBarra: p.codigoBarra, nombre: p.nombre, precio: p.precio, costo: p.costo, stock: p.stock, activo: p.activo } }
             : item
@@ -426,7 +405,7 @@ export default function VentasPage() {
   }
 
   async function confirmarVenta() {
-    if (!ctxSucursal || items.length === 0) return
+    if (!ctxSucursal || cart.items.length === 0) return
 
     if (!cajaActiva) {
       try {
@@ -452,7 +431,7 @@ export default function VentasPage() {
 
     // Check stock before sending (skip if already accepted in this session)
     if (!pendingAllowSinStock.current) {
-      const sinStock = items.filter(i => i.cantidad > i.producto.stock)
+      const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock)
       if (sinStock.length > 0) {
         setStockConflictItems(sinStock)
         setShowStockConfirm(true)
@@ -498,7 +477,7 @@ export default function VentasPage() {
 
       const res = await api.ventas.crear({
         sucursalId: ctxSucursal.id,
-        items: items.map((i) => ({
+        items: cart.items.map((i) => ({
           productoId: i.producto.id,
           cantidad: i.cantidad,
           comboId: i.comboId,
@@ -508,8 +487,8 @@ export default function VentasPage() {
         allowSinStock,
       })
       setResultado(res)
-      setUltimosItems([...items])
-      setItems([])
+      setUltimosItems([...cart.items])
+      cart.clearCart()
       setSelectedMedio(null)
       setRecibio('')
       setClienteSeleccionado(null)
@@ -528,7 +507,7 @@ export default function VentasPage() {
   function nuevaVenta() {
     setResultado(null)
     setUltimosItems([])
-    setItems([])
+    cart.clearCart()
     setSelectedMedio(null)
     setRecibio('')
     setClienteSeleccionado(null)
@@ -713,7 +692,7 @@ export default function VentasPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={async (e) => {
-                  if (e.key === 'Tab' && !e.shiftKey && items.length > 0) {
+                  if (e.key === 'Tab' && !e.shiftKey && cart.items.length > 0) {
                     e.preventDefault()
                     medioRefs.current[0]?.focus()
                   }
@@ -729,7 +708,7 @@ export default function VentasPage() {
                       }
                       setSearchQuery('')
                     }
-                    if (e.key === 'Enter' && !q && items.length > 0) {
+                    if (e.key === 'Enter' && !q && cart.items.length > 0) {
                       medioRefs.current[0]?.focus()
                       return
                     }
@@ -763,7 +742,7 @@ export default function VentasPage() {
                   <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
                   <span>Productos</span>
                 </span>
-                {items.length > 0 && (
+                {cart.items.length > 0 && (
                   <span className="flex items-center gap-1">
                     <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">Enter</kbd>
                     <span>Medios de pago</span>
@@ -833,7 +812,7 @@ export default function VentasPage() {
                       } else {
                         buttons[currentIdx - cols]?.focus()
                       }
-                    } else if (e.key === 'Tab' && !e.shiftKey && items.length > 0) {
+                    } else if (e.key === 'Tab' && !e.shiftKey && cart.items.length > 0) {
                       e.preventDefault()
                       medioRefs.current[0]?.focus()
                     } else if (e.key === 'Tab' && e.shiftKey && currentIdx === 0) {
@@ -875,7 +854,7 @@ export default function VentasPage() {
 
       {/* RIGHT PANEL */}
       <CartPanel
-        title={items.length > 0 ? `Productos (${items.length})` : 'Nueva venta'}
+        title={cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Nueva venta'}
         cartRef={cartListRef}
         footer={
           <PaymentFooter
@@ -981,7 +960,7 @@ export default function VentasPage() {
             })()}
           </PaymentFooter>
         }>
-          {items.length === 0 ? (
+          {cart.items.length === 0 ? (
             /* Empty state */
             <div className="text-center py-10">
               <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
@@ -993,7 +972,7 @@ export default function VentasPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {items.map((i, idx) => (
+              {cart.items.map((i, idx) => (
                     <div key={i.comboId ? `combo-${i.comboId}` : i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
                      {i.comboId ? (
