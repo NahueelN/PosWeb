@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { Search, X } from 'lucide-react'
 
 interface Props {
   searchQuery: string
@@ -93,15 +94,15 @@ export default function ProductCardPanel({
     <>
       {/* Search bar */}
       <div className="relative">
-        <svg
-          className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
+        <Search
+          size={20}
+          strokeWidth={2}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
         <input
           ref={searchRef}
           id="search-productos"
+          autoComplete="off"
           className="w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
           placeholder={searchPlaceholder}
           value={searchQuery}
@@ -115,9 +116,7 @@ export default function ProductCardPanel({
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
+            <X size={14} strokeWidth={2} />
           </button>
         )}
       </div>

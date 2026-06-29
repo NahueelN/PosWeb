@@ -52,6 +52,14 @@ vi.mock('../../context/NotificationContext', () => ({
   }),
 }))
 
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, nombre: 'Test', email: 'test@test.com', rol: 'Admin' },
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}))
+
 // ── Smoke tests ──────────────────────────────────────────────────────
 
 describe('VentasPage smoke', () => {

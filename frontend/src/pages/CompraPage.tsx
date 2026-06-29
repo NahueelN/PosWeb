@@ -5,8 +5,12 @@ import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
 import { useCart } from '../hooks/useCart';
+import { useItemSnapshot } from '../hooks/useItemSnapshot';
 import CartHost from '../components/hosts/CartHost';
 import KeyboardHints from '../components/shared/KeyboardHints';
+import ProductCard, { formatCodigoBarra } from '../components/shared/ProductCard';
+import { Search, X, Plus, Trash2 } from 'lucide-react';
+import Button from '../components/ui/Button';
 import './CompraPage.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -62,7 +66,11 @@ export default function CompraPage() {
   const productGridRef = useRef<HTMLDivElement>(null);
   const cartListRef = useRef<HTMLDivElement>(null);
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const { markAdded, onFocusQty, onEscape } = useItemSnapshot();
   const montoPagoRef = useRef<HTMLInputElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const verifyRef = useRef<HTMLInputElement>(null);
+  const fuenteRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Data
   const [productos, setProductos] = useState<ProductoDto[]>([]);
@@ -152,6 +160,12 @@ export default function CompraPage() {
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
     : proveedores;
 
+  const unidadesMap = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const u of unidades) m.set(u.id, u.codigo)
+    return m
+  }, [unidades])
+
   const cartTotal = cart.total;
   const cartCount = cart.items.reduce((s, i) => s + i.cantidad, 0);
   const proveedorOk = proveedorId > 0;
@@ -163,8 +177,16 @@ export default function CompraPage() {
     }
   }, [fuentePago, cartTotal]);
 
+  // Auto-focus proveedor input on first load
+  useEffect(() => {
+    const id = setTimeout(() => provInputRef.current?.focus(), 150)
+    return () => clearTimeout(id)
+  }, [])
+
   // ── Handlers ─────────────────────────────────────────────────────
   const addToCart = (p: ProductoDto) => {
+    const existing = cart.items.find(i => i.productoId === p.id)
+    markAdded(p.id, existing?.cantidad)
     const item: CartItem = {
       productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra,
       cantidad: 1, costoUnitario: p.costo, subtotal: p.costo,
@@ -175,6 +197,8 @@ export default function CompraPage() {
       descAdicional: p.descAdicional ?? undefined,
     };
     cart.addItem(item);
+    const el = searchRef.current
+    if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
     setTimeout(() => {
       cantidadRefs.current.get(p.id)?.focus();
       cantidadRefs.current.get(p.id)?.select();
@@ -274,7 +298,7 @@ export default function CompraPage() {
     } finally { setIsConfirming(false); }
   };
 
-  const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setVerified(false); setDeudaGenerada(0); searchRef.current?.focus(); };
+  const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setVerified(false); setDeudaGenerada(0); setTimeout(() => provInputRef.current?.focus(), 100); };
   const handlePrint = () => window.print();
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
@@ -286,6 +310,7 @@ export default function CompraPage() {
       onConfirm={handleConfirm}
       confirmDisabled={!verified || isConfirming || cart.items.length === 0 || !proveedorOk}
       cartRef={cartListRef}
+      confirmRef={confirmBtnRef}
       pageShell={{ title: 'Compras', subtitle: 'Registrar ingreso de mercadería' }}
       showVerify
       verified={verified}
@@ -319,8 +344,17 @@ export default function CompraPage() {
             <></>
           )}
           <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            {(['caja', 'ahorro', 'dividir'] as const).map(f => (
-              <button key={f} onClick={() => setFuentePago(f)}
+            {(['caja', 'ahorro', 'dividir'] as const).map((f, idx) => (
+              <button
+                key={f}
+                ref={el => { fuenteRefs.current[idx] = el; }}
+                onClick={() => { setFuentePago(f); if (f !== 'dividir') setTimeout(() => montoPagoRef.current?.focus(), 0); }}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowLeft') { e.preventDefault(); const prev = idx - 1; if (prev >= 0) fuenteRefs.current[prev]?.focus(); }
+                  else if (e.key === 'ArrowRight') { e.preventDefault(); const next = idx + 1; if (next < 3) fuenteRefs.current[next]?.focus(); }
+                  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFuentePago(f); if (f !== 'dividir') setTimeout(() => montoPagoRef.current?.focus(), 0); }
+                  else if (e.key === 'Tab' && e.shiftKey && idx === 0) { e.preventDefault(); searchRef.current?.focus(); }
+                }}
                 className={`flex-1 py-1.5 text-xs font-medium transition-colors ${fuentePago === f ? f === 'caja' ? 'bg-indigo-500 text-white' : f === 'ahorro' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}>
                 {f === 'caja' ? '💵 Caja' : f === 'ahorro' ? '🏦 Ahorro' : '↔ Dividir'}
               </button>
@@ -338,27 +372,63 @@ export default function CompraPage() {
       montoValue={fuentePago !== 'dividir' ? montoPago : undefined}
       onMontoChange={fuentePago !== 'dividir' ? v => setMontoPago(v) : undefined}
       montoInputRef={montoPagoRef}
-      montoButtonLabel="No pagar"
       onMontoButtonClick={() => setMontoPago('')}
+      verifyRef={verifyRef}
+      searchInputRef={searchRef}
       getItemProps={(item, i) => 
         editingIdx === i ? {
-          nombre: 'Editando...',
-          precioUnitario: '',
-          subtotal: '',
-          cantidad: item.cantidad,
-          min: 0,
-          onCantidadChange: () => {},
-          onRemove: () => setEditingIdx(null),
-          removeButton: <button onClick={() => setEditingIdx(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400">✕</button>,
-        } : {
           nombre: item.productoNombre || '(nuevo)',
           codigo: item.codigoBarra,
           precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
           subtotal: formatCurrency(item.costoUnitario * item.cantidad),
           cantidad: item.cantidad,
+          min: 0,
+          onCantidadChange: () => {},
+          onRemove: () => setEditingIdx(null),
+          removeButton: <button onClick={() => setEditingIdx(null)} className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90"><Trash2 size={11}/></button>,
+          details: (
+            <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Precio</label>
+                  <input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)}
+                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Costo</label>
+                  <input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} autoFocus
+                    onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)}
+                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Cant</label>
+                  <input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))}
+                    onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)}
+                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
+                </div>
+              </div>
+              <button onClick={() => saveEdit(editingIdx)}
+                className="w-full h-8 bg-[oklch(0.595_0.172_152)] text-white text-[12px] font-semibold rounded-lg hover:bg-[oklch(0.52_0.182_152)] transition-colors">
+                Guardar
+              </button>
+            </div>
+          ),
+        } : {
+          nombre: item.productoNombre || '(nuevo)',
+          codigo: formatCodigoBarra(item as any, unidadesMap),
+          precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
+          subtotal: formatCurrency(item.costoUnitario * item.cantidad),
+          cantidad: item.cantidad,
           min: 1,
-          onCantidadChange: (c) => c <= 0 ? cart.removeItem(item.productoId) : cart.updateQuantity(item.productoId, c),
+          onCantidadChange: (c) => cart.updateQuantity(item.productoId, Math.max(0, c)),
           onEnter: () => searchRef.current?.focus(),
+          onFocusQty: () => onFocusQty(item.productoId, item.cantidad),
+          onEscape: () => onEscape(
+            item.productoId,
+            item.cantidad,
+            (qty) => cart.updateQuantity(item.productoId, qty),
+            () => cart.removeItem(item.productoId)
+          ),
           inputRef: (el) => { if (el) cantidadRefs.current.set(item.productoId, el) },
           onRemove: () => cart.removeItem(item.productoId),
           onClickName: () => startEdit(i),
@@ -366,26 +436,9 @@ export default function CompraPage() {
         }
       }
       getItemKey={(item, i) => i}
-      cartExtra={editingIdx !== null ? (
-        <div className="bg-white border-2 border-indigo-300 rounded-xl p-3 text-xs mt-2">
-          <div className="flex justify-between mb-2"><span className="font-bold text-indigo-900">Editar</span><button onClick={() => setEditingIdx(null)} className="text-gray-400 hover:text-gray-600">Cancelar</button></div>
-          <div className="grid grid-cols-3 gap-1.5 mb-2">
-            <div className="col-span-3"><label className="text-gray-500">Nombre</label><p className="text-gray-800 font-medium">{cart.items[editingIdx]?.productoNombre || '-'}</p></div>
-            <div className="col-span-3"><label className="text-gray-500">Código</label><p className="text-gray-500 font-mono">{cart.items[editingIdx]?.codigoBarra || '-'}</p></div>
-            <div><label className="text-gray-500">Precio</label><input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-            <div><label className="text-gray-500">Costo</label><input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)} className="w-full px-1.5 py-0.5 border border-indigo-300 rounded" autoFocus /></div>
-            <div><label className="text-gray-500">Cant</label><input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))} onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)} className="w-full px-1.5 py-0.5 border rounded" /></div>
-            <div><label className="text-gray-500">Categ</label><p className="text-gray-800">{categorias.find(c => c.id === cart.items[editingIdx]?.categoriaId)?.descripcion || '-'}</p></div>
-            <div><label className="text-gray-500">U.Med</label><p className="text-gray-800">{unidades.find(u => u.id === cart.items[editingIdx]?.unidadMedidaId)?.descripcion || '-'}</p></div>
-            <div><label className="text-gray-500">Cont</label><p className="text-gray-800">{cart.items[editingIdx]?.contenido ?? '-'}</p></div>
-            <div className="col-span-3"><label className="text-gray-500">Desc</label><p className="text-gray-800">{cart.items[editingIdx]?.descAdicional || '-'}</p></div>
-          </div>
-          <button onClick={() => saveEdit(editingIdx)} className="w-full py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700">Guardar cambios</button>
-        </div>
-      ) : undefined}
       topContent={
-        <div className="shrink-0 space-y-3 pb-2">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <input ref={provInputRef} type="text"
                 value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
@@ -399,37 +452,39 @@ export default function CompraPage() {
                   else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault(); const p = proveedoresFilt[provHighIdx]; setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); setTimeout(() => searchRef.current?.focus(), 0); }
                 }}
                 placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
-                className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] placeholder:text-gray-400" />
               {showProvDropdown && proveedoresFilt.length > 0 && (
-                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
+                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
                   {proveedoresFilt.map((p, i) => (
                     <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
                       onMouseEnter={() => setProvHighIdx(i)}
-                      className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
+                      className={`px-3 py-2 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
                       <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            {proveedorOk && <button onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition-colors">+ Nuevo producto</button>}
+            {proveedorOk && <Button variant="primary" size="sm" onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} icon={<Plus size={14} />}>Nuevo producto</Button>}
           </div>
           <div className="relative">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-            <input ref={searchRef} type="text" autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            <Search size={20} strokeWidth={2} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input ref={searchRef} type="text" autoComplete="off" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => { if (!proveedorOk) return; const text = e.clipboardData.getData('text/plain').trim(); if (!text) return; e.preventDefault(); e.stopPropagation(); await handleBarcodeLookup(text) }}
               onKeyDown={async e => {
+                if (e.key === 'Tab' && !e.shiftKey && proveedorOk && cart.items.length > 0) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }
+                if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); setSearchQuery(''); searchRef.current?.focus() } return }
                 if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) { e.preventDefault(); setTimeout(() => productGridRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), 0); return; }
-                if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); montoPagoRef.current?.focus(); return; }
+                if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }
                 if (e.key === 'Enter' && proveedorOk && searchQuery.trim()) { e.preventDefault(); await handleBarcodeLookup(searchQuery.trim()); }
               }}
               placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
               disabled={!proveedorOk}
-              className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
-            {searchLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-10 text-[13.5px] text-gray-900 placeholder:text-gray-400 shadow-[0_1px_3px_0_rgba(0,0,0,0.06)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] disabled:opacity-50" />
+            {searchLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-5 h-5 border-2 border-[oklch(0.52_0.255_278)] border-t-transparent rounded-full animate-spin" /></div>}
             {searchQuery && !searchLoading && (
-              <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={14} strokeWidth={2} />
               </button>
             )}
           </div>
@@ -459,12 +514,13 @@ export default function CompraPage() {
                   else if (e.key === 'Escape') { searchRef.current?.focus() }
                 }}>
                 {filteredProducts.map(p => (
-                  <button key={p.id} onClick={() => addToCart(p)}
-                    className="text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
-                    <p className="font-medium text-gray-900 text-sm truncate">{p.nombre}</p>
-                    <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</p>
-                    <div className="flex items-center justify-between mt-2"><span className="text-sm font-semibold text-indigo-700">{formatCurrency(p.precio)}</span></div>
-                  </button>
+                  <ProductCard
+                    key={p.id}
+                    producto={p}
+                    unidadesMap={unidadesMap}
+                    onClick={() => addToCart(p)}
+                    price={<span className="text-[16px] font-bold">{formatCurrency(p.precio)}</span>}
+                  />
                 ))}
               </div>
             )}

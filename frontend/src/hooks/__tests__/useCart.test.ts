@@ -101,11 +101,12 @@ describe('useCart', () => {
     expect(result.current.total).toBe(300)
   })
 
-  it('updateQuantity with 0 removes item', () => {
+  it('updateQuantity with 0 keeps item at 0', () => {
     const { result } = setup({ storage })
     act(() => result.current.addItem(makeItem({ id: 1 })))
     act(() => result.current.updateQuantity(1, 0))
-    expect(result.current.items).toHaveLength(0)
+    expect(result.current.items).toHaveLength(1)
+    expect(result.current.items[0].cantidad).toBe(0)
   })
 
   // ── clearCart ─────────────────────────────────────────────────────

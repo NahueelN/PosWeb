@@ -5,6 +5,8 @@ import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
 import BarcodeLookup from '../components/BarcodeLookup'
 import ProductFormModal from '../components/ProductFormModal'
+import Button from '../components/ui/Button'
+import { Plus, AlertTriangle, Search } from 'lucide-react'
 import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
 
 interface EditState {
@@ -144,15 +146,9 @@ export default function ProductosPage() {
             }
           </p>
         </div>
-        <button
-          onClick={handleOpenForm}
-          className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+        <Button variant="primary" size="md" onClick={handleOpenForm} icon={<Plus size={16} />}>
           Nuevo producto
-        </button>
+        </Button>
       </div>
 
       <BarcodeLookup
@@ -163,9 +159,7 @@ export default function ProductosPage() {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
+          <AlertTriangle size={20} strokeWidth={2} className="shrink-0" />
           {error}
         </div>
       )}
@@ -180,13 +174,9 @@ export default function ProductosPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(`/stock?productoId=${postCreateProduct.id}`)}
-              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
+            <Button variant="primary" size="md" onClick={() => navigate(`/stock?productoId=${postCreateProduct.id}`)}>
               Inicializar stock por sucursal
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => setPostCreateProduct(null)}
@@ -211,9 +201,7 @@ export default function ProductosPage() {
       {filteredProductos.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
+            <Search size={24} strokeWidth={1.5} className="text-gray-400" />
           </div>
           <p className="text-gray-500 font-medium text-sm">No hay productos</p>
         </div>
