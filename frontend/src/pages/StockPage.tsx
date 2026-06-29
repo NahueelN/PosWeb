@@ -3,6 +3,8 @@ import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { StockSucursalDto, SucursalDto } from '../types'
+import { Package, Search } from 'lucide-react'
+import Button from '../components/ui/Button'
 
 export default function StockPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -128,9 +130,7 @@ export default function StockPage() {
         {/* Empty state */}
         <div className="text-center py-16">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m6 4.125 2.25 2.25m0 0 2.25 2.25M12 11.625l2.25-2.25M12 11.625l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-            </svg>
+            <Package size={32} strokeWidth={1.5} className="text-gray-400" />
           </div>
           <p className="text-gray-500 font-medium">Seleccioná una sucursal para ver el stock</p>
           <p className="text-sm text-gray-400 mt-1">Elegí una sucursal del selector de arriba</p>
@@ -169,13 +169,7 @@ export default function StockPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {!targetProducto.inicializado && editProductoId !== targetProducto.productoId && (
-              <button
-                type="button"
-                onClick={() => startEdit(targetProducto)}
-                className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-              >
-                Cargar stock ahora
-              </button>
+              <Button variant="primary" size="md" onClick={() => startEdit(targetProducto)}>Cargar stock ahora</Button>
             )}
             <button
               type="button"
@@ -204,9 +198,7 @@ export default function StockPage() {
         </select>
 
         <div className="relative flex-1">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
+          <Search size={16} strokeWidth={2} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
             placeholder="Filtrar por nombre o código…"

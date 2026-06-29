@@ -86,14 +86,17 @@ describe('updateQuantity', () => {
     expect(result[0].cantidad).toBe(5)
   })
 
-  it('removes item when cantidad is 0', () => {
+  it('allows cantidad 0 without removing the item', () => {
     const result = updateQuantity([makeItem({ id: 1 })], 1, 0, getId)
-    expect(result).toHaveLength(0)
+    expect(result).toHaveLength(1)
+    expect(result[0].cantidad).toBe(0)
   })
 
-  it('removes item when cantidad is negative', () => {
-    const result = updateQuantity([makeItem({ id: 1 })], 1, -1, getId)
-    expect(result).toHaveLength(0)
+  it('ignores negative cantidad (keeps existing item unchanged)', () => {
+    const item = makeItem({ id: 1, cantidad: 3 })
+    const result = updateQuantity([item], 1, -1, getId)
+    expect(result).toHaveLength(1)
+    expect(result[0].cantidad).toBe(3)
   })
 
   it('does not mutate original item', () => {

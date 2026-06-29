@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
+import { Loader2, Check, X } from 'lucide-react'
 
 interface ProductFormModalProps {
   open: boolean
@@ -279,20 +280,13 @@ export default function ProductFormModal({
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2">
                   {barcodeStatus === 'checking' && (
-                    <svg className="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
+                    <Loader2 size={16} className="text-gray-400 animate-spin" />
                   )}
                   {barcodeStatus === 'available' && (
-                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                    </svg>
+                    <Check size={16} strokeWidth={2.5} className="text-green-500" />
                   )}
                   {barcodeStatus === 'taken' && (
-                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
+                    <X size={16} strokeWidth={2.5} className="text-red-500" />
                   )}
                 </span>
               </div>
@@ -467,10 +461,7 @@ export default function ProductFormModal({
               className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
+                  <Loader2 size={16} className="animate-spin" />
                   {isEditing ? 'Guardando...' : 'Creando...'}
                 </span>
               ) : isEditing ? 'Guardar cambios' : 'Crear producto'}

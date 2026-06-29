@@ -39,7 +39,7 @@ export function removeItem<T extends CartItemBase>(
 }
 
 /**
- * Update the quantity of an item. If cantidad <= 0, removes the item.
+ * Update the quantity of an item. Allows 0 (item stays, caller decides removal).
  */
 export function updateQuantity<T extends CartItemBase>(
   items: T[],
@@ -47,7 +47,7 @@ export function updateQuantity<T extends CartItemBase>(
   cantidad: number,
   getId: (item: T) => number,
 ): T[] {
-  if (cantidad <= 0) return removeItem(items, id, getId)
+  if (cantidad < 0) return items
   return items.map(i => getId(i) === id ? { ...i, cantidad } as T : i)
 }
 

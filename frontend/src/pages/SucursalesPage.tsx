@@ -2,6 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { SucursalDto } from '../types'
+import { Plus } from 'lucide-react'
+import Button from '../components/ui/Button'
 
 export default function SucursalesPage() {
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
@@ -44,15 +46,9 @@ export default function SucursalesPage() {
           <h2 className="text-xl font-bold text-gray-900">Sucursales</h2>
           <p className="text-sm text-gray-500 mt-0.5">{sucursales.length} sucursales activas</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+        <Button variant="primary" size="md" onClick={() => setShowForm(true)} icon={<Plus size={16} />}>
           Nueva sucursal
-        </button>
+        </Button>
       </div>
 
       {/* Formulario crear */}
@@ -74,11 +70,7 @@ export default function SucursalesPage() {
               className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
               placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required
             />
-            <button type="submit"
-              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              Crear
-            </button>
+            <Button type="submit" variant="primary" size="md">Crear</Button>
           </div>
         </form>
       )}

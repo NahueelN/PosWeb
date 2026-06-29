@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { AlertTriangle, CircleAlert } from 'lucide-react'
 
 interface CajaStatus {
   /** True while checking if caja is open */
@@ -73,11 +74,11 @@ export default function PageShell({
   return (
     <div>
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <h1 className="text-[20px] font-bold text-gray-900 tracking-tight">{title}</h1>
           {subtitle && (
-            <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+            <p className="text-[12.5px] text-gray-400 mt-0.5">{subtitle}</p>
           )}
         </div>
         {actions && (
@@ -94,9 +95,7 @@ export default function PageShell({
       )}
       {caja && !caja.loading && caja.activa === false && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-          </svg>
+          <AlertTriangle size={20} strokeWidth={2} className="shrink-0" />
           <div className="flex-1">
             <span className="font-medium">No hay caja abierta</span>
             <p className="text-xs mt-0.5">{caja.closedMessage || 'Andá a la sección Caja para abrir una.'}</p>
@@ -112,9 +111,7 @@ export default function PageShell({
       {/* ── Error banner ── */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-6 flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
+          <CircleAlert size={20} strokeWidth={2} className="shrink-0" />
           {error}
         </div>
       )}

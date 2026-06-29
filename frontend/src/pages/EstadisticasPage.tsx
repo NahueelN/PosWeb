@@ -3,6 +3,8 @@ import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { SucursalDto, EstadisticasDto } from '../types'
+import { Download } from 'lucide-react'
+import Button from '../components/ui/Button'
 
 function formatCurrency(n: number) {
   return '$' + n.toFixed(2)
@@ -91,9 +93,7 @@ export default function EstadisticasPage() {
             onClick={() => exportarCSV(data)}
             className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
+            <Download size={16} />
             Exportar
           </button>
         )}
@@ -133,13 +133,9 @@ export default function EstadisticasPage() {
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
             />
           </div>
-          <button
-            onClick={consultar}
-            disabled={loading}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Consultando...' : 'Consultar'}
-          </button>
+          <Button variant="primary" size="md" onClick={consultar} disabled={loading} loading={loading}>
+            Consultar
+          </Button>
         </div>
       </div>
 

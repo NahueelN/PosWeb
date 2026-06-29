@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
+import { Loader2, Search, Check, Info } from 'lucide-react'
+import Button from './ui/Button'
 
 interface BarcodeLookupProps {
   onProductFound: (product: ProductoDto) => void
@@ -62,37 +64,16 @@ export default function BarcodeLookup({ onProductFound, onPrefillForm, onNotFoun
           onChange={(e) => setCodigo(e.target.value)}
           autoFocus
         />
-        <button
-          type="submit"
-          disabled={state === 'loading'}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
-          {state === 'loading' ? (
-            <>
-              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Buscando...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-              Buscar
-            </>
-          )}
-        </button>
+        <Button type="submit" variant="primary" size="sm" disabled={state === 'loading'} loading={state === 'loading'} icon={state !== 'loading' ? <Search size={16} /> : undefined}>
+          Buscar
+        </Button>
       </form>
 
       {/* Found locally */}
       {state === 'foundLocal' && localProduct && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
+            <Check size={20} strokeWidth={2} className="text-green-600" />
             <p className="font-semibold text-green-900 text-sm">Producto existente</p>
           </div>
           <p className="text-green-800 font-medium">{localProduct.nombre}</p>
@@ -103,9 +84,7 @@ export default function BarcodeLookup({ onProductFound, onPrefillForm, onNotFoun
       {/* Found in Open Food Facts */}
       {state === 'foundRemote' && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800 flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-          </svg>
+          <Info size={20} strokeWidth={2} className="shrink-0" />
           Producto encontrado en Open Food Facts — completá los datos faltantes abajo.
         </div>
       )}

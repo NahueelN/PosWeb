@@ -1,4 +1,5 @@
-import { type ReactNode, type RefObject } from 'react'
+import { type ReactNode, type RefObject, useEffect } from 'react'
+import { Trash2 } from 'lucide-react'
 import { CartPanel, PaymentFooter, MontoInput, PageShell, CartItemList } from '../shared'
 import type { CartItemRowProps } from '../shared/CartItemRow'
 import type { UseCartReturn } from '../../hooks/useCart'
@@ -51,6 +52,13 @@ export interface CartHostProps<T extends CartItemBase> {
   montoInputRef?: RefObject<HTMLInputElement | null>
   montoButtonLabel?: string
   onMontoButtonClick?: () => void
+  onMontoKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  /** Search input ref — used by global Escape handler to return focus */
+  searchInputRef?: RefObject<HTMLInputElement | null>
+  /** Monto button label — defaults to "Sin pago" */
+  montoButtonLabel?: string
+  /** Ref for the verify checkbox — keyboard focus target after monto Enter */
+  verifyRef?: RefObject<HTMLInputElement | null>
   /** Override confirm button (e.g. "Sin caja abierta") */
   confirmOverride?: ReactNode
   /** Extract CartItemRow display props from each item */
@@ -86,8 +94,11 @@ export default function CartHost<T extends CartItemBase>({
   montoValue,
   onMontoChange,
   montoInputRef,
-  montoButtonLabel,
+  montoButtonLabel = 'Sin pago',
   onMontoButtonClick,
+  onMontoKeyDown,
+  searchInputRef,
+  verifyRef,
   confirmOverride,
   getItemProps,
   getItemKey = (_item, idx) => idx,
@@ -95,10 +106,45 @@ export default function CartHost<T extends CartItemBase>({
   topContent,
   children,
 }: CartHostProps<T>) {
+  // Escape global — vuelve al buscador desde cualquier lado
+  useEffect(() => {
+    if (!searchInputRef) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (document.querySelector('[role="dialog"]')) return
+      // No interferir con el input de cantidad del carrito (tiene su propio Escape)
+      const active = document.activeElement as HTMLElement | null
+      if (active?.hasAttribute('data-cart-qty')) return
+      e.preventDefault()
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [searchInputRef])
+
+  // Default handlers for monto input
+  const nextAfterMonto = () => {
+    const el = verifyRef?.current ?? (confirmRef as RefObject<HTMLButtonElement | null>)?.current
+    el?.focus()
+  }
+
+  const handleMontoKeyDown = onMontoKeyDown ?? ((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      setTimeout(nextAfterMonto, 0)
+    }
+  })
+
+  const handleMontoButtonClick = () => {
+    onMontoButtonClick?.()
+    setTimeout(nextAfterMonto, 0)
+  }
+
   const displayTitle = title ?? (cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Productos')
   const leftContent = pageShell ? (
     <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja}>
-      {topContent}
+      {topContent && <div className="pb-2">{topContent}</div>}
       {children}
     </PageShell>
   ) : (
@@ -107,7 +153,7 @@ export default function CartHost<T extends CartItemBase>({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 flex flex-col pb-16 lg:mr-[33.333vw] min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col pb-14 lg:mr-[33.333vw] min-h-0 overflow-hidden">
         {leftContent}
       </div>
 
@@ -119,9 +165,7 @@ export default function CartHost<T extends CartItemBase>({
             {headerExtra}
             {cart.items.length > 0 && (
               <button onClick={() => cart.clearCart()} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Vaciar carrito">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                </svg>
+                <Trash2 size={16} />
               </button>
             )}
           </div>
@@ -133,6 +177,7 @@ export default function CartHost<T extends CartItemBase>({
             onConfirm={onConfirm}
             confirmDisabled={confirmDisabled}
             confirmRef={confirmRef as RefObject<HTMLButtonElement | null> | undefined}
+            verifyRef={verifyRef as RefObject<HTMLInputElement | null> | undefined}
             confirmOverride={confirmOverride}
             showVerify={showVerify}
             verified={verified}
@@ -145,7 +190,8 @@ export default function CartHost<T extends CartItemBase>({
                 onChange={onMontoChange}
                 inputRef={montoInputRef as RefObject<HTMLInputElement | null> | undefined}
                 buttonLabel={montoButtonLabel}
-                onButtonClick={onMontoButtonClick}
+                onButtonClick={handleMontoButtonClick}
+                onKeyDown={handleMontoKeyDown}
               />
             )}
             {paymentSlot}

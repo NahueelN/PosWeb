@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto } from '../types'
+import { Plus } from 'lucide-react'
+import Button from '../components/ui/Button'
 
 export default function CombosPage() {
   const [combos, setCombos] = useState<ComboDto[]>([])
@@ -130,15 +132,9 @@ export default function CombosPage() {
           <h2 className="text-xl font-bold text-gray-900">Combos</h2>
           <p className="text-sm text-gray-500 mt-0.5">{combos.length} combos activos</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+        <Button variant="primary" size="md" onClick={() => setShowForm(true)} icon={<Plus size={16} />}>
           Nuevo combo
-        </button>
+        </Button>
       </div>
 
       {showForm && (
