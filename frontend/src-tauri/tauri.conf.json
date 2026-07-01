@@ -39,5 +39,12 @@
     "externalBin": [
       "binaries/posweb-backend"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://raw.githubusercontent.com/NahueelN/PosWeb/main/latest.json"
+      ]
+    }
   }
 }

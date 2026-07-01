@@ -21,6 +21,21 @@ import EstadisticasPage from './pages/EstadisticasPage'
 import CombosPage from './pages/CombosPage'
 import { esperarBackend } from './api/client'
 
+// Tauri updater — solo disponible en escritorio
+let checkUpdate: (() => Promise<void>) | null = null
+try {
+  const mod = await import('@tauri-apps/plugin-updater')
+  checkUpdate = async () => {
+    const update = await mod.check()
+    if (update) {
+      console.log('[Updater] Nueva versión disponible:', update.version)
+      await update.downloadAndInstall()
+    }
+  }
+} catch {
+  // No Tauri, correr en navegador — sin updater
+}
+
 function LoadingScreen() {
   return (
     <div className="grid h-screen place-items-center bg-slate-900">
@@ -42,6 +57,7 @@ export default function App() {
       .then(() => {
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
+        checkUpdate?.()
       })
       .catch(e => {
         console.error('[Startup] Backend connection failed:', e.message)
