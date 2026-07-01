@@ -3,8 +3,6 @@ name: Release
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
 
 jobs:
   build:
@@ -21,6 +19,17 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build backend sidecar
+        run: |
+          dotnet publish PosWeb/PosWeb.csproj -c Release -r win-x64 --self-contained true -o publish
+          New-Item -ItemType Directory -Force -Path frontend\src-tauri\binaries
+          Copy-Item publish\PosWeb.exe frontend\src-tauri\binaries\posweb-backend-x86_64-pc-windows-msvc.exe
 
       - name: Install dependencies
         run: npm ci
