@@ -25,7 +25,7 @@ export default function VentasPage() {
   const [items, setItems] = useState<Item[]>([])
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
-  const { notifyError, notifySuccess } = useNotification()
+  const { notifyError } = useNotification()
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
   const recibioInputRef = useRef<HTMLInputElement>(null!)
@@ -678,7 +678,7 @@ export default function VentasPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {items.map((i, idx) => (
+                  {items.map((i, _idx) => (
                     <div key={i.comboId ? `combo-${i.comboId}` : i.producto.id} className="flex items-center gap-3 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
                         {i.comboId ? (

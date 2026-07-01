@@ -1,5 +1,5 @@
 ﻿import React, { useReducer, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
@@ -103,10 +103,6 @@ function initCompraState(initial: CompraState): CompraState {
   return initial;
 }
 
-function getSucursalNombre(id: number): string {
-  const m: Record<number, string> = { 1: 'Central', 2: 'Norte', 3: 'Sur' };
-  return m[id] ?? `#${id}`;
-}
 function formatCurrency(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -117,7 +113,7 @@ function formatFecha(iso: string): string {
 // ─── Component ─────────────────────────────────────────────────────
 export default function CompraPage() {
   const [state, dispatch] = useReducer(compraReducer, initialState, initCompraState);
-  const navigate = useNavigate();
+
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>();
   const { notifyError } = useNotification();
   const sucursalId = sucursal?.id ?? 1;
@@ -339,7 +335,6 @@ export default function CompraPage() {
   };
 
   const handleNuevaCompra = () => { dispatch({ type: 'RESET' }); setDeudaGenerada(0); searchRef.current?.focus(); };
-  const handlePrint = () => window.print();
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
   return (

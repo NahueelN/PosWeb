@@ -15,7 +15,7 @@ export default function ProductLookupModal({ open, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [productos, setProductos] = useState<ProductoDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<ProductoDto | null>(null);
+  const [_selected, setSelected] = useState<ProductoDto | null>(null);
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const hlRef = useRef(-1);
   const gridRef = useRef(false);

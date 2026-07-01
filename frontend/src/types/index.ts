@@ -13,25 +13,8 @@ export interface ProductoDto {
   unidadMedidaId?: number | null
   descAdicional?: string | null
   codigoProducto?: string | null
-}
-
-export interface ProductoDetailDto {
-  id: number
-  codigoBarra: string
-  codProducto: string
-  nombre: string
-  precio: number
-  costo: number
-  stock: number
-  categoria?: string
-  descAdicional?: string
-  contenido?: number
-  unidadMedida?: string
-  tamano?: string
-  fechaAlta: string
-  fechaUltimaMod: string
-  fechaBaja?: string
-  activo: boolean
+  margenGanancia?: number | null
+  seguirStock?: boolean
 }
 
 export interface ProductoDetailDto {
@@ -76,6 +59,8 @@ export interface ProductoUpsertDto {
   unidadMedidaId?: number | null
   descAdicional?: string | null
   codigoProducto?: string | null
+  margenGanancia?: number | null
+  seguirStock?: boolean
 }
 
 // --- Open Food Facts ---
