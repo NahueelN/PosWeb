@@ -58,7 +58,6 @@ export default function VentasPage() {
   const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([])
 
   // Deuda flow
-  const [showDebtConfirm, setShowDebtConfirm] = useState(false)
   const [showStockConfirm, setShowStockConfirm] = useState(false)
   const [stockConflictItems, setStockConflictItems] = useState<Item[]>([])
   const [showClientPopup, setShowClientPopup] = useState(false)
@@ -89,9 +88,19 @@ export default function VentasPage() {
   const cartListRef = useRef<HTMLDivElement>(null!)
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
-  const stockAceptarRef = useRef<HTMLButtonElement>(null!)
+  const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const [comboUndoPopup, setComboUndoPopup] = useState<number | null>(null)
+  const comboTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const clientesResultsRef = useRef<HTMLDivElement | null>(null)
+  const openComboMenu = (comboId: number, trigger: HTMLButtonElement) => {
+    comboTriggerRef.current = trigger
+    setComboUndoPopup(comboId)
+  }
+  const closeComboMenu = () => {
+    setComboUndoPopup(null)
+    comboTriggerRef.current?.focus()
+  }
   const pendingAllowSinStock = useRef(false)
 
   // Flag: si el cajero editó manualmente el monto recibido, NO sobreescribir al cambiar el total
@@ -120,7 +129,7 @@ export default function VentasPage() {
 
   // Atajo Ctrl+Enter (o Cmd+Enter) para confirmar venta desde cualquier foco
   useEffect(() => {
-    if (step !== 'confirmacion') return
+    if (step !== 'venta') return
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         if (selectedMedio && cart.items.length > 0) {
@@ -278,10 +287,10 @@ export default function VentasPage() {
     }
   }, [cart.items])
 
-  // Focus "Aceptar" cuando se abre el cartel de stock insuficiente
+  // Focus "Cancelar" cuando se abre el diálogo de stock insuficiente
   useEffect(() => {
     if (showStockConfirm) {
-      setTimeout(() => stockAceptarRef.current?.focus(), 50)
+      setTimeout(() => stockCancelarRef.current?.focus(), 50)
     }
   }, [showStockConfirm])
 
@@ -327,6 +336,7 @@ export default function VentasPage() {
       setNuevoClienteNombre('')
       setEsOcasional(true)
       setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
+      ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, nuevo)
     } catch (e: any) { notifyError(e.message) }
   }
 
@@ -360,6 +370,7 @@ export default function VentasPage() {
   }
 
   function agregarCombo(combo: ComboDto) {
+    markAdded(combo.id)
     cart.addItem({
       producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 999, activo: true },
       cantidad: 1,
@@ -368,14 +379,21 @@ export default function VentasPage() {
       comboPrecio: combo.precio,
     } as Item)
     setSearchQuery('')
+    setTimeout(() => {
+      const input = cantidadRefs.current.get(combo.id)
+      if (input) {
+        input.focus()
+        input.select()
+      }
+    }, 0)
   }
 
   function handleCambiarCantidad(productoId: number, cantidad: number, comboId?: number) {
-    cart.updateQuantity(productoId, Math.max(0, cantidad))
+    cart.updateQuantity(comboId ?? productoId, Math.max(0, cantidad))
   }
 
   function quitarItem(productoId: number, comboId?: number) {
-    cart.removeItem(productoId)
+    cart.removeItem(comboId ?? productoId)
   }
 
   function deshacerCombo(comboId: number) {
@@ -464,7 +482,7 @@ export default function VentasPage() {
 
     // If total payment wasn't received, ask about debt first
     if (recibioValor < total && !clienteSeleccionado) {
-      setShowDebtConfirm(true)
+      setShowClientPopup(true)
       return
     }
 
@@ -475,14 +493,14 @@ export default function VentasPage() {
   function continuarVenta() {
     const recibioValor = parseFloat(recibio) || 0
     if (selectedMedio && recibioValor < total && !clienteSeleccionado) {
-      setShowDebtConfirm(true)
+      setShowClientPopup(true)
       return
     }
     ejecutarVenta(recibioValor, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
   }
 
-  async function ejecutarVenta(recibioValor: number, allowSinStock = false) {
+  async function ejecutarVenta(recibioValor: number, allowSinStock = false, cliente?: ClienteDto) {
     if (!ctxSucursal) return
     try {
       const pagosDto: PagoVentaDto[] = []
@@ -506,7 +524,7 @@ export default function VentasPage() {
           comboId: i.comboId,
         })),
         pagos: pagosDto.length > 0 ? pagosDto : undefined,
-        clienteId: clienteSeleccionado?.id,
+        clienteId: (cliente ?? clienteSeleccionado)?.id,
         allowSinStock,
       })
       setResultado(res)
@@ -516,7 +534,6 @@ export default function VentasPage() {
       setRecibio('')
       setClienteSeleccionado(null)
       setShowClientPopup(false)
-      setShowDebtConfirm(false)
       setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
@@ -535,7 +552,6 @@ export default function VentasPage() {
     setRecibio('')
     setClienteSeleccionado(null)
     setShowClientPopup(false)
-    setShowDebtConfirm(false)
     recibioManuallyEdited.current = false
     setStep('venta')
     setTimeout(() => searchInputRef.current?.focus(), 100)
@@ -770,22 +786,26 @@ export default function VentasPage() {
         </div>
       ) : undefined}
       paymentSlot={paymentSlot}
-      getItemProps={(i) => ({
+      getItemProps={(i) => {
+        const itemId = i.comboId ?? i.producto.id
+        return {
           nombre: i.producto.nombre,
           codigo: formatCodigoBarra(i.producto, unidadesMap),
           precioUnitario: `$${i.producto.precio.toFixed(2)} c/u`,
           subtotal: `$${(i.producto.precio * i.cantidad).toFixed(2)}`,
           cantidad: i.cantidad,
-        onCantidadChange: (c: number) => { setCantidadDrafts((prev) => { const next = { ...prev }; delete next[i.producto.id]; return next }); handleCambiarCantidad(i.producto.id, c, i.comboId) },
+        onCantidadChange: (c: number) => { setCantidadDrafts((prev) => { const next = { ...prev }; delete next[itemId]; return next }); handleCambiarCantidad(itemId, c, i.comboId) },
         onEnter: () => searchInputRef.current?.focus(),
-        onFocusQty: () => onFocusQty(i.producto.id, i.cantidad),
+        onFocusQty: () => onFocusQty(itemId, i.cantidad),
         onEscape: () => onEscape(
-          i.producto.id,
+          itemId,
           i.cantidad,
-          (qty) => handleCambiarCantidad(i.producto.id, qty, i.comboId),
-          () => quitarItem(i.producto.id, i.comboId)
+          (qty) => handleCambiarCantidad(itemId, qty, i.comboId),
+          () => quitarItem(itemId, i.comboId)
         ),
-        inputRef: (el: HTMLInputElement | null) => { if (el) cantidadRefs.current.set(i.producto.id, el); else cantidadRefs.current.delete(i.producto.id) },
+          inputRef: (el: HTMLInputElement | null) => {
+            if (el) cantidadRefs.current.set(itemId, el); else cantidadRefs.current.delete(itemId)
+          },
         stockWarning: i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
         badge: i.comboId ? <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span> : undefined,
         details: i.comboId ? (() => {
@@ -808,22 +828,49 @@ export default function VentasPage() {
         onRemove: () => quitarItem(i.producto.id, i.comboId),
         removeButton: i.comboId ? (
         <div className="relative">
-            <button type="button" onClick={() => setComboUndoPopup(comboUndoPopup === i.comboId ? null : i.comboId!)}
+            <button type="button"
+              aria-haspopup="menu"
+              aria-expanded={comboUndoPopup === i.comboId}
+              onClick={(e) => {
+                const isOpen = comboUndoPopup === i.comboId
+                isOpen ? closeComboMenu() : openComboMenu(i.comboId!, e.currentTarget)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  const isOpen = comboUndoPopup === i.comboId
+                  isOpen ? closeComboMenu() : openComboMenu(i.comboId!, e.currentTarget)
+                }
+              }}
               className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
               <X size={16} />
             </button>
             {comboUndoPopup === i.comboId && (
               <>
-                <div className="fixed inset-0 z-30" onClick={() => setComboUndoPopup(null)} />
-                <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px]">
-                  <button onClick={() => { deshacerCombo(i.comboId!); setComboUndoPopup(null) }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium">
+                <div className="fixed inset-0 z-30"
+                  onClick={closeComboMenu}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeComboMenu() }}} />
+                <div role="menu" aria-label="Acciones del combo"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeComboMenu(); return }
+                    const items = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+                    const idx = Array.from(items).indexOf(document.activeElement as HTMLButtonElement)
+                    if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); return }
+                    if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); return }
+                  }}
+                  className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px]">
+                  <button autoFocus role="menuitem" tabIndex={-1}
+                    onClick={() => { deshacerCombo(i.comboId!); closeComboMenu() }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deshacerCombo(i.comboId!); closeComboMenu() }}}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium focus:bg-purple-50 focus:outline-none">
                     <Undo2 size={16} className="shrink-0" />
                     Deshacer combo
                   </button>
                   <div className="border-t border-gray-100 mx-2" />
-                  <button onClick={() => { quitarItem(i.producto.id, i.comboId); setComboUndoPopup(null) }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600">
+                  <button role="menuitem" tabIndex={-1}
+                    onClick={() => { quitarItem(i.producto.id, i.comboId); closeComboMenu() }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); quitarItem(i.producto.id, i.comboId); closeComboMenu() }}}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600 focus:bg-red-50 focus:outline-none">
                     <Trash2 size={16} className="shrink-0" />
                     Eliminar
                   </button>
@@ -831,8 +878,8 @@ export default function VentasPage() {
               </>
             )}
           </div>
-        ) : undefined,
-      })}
+        ) : undefined
+      }}}
       getItemKey={(i) => i.comboId ? `combo-${i.comboId}` : i.producto.id}
       topContent={
         <div className="relative">
@@ -936,43 +983,6 @@ export default function VentasPage() {
       </div>
     </CartHost>
 
-    {/* Debt confirmation dialog */}
-    <Dialog
-      open={showDebtConfirm}
-      onClose={() => setShowDebtConfirm(false)}
-      title="Pago insuficiente"
-      description="No se recibió el total del pago."
-      footer={
-        <>
-          <Button variant="secondary" size="sm" onClick={() => setShowDebtConfirm(false)}>
-            Cancelar
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => { setShowDebtConfirm(false); setShowClientPopup(true) }}>
-            Continuar
-          </Button>
-        </>
-      }
-    >
-      <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-500">Total</span>
-          <span className="font-semibold text-gray-900">${total.toFixed(2)}</span>
-        </div>
-        {(parseFloat(recibio) || 0) > 0 && (
-          <div className="flex justify-between">
-            <span className="text-gray-500">Pagado</span>
-            <span className="font-semibold text-emerald-600">${(parseFloat(recibio) || 0).toFixed(2)}</span>
-          </div>
-        )}
-        <hr className="border-gray-200" />
-        <div className="flex justify-between">
-          <span className="text-gray-500">Pendiente</span>
-          <span className="font-semibold text-red-600">${(total - (parseFloat(recibio) || 0)).toFixed(2)}</span>
-        </div>
-      </div>
-      <p className="text-sm text-gray-600 mt-4">¿Desea continuar y registrar la diferencia como deuda?</p>
-    </Dialog>
-
       {/* Stock confirmation dialog */}
       <Dialog
         open={showStockConfirm}
@@ -985,6 +995,7 @@ export default function VentasPage() {
         footer={
           <>
             <Button
+              ref={stockCancelarRef}
               variant="secondary"
               size="sm"
               onClick={() => {
@@ -1001,10 +1012,9 @@ export default function VentasPage() {
                 }
               }}
             >
-              Rechazar
+              Cancelar
             </Button>
             <Button
-              ref={stockAceptarRef}
               variant="primary"
               size="sm"
               onClick={() => {
@@ -1014,7 +1024,7 @@ export default function VentasPage() {
                 continuarVenta()
               }}
             >
-              Aceptar
+              Continuar
             </Button>
           </>
         }
@@ -1035,8 +1045,24 @@ export default function VentasPage() {
         open={showClientPopup}
         onClose={() => { setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]) }}
         title="Cobro pendiente"
-        description="Seleccioná el cliente para registrar la deuda"
+        description="El pago recibido no cubre el total. Seleccioná un cliente para registrar la deuda."
       >
+        {/* Debt summary */}
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm mb-3">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Total</span>
+            <span className="font-semibold text-gray-900">${total.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Pagado</span>
+            <span className="font-semibold text-emerald-600">${(parseFloat(recibio) || 0).toFixed(2)}</span>
+          </div>
+          <hr className="border-gray-200" />
+          <div className="flex justify-between">
+            <span className="text-gray-500">Pendiente</span>
+            <span className="font-semibold text-red-600">${(total - (parseFloat(recibio) || 0)).toFixed(2)}</span>
+          </div>
+        </div>
         {/* Search */}
         <input
           autoFocus
@@ -1044,6 +1070,12 @@ export default function VentasPage() {
           placeholder="Buscá por nombre o teléfono..."
           value={clientesBusqueda}
           onChange={e => setClientesBusqueda(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' && clientesResultados.length > 0) {
+              e.preventDefault()
+              clientesResultsRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+            }
+          }}
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] outline-none mb-3"
         />
 
@@ -1075,16 +1107,28 @@ export default function VentasPage() {
             No se encontraron clientes con ese nombre
           </p>
         )}
-        <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+        <div ref={clientesResultsRef} className="flex-1 overflow-y-auto space-y-1 min-h-0"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+            const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('button')
+            if (buttons.length < 2) return
+            const idx = Array.from(buttons).indexOf(document.activeElement as HTMLButtonElement)
+            if (idx < 0) { buttons[0]?.focus(); return }
+            e.preventDefault()
+            const next = e.key === 'ArrowDown' ? Math.min(idx + 1, buttons.length - 1) : Math.max(idx - 1, 0)
+            buttons[next]?.focus()
+          }}
+        >
           {clientesResultados.map(cl => (
             <button
               key={cl.id}
               onClick={() => {
                 setClienteSeleccionado(cl)
                 setShowClientPopup(false)
-                setShowDebtConfirm(false)
                 setClientesBusqueda('')
                 setClientesResultados([])
+                ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, cl)
+                pendingAllowSinStock.current = false
               }}
               className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-3"
             >
@@ -1107,7 +1151,7 @@ export default function VentasPage() {
 
         {/* Nuevo cliente */}
         <button onClick={() => { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }} className="mt-3 w-full py-2 text-sm font-semibold text-[oklch(0.52_0.255_278)] border border-dashed border-[oklch(0.52_0.255_278_/_0.30)] rounded-lg hover:bg-[oklch(0.52_0.255_278_/_0.05)] transition-colors">
-          + Nuevo cliente (ocasional)
+          + Nuevo cliente
         </button>
       </Dialog>
 

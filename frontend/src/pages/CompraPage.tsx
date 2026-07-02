@@ -519,7 +519,7 @@ export default function CompraPage() {
                     producto={p}
                     unidadesMap={unidadesMap}
                     onClick={() => addToCart(p)}
-                    price={<span className="text-[16px] font-bold">{formatCurrency(p.precio)}</span>}
+                    price={<span className="text-[16px] font-bold">{formatCurrency(p.costo)}</span>}
                   />
                 ))}
               </div>
