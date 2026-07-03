@@ -93,6 +93,7 @@ export interface VentaItemDto {
   productoId: number
   cantidad: number
   comboId?: number
+  ofertaId?: number
 }
 
 export interface VentaDto {
@@ -515,6 +516,9 @@ export interface ComboDto {
   descCombo: string
   precio: number
   activo: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  diasSemana?: string | null
   items: ComboItemDto[]
 }
 
@@ -522,6 +526,9 @@ export interface ComboUpsertDto {
   codCombo: string
   descCombo: string
   precio: number
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  diasSemana?: string | null
   items: ComboItemDto[]
 }
 
@@ -530,4 +537,25 @@ export interface ComboItemDto {
   cantidad: number
   productoNombre?: string | null
   codigoBarra?: string | null
+}
+
+// --- Oferta types ---
+export interface OfertaDto {
+  id: number
+  fechaInicio: string
+  fechaFin: string
+  productoId: number
+  productoNombre?: string | null
+  codigoBarra?: string | null
+  descuento: number
+  activo: boolean
+  diasSemana?: string | null
+}
+
+export interface OfertaUpsertDto {
+  fechaInicio: string
+  fechaFin: string
+  productoId: number
+  descuento: number
+  diasSemana?: string | null
 }

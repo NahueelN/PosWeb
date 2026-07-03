@@ -15,6 +15,12 @@ public class Combo
 
     public bool ACTIVO { get; private set; }
 
+    public DateTime? FECHA_INICIO { get; private set; }
+
+    public DateTime? FECHA_FIN { get; private set; }
+
+    public string? DIAS_SEMANA { get; private set; }
+
     private readonly List<ComboItem> _ITEMS = new();
     public IReadOnlyCollection<ComboItem> ITEMS => _ITEMS;
 
@@ -47,6 +53,40 @@ public class Combo
         if (precio <= 0)
             throw new ArgumentException("El precio del combo debe ser mayor a 0", nameof(precio));
         PRECIO = precio;
+    }
+
+    public void CambiarFechas(DateTime? fechaInicio, DateTime? fechaFin)
+    {
+        if (fechaInicio.HasValue && fechaFin.HasValue && fechaFin.Value <= fechaInicio.Value)
+            throw new ArgumentException("La fecha de fin debe ser posterior a la fecha de inicio");
+        FECHA_INICIO = fechaInicio;
+        FECHA_FIN = fechaFin;
+    }
+
+    public void CambiarDiasSemana(string? diasSemana)
+    {
+        DIAS_SEMANA = diasSemana;
+    }
+
+    public bool EstaVigenteHoy()
+    {
+        if (!ACTIVO) return false;
+
+        var hoy = DateTime.Today;
+
+        if (FECHA_INICIO.HasValue && hoy < FECHA_INICIO.Value.Date) return false;
+        if (FECHA_FIN.HasValue && hoy > FECHA_FIN.Value.Date) return false;
+
+        if (!string.IsNullOrWhiteSpace(DIAS_SEMANA))
+        {
+            var diasMap = new[] { "DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB" };
+            var diaActual = diasMap[(int)hoy.DayOfWeek];
+            var dias = DIAS_SEMANA.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(d => d.Trim().ToUpperInvariant());
+            if (!dias.Contains(diaActual)) return false;
+        }
+
+        return true;
     }
 
     public void AgregarItem(ComboItem item)

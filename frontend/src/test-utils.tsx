@@ -34,7 +34,8 @@ export interface MockApi {
   mediosPago: { listar: MockFn }
   clientes: { listar: MockFn; crear: MockFn }
   proveedores: { listar: MockFn }
-  combos: { listar: MockFn }
+  combos: { listar: MockFn; reactivar: MockFn }
+  ofertas: { listar: MockFn; reactivar: MockFn }
   categorias: { listar: MockFn }
   unidadesMedida: { listar: MockFn }
   gastos: { listar: MockFn; crear: MockFn }
@@ -52,7 +53,8 @@ export function createMockApi(overrides: Partial<Record<string, Record<string, M
     mediosPago: { listar: fn() },
     clientes: { listar: fn(), crear: fn() },
     proveedores: { listar: fn() },
-    combos: { listar: fn() },
+    combos: { listar: fn(), reactivar: fn() },
+    ofertas: { listar: fn(), reactivar: fn() },
     categorias: { listar: fn() },
     unidadesMedida: { listar: fn() },
     gastos: { listar: fn(), crear: fn() },

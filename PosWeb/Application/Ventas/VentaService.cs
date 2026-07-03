@@ -101,6 +101,9 @@ public class VentaService
                     .FirstOrDefault(c => c.ID_COMBO == item.ComboId.Value && c.ACTIVO)
                     ?? throw new InvalidOperationException($"Combo con ID {item.ComboId} no encontrado o inactivo");
 
+                if (!combo.EstaVigenteHoy())
+                    throw new InvalidOperationException($"El combo '{combo.DESC_COMBO}' no está vigente hoy");
+
                 foreach (var citem in combo.ITEMS)
                 {
                     Producto? cproducto = _context.Producto.Find(citem.ID_PRODUCTO);
@@ -175,7 +178,19 @@ public class VentaService
                     }
                 }
 
-                venta.AgregarRenglon(producto, item.Cantidad);
+                if (item.OfertaId.HasValue && item.OfertaId.Value > 0)
+                {
+                    var oferta = _context.Oferta.Find(item.OfertaId.Value)
+                        ?? throw new InvalidOperationException($"Oferta con ID {item.OfertaId} no encontrada");
+
+                    if (!oferta.ACTIVO)
+                        throw new InvalidOperationException($"La oferta '{oferta.ID_OFERTA}' no está activa");
+
+                    if (!oferta.EstaVigenteHoy())
+                        throw new InvalidOperationException($"La oferta del producto '{producto.DESC_PRODUCTO}' no está vigente hoy");
+                }
+
+                venta.AgregarRenglon(producto, item.Cantidad, item.OfertaId);
             }
 
         }
