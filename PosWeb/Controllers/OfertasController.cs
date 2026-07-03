@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Ofertas;
 using PosWeb.Contracts;
@@ -6,6 +7,7 @@ namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/ofertas")]
+[Authorize]
 public class OfertasController : ControllerBase
 {
     private readonly OfertaService _ofertaService;

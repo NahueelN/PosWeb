@@ -443,29 +443,28 @@ export default function VentasPage() {
     cart.removeItem(comboId ?? productoId)
   }
 
-  function deshacerCombo(comboId: number) {
+  async function deshacerCombo(comboId: number) {
     const combo = combos.find(c => c.id === comboId)
     if (!combo) return
     setDismissedCombos(prev => new Set(prev).add(comboId))
+
+    // Fetch real product data first so prices are correct from the start
+    const detalles = await Promise.all(
+      combo.items.map(ci =>
+        ci.productoId ? api.productos.detalle(ci.productoId).catch(() => null) : Promise.resolve(null)
+      )
+    )
+
     cart.setItems(prev => {
       const sinCombo = prev.filter(i => i.comboId !== comboId)
-      const individuales = combo.items.map(ci => ({
-        producto: { id: ci.productoId, codigoBarra: '', nombre: ci.productoNombre ?? `Producto #${ci.productoId}`, precio: 0, costo: 0, stock: 999, activo: true },
-        cantidad: ci.cantidad,
-      })) as Item[]
+      const individuales = combo.items.map((ci, idx) => {
+        const p = detalles[idx]
+        const producto = p
+          ? { id: p.id, codigoBarra: p.codigoBarra, nombre: p.nombre, precio: p.precio, costo: p.costo, stock: p.stock, activo: p.activo }
+          : { id: ci.productoId, codigoBarra: '', nombre: ci.productoNombre ?? `Producto #${ci.productoId}`, precio: 0, costo: 0, stock: 999, activo: true }
+        return { producto, cantidad: ci.cantidad }
+      }) as Item[]
       return [...sinCombo, ...individuales]
-    })
-    // Fetch real product data so prices/names appear correctly
-    combo.items.forEach(ci => {
-      if (!ci.productoId) return
-      api.productos.detalle(ci.productoId).then((p) => {
-        if (!p) return
-        cart.setItems(prev => prev.map(item =>
-          item.producto.id === p.id && !item.comboId
-            ? { ...item, producto: { ...item.producto, id: p.id, codigoBarra: p.codigoBarra, nombre: p.nombre, precio: p.precio, costo: p.costo, stock: p.stock, activo: p.activo } }
-            : item
-        ))
-      }).catch(() => {})
     })
   }
 

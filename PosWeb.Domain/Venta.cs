@@ -46,7 +46,7 @@ public class Venta
         return sucursalId;
     }
 
-    public void AgregarRenglon(Producto producto, decimal cantidad)
+    public void AgregarRenglon(Producto producto, decimal cantidad, int? ofertaId = null)
     {
         if (producto == null)
         {
@@ -61,7 +61,8 @@ public class Venta
         RenglonVenta renglon = new RenglonVenta(
             producto.ID_PRODUCTO,
             cantidad,
-            producto.PRECIO
+            producto.PRECIO,
+            ofertaId
         );
 
         _RENGLONES.Add(renglon);

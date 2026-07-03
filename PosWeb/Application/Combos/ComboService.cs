@@ -50,7 +50,7 @@ public class ComboService
     {
         var combo = _context.Combo
             .Include(c => c.ITEMS)
-            .FirstOrDefault(c => c.ID_COMBO == id && c.ACTIVO);
+            .FirstOrDefault(c => c.ID_COMBO == id);
 
         if (combo == null)
             throw new KeyNotFoundException($"Combo con ID {id} no encontrado");
@@ -62,7 +62,7 @@ public class ComboService
     {
         var combo = _context.Combo
             .Include(c => c.ITEMS)
-            .FirstOrDefault(c => c.COD_COMBO == codigo.Trim().ToUpperInvariant() && c.ACTIVO);
+            .FirstOrDefault(c => c.COD_COMBO == codigo.Trim().ToUpperInvariant());
 
         if (combo == null)
             throw new KeyNotFoundException($"Combo con código '{codigo}' no encontrado");
@@ -102,45 +102,55 @@ public class ComboService
 
     public ComboDto Modificar(int id, ComboUpsertDto dto)
     {
-        var combo = _context.Combo
-            .Include(c => c.ITEMS)
-            .FirstOrDefault(c => c.ID_COMBO == id && c.ACTIVO)
-            ?? throw new KeyNotFoundException($"Combo con ID {id} no encontrado");
-
-        var cod = dto.CodCombo.Trim().ToUpperInvariant();
-        if (cod != combo.COD_COMBO)
+        using var transaction = _context.Database.BeginTransaction();
+        try
         {
-            bool existe = _context.Combo.Any(c => c.COD_COMBO == cod && c.ID_COMBO != id);
-            if (existe)
-                throw new InvalidOperationException($"Ya existe un combo con código '{dto.CodCombo}'");
-            combo.CambiarCodigo(dto.CodCombo);
+            var combo = _context.Combo
+                .Include(c => c.ITEMS)
+                .FirstOrDefault(c => c.ID_COMBO == id)
+                ?? throw new KeyNotFoundException($"Combo con ID {id} no encontrado");
+
+            var cod = dto.CodCombo.Trim().ToUpperInvariant();
+            if (cod != combo.COD_COMBO)
+            {
+                bool existe = _context.Combo.Any(c => c.COD_COMBO == cod && c.ID_COMBO != id);
+                if (existe)
+                    throw new InvalidOperationException($"Ya existe un combo con código '{dto.CodCombo}'");
+                combo.CambiarCodigo(dto.CodCombo);
+            }
+
+            ValidarCombinacionUnica(dto.Items, id);
+
+            combo.CambiarDescripcion(dto.DescCombo);
+            combo.CambiarPrecio(dto.Precio);
+            combo.CambiarFechas(dto.FechaInicio, dto.FechaFin);
+            combo.CambiarDiasSemana(dto.DiasSemana);
+
+            var itemsToRemove = _context.ComboItem.Where(i => i.ID_COMBO == id).ToList();
+            _context.ComboItem.RemoveRange(itemsToRemove);
+
+            foreach (var itemDto in dto.Items)
+            {
+                var producto = _context.Producto.Find(itemDto.ProductoId)
+                    ?? throw new KeyNotFoundException($"Producto con ID {itemDto.ProductoId} no encontrado");
+
+                if (!producto.ACTIVO)
+                    throw new InvalidOperationException($"Producto '{producto.DESC_PRODUCTO}' está inactivo");
+
+                var nuevoItem = new ComboItem(id, itemDto.ProductoId, itemDto.Cantidad);
+                _context.ComboItem.Add(nuevoItem);
+            }
+
+            _context.SaveChanges();
+            transaction.Commit();
+
+            return MapToDto(combo);
         }
-
-        ValidarCombinacionUnica(dto.Items, id);
-
-        combo.CambiarDescripcion(dto.DescCombo);
-        combo.CambiarPrecio(dto.Precio);
-        combo.CambiarFechas(dto.FechaInicio, dto.FechaFin);
-        combo.CambiarDiasSemana(dto.DiasSemana);
-
-        var itemsToRemove = _context.ComboItem.Where(i => i.ID_COMBO == id).ToList();
-        _context.ComboItem.RemoveRange(itemsToRemove);
-
-        foreach (var itemDto in dto.Items)
+        catch
         {
-            var producto = _context.Producto.Find(itemDto.ProductoId)
-                ?? throw new KeyNotFoundException($"Producto con ID {itemDto.ProductoId} no encontrado");
-
-            if (!producto.ACTIVO)
-                throw new InvalidOperationException($"Producto '{producto.DESC_PRODUCTO}' está inactivo");
-
-            var nuevoItem = new ComboItem(id, itemDto.ProductoId, itemDto.Cantidad);
-            _context.ComboItem.Add(nuevoItem);
+            transaction.Rollback();
+            throw;
         }
-
-        _context.SaveChanges();
-
-        return MapToDto(combo);
     }
 
     public void Eliminar(int id)

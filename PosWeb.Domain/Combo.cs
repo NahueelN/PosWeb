@@ -79,7 +79,8 @@ public class Combo
 
         if (!string.IsNullOrWhiteSpace(DIAS_SEMANA))
         {
-            var diaActual = hoy.ToString("ddd").ToUpperInvariant();
+            var diasMap = new[] { "DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB" };
+            var diaActual = diasMap[(int)hoy.DayOfWeek];
             var dias = DIAS_SEMANA.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(d => d.Trim().ToUpperInvariant());
             if (!dias.Contains(diaActual)) return false;

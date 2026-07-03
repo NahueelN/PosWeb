@@ -354,6 +354,15 @@ public class PosDbContext : DbContext
                 .HasForeignKey(r => r.ID_COMBO)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(r => r.ID_OFERTA)
+                .HasColumnName("ID_OFERTA");
+
+            entity.HasOne<Oferta>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_OFERTA)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ---- COMBO ----
@@ -387,6 +396,16 @@ public class PosDbContext : DbContext
 
             entity.Property(c => c.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.Property(c => c.FECHA_INICIO)
+                .HasColumnName("FECHA_INICIO");
+
+            entity.Property(c => c.FECHA_FIN)
+                .HasColumnName("FECHA_FIN");
+
+            entity.Property(c => c.DIAS_SEMANA)
+                .HasColumnName("DIAS_SEMANA")
+                .HasMaxLength(50);
 
             entity.Navigation(c => c.ITEMS)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
@@ -452,6 +471,10 @@ public class PosDbContext : DbContext
 
             entity.Property(o => o.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.Property(o => o.DIAS_SEMANA)
+                .HasColumnName("DIAS_SEMANA")
+                .HasMaxLength(50);
 
             entity.HasOne<Producto>()
                 .WithMany()

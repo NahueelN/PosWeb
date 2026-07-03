@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Combos;
 using PosWeb.Contracts;
@@ -6,6 +7,7 @@ namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/combos")]
+[Authorize]
 public class CombosController : ControllerBase
 {
     private readonly ComboService _comboService;
