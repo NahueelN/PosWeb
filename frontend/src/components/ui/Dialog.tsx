@@ -63,10 +63,12 @@ export default function Dialog({
     if (!open) return
     const el = dialogRef.current
     if (!el) return
-    // Focus the first focusable element
-    const first = el.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )
+    // If an element already has focus inside the dialog (autoFocus), respect it
+    if (el.contains(document.activeElement)) return
+    // Focus the first focusable element inside the body first, fallback to whole dialog
+    const body = el.querySelector<HTMLElement>('[data-dialog-body]')
+    const query = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    const first = (body?.querySelector<HTMLElement>(query)) ?? el.querySelector<HTMLElement>(query)
     first?.focus()
   }, [open])
 
@@ -111,7 +113,7 @@ export default function Dialog({
         )}
 
         {/* Body */}
-        <div className="px-6 py-3 overflow-y-auto">{children}</div>
+        <div data-dialog-body className="px-6 py-3 overflow-y-auto">{children}</div>
 
         {/* Footer */}
         {footer && (

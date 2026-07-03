@@ -142,7 +142,7 @@ export default function CompraPage() {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (editingIdx !== null) { setEditingIdx(null); return; }
-        if (showNewModal) { setShowNewModal(false); return; }
+        if (showNewModal) { setShowNewModal(false); searchRef.current?.focus(); return; }
       }
     };
     window.addEventListener('keydown', h);
@@ -224,6 +224,7 @@ export default function CompraPage() {
     // Add the newly created product to cart with quantity 1
     addToCart(producto);
     setShowNewModal(false);
+    searchRef.current?.focus()
     setProductos(prev => {
       if (prev.find(p => p.id === producto.id)) return prev;
       return [...prev, producto];
@@ -531,7 +532,7 @@ export default function CompraPage() {
 
     {/* New Product Modal */}
     <ProductFormModal open={showNewModal} prefillData={offPrefillData} initialCodigo={initialCodigo || undefined}
-      onCreated={handleProductCreatedInModal} onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); }} />
+      onCreated={handleProductCreatedInModal} onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); searchRef.current?.focus() }} />
 
     {/* Success Popup */}
     {step === 'done' && success && (
