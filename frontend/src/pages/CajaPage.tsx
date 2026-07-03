@@ -5,6 +5,7 @@ import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
 import type { CajaDto, SucursalDto, CierrePreviewDto, MedioPagoDto } from '../types'
 import { formatDate, formatCurrency } from '../formats'
+import { Clock, Plus } from 'lucide-react'
 
 export default function CajaPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -237,9 +238,7 @@ export default function CajaPage() {
           {!activa && !reporteCierre && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 mb-6 flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+                <Clock size={20} strokeWidth={2} className="text-blue-500" />
               </div>
               <div>
                 <p className="text-lg font-bold text-blue-800">Esperando apertura</p>
@@ -412,9 +411,7 @@ export default function CajaPage() {
             <div className="max-w-md mx-auto mb-6">
               <div className="bg-white rounded-2xl shadow-sm border-2 border-green-200 p-6 sm:p-8 text-center">
                 <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
+                  <Plus size={28} strokeWidth={2} className="text-green-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900 mb-1">Abrir nueva caja</h2>
                 <p className="text-sm text-gray-500 mb-5">Ingrese el saldo inicial para comenzar</p>

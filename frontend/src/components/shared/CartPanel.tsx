@@ -1,4 +1,5 @@
 import { type ReactNode, type RefObject } from 'react'
+import { ShoppingCart } from 'lucide-react'
 
 interface CartPanelProps {
   /** Header content — usually a title like "Productos (3)" */
@@ -19,10 +20,16 @@ interface CartPanelProps {
  */
 export default function CartPanel({ title, headerExtra, cartRef, children, footer }: CartPanelProps) {
   return (
-    <div className="hidden lg:flex fixed right-0 top-16 bottom-0 w-1/3 border-l border-gray-200 bg-gray-50 z-30 flex flex-col p-4 gap-3">
+    <div
+      className="hidden lg:flex fixed right-0 top-12 bottom-0 w-1/3 flex-col z-30"
+      style={{ borderLeft: '1px solid oklch(0.91 0.008 265)', background: 'oklch(0.988 0.003 258)' }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={14} strokeWidth={2} className="text-gray-400" />
+          <h3 className="text-[13px] font-bold text-gray-900 tracking-tight">{title}</h3>
+        </div>
         {headerExtra}
       </div>
 

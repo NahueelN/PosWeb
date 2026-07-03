@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { ClienteDto, PagedResult } from '../types'
+import { Plus } from 'lucide-react'
+import Button from '../components/ui/Button'
 
 const TIPOS_DOCUMENTO = ['DNI', 'CUIT', 'CUIL', 'ConsumidorFinal']
 const IVA_CONDICIONES = ['ResponsableInscripto', 'Monotributo', 'Exento', 'ConsumidorFinal']
@@ -93,12 +95,9 @@ export default function ClientesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-500"
-        >
-          + Nuevo cliente
-        </button>
+        <Button variant="primary" size="md" onClick={() => { resetForm(); setShowForm(true) }} icon={<Plus size={16} />}>
+          Nuevo cliente
+        </Button>
       </div>
 
       {/* Search */}

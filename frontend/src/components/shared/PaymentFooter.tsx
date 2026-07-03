@@ -1,4 +1,5 @@
 import { type ReactNode, type RefObject } from 'react'
+import Button from '../ui/Button'
 
 interface PaymentFooterProps {
   /** Total amount to display */
@@ -17,6 +18,8 @@ interface PaymentFooterProps {
   onConfirm: () => void
   confirmDisabled?: boolean
   confirmRef?: RefObject<HTMLButtonElement | null>
+  /** Ref for verify checkbox — keyboard focus target after monto */
+  verifyRef?: RefObject<HTMLInputElement | null>
   /** Replace confirm button entirely (e.g., "Sin caja abierta" message) */
   confirmOverride?: ReactNode
 }
@@ -42,49 +45,72 @@ export default function PaymentFooter({
   onConfirm,
   confirmDisabled = false,
   confirmRef,
+  verifyRef,
   confirmOverride,
 }: PaymentFooterProps) {
   return (
-    <div className="shrink-0 space-y-3 border-t border-gray-200 pt-3">
-      {/* Total */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">Total</span>
-        <span className="text-lg font-bold text-indigo-700">${total.toFixed(2)}</span>
+    <div className="shrink-0 border-t border-gray-200 flex flex-col">
+      {/* Total strip */}
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ background: 'oklch(0.15 0.016 262)' }}
+      >
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 leading-none">
+          Total
+        </span>
+        <span className="text-[28px] font-bold text-white tabular-nums leading-none tracking-tight">
+          ${total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
       </div>
 
-      {/* Payment card */}
-      <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
-        {children}
+      <div className="px-4 pt-3 pb-3.5 flex flex-col gap-2.5">
+
+        {/* Payment card */}
+        <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+          {children}
+        </div>
+
+        {/* Extra slot */}
+        {extra}
+
+        {/* Verify checkbox */}
+        {showVerify && onVerifiedChange && (
+          <label
+            className="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[12px] font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all duration-150 cursor-pointer"
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                const next = !verified
+                onVerifiedChange(next)
+                if (next) setTimeout(() => (confirmRef as RefObject<HTMLButtonElement | null>)?.current?.focus(), 0)
+              }
+            }}
+          >
+            <input
+              ref={verifyRef}
+              type="checkbox"
+              checked={verified}
+              onChange={e => onVerifiedChange(e.target.checked)}
+              className="h-3.5 w-3.5 text-[oklch(0.595_0.172_152)] border-gray-300 rounded focus:ring-[oklch(0.595_0.172_152)]"
+            />
+            {verifyLabel}
+          </label>
+        )}
+
+        {/* Confirm button (or override) */}
+        {confirmOverride ?? (
+          <Button
+            ref={confirmRef as React.RefObject<HTMLButtonElement>}
+            variant="confirm"
+            size="lg"
+            fullWidth
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+          >
+            {confirmLabel}
+          </Button>
+        )}
       </div>
-
-      {/* Extra slot (e.g., cliente seleccionado) */}
-      {extra}
-
-      {/* Verify checkbox */}
-      {showVerify && onVerifiedChange && (
-        <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={verified}
-            onChange={e => onVerifiedChange(e.target.checked)}
-            className="h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded"
-          />
-          {verifyLabel}
-        </label>
-      )}
-
-      {/* Confirm button (or override) */}
-      {confirmOverride ?? (
-        <button
-          ref={confirmRef as React.RefObject<HTMLButtonElement>}
-          type="button"
-          onClick={onConfirm}
-          disabled={confirmDisabled}
-          className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {confirmLabel}
-        </button>
-      )}
     </div>
   )
 }
