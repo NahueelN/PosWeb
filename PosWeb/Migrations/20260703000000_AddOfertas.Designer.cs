@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703000000_AddOfertas")]
+    partial class AddOfertas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -158,6 +161,7 @@ namespace PosWeb.Migrations
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_CLIENTE")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
                         .HasColumnName("COD_CLIENTE");
@@ -227,19 +231,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("PRECIO");
 
-                    b.Property<DateTime?>("FECHA_INICIO")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_INICIO");
-
-                    b.Property<DateTime?>("FECHA_FIN")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_FIN");
-
-                    b.Property<string>("DIAS_SEMANA")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("DIAS_SEMANA");
-
                     b.HasKey("ID_COMBO");
 
                     b.HasIndex("COD_COMBO")
@@ -295,11 +286,6 @@ namespace PosWeb.Migrations
                     b.Property<decimal>("DESCUENTO")
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("DESCUENTO");
-
-                    b.Property<string>("DIAS_SEMANA")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("DIAS_SEMANA");
 
                     b.Property<DateTime>("FECHA_FIN")
                         .HasColumnType("datetime(6)")
@@ -560,7 +546,7 @@ namespace PosWeb.Migrations
                             ACTIVO = true,
                             COD_MEDIO_PAGO = "DEBITO",
                             DESC_MEDIO_PAGO = "Tarjeta Débito",
-                            PAGA_VUELTO = false
+                            PAGA_VUELTO = true
                         },
                         new
                         {
@@ -584,7 +570,7 @@ namespace PosWeb.Migrations
                             ACTIVO = true,
                             COD_MEDIO_PAGO = "QR",
                             DESC_MEDIO_PAGO = "QR",
-                            PAGA_VUELTO = false
+                            PAGA_VUELTO = true
                         });
                 });
 
@@ -629,38 +615,6 @@ namespace PosWeb.Migrations
                     b.HasIndex("ID_VENTA");
 
                     b.ToTable("PAGO", (string)null);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.PagoDeuda", b =>
-                {
-                    b.Property<int>("ID_PAGO_DEUDA")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_PAGO_DEUDA");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PAGO_DEUDA"));
-
-                    b.Property<DateTime>("FECHA")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA");
-
-                    b.Property<int>("ID_DEUDA")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_DEUDA");
-
-                    b.Property<int?>("ID_USUARIO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_USUARIO");
-
-                    b.Property<decimal>("MONTO")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("MONTO");
-
-                    b.HasKey("ID_PAGO_DEUDA");
-
-                    b.HasIndex("ID_DEUDA");
-
-                    b.ToTable("PAGO_DEUDA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
@@ -1444,17 +1398,6 @@ namespace PosWeb.Migrations
                         .HasForeignKey("ID_VENTA")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.PagoDeuda", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Deuda", "Deuda")
-                        .WithMany()
-                        .HasForeignKey("ID_DEUDA")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Deuda");
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>

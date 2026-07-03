@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -435,5 +435,24 @@ export const api = {
         body: JSON.stringify(dto),
       }),
       eliminar: (id: number) => request<void>(`/combos/${id}`, { method: 'DELETE' }),
+      reactivar: (id: number) => request<void>(`/combos/${id}/reactivar`, { method: 'POST' }),
+      eliminarDefinitivo: (id: number) => request<void>(`/combos/${id}/definitivo`, { method: 'DELETE' }),
+    },
+
+  // Ofertas
+    ofertas: {
+      listar: () => request<OfertaDto[]>('/ofertas'),
+      obtenerPorId: (id: number) => request<OfertaDto>(`/ofertas/${id}`),
+      crear: (dto: OfertaUpsertDto) => request<OfertaDto>('/ofertas', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+      actualizar: (id: number, dto: OfertaUpsertDto) => request<OfertaDto>(`/ofertas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      }),
+      eliminar: (id: number) => request<void>(`/ofertas/${id}`, { method: 'DELETE' }),
+      reactivar: (id: number) => request<void>(`/ofertas/${id}/reactivar`, { method: 'POST' }),
+      eliminarDefinitivo: (id: number) => request<void>(`/ofertas/${id}/definitivo`, { method: 'DELETE' }),
     },
 }

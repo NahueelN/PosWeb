@@ -18,9 +18,27 @@ interface Item {
   comboId?: number
   comboNombre?: string
   comboPrecio?: number
+  ofertaId?: number
+  descuentoAplicado?: number
+  precioOriginal?: number
 }
 
 type Step = 'sucursal' | 'venta' | 'resultado'
+
+function estaVigenteHoy(fechaInicio: string | null | undefined, fechaFin: string | null | undefined, diasSemana: string | null | undefined, activo: boolean): boolean {
+  if (!activo) return false
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  if (fechaInicio && hoy < new Date(fechaInicio)) return false
+  if (fechaFin && hoy > new Date(fechaFin)) return false
+  if (diasSemana && diasSemana.trim()) {
+    const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+    const diaActual = dias[hoy.getDay()]
+    const diasOferta = diasSemana.split(',').map(d => d.trim().toUpperCase())
+    if (!diasOferta.includes(diaActual)) return false
+  }
+  return true
+}
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -80,6 +98,7 @@ export default function VentasPage() {
   // Product grid
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [combos, setCombos] = useState<ComboDto[]>([])
+  const [ofertas, setOfertas] = useState<OfertaDto[]>([])
   const [productosLoading, setProductosLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -111,6 +130,21 @@ export default function VentasPage() {
     for (const u of unidades) m.set(u.id, u.codigo)
     return m
   }, [unidades])
+
+  const ofertasMap = useMemo(() => {
+    const ahora = new Date()
+    const m = new Map<number, OfertaDto>()
+    for (const o of ofertas) {
+      if (estaVigenteHoy(o.fechaInicio, o.fechaFin, o.diasSemana, o.activo)) {
+        m.set(o.productoId, o)
+      }
+    }
+    return m
+  }, [ofertas])
+
+  const combosVigentes = useMemo(() =>
+    combos.filter(c => estaVigenteHoy(c.fechaInicio, c.fechaFin, c.diasSemana, c.activo)),
+    [combos])
 
   // Sincronizar Recibió con el total solo si el cajero no lo editó manualmente
   useEffect(() => {
@@ -164,13 +198,13 @@ export default function VentasPage() {
   }, [searchQuery, productos])
 
   const filteredCombos = useMemo(() => {
-    if (!searchQuery.trim()) return combos
+    if (!searchQuery.trim()) return combosVigentes
     const q = searchQuery.toLowerCase()
-    return combos.filter(c =>
+    return combosVigentes.filter(c =>
       c.descCombo.toLowerCase().includes(q) ||
       c.codCombo.toLowerCase().includes(q)
     )
-  }, [combos, searchQuery])
+  }, [combosVigentes, searchQuery])
 
   // Auto-detectar combo: si los productos individuales coinciden con un combo, reemplazar automáticamente
   const autoComboRef = useRef(false)
@@ -200,7 +234,7 @@ export default function VentasPage() {
       })
     }
 
-    const match = combos.find(combo => {
+    const match = combosVigentes.find(combo => {
       if (cart.items.some(i => i.comboId === combo.id)) return false
       if (dismissedCombos.has(combo.id)) return false
       return combo.items.every(ci => {
@@ -271,6 +305,9 @@ export default function VentasPage() {
         .finally(() => setProductosLoading(false))
       api.combos.listar()
         .then(setCombos)
+        .catch(() => {})
+      api.ofertas.listar()
+        .then(setOfertas)
         .catch(() => {})
     }
   }, [step, ctxSucursal])
@@ -349,7 +386,17 @@ export default function VentasPage() {
   function agregarProducto(producto: ProductoDto) {
     const existing = cart.items.find(i => !i.comboId && i.producto.id === producto.id)
     markAdded(producto.id, existing?.cantidad)
-    cart.addItem({ producto, cantidad: 1 })
+    const oferta = ofertasMap.get(producto.id)
+    const item: Item = oferta
+      ? {
+          producto: { ...producto, precio: producto.precio * (1 - oferta.descuento / 100) },
+          cantidad: 1,
+          ofertaId: oferta.id,
+          descuentoAplicado: oferta.descuento,
+          precioOriginal: producto.precio,
+        }
+      : { producto, cantidad: 1 }
+    cart.addItem(item)
     setSearchQuery('')
     // Flash visual en el buscador
     const el = searchInputRef.current
@@ -522,6 +569,7 @@ export default function VentasPage() {
           productoId: i.producto.id,
           cantidad: i.cantidad,
           comboId: i.comboId,
+          ofertaId: i.ofertaId,
         })),
         pagos: pagosDto.length > 0 ? pagosDto : undefined,
         clienteId: (cliente ?? clienteSeleccionado)?.id,
@@ -788,10 +836,13 @@ export default function VentasPage() {
       paymentSlot={paymentSlot}
       getItemProps={(i) => {
         const itemId = i.comboId ?? i.producto.id
+        const tieneOferta = i.ofertaId && i.precioOriginal
         return {
           nombre: i.producto.nombre,
           codigo: formatCodigoBarra(i.producto, unidadesMap),
-          precioUnitario: `$${i.producto.precio.toFixed(2)} c/u`,
+          precioUnitario: tieneOferta
+            ? `$${i.producto.precio.toFixed(2)} c/u  (${i.descuentoAplicado}% OFF)`
+            : `$${i.producto.precio.toFixed(2)} c/u`,
           subtotal: `$${(i.producto.precio * i.cantidad).toFixed(2)}`,
           cantidad: i.cantidad,
         onCantidadChange: (c: number) => { setCantidadDrafts((prev) => { const next = { ...prev }; delete next[itemId]; return next }); handleCambiarCantidad(itemId, c, i.comboId) },
@@ -807,7 +858,12 @@ export default function VentasPage() {
             if (el) cantidadRefs.current.set(itemId, el); else cantidadRefs.current.delete(itemId)
           },
         stockWarning: i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
-        badge: i.comboId ? <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span> : undefined,
+        badge: (
+          <>
+            {i.comboId && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span>}
+            {i.ofertaId && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold mr-1">{i.descuentoAplicado}% OFF</span>}
+          </>
+        ),
         details: i.comboId ? (() => {
           const combo = combos.find(c => c.id === i.comboId)
           if (combo?.items.length) {

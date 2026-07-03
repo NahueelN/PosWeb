@@ -20,6 +20,7 @@ using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
+using PosWeb.Application.Ofertas;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 
@@ -93,6 +94,7 @@ builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
+builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
 
 // Open Food Facts � optional barcode lookup
