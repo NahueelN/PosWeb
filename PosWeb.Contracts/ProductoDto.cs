@@ -22,6 +22,10 @@ public class ProductoDto
     public int? UnidadMedidaId { get; set; }
     public string? DescAdicional { get; set; }
 
+    public decimal? MargenGanancia { get; set; }
+
+    public bool SeguirStock { get; set; } = true;
+
     /// <summary>
     /// Código interno del producto.
     /// </summary>

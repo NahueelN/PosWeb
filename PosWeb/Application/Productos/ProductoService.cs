@@ -18,28 +18,7 @@ public class ProductoService
 
     public List<ProductoDto> ObtenerActivos(int? sucursalId = null)
     {
-        if (sucursalId.HasValue)
-        {
-            return _context.Producto
-                .Where(p => p.ACTIVO)
-                .OrderBy(p => p.DESC_PRODUCTO)
-                .Select(p => new ProductoDto
-                {
-                    Id = p.ID_PRODUCTO,
-                    CodigoBarra = p.CODIGO_BARRAS,
-                    Nombre = p.DESC_PRODUCTO,
-                    Precio = p.PRECIO,
-                    Costo = p.COSTO,
-                    Stock = _context.StockSucursal
-                        .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value)
-                        .Select(s => (int)s.STOCK)
-                        .FirstOrDefault(),
-                    Activo = p.ACTIVO
-                })
-                .ToList();
-        }
-
-        return _context.Producto
+        var query = _context.Producto
             .Where(p => p.ACTIVO)
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
@@ -55,9 +34,26 @@ public class ProductoService
                 CategoriaId = p.ID_CATEGORIA,
                 UnidadMedidaId = p.ID_UNIDAD_MEDIDA,
                 DescAdicional = p.DESC_ADICIONAL,
-                CodigoProducto = p.COD_PRODUCTO
-            })
-            .ToList();
+                CodigoProducto = p.COD_PRODUCTO,
+                MargenGanancia = p.MARGEN_GANANCIA,
+                SeguirStock = p.SEGUIR_STOCK
+            });
+
+        if (sucursalId.HasValue)
+        {
+            var stockDict = _context.StockSucursal
+                .Where(s => s.ID_SUCURSAL == sucursalId.Value)
+                .ToDictionary(s => s.ID_PRODUCTO, s => (int)s.STOCK);
+
+            var result = query.ToList();
+            foreach (var p in result)
+            {
+                p.Stock = stockDict.TryGetValue(p.Id, out var s) ? s : 0;
+            }
+            return result;
+        }
+
+        return query.ToList();
     }
 
     public ProductoDetailDto? ObtenerDetalle(int id, int? sucursalId = null)
@@ -129,6 +125,16 @@ public class ProductoService
             throw new CodigoProductoDuplicadoException(codProducto);
         }
 
+        // Auto-fill margen from categoria if not explicitly provided
+        decimal? margen = dto.MargenGanancia;
+        if (!margen.HasValue && dto.CategoriaId.HasValue)
+        {
+            margen = _context.Categoria
+                .Where(c => c.ID_CATEGORIA == dto.CategoriaId.Value)
+                .Select(c => c.MARGEN_GANANCIA)
+                .FirstOrDefault();
+        }
+
         Producto producto = new Producto(
             codProducto,
             dto.CodigoBarra,
@@ -139,7 +145,8 @@ public class ProductoService
             dto.DescAdicional,
             dto.Contenido,
             dto.UnidadMedidaId,
-            dto.Marca
+            dto.Marca,
+            margen
         );
 
         _context.Producto.Add(producto);
@@ -149,23 +156,22 @@ public class ProductoService
     }
 
     /// <summary>
-    /// Devuelve el próximo código interno disponible (max numérico + 1, o "1" si no hay).
+    /// Devuelve el próximo código interno disponible (PROD + numérico secuencial, o "PROD1" si no hay).
     /// </summary>
     public string ObtenerSiguienteCodigo()
     {
-        // Busca todos los COD_PRODUCTO que sean numéricos, toma el max y suma 1
         var todos = _context.Producto
-            .Where(p => p.ACTIVO)
+            .Where(p => p.ACTIVO && p.COD_PRODUCTO.StartsWith("PROD"))
             .Select(p => p.COD_PRODUCTO)
             .ToList();
 
         var numericos = todos
-            .Select(c => int.TryParse(c, out var n) ? n : (int?)null)
+            .Select(c => c.Length > 4 && int.TryParse(c.Substring(4), out var n) ? n : (int?)null)
             .Where(n => n.HasValue)
             .Select(n => n.Value);
 
         int max = numericos.Any() ? numericos.Max() : 0;
-        return (max + 1).ToString();
+        return $"PROD{max + 1}";
     }
 
     public ProductoDto ObtenerPorCodigoBarra(string codigoBarras)
@@ -228,7 +234,9 @@ public class ProductoService
             CategoriaId = producto.ID_CATEGORIA,
             UnidadMedidaId = producto.ID_UNIDAD_MEDIDA,
             DescAdicional = producto.DESC_ADICIONAL,
-            CodigoProducto = producto.COD_PRODUCTO
+            CodigoProducto = producto.COD_PRODUCTO,
+            MargenGanancia = producto.MARGEN_GANANCIA,
+            SeguirStock = producto.SEGUIR_STOCK
         };
     }
 
@@ -260,6 +268,8 @@ public class ProductoService
         producto.CambiarContenido(dto.Contenido);
         producto.CambiarUnidadMedida(dto.UnidadMedidaId);
         producto.CambiarDescAdicional(dto.DescAdicional);
+        producto.CambiarMargen(dto.MargenGanancia);
+        if (dto.SeguirStock.HasValue) producto.CambiarSeguirStock(dto.SeguirStock.Value);
         
         _context.SaveChanges();
         
@@ -314,5 +324,154 @@ public class ProductoService
                     Activo = p.ACTIVO
             })
             .ToList();
+    }
+
+    public List<GrupoMarcasDto> ObtenerMarcasSimilares()
+    {
+        var marcas = _context.Producto
+            .Where(p => p.ACTIVO && p.MARCA != null && p.MARCA != "")
+            .Select(p => p.MARCA!)
+            .Distinct()
+            .OrderBy(m => m)
+            .ToList();
+
+        if (marcas.Count == 0) return new List<GrupoMarcasDto>();
+
+        var parent = new Dictionary<string, string>();
+        foreach (var m in marcas) parent[m] = m;
+
+        string Find(string x)
+        {
+            if (parent[x] != x) parent[x] = Find(parent[x]);
+            return parent[x];
+        }
+
+        void Union(string a, string b)
+        {
+            var ra = Find(a);
+            var rb = Find(b);
+            if (ra != rb) parent[rb] = ra;
+        }
+
+        for (int i = 0; i < marcas.Count; i++)
+        {
+            for (int j = i + 1; j < marcas.Count; j++)
+            {
+                if (LevenshteinDistancia(marcas[i], marcas[j]) <= 1)
+                {
+                    Union(marcas[i], marcas[j]);
+                }
+            }
+        }
+
+        var grupos = parent
+            .GroupBy(kv => Find(kv.Key))
+            .Select(g => new GrupoMarcasDto
+            {
+                Marcas = g.Select(kv => kv.Key).OrderBy(m => m).ToList()
+            })
+            .Where(g => g.Marcas.Count > 1)
+            .OrderBy(g => g.Marcas.First())
+            .ToList();
+
+        return grupos;
+    }
+
+    private static int LevenshteinDistancia(string a, string b)
+    {
+        if (a.Length == 0) return b.Length;
+        if (b.Length == 0) return a.Length;
+
+        var dist = new int[a.Length + 1, b.Length + 1];
+        for (int i = 0; i <= a.Length; i++) dist[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) dist[0, j] = j;
+
+        for (int i = 1; i <= a.Length; i++)
+        {
+            for (int j = 1; j <= b.Length; j++)
+            {
+                int costo = a[i - 1] == b[j - 1] ? 0 : 1;
+                dist[i, j] = Math.Min(
+                    Math.Min(dist[i - 1, j] + 1, dist[i, j - 1] + 1),
+                    dist[i - 1, j - 1] + costo);
+            }
+        }
+
+        return dist[a.Length, b.Length];
+    }
+
+    public List<string> ObtenerMarcas()
+    {
+        return _context.Producto
+            .Where(p => p.ACTIVO && p.MARCA != null && p.MARCA != "")
+            .Select(p => p.MARCA!)
+            .Distinct()
+            .OrderBy(m => m)
+            .ToList();
+    }
+
+    public ProductoDto SeguirStockIndividual(int id, bool seguir)
+    {
+        Producto? producto = _context.Producto.Find(id);
+
+        if (producto == null)
+        {
+            throw new ProductoNoEncontradoException(id);
+        }
+
+        producto.CambiarSeguirStock(seguir);
+        _context.SaveChanges();
+
+        return MapToDto(producto);
+    }
+
+    public int SeguirStockGlobal(bool seguir)
+    {
+        var productos = _context.Producto
+            .Where(p => p.ACTIVO)
+            .ToList();
+
+        foreach (var p in productos)
+        {
+            p.CambiarSeguirStock(seguir);
+        }
+
+        _context.SaveChanges();
+        return productos.Count;
+    }
+
+    public int AjustarPreciosPorMarca(string marca, decimal porcentaje)
+    {
+        if (string.IsNullOrWhiteSpace(marca))
+            throw new ArgumentException("La marca es requerida");
+
+        if (porcentaje <= 0)
+            throw new ArgumentException("El porcentaje debe ser mayor a 0");
+
+        // Find similar brands (Levenshtein ≤ 1)
+        var todasLasMarcas = _context.Producto
+            .Where(p => p.ACTIVO && p.MARCA != null && p.MARCA != "")
+            .Select(p => p.MARCA!)
+            .Distinct()
+            .ToList();
+
+        var marcasAfectadas = todasLasMarcas
+            .Where(m => LevenshteinDistancia(marca, m) <= 1)
+            .ToList();
+
+        var productos = _context.Producto
+            .Where(p => p.ACTIVO && marcasAfectadas.Contains(p.MARCA))
+            .ToList();
+
+        decimal factor = 1 + (porcentaje / 100);
+
+        foreach (var p in productos)
+        {
+            p.CambiarCosto(Math.Round(p.COSTO * factor, 2));
+            p.CambiarPrecio(Math.Round(p.PRECIO * factor, 2));
+        }
+
+        _context.SaveChanges();
+        return productos.Count;
     }
 }

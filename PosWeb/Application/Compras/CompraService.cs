@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Deudas;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.Productos;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -11,11 +12,13 @@ public class CompraService
 {
     private readonly PosDbContext _context;
     private readonly DeudaService _deudaService;
+    private readonly ProductoService _productoService;
 
-    public CompraService(PosDbContext context, DeudaService deudaService)
+    public CompraService(PosDbContext context, DeudaService deudaService, ProductoService productoService)
     {
         _context = context;
         _deudaService = deudaService;
+        _productoService = productoService;
     }
 
     /// <summary>
@@ -77,36 +80,21 @@ public class CompraService
             {
                 int productoId = item.ProductoId;
 
-                // INLINE CREATION: item with ProductoId == 0 creates a new product
+                // INLINE CREATION: item with ProductoId == 0 creates a new product via ProductoService
                 if (productoId == 0)
                 {
-                    if (string.IsNullOrWhiteSpace(item.CodigoBarra))
-                        throw new ArgumentException("El código de barras es obligatorio para crear un producto nuevo");
-
-                    if (string.IsNullOrWhiteSpace(item.Nombre))
-                        throw new ArgumentException("El nombre es obligatorio para crear un producto nuevo");
-
-                    // Check duplicate barcode
-                    bool codigoExiste = _context.Producto
-                        .Any(p => p.CODIGO_BARRAS == item.CodigoBarra && p.ACTIVO);
-
-                    if (codigoExiste)
-                        throw new ProductoCodigoDuplicadoException(item.CodigoBarra);
-
-                    var nuevoProducto = new Producto(
-                        item.CodigoBarra,
-                        item.CodigoBarra,
-                        item.Nombre,
-                        item.Precio,
-                        item.Costo ?? 0,
-                        idCategoria: item.CategoriaId,
-                        descAdicional: item.DescAdicional,
-                        contenido: item.Contenido,
-                        idUnidadMedida: item.UnidadMedidaId
-                    );
-                    _context.Producto.Add(nuevoProducto);
-                    _context.SaveChanges(); // Generate ID within transaction
-                    productoId = nuevoProducto.ID_PRODUCTO;
+                    var nuevo = _productoService.Crear(new ProductoUpsertDto
+                    {
+                        CodigoBarra = item.CodigoBarra!,
+                        Nombre = item.Nombre!,
+                        Precio = item.Precio,
+                        Costo = item.Costo ?? 0,
+                        CategoriaId = item.CategoriaId,
+                        DescAdicional = item.DescAdicional,
+                        Contenido = item.Contenido,
+                        UnidadMedidaId = item.UnidadMedidaId,
+                    });
+                    productoId = nuevo.Id;
                 }
                 else
                 {
@@ -127,17 +115,19 @@ public class CompraService
                 if (productoFinal == null || !productoFinal.ACTIVO)
                     throw new ProductoNoEncontradoException(productoId);
 
-                // Find or create StockSucursal row
-                StockSucursal? stock = _context.StockSucursal
-                    .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
-
-                if (stock == null)
+                if (productoFinal.SEGUIR_STOCK)
                 {
-                    stock = new StockSucursal(productoId, sucursalId, 0);
-                    _context.StockSucursal.Add(stock);
-                }
+                    StockSucursal? stock = _context.StockSucursal
+                        .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
 
-                stock.AumentarStock(item.Cantidad);
+                    if (stock == null)
+                    {
+                        stock = new StockSucursal(productoId, sucursalId, 0);
+                        _context.StockSucursal.Add(stock);
+                    }
+
+                    stock.AumentarStock(item.Cantidad);
+                }
 
                 // Create RenglonCompra and add to Compra
                 var renglon = new RenglonCompra(productoId, item.Cantidad, item.CostoUnitario);

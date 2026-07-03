@@ -57,6 +57,23 @@ public class CajasController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("historial")]
+    public IActionResult ObtenerHistorial(
+        [FromQuery] int sucursalId,
+        [FromQuery] DateTime? fechaDesde = null,
+        [FromQuery] DateTime? fechaHasta = null)
+    {
+        var items = _cajaService.ObtenerHistorial(sucursalId, fechaDesde, fechaHasta);
+        return Ok(new { items });
+    }
+
+    [HttpGet("ultimo-cierre")]
+    public IActionResult ObtenerUltimoCierre([FromQuery] int sucursalId)
+    {
+        var result = _cajaService.ObtenerUltimoCierre(sucursalId);
+        return Ok(result);
+    }
+
     private int GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);

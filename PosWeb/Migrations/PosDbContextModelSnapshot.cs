@@ -109,12 +109,39 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_CATEGORIA");
 
+                    b.Property<decimal?>("MARGEN_GANANCIA")
+                        .HasColumnType("decimal(65,30)");
+
                     b.HasKey("ID_CATEGORIA");
 
                     b.HasIndex("COD_CATEGORIA")
                         .IsUnique();
 
                     b.ToTable("CATEGORIA", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.CategoriaGasto", b =>
+                {
+                    b.Property<int>("ID_CATEGORIA_GASTO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("ID_CATEGORIA_GASTO");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_CATEGORIA_GASTO"));
+
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ACTIVO");
+
+                    b.Property<string>("DESCRIPCION")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("DESCRIPCION");
+
+                    b.HasKey("ID_CATEGORIA_GASTO");
+
+                    b.ToTable("CATEGORIA_GASTO", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Cliente", b =>
@@ -131,7 +158,6 @@ namespace PosWeb.Migrations
                         .HasColumnName("ACTIVO");
 
                     b.Property<string>("COD_CLIENTE")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
                         .HasColumnName("COD_CLIENTE");
@@ -395,6 +421,10 @@ namespace PosWeb.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_GASTO"));
 
+                    b.Property<bool>("ANULADO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ANULADO");
+
                     b.Property<string>("DETALLE")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -408,6 +438,10 @@ namespace PosWeb.Migrations
                     b.Property<int?>("ID_CAJA")
                         .HasColumnType("int")
                         .HasColumnName("ID_CAJA");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_USUARIO");
 
                     b.Property<decimal>("MONTO")
                         .HasColumnType("decimal(18,2)")
@@ -480,7 +514,7 @@ namespace PosWeb.Migrations
                             ACTIVO = true,
                             COD_MEDIO_PAGO = "DEBITO",
                             DESC_MEDIO_PAGO = "Tarjeta Débito",
-                            PAGA_VUELTO = true
+                            PAGA_VUELTO = false
                         },
                         new
                         {
@@ -504,7 +538,7 @@ namespace PosWeb.Migrations
                             ACTIVO = true,
                             COD_MEDIO_PAGO = "QR",
                             DESC_MEDIO_PAGO = "QR",
-                            PAGA_VUELTO = true
+                            PAGA_VUELTO = false
                         });
                 });
 
@@ -549,6 +583,38 @@ namespace PosWeb.Migrations
                     b.HasIndex("ID_VENTA");
 
                     b.ToTable("PAGO", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PagoDeuda", b =>
+                {
+                    b.Property<int>("ID_PAGO_DEUDA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("ID_PAGO_DEUDA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PAGO_DEUDA"));
+
+                    b.Property<DateTime>("FECHA")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FECHA");
+
+                    b.Property<int>("ID_DEUDA")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_DEUDA");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<decimal>("MONTO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("MONTO");
+
+                    b.HasKey("ID_PAGO_DEUDA");
+
+                    b.HasIndex("ID_DEUDA");
+
+                    b.ToTable("PAGO_DEUDA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
@@ -676,9 +742,16 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("MARCA");
 
+                    b.Property<decimal?>("MARGEN_GANANCIA")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<decimal>("PRECIO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("PRECIO");
+
+                    b.Property<bool>("SEGUIR_STOCK")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("SEGUIR_STOCK");
 
                     b.HasKey("ID_PRODUCTO");
 
@@ -873,6 +946,8 @@ namespace PosWeb.Migrations
                         .HasColumnName("SUBTOTAL");
 
                     b.HasKey("ID_RENGLON_VENTA");
+
+                    b.HasIndex("ID_COMBO");
 
                     b.HasIndex("ID_PRODUCTO");
 
@@ -1205,6 +1280,21 @@ namespace PosWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.ComboItem", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Combo", null)
+                        .WithMany("ITEMS")
+                        .HasForeignKey("ID_COMBO")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PosWeb.Domain.Producto", null)
+                        .WithMany()
+                        .HasForeignKey("ID_PRODUCTO")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Compra", b =>
                 {
                     b.HasOne("PosWeb.Domain.Gasto", null)
@@ -1301,6 +1391,17 @@ namespace PosWeb.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.PagoDeuda", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Deuda", "Deuda")
+                        .WithMany()
+                        .HasForeignKey("ID_DEUDA")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Deuda");
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
                 {
                     b.HasOne("PosWeb.Domain.Pedido", null)
@@ -1338,21 +1439,6 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_UNIDAD_MEDIDA")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.ComboItem", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Combo", null)
-                        .WithMany("ITEMS")
-                        .HasForeignKey("ID_COMBO")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PosWeb.Domain.Producto", null)
-                        .WithMany()
-                        .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.RenglonCompra", b =>
@@ -1465,6 +1551,11 @@ namespace PosWeb.Migrations
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Combo", b =>
+                {
+                    b.Navigation("ITEMS");
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Compra", b =>

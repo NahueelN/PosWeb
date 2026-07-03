@@ -12,6 +12,8 @@ public class Categoria
 
     public string DESC_CATEGORIA { get; private set; } = null!;
 
+    public decimal? MARGEN_GANANCIA { get; private set; }
+
     public Categoria(string codCategoria, string descCategoria)
     {
         CambiarCodigo(codCategoria);
@@ -40,5 +42,15 @@ public class Categoria
         }
 
         DESC_CATEGORIA = descripcion.Trim();
+    }
+
+    public void AsignarMargen(decimal? margen)
+    {
+        if (margen.HasValue && (margen.Value < 0 || margen.Value > 999.99m))
+        {
+            throw new ArgumentException("El margen debe estar entre 0% y 999.99%");
+        }
+
+        MARGEN_GANANCIA = margen;
     }
 }

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
-
+import { useNotification } from '../context/NotificationContext'
 import type { SucursalDto, GastoDto, CajaDto, CategoriaGastoDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
 import PageHeader from '../components/ui/PageHeader'
 import AlertBanner from '../components/ui/AlertBanner'
+import { Clock } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 
@@ -84,7 +85,7 @@ export default function GastosPage() {
   const [categorias, setCategorias] = useState<CategoriaGastoDto[]>([])
   const [catSearch, setCatSearch] = useState('')
   const [showCatDropdown, setShowCatDropdown] = useState(false)
-  const [_creandoCat, setCreandoCat] = useState(false)
+  const [creandoCat, setCreandoCat] = useState(false)
   const [catHighIdx, setCatHighIdx] = useState(-1)
 
   const categoriasFiltradas = useMemo(() => {
@@ -245,9 +246,7 @@ export default function GastosPage() {
         <Card padding="lg" className="text-center">
           <div className="py-6">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
+              <Clock size={32} strokeWidth={1.5} className="text-gray-400" />
             </div>
             <p className="text-gray-500 font-medium">No hay caja abierta</p>
             <p className="text-sm text-gray-400 mt-1">Abrí una caja para registrar gastos</p>

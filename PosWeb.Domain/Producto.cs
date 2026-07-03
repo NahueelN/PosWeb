@@ -28,6 +28,10 @@ public class Producto
 
     public string? MARCA { get; private set; }
 
+    public decimal? MARGEN_GANANCIA { get; private set; }
+
+    public bool SEGUIR_STOCK { get; private set; } = true;
+
     public DateTime FECHA_ALTA { get; private set; }
 
     public DateTime FECHA_ULTIMA_MOD { get; private set; }
@@ -46,7 +50,8 @@ public class Producto
         string? descAdicional = null,
         decimal? contenido = null,
         int? idUnidadMedida = null,
-        string? marca = null)
+        string? marca = null,
+        decimal? margenGanancia = null)
     {
         CambiarCodigoProducto(codProducto);
         CambiarCodigoBarras(codigoBarras);
@@ -58,6 +63,7 @@ public class Producto
         CONTENIDO = contenido;
         ID_UNIDAD_MEDIDA = idUnidadMedida;
         MARCA = string.IsNullOrWhiteSpace(marca) ? null : marca.Trim();
+        MARGEN_GANANCIA = margenGanancia;
         FECHA_ALTA = DateTime.UtcNow;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
         ACTIVO = true;
@@ -149,6 +155,18 @@ public class Producto
     public void CambiarMarca(string? marca)
     {
         MARCA = string.IsNullOrWhiteSpace(marca) ? null : marca.Trim();
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarMargen(decimal? margen)
+    {
+        MARGEN_GANANCIA = margen;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarSeguirStock(bool seguir)
+    {
+        SEGUIR_STOCK = seguir;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 

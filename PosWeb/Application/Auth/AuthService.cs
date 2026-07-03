@@ -108,6 +108,33 @@ public class AuthService
         };
     }
 
+    public UsuarioDto? GetCurrentUser(int userId)
+    {
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
+        if (usuario == null) return null;
+
+        string? responsableNombre = null;
+        if (usuario.ID_USUARIO_RESP.HasValue)
+        {
+            responsableNombre = _context.Usuario
+                .Where(u => u.ID_USUARIO == usuario.ID_USUARIO_RESP.Value)
+                .Select(u => u.NOMBRE_USUARIO)
+                .FirstOrDefault();
+        }
+
+        return new UsuarioDto
+        {
+            Id = usuario.ID_USUARIO,
+            NombreUsuario = usuario.NOMBRE_USUARIO,
+            Mail = usuario.MAIL,
+            Rol = usuario.ROL,
+            UsuarioResponsableId = usuario.ID_USUARIO_RESP,
+            UsuarioResponsableNombre = responsableNombre,
+            Activo = usuario.ACTIVO,
+            PinConfigurado = !string.IsNullOrEmpty(usuario.PIN_HASH),
+        };
+    }
+
     public RegisterResponseDto Register(RegisterRequestDto request, int? currentUserId = null)
     {
         if (string.IsNullOrWhiteSpace(request.Usuario))

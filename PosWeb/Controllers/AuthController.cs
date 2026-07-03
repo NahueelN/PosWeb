@@ -51,4 +51,18 @@ public class AuthController : ControllerBase
         var result = _authService.Register(request, currentUserId);
         return Ok(result);
     }
+
+    [HttpGet("me")]
+    public IActionResult GetCurrentUser()
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out var userId))
+            return Unauthorized(new { error = "No autenticado" });
+
+        var usuario = _authService.GetCurrentUser(userId);
+        if (usuario == null)
+            return NotFound(new { error = "Usuario no encontrado" });
+
+        return Ok(usuario);
+    }
 }

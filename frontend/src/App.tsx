@@ -19,6 +19,7 @@ import DeudaPage from './pages/DeudaPage'
 import PedidosPage from './pages/PedidosPage'
 import EstadisticasPage from './pages/EstadisticasPage'
 import CombosPage from './pages/CombosPage'
+import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
 
 // Tauri updater — solo disponible en escritorio
@@ -107,6 +108,7 @@ export default function App() {
               <Route path="/combos" element={<CombosPage />} />
               <Route path="/estadisticas" element={<EstadisticasPage />} />
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
+              <Route path="/configuracion" element={<ConfiguracionPage />} />
             </Route>
           </Route>
         </Routes>

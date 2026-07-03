@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
 import ProductLookupModal from './ProductLookupModal'
+import { Menu, MapPin, ChevronDown, LogOut } from 'lucide-react'
 
 const menuGroups = [
   {
@@ -74,41 +75,41 @@ function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; 
   if (links.length === 0) return null
 
   return (
-    <div>
+    <div className="mb-0.5">
       <button
         onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
-          hasActive ? 'text-indigo-300' : 'text-slate-500 hover:text-slate-300'
+        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors group ${
+          hasActive ? 'text-white/50' : 'text-white/25 hover:text-white/45'
         }`}
       >
-        <span>{label}</span>
-        <svg
-          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-        </svg>
+        <span className="text-[9.5px] font-bold tracking-[0.11em] uppercase">{label}</span>
+        <ChevronDown
+          size={10}
+          strokeWidth={2.5}
+          className={`transition-transform duration-200 ${open ? '' : '-rotate-90'}`}
+        />
       </button>
       {open && (
-        <div className="ml-2 mt-0.5 space-y-0.5">
+        <ul className="mt-px space-y-px">
           {links.map(l => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              onClick={onLinkClick}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-indigo-500/15 text-indigo-300 shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`
-              }
-            >
-              <span className="text-sm w-5 text-center">{l.icon}</span>
-              {l.label}
-            </NavLink>
+            <li key={l.to}>
+              <NavLink
+                to={l.to}
+                onClick={onLinkClick}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12.5px] font-medium transition-all duration-100 ${
+                    isActive
+                      ? 'bg-[oklch(0.52_0.255_278)] text-white shadow-[0_1px_4px_oklch(0.52_0.255_278_/_0.30)]'
+                      : 'text-white/50 hover:bg-white/[0.06] hover:text-white/85'
+                  }`
+                }
+              >
+                <span className={`text-sm w-5 text-center shrink-0 ${location.pathname === l.to || location.pathname.startsWith(l.to + '/') ? '' : 'opacity-45'}`}>{l.icon}</span>
+                {l.label}
+              </NavLink>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )
@@ -148,16 +149,22 @@ export default function Layout() {
 
   const sidebarContent = (
     <>
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-700">
-        <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/[0.08] shrink-0">
+        <div
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.52_0.255_278)] text-white font-bold text-[12px] tracking-tight select-none"
+          style={{ boxShadow: '0 1px 4px oklch(0.52 0.255 278 / 0.35)' }}
+        >
           PW
         </div>
-        <span className="text-white font-semibold text-sm tracking-wide">
-          PosWeb
-        </span>
+        <div className="flex flex-col leading-none">
+          <span className="text-[13.5px] font-bold text-white tracking-tight">PosWeb</span>
+          <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">v0.1</span>
+        </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-px">
         {menuGroups.map(group => {
           const visibleLinks = user?.rol === 'UsuarioComun'
             ? group.links.filter(l => !hiddenForUsuarioComun.has(l.to))
@@ -175,24 +182,38 @@ export default function Layout() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-slate-700 space-y-2">
+      {/* Bottom actions */}
+      <div className="border-t border-white/[0.08] px-2 py-2.5 space-y-px shrink-0">
         {canCreateUsers && (
           <NavLink
             to="/usuarios/alta"
             onClick={closeSidebar}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
                 isActive
-                  ? 'bg-emerald-500/15 text-emerald-300 shadow-sm'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  ? 'bg-emerald-500/20 text-emerald-300'
+                  : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
               }`
             }
           >
-            <span className="text-base">👥+</span>
+            <span className="text-sm w-5 text-center shrink-0">👥+</span>
             Alta usuario
           </NavLink>
         )}
-        <p className="px-3 text-xs text-slate-500">PosWeb v0.1</p>
+        <NavLink
+          to="/configuracion"
+          onClick={closeSidebar}
+          className={({ isActive }) =>
+            `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
+              isActive
+                ? 'bg-[oklch(0.52_0.255_278_/_0.15)] text-white'
+                : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
+            }`
+          }
+        >
+          <span className="text-sm w-5 text-center shrink-0">⚙️</span>
+          Configuración
+        </NavLink>
       </div>
     </>
   )
@@ -208,45 +229,42 @@ export default function Layout() {
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 w-56 bg-slate-900 flex flex-col
+          fixed inset-y-0 left-0 z-40 w-[196px] bg-[oklch(0.15_0.016_262)] flex flex-col
           transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:static lg:translate-x-0 lg:z-auto lg:shrink-0
         `}
+        style={{ borderRight: '1px solid oklch(0.255 0.016 262)' }}
       >
         {sidebarContent}
       </aside>
 
       <main className="flex-1 flex flex-col overflow-auto min-w-0 min-h-0">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
+        <header className="h-[48px] bg-white border-b border-gray-200 flex items-center justify-between px-5 gap-4 shrink-0"
+          style={{ boxShadow: '0 1px 0 0 oklch(0.91 0.008 265)' }}>
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors shrink-0"
               aria-label="Abrir menu"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
+              <Menu size={16} />
             </button>
 
-            <h2 className="text-lg font-semibold text-gray-900 truncate">Punto de Venta</h2>
+            <h1 className="text-[14.5px] font-bold text-gray-900 tracking-tight truncate">Punto de Venta</h1>
             {sucursal && (
-              <span className="hidden sm:flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                </svg>
+              <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] px-2.5 py-1 rounded-lg shrink-0">
+                <MapPin size={12} strokeWidth={2.5} />
                 {sucursal.nombre}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {sucursal && location.pathname !== '/sucursales' && (
               <button
                 onClick={() => { limpiar(); window.location.reload() }}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors font-medium"
               >
                 Cambiar sucursal
               </button>
@@ -254,22 +272,32 @@ export default function Layout() {
 
             {user && (
               <div className="flex items-center gap-3">
-                <span className="hidden sm:inline text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">{user.nombre}</span>
-                  <span className="ml-1.5 px-1.5 py-0.5 bg-gray-100 rounded text-xs">{user.rol}</span>
-                </span>
+                <div className="hidden sm:flex items-center gap-2">
+                  <div
+                    className="h-6 w-6 rounded-full bg-[oklch(0.52_0.255_278)] flex items-center justify-center text-white font-bold text-[10px] select-none shrink-0"
+                    style={{ boxShadow: '0 1px 4px oklch(0.52 0.255 278 / 0.30)' }}
+                  >
+                    {user.nombre.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex flex-col leading-none">
+                    <span className="font-bold text-[12px] text-gray-900">{user.nombre}</span>
+                    <span className="text-[9.5px] font-semibold text-[oklch(0.52_0.255_278_/_0.75)] mt-[2px] uppercase tracking-wide">{user.rol}</span>
+                  </div>
+                </div>
+                <span className="hidden sm:block h-3.5 w-px bg-gray-200" />
                 <button
                   onClick={handleLogout}
-                  className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-red-500 transition-colors px-1.5 py-1 rounded-md hover:bg-red-50"
                 >
-                  Salir
+                  <LogOut size={12} strokeWidth={2} />
+                  <span className="hidden sm:inline">Salir</span>
                 </button>
               </div>
             )}
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 overflow-auto min-h-0 flex flex-col">
+        <div className="flex-1 overflow-auto min-h-0 flex flex-col p-4 sm:p-5">
           <Outlet context={{ sucursal }} />
         </div>
       </main>
