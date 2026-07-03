@@ -115,17 +115,19 @@ public class CompraService
                 if (productoFinal == null || !productoFinal.ACTIVO)
                     throw new ProductoNoEncontradoException(productoId);
 
-                // Find or create StockSucursal row
-                StockSucursal? stock = _context.StockSucursal
-                    .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
-
-                if (stock == null)
+                if (productoFinal.SEGUIR_STOCK)
                 {
-                    stock = new StockSucursal(productoId, sucursalId, 0);
-                    _context.StockSucursal.Add(stock);
-                }
+                    StockSucursal? stock = _context.StockSucursal
+                        .FirstOrDefault(s => s.ID_PRODUCTO == productoId && s.ID_SUCURSAL == sucursalId);
 
-                stock.AumentarStock(item.Cantidad);
+                    if (stock == null)
+                    {
+                        stock = new StockSucursal(productoId, sucursalId, 0);
+                        _context.StockSucursal.Add(stock);
+                    }
+
+                    stock.AumentarStock(item.Cantidad);
+                }
 
                 // Create RenglonCompra and add to Compra
                 var renglon = new RenglonCompra(productoId, item.Cantidad, item.CostoUnitario);

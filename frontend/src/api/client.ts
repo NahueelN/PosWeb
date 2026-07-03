@@ -142,6 +142,23 @@ export const api = {
     }),
     obtenerProximoCodigo: () => request<ProximoCodigoResponse>('/productos/proximo-codigo'),
     eliminar: (id: number) => request<void>(`/productos/${id}`, { method: 'DELETE' }),
+    marcas: () => request<string[]>('/productos/marcas'),
+    marcasSimilares: () => request<{ marcas: string[] }[]>('/productos/marcas-similares'),
+    ajusteMarca: (marca: string, porcentaje: number) =>
+      request<{ afectados: number }>('/productos/ajuste-marca', {
+        method: 'PUT',
+        body: JSON.stringify({ marca, porcentaje }),
+      }),
+    seguirStockGlobal: (seguirStock: boolean) =>
+      request<{ afectados: number }>('/productos/seguir-stock', {
+        method: 'PUT',
+        body: JSON.stringify({ seguirStock }),
+      }),
+    seguirStockIndividual: (id: number, seguirStock: boolean) =>
+      request<ProductoDto>(`/productos/${id}/seguir-stock`, {
+        method: 'PUT',
+        body: JSON.stringify({ seguirStock }),
+      }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(dto),

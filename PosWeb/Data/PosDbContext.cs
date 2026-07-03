@@ -93,6 +93,9 @@ public class PosDbContext : DbContext
             entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
 
+            entity.Property(p => p.SEGUIR_STOCK)
+                .HasColumnName("SEGUIR_STOCK");
+
             entity.HasOne<Categoria>()
                 .WithMany()
                 .HasForeignKey(p => p.ID_CATEGORIA)

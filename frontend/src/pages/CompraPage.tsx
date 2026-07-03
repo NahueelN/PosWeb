@@ -427,7 +427,17 @@ export default function CompraPage() {
               }}
               placeholder={proveedorOk ? 'Buscar o escanear código de barras...' : 'Seleccione un proveedor para comenzar'}
               disabled={!proveedorOk}
-              className="w-full pl-11 pr-10 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
+              className="w-full pl-11 pr-20 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" />
+            {proveedorOk && (
+              <button type="button"
+                onClick={() => { if (searchQuery.trim()) handleBarcodeLookup(searchQuery.trim()) }}
+                className="absolute right-9 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-indigo-100 hover:bg-indigo-200 flex items-center justify-center text-indigo-500 hover:text-indigo-700 transition-colors"
+                title="Buscar">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+              </button>
+            )}
             {searchLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -589,7 +599,7 @@ export default function CompraPage() {
                   </button>
                 </div>
               </>
-            ) : (
+            ) : <>
               <MontoInput
                 value={montoPago}
                 onChange={v => setMontoPago(v)}
@@ -597,7 +607,6 @@ export default function CompraPage() {
                 buttonLabel="No pagar"
                 onButtonClick={() => setMontoPago('')}
               />
-            )}
 
             {/* Fuente selector */}
             <div className="flex rounded-lg border border-gray-300 overflow-hidden">
@@ -633,7 +642,7 @@ export default function CompraPage() {
               );
               return null;
             })()}
-          </PaymentFooter>
+          </>}</PaymentFooter>
         }>
             {state.cart.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">Agregá productos para armar la compra</div>
@@ -701,6 +710,7 @@ export default function CompraPage() {
         open={showNewModal}
         prefillData={offPrefillData}
         initialCodigo={initialCodigo || undefined}
+        sucursalId={sucursalId}
         onCreated={handleProductCreatedInModal}
         onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); }}
       />

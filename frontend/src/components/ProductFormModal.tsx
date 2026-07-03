@@ -6,6 +6,8 @@ interface ProductFormModalProps {
   open: boolean
   prefillData?: OpenFoodFactsResultDto | null
   initialCodigo?: string
+  editingProduct?: ProductoDto | null
+  sucursalId?: number
   onCreated: (producto: ProductoDto) => void
   onClose: () => void
 }
@@ -14,6 +16,8 @@ export default function ProductFormModal({
   open,
   prefillData,
   initialCodigo,
+  editingProduct,
+  sucursalId,
   onCreated,
   onClose,
 }: ProductFormModalProps) {
@@ -24,13 +28,17 @@ export default function ProductFormModal({
   const [contenido, setContenido] = useState(prefillData?.contenido?.toString() || '')
   const [precio, setPrecio] = useState('')
   const [costo, setCosto] = useState('')
+  const [stock, setStock] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
   const [unidadMedidaId, setUnidadMedidaId] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [margen, setMargen] = useState('')
   const [bloquearMargen, setBloquearMargen] = useState(false)
+  const [seguirStock, setSeguirStock] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const isEditing = !!editingProduct
 
   const [categorias, setCategorias] = useState<CategoriaDto[]>([])
   const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([])
@@ -44,25 +52,44 @@ export default function ProductFormModal({
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
-      setCodigoBarra(prefillData?.codigoBarras || initialCodigo || '')
-      setNombre(prefillData?.descripcion || '')
-      setMarca(prefillData?.marca || '')
-      setContenido(prefillData?.contenido?.toString() || '')
-      setPrecio('')
-      setCosto('')
-      setCategoriaId('')
-      setUnidadMedidaId('')
-      setDescripcion('')
-      setMargen('')
-      setBloquearMargen(false)
+      if (editingProduct) {
+        setCodigoBarra(editingProduct.codigoBarra)
+        setCodigoProducto(editingProduct.codigoProducto || '')
+        setNombre(editingProduct.nombre)
+        setMarca(editingProduct.marca || '')
+        setContenido(editingProduct.contenido?.toString() || '')
+        setPrecio(editingProduct.precio?.toString() || '')
+        setCosto(editingProduct.costo?.toString() || '')
+        setCategoriaId(editingProduct.categoriaId?.toString() || '')
+        setUnidadMedidaId(editingProduct.unidadMedidaId?.toString() || '')
+        setStock(editingProduct.stock?.toString() || '')
+        setSeguirStock(editingProduct.seguirStock ?? true)
+        setDescripcion(editingProduct.descAdicional || '')
+        setMargen(editingProduct.margenGanancia?.toString() || '')
+        setBloquearMargen(false)
+        setBarcodeStatus('idle')
+      } else {
+        setCodigoBarra(prefillData?.codigoBarras || initialCodigo || '')
+        setNombre(prefillData?.descripcion || '')
+        setMarca(prefillData?.marca || '')
+        setContenido(prefillData?.contenido?.toString() || '')
+        setPrecio('')
+        setCosto('')
+        setCategoriaId('')
+        setUnidadMedidaId('')
+        setDescripcion('')
+        setStock('')
+        setSeguirStock(true)
+        setMargen('')
+        setBloquearMargen(false)
+        setBarcodeStatus('idle')
+        api.productos.obtenerProximoCodigo()
+          .then(res => setCodigoProducto(res.codigo))
+          .catch(() => setCodigoProducto(''))
+      }
       setError('')
-      setBarcodeStatus('idle')
-      // Fetch next available product code
-      api.productos.obtenerProximoCodigo()
-        .then(res => setCodigoProducto(res.codigo))
-        .catch(() => setCodigoProducto(''))
     }
-  }, [open, prefillData, initialCodigo])
+  }, [open, prefillData, initialCodigo, editingProduct])
 
   useEffect(() => {
     api.categorias.listar().then(setCategorias).catch(() => {})
@@ -126,7 +153,7 @@ export default function ProductFormModal({
   useEffect(() => {
     const codigo = codigoBarra.trim()
     if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
-    if (!codigo || prefillData?.codigoBarras) {
+    if (!codigo || prefillData?.codigoBarras || isEditing) {
       setBarcodeStatus('idle')
       return
     }
@@ -169,7 +196,7 @@ export default function ProductFormModal({
 
     setLoading(true)
     try {
-      const created = await api.productos.crear({
+      const dto = {
         codigoBarra: codigoBarra.trim(),
         nombre: nombre.trim(),
         precio: precioNum,
@@ -179,23 +206,48 @@ export default function ProductFormModal({
         categoriaId: categoriaId ? Number(categoriaId) : undefined,
         unidadMedidaId: unidadMedidaId ? Number(unidadMedidaId) : undefined,
         descAdicional: descripcion.trim() || undefined,
-        codigoProducto: codigoProducto.trim() || undefined,
+        codigoProducto: codigoProducto.startsWith('PROD') && codigoProducto.length > 4 ? codigoProducto.trim() : undefined,
         margenGanancia: margen ? Number(margen) : undefined,
-      })
-      onCreated(created)
+        seguirStock,
+      }
+      const result = isEditing
+        ? await api.productos.actualizar(editingProduct!.id, dto)
+        : await api.productos.crear(dto)
+
+      // Adjust stock if value provided, sucursalId is available, and stock tracking is enabled
+      if (seguirStock && sucursalId) {
+        const stockNum = stock.trim() !== '' ? parseInt(stock) : NaN
+        if (!isNaN(stockNum)) {
+          try {
+            await api.stock.ajustar(result.id, sucursalId, stockNum)
+            result.stock = stockNum
+          } catch {
+            result.stock = isEditing ? editingProduct!.stock : 0
+          }
+        } else if (isEditing) {
+          result.stock = editingProduct!.stock
+        }
+      } else if (isEditing) {
+        result.stock = editingProduct!.stock
+      }
+
+      onCreated(result)
     } catch (e: any) {
-      setError(e.message || 'Error al crear producto')
+      setError(e.message || (isEditing ? 'Error al actualizar producto' : 'Error al crear producto'))
     } finally {
       setLoading(false)
     }
   }
 
+  const precioNum = parseFloat(precio)
+  const costoNum = parseFloat(costo)
+  const precioInferiorCosto = !isNaN(precioNum) && precioNum > 0 && !isNaN(costoNum) && costoNum > 0 && precioNum < costoNum
+
   if (!open) return null
 
-  const isReadonlyCodigo = !!(prefillData?.codigoBarras)
+  const isReadonlyCodigo = !!(prefillData?.codigoBarras) || isEditing
   const canSubmit = nombre.trim()
-    && barcodeStatus !== 'checking'
-    && barcodeStatus !== 'taken'
+    && (isEditing || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
     && codigoBarra.trim()
 
   return (
@@ -203,7 +255,7 @@ export default function ProductFormModal({
       <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between mb-4">
           <h3 className="text-lg font-bold text-indigo-900">
-            {prefillData ? 'Completar producto' : 'Nuevo producto'}
+            {isEditing ? 'Editar producto' : prefillData ? 'Completar producto' : 'Nuevo producto'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
         </div>
@@ -253,13 +305,19 @@ export default function ProductFormModal({
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-700">Código interno</label>
-              <input
-                type="text"
-                value={codigoProducto}
-                onChange={e => setCodigoProducto(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                placeholder="Auto-generado"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-mono text-gray-400 select-none">PROD</span>
+                <input
+                  type="text"
+                  value={codigoProducto.startsWith('PROD') ? codigoProducto.substring(4) : codigoProducto}
+                  onChange={e => {
+                    const val = e.target.value.trim()
+                    setCodigoProducto(val ? 'PROD' + val : '')
+                  }}
+                  className="w-full pl-14 pr-3 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  placeholder="Auto-generado"
+                />
+              </div>
             </div>
           </div>
 
@@ -292,8 +350,8 @@ export default function ProductFormModal({
             </div>
           </div>
 
-          {/* Contenido + Unidad de Medida (con código) */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Contenido + Unidad + Stock */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-700">Contenido</label>
               <input type="number" step="0.01" value={contenido} onChange={e => setContenido(e.target.value)}
@@ -310,6 +368,31 @@ export default function ProductFormModal({
                 ))}
               </select>
             </div>
+            <div>
+              <label className={`text-xs font-semibold ${!seguirStock ? 'text-gray-400' : 'text-gray-700'}`}>{isEditing ? 'Stock' : 'Stock inicial'}</label>
+              <input type="number" min="0" step="1" value={seguirStock ? stock : ''} onChange={e => setStock(e.target.value)}
+                disabled={!seguirStock}
+                className={`w-full px-3 py-2 border rounded-lg text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  !seguirStock
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
+                }`}
+                placeholder={seguirStock ? '0' : 'Sin control'} />
+            </div>
+          </div>
+
+          {/* Seguir Stock */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={seguirStock}
+                onChange={e => setSeguirStock(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Seguir stock</span>
+              <span className="text-xs text-gray-400">(desmarcar para productos sin control de inventario)</span>
+            </label>
           </div>
 
           {/* Margen + Costo + Precio */}
@@ -337,14 +420,26 @@ export default function ProductFormModal({
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
                   <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={`w-full pl-7 py-2 border rounded-lg text-sm focus:ring-2 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-gray-900 ${
+                      precioInferiorCosto
+                        ? 'pr-8 border-red-400 text-red-700 focus:ring-red-500/20 focus:border-red-500'
+                        : 'pr-3 focus:ring-indigo-500/20 focus:border-indigo-500'
+                    }`}
                     placeholder="0.00" />
+                  {precioInferiorCosto && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500" title="Precio menor al costo">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                      </svg>
+                    </span>
+                  )}
                 </div>
+            </div>
             </div>
             <p className="text-[11px] text-gray-400 whitespace-nowrap">
               En configuración podés asignar y actualizar los márgenes de ganancia por categoría.
             </p>
-          </div>
+
           </div>
 
           {/* Descripción adicional — full width abajo */}
@@ -376,9 +471,9 @@ export default function ProductFormModal({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Creando...
+                  {isEditing ? 'Guardando...' : 'Creando...'}
                 </span>
-              ) : 'Crear producto'}
+              ) : isEditing ? 'Guardar cambios' : 'Crear producto'}
             </button>
           </div>
         </form>

@@ -109,15 +109,16 @@ public class VentaService
                     if (!cproducto.ACTIVO)
                         throw new ProductoInactivoException(citem.ID_PRODUCTO);
 
-                    StockSucursal? cstock = _context.StockSucursal
-                        .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
-
                     decimal cantidadNecesaria = citem.CANTIDAD * item.Cantidad;
-                    int cdisponible = (int)(cstock?.STOCK ?? 0);
 
-                    if (cdisponible < cantidadNecesaria)
+                    if (cproducto.SEGUIR_STOCK)
                     {
-                        if (!dto.AllowSinStock)
+                        StockSucursal? cstock = _context.StockSucursal
+                            .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
+
+                        int cdisponible = (int)(cstock?.STOCK ?? 0);
+
+                        if (cdisponible < cantidadNecesaria && !dto.AllowSinStock)
                         {
                             throw new StockSucursalInsuficienteException(
                                 cproducto.DESC_PRODUCTO,
@@ -126,10 +127,11 @@ public class VentaService
                                 (int)cantidadNecesaria
                             );
                         }
-                    }
-                    else if (cstock != null)
-                    {
-                        cstock.DescontarStock(cantidadNecesaria);
+
+                        if (cstock != null && cdisponible >= cantidadNecesaria)
+                        {
+                            cstock.DescontarStock(cantidadNecesaria);
+                        }
                     }
                     venta.AgregarRenglonCombo(combo, citem.ID_PRODUCTO, cantidadNecesaria, 0);
                 }
@@ -150,27 +152,30 @@ public class VentaService
                     throw new ProductoInactivoException(item.ProductoId);
                 }
 
-               StockSucursal? stockSuc = _context.StockSucursal
-    .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
+                if (producto.SEGUIR_STOCK)
+                {
+                    StockSucursal? stockSuc = _context.StockSucursal
+                        .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
-int available = (int)(stockSuc?.STOCK ?? 0);
+                    int available = (int)(stockSuc?.STOCK ?? 0);
 
-if (available < item.Cantidad && !dto.AllowSinStock)
-{
-    throw new StockSucursalInsuficienteException(
-        producto.DESC_PRODUCTO,
-        dto.SucursalId,
-        available,
-        item.Cantidad
-    );
-}
+                    if (available < item.Cantidad && !dto.AllowSinStock)
+                    {
+                        throw new StockSucursalInsuficienteException(
+                            producto.DESC_PRODUCTO,
+                            dto.SucursalId,
+                            available,
+                            item.Cantidad
+                        );
+                    }
 
-if (stockSuc != null && available >= item.Cantidad)
-{
-    stockSuc.DescontarStock(item.Cantidad);
-}
+                    if (stockSuc != null && available >= item.Cantidad)
+                    {
+                        stockSuc.DescontarStock(item.Cantidad);
+                    }
+                }
 
-            venta.AgregarRenglon(producto, item.Cantidad);
+                venta.AgregarRenglon(producto, item.Cantidad);
             }
 
         }

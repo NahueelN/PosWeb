@@ -1,33 +1,36 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
-import BarcodeLookup from '../components/BarcodeLookup'
 import ProductFormModal from '../components/ProductFormModal'
-import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
-
-interface EditState {
-  id: number
-  codigoBarra: string
-  nombre: string
-  precio: string
-  costo: string
-  tamano: string
-}
+import MargenesTab from '../components/MargenesTab'
+import StockTab from '../components/StockTab'
+import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
 
 export default function ProductosPage() {
-  const navigate = useNavigate()
+  const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
-  const { notifyError } = useNotification()
-  const [postCreateProduct, setPostCreateProduct] = useState<ProductoDto | null>(null)
-  const [editState, setEditState] = useState<EditState | null>(null)
+  const { notifyError, notifySuccess } = useNotification()
+  const [tab, setTab] = useState<'productos' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
 
-  // Product creation modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
   const [modalCodigo, setModalCodigo] = useState('')
+  const [editingProduct, setEditingProduct] = useState<ProductoDto | null>(null)
+
+  const [ajusteMarca, setAjusteMarca] = useState('')
+  const [ajustePorcentaje, setAjustePorcentaje] = useState('')
+  const [ajusteLoading, setAjusteLoading] = useState(false)
+  const [marcas, setMarcas] = useState<string[]>([])
+  const [marcaBusqueda, setMarcaBusqueda] = useState('')
+  const [marcaDropdown, setMarcaDropdown] = useState(false)
+  const [gruposMarcas, setGruposMarcas] = useState<{ marcas: string[] }[]>([])
+
+  const marcasFiltradas = marcaBusqueda
+    ? marcas.filter(m => m.toLowerCase().includes(marcaBusqueda.toLowerCase()))
+    : marcas
 
   const [query, setQuery] = useState('')
 
@@ -40,89 +43,122 @@ export default function ProductosPage() {
     )
   }, [productos, query])
 
-  useEffect(() => { listar() }, [])
+  useEffect(() => { listar() }, [sucursal?.id])
+
+  useEffect(() => {
+    if (tab === 'actualizacion-masiva' && marcas.length === 0) {
+      api.productos.marcas().then(setMarcas).catch(() => setMarcas([]))
+      api.productos.marcasSimilares().then(setGruposMarcas).catch(() => setGruposMarcas([]))
+    }
+  }, [tab])
 
   async function listar() {
     try {
-      setProductos(await api.productos.listar())
+      setProductos(await api.productos.listar(sucursal?.id))
     } catch (e: any) { notifyError(e.message) }
-  }
-
-  function handleProductFound(product: ProductoDto) {
-    setPostCreateProduct(product)
-  }
-
-  function handlePrefillForm(data: OpenFoodFactsResultDto) {
-    setModalPrefill(data)
-    setModalCodigo('')
-    setModalOpen(true)
-    setError('')
-  }
-
-  function handleNotFound(codigo: string) {
-    setModalPrefill(null)
-    setModalCodigo(codigo)
-    setModalOpen(true)
-    setError('')
   }
 
   function handleProductCreated(product: ProductoDto) {
     setModalOpen(false)
     setModalPrefill(null)
     setModalCodigo('')
-    setPostCreateProduct(product)
-    listar()
+    if (editingProduct) {
+      setProductos(prev => prev.map(p => p.id === product.id ? product : p))
+      setEditingProduct(null)
+    } else {
+      listar()
+    }
   }
 
   function handleCloseModal() {
     setModalOpen(false)
     setModalPrefill(null)
     setModalCodigo('')
+    setEditingProduct(null)
+  }
+
+  async function handleBarcodeLookup(codigo: string) {
+    try {
+      const prod = await api.productos.obtenerPorBarra(codigo)
+      if (prod) {
+        setQuery('')
+        focusCard(prod.id)
+        return
+      }
+    } catch {}
+    const localMatch = productos.find(
+      p => p.codigoBarra.toLowerCase() === codigo.toLowerCase()
+    )
+    if (localMatch) {
+      setQuery('')
+      focusCard(localMatch.id)
+      return
+    }
+    try {
+      const res = await api.productos.lookupOpenFoodFacts(codigo)
+      if (res.encontrado && res.datos) {
+        setModalPrefill(res.datos)
+        setModalCodigo('')
+        setModalOpen(true)
+        setQuery('')
+      } else {
+        notifyError(`Producto no encontrado: "${codigo}"`)
+        setModalPrefill(null)
+        setModalCodigo(codigo)
+        setModalOpen(true)
+      }
+    } catch {
+      notifyError(`Error al buscar producto: "${codigo}"`)
+      setModalPrefill(null)
+      setModalCodigo(codigo)
+      setModalOpen(true)
+    }
   }
 
   function handleOpenForm() {
+    setEditingProduct(null)
     setModalPrefill(null)
     setModalCodigo('')
     setModalOpen(true)
     setError('')
   }
 
-  async function handleEliminar(id: number) {
+  function handleEditProduct(p: ProductoDto) {
+    setEditingProduct(p)
+    setModalPrefill(null)
+    setModalCodigo('')
+    setModalOpen(true)
+  }
+
+  async   function handleEliminar(id: number) {
     try {
       await api.productos.eliminar(id)
       await listar()
     } catch (e: any) { notifyError(e.message) }
   }
 
-  function startEdit(p: ProductoDto) {
-    setEditState({
-      id: p.id,
-      codigoBarra: p.codigoBarra,
-      nombre: p.nombre,
-      precio: p.precio.toString(),
-      costo: p.costo.toString(),
-      tamano: p.tamano || '',
-    })
-  }
-
-  function cancelEdit() {
-    setEditState(null)
-  }
-
-  async function saveEdit() {
-    if (!editState) return
-    const id = editState.id
+  async function handleAjusteSubmit() {
+    if (!ajusteMarca || !ajustePorcentaje) {
+      notifyError('Seleccioná una marca y un porcentaje')
+      return
+    }
+    const pct = parseFloat(ajustePorcentaje)
+    if (isNaN(pct) || pct <= 0) {
+      notifyError('El porcentaje debe ser mayor a 0')
+      return
+    }
+    setAjusteLoading(true)
     try {
-      const updated = await api.productos.actualizar(id, {
-        codigoBarra: editState.codigoBarra,
-        nombre: editState.nombre,
-        precio: parseFloat(editState.precio),
-        costo: parseFloat(editState.costo),
-        tamano: editState.tamano || undefined,
-      })
-      setProductos(prev => prev.map(p => p.id === updated.id ? updated : p))
-      setEditState(null)
-    } catch (e: any) { notifyError(e.message) }
+      const res = await api.productos.ajusteMarca(ajusteMarca, pct)
+      notifySuccess(`${res.afectados} productos actualizados`)
+      setAjusteMarca('')
+      setAjustePorcentaje('')
+      listar()
+    } catch (e: any) {
+      notifyError(e.message || 'Error al aplicar ajuste')
+    } finally {
+      setAjusteLoading(false)
+    }
   }
 
   function focusCard(id: number) {
@@ -133,223 +169,242 @@ export default function ProductosPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Productos</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {query
-              ? `${filteredProductos.length} de ${productos.length} productos`
-              : `${productos.length} productos activos`
-            }
-          </p>
+          <p className="text-sm text-gray-500 mt-0.5">{productos.length} productos activos</p>
         </div>
+        {tab === 'productos' && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleOpenForm}
+              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nuevo producto
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200">
         <button
-          onClick={handleOpenForm}
-          className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
+          onClick={() => setTab('productos')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'productos'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo producto
+          Productos
+        </button>
+        <button
+          onClick={() => setTab('margenes')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'margenes'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Márgenes
+        </button>
+        <button
+          onClick={() => setTab('stock')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'stock'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Stock
+        </button>
+        <button
+          onClick={() => setTab('actualizacion-masiva')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'actualizacion-masiva'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Actualización masiva
         </button>
       </div>
 
-      <BarcodeLookup
-        onProductFound={handleProductFound}
-        onPrefillForm={handlePrefillForm}
-        onNotFound={handleNotFound}
-      />
+      {tab === 'productos' ? (
+        <>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+              {error}
+            </div>
+          )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
-          {error}
-        </div>
-      )}
+          <ProductFormModal
+            open={modalOpen}
+            prefillData={modalPrefill}
+            initialCodigo={modalCodigo}
+            editingProduct={editingProduct}
+            sucursalId={sucursal?.id}
+            onCreated={handleProductCreated}
+            onClose={handleCloseModal}
+          />
 
-
-      {postCreateProduct && (
-        <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-2xl px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold">Producto creado en catálogo</p>
-            <p className="text-sm text-indigo-800">
-              {postCreateProduct.nombre} ya existe como producto, pero el stock por sucursal se inicializa aparte.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(`/stock?productoId=${postCreateProduct.id}`)}
-              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              Inicializar stock por sucursal
-            </button>
-            <button
-              type="button"
-              onClick={() => setPostCreateProduct(null)}
-              className="px-4 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-            >
-              Después
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Product creation modal */}
-      <ProductFormModal
-        open={modalOpen}
-        prefillData={modalPrefill}
-        initialCodigo={modalCodigo}
-        onCreated={handleProductCreated}
-        onClose={handleCloseModal}
-      />
-
-      {/* Panel de productos con búsqueda y grilla */}
-      {filteredProductos.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-          </div>
-          <p className="text-gray-500 font-medium text-sm">No hay productos</p>
-        </div>
-      ) : (
-        <ProductCardPanel
-          searchQuery={query}
-          onSearchChange={setQuery}
-          showHints={true}
-        >
-          {filteredProductos.map((p) => {
-            const isEditing = editState?.id === p.id
-            const stockColor = p.stock === 0 ? 'red' : p.stock <= 5 ? 'amber' : 'emerald'
-
-            if (isEditing) {
-              return (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-xl border-2 border-indigo-400 p-3 space-y-2 shadow-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      cancelEdit()
-                      focusCard(p.id)
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault()
-                      saveEdit().then(() => setTimeout(() => focusCard(p.id), 30))
-                    }
-                  }}
-                >
-                  <input
-                    value={editState!.codigoBarra}
-                    onChange={e => setEditState({ ...editState!, codigoBarra: e.target.value })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    placeholder="Código"
-                  />
-                  <input
-                    value={editState!.nombre}
-                    onChange={e => setEditState({ ...editState!, nombre: e.target.value })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    placeholder="Nombre"
-                  />
-                  <div className="flex gap-1.5">
-                    <input
-                      value={editState!.tamano}
-                      onChange={e => setEditState({ ...editState!, tamano: e.target.value })}
-                      className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                      placeholder="500ml"
-                    />
-                    <input
-                      type="number" step="0.01"
-                      value={editState!.precio}
-                      onChange={e => setEditState({ ...editState!, precio: e.target.value })}
-                      onFocus={(e) => e.target.select()}
-                      autoFocus
-                      className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                      placeholder="$"
-                    />
-                    <input
-                      type="number" step="0.01"
-                      value={editState!.costo}
-                      onChange={e => setEditState({ ...editState!, costo: e.target.value })}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                      placeholder="Costo"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      onClick={saveEdit}
-                      className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs hover:bg-gray-200 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+          <ProductCardPanel
+            searchQuery={query}
+            onSearchChange={setQuery}
+            showHints={true}
+            onBarcodeLookup={handleBarcodeLookup}
+          >
+            {filteredProductos.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
                 </div>
-              )
-            }
-
-            return (
-                <button
-                  key={p.id}
-                  type="button"
-                  data-card
-                  data-card-id={p.id}
-                  onClick={() => startEdit(p)}
-                className="bg-white rounded-xl border border-gray-200 p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
-                title={p.nombre}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-gray-900 text-base leading-tight truncate">
-                    {p.nombre}
-                  </p>
-                  {p.tamano && (
-                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-400 font-mono truncate mt-1">
-                  {p.codigoBarra}
-                </div>
-                <div className="flex items-end justify-between mt-3 gap-3">
-                  <p className="text-2xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
-                  <span className={`inline-flex items-center gap-1.5 text-sm font-semibold rounded-full px-3 py-1 ${
-                    stockColor === 'red'
-                      ? 'bg-red-50 text-red-600'
-                      : stockColor === 'amber'
-                        ? 'bg-amber-50 text-amber-700'
-                        : 'bg-emerald-50 text-emerald-700'
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                      stockColor === 'red' ? 'bg-red-500' : stockColor === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'
-                    }`} />
-                    {p.stock === 0 ? 'sin stock' : `${p.stock}`}
-                  </span>
-                </div>
-                {/* Acciones en hover */}
-                <div className="flex justify-end gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity -mb-1">
-                  <span className="text-xs font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); handleEliminar(p.id) }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEliminar(p.id) } }}
-                    className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                <p className="text-gray-500 font-medium text-sm">No hay productos</p>
+              </div>
+            ) : filteredProductos.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    data-card
+                    data-card-id={p.id}
+                    onClick={() => handleEditProduct(p)}
+                    className="bg-white rounded-lg border border-gray-200 p-1.5 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
+                    title={p.nombre}
                   >
-                    Eliminar
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </ProductCardPanel>
+                    <div className="flex items-start justify-between gap-1.5">
+                      <p className="font-bold text-gray-900 text-base leading-tight truncate">
+                        {p.nombre}
+                      </p>
+                      {p.tamano && (
+                        <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-400 font-mono truncate mt-0.5">
+                      {p.codigoBarra}
+                    </div>
+                    <div className="flex items-end justify-between mt-1 gap-1.5">
+                      <p className="text-xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
+                      {p.seguirStock === false ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                          sin control
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
+                          p.stock === 0
+                            ? 'bg-red-50 text-red-600'
+                            : p.stock <= 5
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-emerald-50 text-emerald-700'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} />
+                          {p.stock === 0 ? 'sin stock' : `${p.stock}`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-end gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -mb-0.5">
+                      <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); handleEliminar(p.id) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEliminar(p.id) } }}
+                        className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        Eliminar
+                      </span>
+                    </div>
+                  </button>
+                ))}
+          </ProductCardPanel>
+        </>
+      ) : tab === 'margenes' ? (
+        <MargenesTab notifyError={notifyError} />
+      ) : tab === 'stock' ? (
+        <StockTab notifyError={notifyError} />
+      ) : (
+        <div className="bg-white rounded-xl p-6 shadow-xl space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Actualización masiva</h2>
+            <p className="text-sm text-slate-500">Ajustá precios por marca aplicando un porcentaje de aumento.</p>
+          </div>
+
+          {gruposMarcas.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Marcas similares detectadas ({gruposMarcas.length} grupo{gruposMarcas.length !== 1 ? 's' : ''})
+              </h3>
+              <div className="space-y-2">
+                {gruposMarcas.map((g, i) => (
+                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-amber-600 font-medium">⚠ Posibles variantes:</span>
+                    {g.marcas.map(m => (
+                      <button key={m} type="button"
+                        onClick={() => { setAjusteMarca(m); setMarcaBusqueda(m) }}
+                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                          ajusteMarca === m
+                            ? 'bg-amber-100 border-amber-400 text-amber-800'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-amber-50 hover:border-amber-300'
+                        }`}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4 max-w-sm">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1 block">Marca</label>
+              <div className="relative">
+                <input type="text"
+                  value={marcaBusqueda}
+                  onChange={e => { setMarcaBusqueda(e.target.value); setAjusteMarca(e.target.value); setMarcaDropdown(true) }}
+                  onFocus={() => setMarcaDropdown(true)}
+                  onBlur={() => setTimeout(() => setMarcaDropdown(false), 150)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  placeholder="Buscar marca..." />
+                {marcaDropdown && marcasFiltradas.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {marcasFiltradas.map(m => (
+                      <button key={m} type="button"
+                        onMouseDown={() => { setAjusteMarca(m); setMarcaBusqueda(m); setMarcaDropdown(false) }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 transition-colors">
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1 block">% de aumento</label>
+              <div className="relative">
+                <input type="number" step="0.01" min="0.01" value={ajustePorcentaje} onChange={e => setAjustePorcentaje(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  placeholder="ej: 15" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">Se aplica sobre costo y precio de venta. Las marcas similares se ajustan juntas.</p>
+            </div>
+            <button onClick={handleAjusteSubmit} disabled={ajusteLoading || !ajusteMarca || !ajustePorcentaje}
+              className="w-full py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors text-sm">
+              {ajusteLoading ? 'Aplicando...' : `Aplicar aumento del ${ajustePorcentaje || '...'}%`}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

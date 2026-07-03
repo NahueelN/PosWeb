@@ -141,4 +141,54 @@ public class ProductosController : ControllerBase
     {
         return Ok(_productoService.Modificar(id, dto));
     }
+
+    [HttpGet("marcas-similares")]
+    public IActionResult GetMarcasSimilares()
+    {
+        return Ok(_productoService.ObtenerMarcasSimilares());
+    }
+
+    [HttpGet("marcas")]
+    public IActionResult GetMarcas()
+    {
+        return Ok(_productoService.ObtenerMarcas());
+    }
+
+    [HttpPut("seguir-stock")]
+    public IActionResult SeguirStockGlobal([FromBody] SeguirStockRequest request)
+    {
+        var afectados = _productoService.SeguirStockGlobal(request.SeguirStock);
+        return Ok(new { afectados });
+    }
+
+    [HttpPut("{id}/seguir-stock")]
+    public IActionResult SeguirStockIndividual(int id, [FromBody] SeguirStockRequest request)
+    {
+        return Ok(_productoService.SeguirStockIndividual(id, request.SeguirStock));
+    }
+
+    [HttpPut("ajuste-marca")]
+    public IActionResult AjustarPorMarca([FromBody] AjusteMarcaRequest request)
+    {
+        try
+        {
+            var afectados = _productoService.AjustarPreciosPorMarca(request.Marca, request.Porcentaje);
+            return Ok(new { afectados });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+}
+
+public class SeguirStockRequest
+{
+    public bool SeguirStock { get; set; }
+}
+
+public class AjusteMarcaRequest
+{
+    public string Marca { get; set; } = string.Empty;
+    public decimal Porcentaje { get; set; }
 }

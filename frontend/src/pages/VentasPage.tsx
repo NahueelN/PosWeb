@@ -1518,6 +1518,49 @@ export default function VentasPage() {
         </div>
       )}
     </div>
+  )
+}
 
+// ===== Inline Components =====
+
+function ProductCard({ producto, onAdd }: { producto: ProductoDto; onAdd: (p: ProductoDto) => void }) {
+  const stockColor = producto.stock === 0 ? 'red' : producto.stock <= 5 ? 'amber' : 'emerald'
+  return (
+    <button
+      type="button"
+      onClick={() => onAdd(producto)}
+      className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none"
+      title={producto.nombre}
+    >
+      <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{producto.nombre}</p>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <p className="text-[10px] text-gray-400 font-mono truncate">{producto.codigoBarra}</p>
+        {producto.tamano && (
+          <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{producto.tamano}</span>
+        )}
+      </div>
+      <div className="flex items-end justify-between mt-2 gap-2">
+        <p className="text-xl font-bold text-indigo-600">${producto.precio.toFixed(2)}</p>
+        {producto.seguirStock === false ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            sin control
+          </span>
+        ) : (
+          <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
+            stockColor === 'red'
+              ? 'bg-red-50 text-red-600'
+              : stockColor === 'amber'
+                ? 'bg-amber-50 text-amber-700'
+                : 'bg-emerald-50 text-emerald-700'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              stockColor === 'red' ? 'bg-red-500' : stockColor === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'
+            }`} />
+            {producto.stock === 0 ? 'sin stock' : `${producto.stock}`}
+          </span>
+        )}
+      </div>
+    </button>
   )
 }

@@ -16,6 +16,8 @@ public class ProductoUpsertDto
 
     public decimal? MargenGanancia { get; set; }
 
+    public bool? SeguirStock { get; set; }
+
     /// <summary>
     /// Código interno del producto (opcional). Si no se envía, se auto-genera.
     /// </summary>

@@ -8,6 +8,8 @@ interface Props {
   searchPlaceholder?: string
   /** Ref opcional para que el padre pueda acceder al input de búsqueda */
   searchInputRef?: React.RefObject<HTMLInputElement | null>
+  /** Llamado al presionar Enter con texto o pegar un código de barras */
+  onBarcodeLookup?: (codigo: string) => void
 }
 
 /**
@@ -25,6 +27,7 @@ export default function ProductCardPanel({
   showHints = false,
   searchPlaceholder = 'Buscá producto por código de barra o nombre…',
   searchInputRef: externalSearchRef,
+  onBarcodeLookup,
 }: Props) {
   const internalSearchRef = useRef<HTMLInputElement>(null!)
   const gridRef = useRef<HTMLDivElement>(null!)
@@ -37,6 +40,11 @@ export default function ProductCardPanel({
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && searchQuery.trim() && onBarcodeLookup) {
+      e.preventDefault()
+      onBarcodeLookup(searchQuery.trim())
+      return
+    }
     if (e.key === 'ArrowDown' || e.key === 'Enter') {
       e.preventDefault()
       focusFirstCard()
@@ -102,13 +110,33 @@ export default function ProductCardPanel({
         <input
           ref={searchRef}
           id="search-productos"
-          className="w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+          className="w-full pl-11 pr-20 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm text-base placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
           placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={handleSearchKeyDown}
+          onPasteCapture={(e) => {
+            if (!onBarcodeLookup) return
+            const text = e.clipboardData.getData('text/plain').trim()
+            if (!text) return
+            e.preventDefault()
+            e.stopPropagation()
+            onBarcodeLookup(text)
+          }}
           autoFocus
         />
+        {onBarcodeLookup && (
+          <button
+            type="button"
+            onClick={() => { if (searchQuery.trim()) onBarcodeLookup(searchQuery.trim()) }}
+            className="absolute right-9 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-indigo-100 hover:bg-indigo-200 flex items-center justify-center text-indigo-500 hover:text-indigo-700 transition-colors"
+            title="Buscar"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+          </button>
+        )}
         {searchQuery && (
           <button
             type="button"
@@ -138,7 +166,7 @@ export default function ProductCardPanel({
       {/* Grid */}
       <div
         ref={gridRef}
-        className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2"
         onKeyDown={handleGridKeyDown}
       >
         {children}
