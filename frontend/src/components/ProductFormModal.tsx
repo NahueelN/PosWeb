@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
 import { Loader2, Check, X } from 'lucide-react'
+import Dialog from './ui/Dialog'
+import Button from './ui/Button'
 
 interface ProductFormModalProps {
   open: boolean
@@ -252,16 +254,26 @@ export default function ProductFormModal({
     && codigoBarra.trim()
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between mb-4">
-          <h3 className="text-lg font-bold text-indigo-900">
-            {isEditing ? 'Editar producto' : prefillData ? 'Completar producto' : 'Nuevo producto'}
-          </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={isEditing ? 'Editar producto' : prefillData ? 'Completar producto' : 'Nuevo producto'}
+      width="lg"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" size="sm" type="submit" form="producto-form" disabled={!canSubmit || loading}>
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                {isEditing ? 'Guardando...' : 'Creando...'}
+              </span>
+            ) : isEditing ? 'Guardar cambios' : 'Crear producto'}
+          </Button>
+        </>
+      }
+    >
+      <form id="producto-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Código de barras + Código interno */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -319,7 +331,7 @@ export default function ProductFormModal({
           <div>
             <label className="text-xs font-semibold text-gray-700">Nombre *</label>
             <input ref={nombreRef} type="text" value={nombre} onChange={e => setNombre(e.target.value)}
-              autoFocus
+              autoFocus={isEditing}
               className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
               placeholder="Nombre del producto" />
           </div>
@@ -450,25 +462,7 @@ export default function ProductFormModal({
               {error}
             </div>
           )}
-
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose}
-              className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">
-              Cancelar
-            </button>
-            <button type="submit" disabled={!canSubmit || loading}
-              className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin" />
-                  {isEditing ? 'Guardando...' : 'Creando...'}
-                </span>
-              ) : isEditing ? 'Guardar cambios' : 'Crear producto'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Dialog>
   )
 }

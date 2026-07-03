@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
@@ -7,6 +7,8 @@ import ProductFormModal from '../components/ProductFormModal'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
+import Dialog from '../components/ui/Dialog'
+import Button from '../components/ui/Button'
 
 export default function ProductosPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -19,6 +21,8 @@ export default function ProductosPage() {
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
   const [modalCodigo, setModalCodigo] = useState('')
   const [editingProduct, setEditingProduct] = useState<ProductoDto | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
 
   const [ajusteMarca, setAjusteMarca] = useState('')
   const [ajustePorcentaje, setAjustePorcentaje] = useState('')
@@ -68,6 +72,7 @@ export default function ProductosPage() {
     } else {
       listar()
     }
+    searchRef.current?.focus()
   }
 
   function handleCloseModal() {
@@ -75,6 +80,7 @@ export default function ProductosPage() {
     setModalPrefill(null)
     setModalCodigo('')
     setEditingProduct(null)
+    searchRef.current?.focus()
   }
 
   async function handleBarcodeLookup(codigo: string) {
@@ -130,9 +136,11 @@ export default function ProductosPage() {
     setModalOpen(true)
   }
 
-  async   function handleEliminar(id: number) {
+  async function confirmarEliminar() {
+    if (confirmDeleteId == null) return
     try {
-      await api.productos.eliminar(id)
+      await api.productos.eliminar(confirmDeleteId)
+      setConfirmDeleteId(null)
       await listar()
     } catch (e: any) { notifyError(e.message) }
   }
@@ -168,6 +176,7 @@ export default function ProductosPage() {
   }
 
   return (
+    <>
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
@@ -259,6 +268,7 @@ export default function ProductosPage() {
             onSearchChange={setQuery}
             showHints={true}
             onBarcodeLookup={handleBarcodeLookup}
+            searchInputRef={searchRef}
           >
             {filteredProductos.length === 0 ? (
               <div className="col-span-full text-center py-12">
@@ -317,8 +327,8 @@ export default function ProductosPage() {
                       <span
                         role="button"
                         tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); handleEliminar(p.id) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEliminar(p.id) } }}
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setConfirmDeleteId(p.id) } }}
                         className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
                       >
                         Eliminar
@@ -407,5 +417,20 @@ export default function ProductosPage() {
         </div>
       )}
     </div>
+
+    {/* Delete confirmation */}
+    <Dialog
+      open={confirmDeleteId != null}
+      onClose={() => setConfirmDeleteId(null)}
+      title="Eliminar producto"
+      description="¿Estás seguro? Esta acción no se puede deshacer."
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+          <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
+        </>
+      }
+    />
+    </>
   )
 }
