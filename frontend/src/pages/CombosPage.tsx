@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
+import { COMBO_PREFIX } from '../lib/constants'
+import DiasSemanaSelector from '../components/shared/DiasSemanaSelector'
 import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto, OfertaDto, OfertaUpsertDto } from '../types'
-import { Plus, Search, X, AlertTriangle } from 'lucide-react'
+import { Plus, Search, X, AlertTriangle, Trash2 } from 'lucide-react'
 import Button from '../components/ui/Button'
 
 type Tab = 'combos' | 'ofertas'
@@ -131,8 +133,8 @@ export default function CombosPage() {
       codCombo: comboForm.codCombo.trim(),
       descCombo: comboForm.descCombo.trim(),
       precio,
-      fechaInicio: comboForm.fechaInicio ? new Date(comboForm.fechaInicio).toISOString() : null,
-      fechaFin: comboForm.fechaFin ? new Date(comboForm.fechaFin).toISOString() : null,
+      fechaInicio: comboForm.fechaInicio ? comboForm.fechaInicio + ':00' : null,
+      fechaFin: comboForm.fechaFin ? comboForm.fechaFin + ':00' : null,
       diasSemana: comboForm.diasSemana.length > 0 ? comboForm.diasSemana.join(',') : null,
       items: comboForm.items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
     }
@@ -162,6 +164,15 @@ export default function CombosPage() {
     try {
       await api.combos.reactivar(id)
       notifySuccess('Combo reactivado')
+      cargarCombos()
+    } catch (e: any) { notifyError(e.message) }
+  }
+
+  async function handleEliminarDefinitivoCombo(id: number) {
+    if (!confirm('¿Eliminar este combo permanentemente? Esta acción no se puede deshacer.')) return
+    try {
+      await api.combos.eliminarDefinitivo(id)
+      notifySuccess('Combo eliminado')
       cargarCombos()
     } catch (e: any) { notifyError(e.message) }
   }
@@ -201,8 +212,8 @@ export default function CombosPage() {
     if (ofertaForm.productoId <= 0) { notifyError('Seleccioná un producto'); return }
 
     const dto: OfertaUpsertDto = {
-      fechaInicio: new Date(ofertaForm.fechaInicio).toISOString(),
-      fechaFin: new Date(ofertaForm.fechaFin).toISOString(),
+      fechaInicio: ofertaForm.fechaInicio ? ofertaForm.fechaInicio + ':00' : '',
+      fechaFin: ofertaForm.fechaFin ? ofertaForm.fechaFin + ':00' : '',
       productoId: ofertaForm.productoId,
       descuento,
       diasSemana: ofertaForm.diasSemana.length > 0 ? ofertaForm.diasSemana.join(',') : null,
@@ -233,6 +244,15 @@ export default function CombosPage() {
     try {
       await api.ofertas.reactivar(id)
       notifySuccess('Oferta reactivada')
+      cargarOfertas()
+    } catch (e: any) { notifyError(e.message) }
+  }
+
+  async function handleEliminarDefinitivoOferta(id: number) {
+    if (!confirm('¿Eliminar esta oferta permanentemente? Esta acción no se puede deshacer.')) return
+    try {
+      await api.ofertas.eliminarDefinitivo(id)
+      notifySuccess('Oferta eliminada')
       cargarOfertas()
     } catch (e: any) { notifyError(e.message) }
   }
@@ -321,6 +341,9 @@ export default function CombosPage() {
                     ? <button onClick={() => handleEliminarCombo(combo.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
                     : <button onClick={() => handleReactivarCombo(combo.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
                   }
+                  <button onClick={() => handleEliminarDefinitivoCombo(combo.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -399,6 +422,9 @@ export default function CombosPage() {
                       ? <button onClick={() => handleEliminarOferta(oferta.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
                       : <button onClick={() => handleReactivarOferta(oferta.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
                     }
+                    <button onClick={() => handleEliminarDefinitivoOferta(oferta.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               )
@@ -565,12 +591,12 @@ function ComboFormModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Código *</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-mono text-gray-400 select-none">COMB</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-mono text-gray-400 select-none">{COMBO_PREFIX}</span>
               <input type="text"
-                value={form.codCombo.startsWith('COMB') ? form.codCombo.substring(4) : form.codCombo}
+                value={form.codCombo.startsWith(COMBO_PREFIX) ? form.codCombo.substring(COMBO_PREFIX.length) : form.codCombo}
                 onChange={e => {
                   const val = e.target.value.trim()
-                  setForm(f => ({ ...f, codCombo: val ? 'COMB' + val : '' }))
+                  setForm(f => ({ ...f, codCombo: val ? COMBO_PREFIX + val : '' }))
                 }}
                 className="w-full pl-14 pr-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                 placeholder="4" />
@@ -878,24 +904,6 @@ function OfertaFormModal({
           {editId !== null ? 'Guardar cambios' : 'Crear oferta'}
         </button>
       </form>
-    </div>
-  )
-}
-
-const DIAS = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const
-
-function DiasSemanaSelector({ selected, onChange }: { selected: string[]; onChange: (dias: string[]) => void }) {
-  function toggle(dia: string) {
-    onChange(selected.includes(dia) ? selected.filter(d => d !== dia) : [...selected, dia])
-  }
-  return (
-    <div className="flex gap-1">
-      {DIAS.map(dia => (
-        <button key={dia} type="button" onClick={() => toggle(dia)}
-          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${selected.includes(dia) ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
-          {dia}
-        </button>
-      ))}
     </div>
   )
 }

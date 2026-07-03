@@ -58,6 +58,8 @@ public class OfertaService
         if (!producto.ACTIVO)
             throw new InvalidOperationException($"Producto '{producto.DESC_PRODUCTO}' está inactivo");
 
+        ValidarOfertaUnica(dto.ProductoId, dto.FechaInicio, dto.FechaFin, null);
+
         var oferta = new Oferta(dto.FechaInicio, dto.FechaFin, dto.ProductoId, dto.Descuento, dto.DiasSemana);
 
         _context.Oferta.Add(oferta);
@@ -82,6 +84,8 @@ public class OfertaService
         oferta.CambiarProducto(dto.ProductoId);
         oferta.CambiarDescuento(dto.Descuento);
         oferta.CambiarDiasSemana(dto.DiasSemana);
+
+        ValidarOfertaUnica(dto.ProductoId, dto.FechaInicio, dto.FechaFin, id);
 
         _context.SaveChanges();
 
@@ -135,5 +139,22 @@ public class OfertaService
             Activo = oferta.ACTIVO,
             DiasSemana = oferta.DIAS_SEMANA
         };
+    }
+
+    private void ValidarOfertaUnica(int productoId, DateTime fechaInicio, DateTime fechaFin, int? ofertaIdExcluida)
+    {
+        var existente = _context.Oferta
+            .Where(o => o.ACTIVO && o.ID_PRODUCTO == productoId
+                && (ofertaIdExcluida == null || o.ID_OFERTA != ofertaIdExcluida.Value)
+                && o.FECHA_INICIO <= fechaFin && o.FECHA_FIN >= fechaInicio)
+            .FirstOrDefault();
+
+        if (existente != null)
+        {
+            var prod = _context.Producto.Find(productoId);
+            throw new InvalidOperationException(
+                $"Ya existe una oferta activa para '{prod?.DESC_PRODUCTO}' " +
+                $"({existente.FECHA_INICIO:dd/MM/yyyy} - {existente.FECHA_FIN:dd/MM/yyyy})");
+        }
     }
 }

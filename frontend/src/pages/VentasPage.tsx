@@ -11,6 +11,7 @@ import ProductCard, { formatCodigoBarra } from '../components/shared/ProductCard
 import Dialog from '../components/ui/Dialog'
 import Button from '../components/ui/Button'
 import { MapPin, ChevronRight, Banknote, ArrowLeftRight, CreditCard, Smartphone, QrCode, X, Undo2, Trash2, Search, PackageSearch, Sparkles, Plus, AlertTriangle } from 'lucide-react'
+import { estaVigenteHoy } from '../lib/recurrencia'
 
 interface Item {
   producto: ProductoDto
@@ -24,21 +25,6 @@ interface Item {
 }
 
 type Step = 'sucursal' | 'venta' | 'resultado'
-
-function estaVigenteHoy(fechaInicio: string | null | undefined, fechaFin: string | null | undefined, diasSemana: string | null | undefined, activo: boolean): boolean {
-  if (!activo) return false
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  if (fechaInicio && hoy < new Date(fechaInicio)) return false
-  if (fechaFin && hoy > new Date(fechaFin)) return false
-  if (diasSemana && diasSemana.trim()) {
-    const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
-    const diaActual = dias[hoy.getDay()]
-    const diasOferta = diasSemana.split(',').map(d => d.trim().toUpperCase())
-    if (!diasOferta.includes(diaActual)) return false
-  }
-  return true
-}
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -109,17 +95,7 @@ export default function VentasPage() {
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
-  const [comboUndoPopup, setComboUndoPopup] = useState<number | null>(null)
-  const comboTriggerRef = useRef<HTMLButtonElement | null>(null)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
-  const openComboMenu = (comboId: number, trigger: HTMLButtonElement) => {
-    comboTriggerRef.current = trigger
-    setComboUndoPopup(comboId)
-  }
-  const closeComboMenu = () => {
-    setComboUndoPopup(null)
-    comboTriggerRef.current?.focus()
-  }
   const pendingAllowSinStock = useRef(false)
 
   // Flag: si el cajero editó manualmente el monto recibido, NO sobreescribir al cambiar el total
@@ -865,75 +841,29 @@ export default function VentasPage() {
         ),
         details: i.comboId ? (() => {
           const combo = combos.find(c => c.id === i.comboId)
-          if (combo?.items.length) {
-            return (
-              <div className="mt-1 space-y-0.5">
-                {combo.items.map((item, j) => (
-                  <div key={j} className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span className="w-1 h-1 rounded-full bg-purple-300 shrink-0" />
-                    <span className="truncate">{item.productoNombre ?? `x${item.productoId}`}</span>
-                    <span className="text-gray-300">x{item.cantidad}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          }
-          return undefined
+          return (
+            <div className="mt-1">
+              {combo?.items.length ? (
+                <div className="space-y-0.5">
+                  {combo.items.map((item, j) => (
+                    <div key={j} className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <span className="w-1 h-1 rounded-full bg-purple-300 shrink-0" />
+                      <span className="truncate">{item.productoNombre ?? `x${item.productoId}`}</span>
+                      <span className="text-gray-300">x{item.cantidad}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <button type="button" onClick={() => deshacerCombo(i.comboId!)}
+                className="mt-1 text-[11px] text-purple-500 hover:text-purple-700 font-medium flex items-center gap-1">
+                <Undo2 size={11} />
+                Deshacer combo
+              </button>
+            </div>
+          )
         })() : undefined,
         onRemove: () => quitarItem(i.producto.id, i.comboId),
-        removeButton: i.comboId ? (
-        <div className="relative">
-            <button type="button"
-              aria-haspopup="menu"
-              aria-expanded={comboUndoPopup === i.comboId}
-              onClick={(e) => {
-                const isOpen = comboUndoPopup === i.comboId
-                isOpen ? closeComboMenu() : openComboMenu(i.comboId!, e.currentTarget)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  const isOpen = comboUndoPopup === i.comboId
-                  isOpen ? closeComboMenu() : openComboMenu(i.comboId!, e.currentTarget)
-                }
-              }}
-              className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
-              <X size={16} />
-            </button>
-            {comboUndoPopup === i.comboId && (
-              <>
-                <div className="fixed inset-0 z-30"
-                  onClick={closeComboMenu}
-                  onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeComboMenu() }}} />
-                <div role="menu" aria-label="Acciones del combo"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeComboMenu(); return }
-                    const items = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
-                    const idx = Array.from(items).indexOf(document.activeElement as HTMLButtonElement)
-                    if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); return }
-                    if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); return }
-                  }}
-                  className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[200px]">
-                  <button autoFocus role="menuitem" tabIndex={-1}
-                    onClick={() => { deshacerCombo(i.comboId!); closeComboMenu() }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deshacerCombo(i.comboId!); closeComboMenu() }}}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 text-purple-700 font-medium focus:bg-purple-50 focus:outline-none">
-                    <Undo2 size={16} className="shrink-0" />
-                    Deshacer combo
-                  </button>
-                  <div className="border-t border-gray-100 mx-2" />
-                  <button role="menuitem" tabIndex={-1}
-                    onClick={() => { quitarItem(i.producto.id, i.comboId); closeComboMenu() }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); quitarItem(i.producto.id, i.comboId); closeComboMenu() }}}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600 focus:bg-red-50 focus:outline-none">
-                    <Trash2 size={16} className="shrink-0" />
-                    Eliminar
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ) : undefined
+        removeButton: undefined,
       }}}
       getItemKey={(i) => i.comboId ? `combo-${i.comboId}` : i.producto.id}
       topContent={
@@ -1008,10 +938,14 @@ export default function VentasPage() {
                   else if (e.key === 'Tab' && !e.shiftKey && cart.items.length > 0) { e.preventDefault(); medioRefs.current[0]?.focus() }
                   else if (e.key === 'Tab' && e.shiftKey && currentIdx === 0) { e.preventDefault(); searchInputRef.current?.focus() }
                 }}>
-                {filteredProductos.map((p) => (
-                  <ProductCard key={p.id} producto={p} unidadesMap={unidadesMap} onClick={() => agregarProducto(p)}
-                    price={<span className="text-[16px] font-bold">${p.precio.toFixed(2)}</span>} />
-                ))}
+                {filteredProductos.map((p) => {
+                  const oferta = ofertasMap.get(p.id)
+                  return (
+                    <ProductCard key={p.id} producto={p} unidadesMap={unidadesMap} onClick={() => agregarProducto(p)}
+                      ofertaDescuento={oferta?.descuento}
+                      price={<span className="text-[16px] font-bold">${p.precio.toFixed(2)}</span>} />
+                  )
+                })}
                 {filteredCombos.map((c) => (
                   <button key={`combo-${c.id}`} onClick={() => agregarCombo(c)}
                     className="group relative flex flex-col text-left w-full bg-white rounded-xl border border-purple-200 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.11),0_2px_6px_-2px_rgba(0,0,0,0.06)] active:scale-[0.972] active:shadow-[0_1px_3px_0_rgba(0,0,0,0.07)] active:translate-y-0 active:duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30 focus-visible:ring-offset-2 shadow-[0_1px_3px_0_rgba(0,0,0,0.07),0_1px_2px_-1px_rgba(0,0,0,0.05)]">
@@ -1029,6 +963,9 @@ export default function VentasPage() {
                         <Plus size={12} strokeWidth={2.75} />
                       </span>
                     </div>
+                    {c.diasSemana && (
+                      <p className="px-3.5 pb-1.5 text-[9px] text-purple-400">{c.diasSemana.split(',').join('/')}</p>
+                    )}
                   </button>
                 ))}
               </div>
