@@ -30,7 +30,7 @@ type Step = 'sucursal' | 'venta' | 'resultado'
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
-  const [step, setStep] = useState<Step>(ctxSucursal ? 'venta' : 'sucursal')
+  const [step, setStep] = useState<Step>('venta')
   const { notifyError } = useNotification()
   const { user } = useAuth()
 
@@ -107,24 +107,41 @@ export default function VentasPage() {
   // Effects
   useEffect(() => { if (!recibioManuallyEdited.current) setRecibio(total.toFixed(2)) }, [total])
   useEffect(() => { if (step === 'venta') { const id = setTimeout(() => searchInputRef.current?.focus(), 150); return () => clearTimeout(id) } }, [step])
+  const [sucursalActiva, setSucursalActiva] = useState<SucursalDto | null>(null)
+
+  // Derivar sucursal: contexto > auto-cargada > null
+  const sucursalEfectiva = ctxSucursal ?? sucursalActiva
+
+  // Cargar sucursal: contexto > localStorage > auto-pick primera de API > selector manual
   useEffect(() => {
-    if (ctxSucursal && step === 'sucursal') setStep('venta')
-    if (!ctxSucursal && step !== 'sucursal') setStep('sucursal')
-  }, [ctxSucursal, step])
+    if (sucursalActiva || step !== 'venta') return
+    if (ctxSucursal) return
+
+    api.sucursales.listar().then(lst => {
+      if (lst.length > 0) {
+        localStorage.setItem('sucursalActiva', JSON.stringify(lst[0]))
+        setSucursalActiva(lst[0])
+      } else {
+        setStep('sucursal')
+      }
+    }).catch(() => {
+      setStep('sucursal')
+    })
+  }, [ctxSucursal, sucursalActiva, step])
   useEffect(() => { if (cartListRef.current) cartListRef.current.scrollTop = cartListRef.current.scrollHeight }, [cart.items])
   useEffect(() => { if (cart.items.length === 0 && dismissedCombos.size > 0) setDismissedCombos(new Set()) }, [cart.items.length === 0])
 
   useEffect(() => {
-    if (step !== 'venta' || !ctxSucursal) return
+    if (step !== 'venta' || !sucursalEfectiva) return
     setCajaLoading(true)
-    api.cajas.activa(ctxSucursal.id).then(res => setCajaActiva(res.activa)).catch(() => setCajaActiva(false)).finally(() => setCajaLoading(false))
+    api.cajas.activa(sucursalEfectiva.id).then(res => setCajaActiva(res.activa)).catch(() => setCajaActiva(false)).finally(() => setCajaLoading(false))
     api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp) }).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
     setProductosLoading(true)
-    api.productos.listar(ctxSucursal.id).then(setProductos).catch(() => {}).finally(() => setProductosLoading(false))
+    api.productos.listar(sucursalEfectiva.id).then(setProductos).catch(() => {}).finally(() => setProductosLoading(false))
     api.combos.listar().then(setCombos).catch(() => {})
     api.ofertas.listar().then(setOfertas).catch(() => {})
-  }, [step, ctxSucursal])
+  }, [step, sucursalEfectiva])
 
   useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match) }, [searchQuery, productos])
 
@@ -211,8 +228,8 @@ export default function VentasPage() {
   }
 
   async function confirmarVenta() {
-    if (!ctxSucursal || cart.items.length === 0) return
-    if (!cajaActiva) { try { const res = await api.cajas.activa(ctxSucursal.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
+    if (!sucursalEfectiva || cart.items.length === 0) return
+    if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
     const r = parseFloat(recibio) || 0
     if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock); setShowStockConfirm(true); return } }
@@ -224,7 +241,7 @@ export default function VentasPage() {
   function continuarVenta() { const r = parseFloat(recibio) || 0; if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }; ejecutarVenta(r, pendingAllowSinStock.current); pendingAllowSinStock.current = false }
 
   async function ejecutarVenta(recibioValor: number, allowSinStock = false, cliente?: ClienteDto) {
-    if (!ctxSucursal) return
+    if (!sucursalEfectiva) return
     try {
       const pagosDto: PagoVentaDto[] = []
       if (selectedMedio && recibioValor > 0) {
@@ -232,7 +249,7 @@ export default function VentasPage() {
         pagosDto.push({ medioPagoId: selectedMedio.id, monto })
         if (selectedMedio.pagaVuelto && recibioValor > total) pagosDto[0].conCambio = recibioValor
       }
-      const res = await api.ventas.crear({ sucursalId: ctxSucursal.id, items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
+      const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
       setResultado(res); setUltimosItems([...cart.items]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
