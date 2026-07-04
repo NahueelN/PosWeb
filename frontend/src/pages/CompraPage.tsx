@@ -34,12 +34,7 @@ interface CartItem {
 const COMPRA_CART_KEY = 'compra_cart_pending';
 const COMPRA_PROV_KEY = 'compra_proveedor';
 
-function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function formatFecha(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
+import { formatCurrency, formatDate } from '../formats';
 
 // ─── Component ─────────────────────────────────────────────────────
 export default function CompraPage() {
@@ -118,7 +113,7 @@ export default function CompraPage() {
   // beforeunload
   useEffect(() => {
     if (cart.items.length === 0) return;
-    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [cart.items.length]);
@@ -375,6 +370,7 @@ export default function CompraPage() {
       onMontoButtonClick={() => setMontoPago('')}
       verifyRef={verifyRef}
       searchInputRef={searchRef}
+      emptyState={<div className="text-center py-12 text-gray-400"><p className="text-sm">Agregá productos desde la grilla</p></div>}
       getItemProps={(item, i) => 
         editingIdx === i ? {
           nombre: item.productoNombre || '(nuevo)',
@@ -538,7 +534,7 @@ export default function CompraPage() {
       <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={handleNuevaCompra}>
         <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
           <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">✓ Compra registrada</div>
-          <p className="text-xs text-gray-400">{formatFecha(success.fecha)}</p>
+          <p className="text-xs text-gray-400">{formatDate(success.fecha)}</p>
           {proveedorNombre && <p className="text-sm text-gray-600 mt-1">{proveedorNombre}</p>}
           <p className="text-2xl font-bold text-indigo-700 mt-2">{formatCurrency(success.totalGasto)}</p>
           {deudaGenerada > 0 && <p className="text-xs text-amber-600 mt-2 font-medium">Deuda generada: {formatCurrency(deudaGenerada)}</p>}
