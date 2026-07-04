@@ -94,6 +94,10 @@ public class OfertasController : ControllerBase
         {
             return NotFound(new { error = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("{id}/definitivo")]

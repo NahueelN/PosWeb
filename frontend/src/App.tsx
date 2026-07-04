@@ -27,10 +27,14 @@ let checkUpdate: (() => Promise<void>) | null = null
 try {
   const mod = await import('@tauri-apps/plugin-updater')
   checkUpdate = async () => {
-    const update = await mod.check()
-    if (update) {
-      console.log('[Updater] Nueva versión disponible:', update.version)
-      await update.downloadAndInstall()
+    try {
+      const update = await mod.check()
+      if (update) {
+        console.log('[Updater] Nueva versión disponible:', update.version)
+        await update.downloadAndInstall()
+      }
+    } catch {
+      // Browser context — Tauri internals not available
     }
   }
 } catch {

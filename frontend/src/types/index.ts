@@ -39,6 +39,7 @@ export interface ProductoDetailDto {
 export interface CategoriaDto {
   id: number
   descripcion: string
+  margenGanancia?: number | null
 }
 
 export interface UnidadMedidaDto {
@@ -101,6 +102,7 @@ export interface VentaDto {
   items: VentaItemDto[]
   pagos?: PagoVentaDto[]
   clienteId?: number
+  allowSinStock?: boolean
 }
 
 export interface VentaResultadoDto {
@@ -109,6 +111,12 @@ export interface VentaResultadoDto {
   total: number
   pagos: PagoVentaResultDto[]
   cambio: number
+  clienteId?: number
+  clienteNombre?: string
+  deudaId?: number
+  deudaMonto?: number
+  cajaId?: number
+  empresaNombre?: string
 }
 
 export interface StockSucursalDto {
@@ -228,6 +236,8 @@ export interface ClienteDto {
   ivaCondicion: string
   telefono?: string
   domicilio?: string
+  codCliente?: string
+  mail?: string
   activo?: boolean
 }
 
@@ -269,6 +279,10 @@ export interface PagoPorMedioDto {
    monto: number
    pagaVuelto: boolean
  }
+
+export interface CajaListResponse {
+  items: CajaDto[]
+}
 
 // --- Proveedor types ---
 export interface ProveedorDto {
@@ -408,14 +422,43 @@ export interface CategoriaGastoListResponse {
 }
 
 // --- Deuda types ---
-export interface DeudaDto {
+export interface PagoDeudaDto {
   id: number
-  proveedorNombre: string
+  deudaId: number
   monto: number
   fecha: string
+  clienteNombre?: string
+  proveedorNombre?: string
+  usuarioNombre?: string
+}
+
+export interface MovimientoCuentaDto {
+  tipo: 'deuda' | 'pago'
+  fecha: string
+  monto: number
+  descripcion?: string
+  usuario?: string
+  pagoId?: number
+}
+
+export interface CuentaCorrienteDto {
+  entidadNombre: string
+  saldoActual: number
+  movimientos: MovimientoCuentaDto[]
+}
+
+export interface DeudaDto {
+  id: number
+  proveedorNombre?: string
+  clienteNombre?: string
+  monto: number
+  fecha?: string
   fechaPago?: string
   pago: boolean
   compraId?: number
+  ventaId?: number
+  proveedorId?: number
+  clienteId?: number
   montoPagado: number
   saldoPendiente: number
 }
@@ -550,6 +593,7 @@ export interface OfertaDto {
   descuento: number
   activo: boolean
   diasSemana?: string | null
+  warning?: string | null
 }
 
 export interface OfertaUpsertDto {

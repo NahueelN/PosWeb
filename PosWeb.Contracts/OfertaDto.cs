@@ -11,6 +11,7 @@ public class OfertaDto
     public decimal Descuento { get; set; }
     public bool Activo { get; set; }
     public string? DiasSemana { get; set; }
+    public string? Warning { get; set; }
 }
 
 public class OfertaUpsertDto
