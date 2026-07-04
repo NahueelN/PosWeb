@@ -216,9 +216,23 @@ public class PosDbContext : DbContext
             entity.Property(u => u.ACTIVO)
                 .HasColumnName("ACTIVO");
 
+            entity.Property(u => u.ID_SUCURSAL_DEFAULT)
+                .HasColumnName("ID_SUCURSAL_DEFAULT");
+
+            entity.Property(u => u.ID_USUARIO_RESPONSABLE)
+                .HasColumnName("ID_USUARIO_RESPONSABLE");
+
+            entity.Property(u => u.ID_EMPRESA)
+                .HasColumnName("ID_EMPRESA");
+
             entity.HasOne<Usuario>()
                 .WithMany()
                 .HasForeignKey(u => u.ID_USUARIO_RESP)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Empresa>()
+                .WithMany()
+                .HasForeignKey(u => u.ID_EMPRESA)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

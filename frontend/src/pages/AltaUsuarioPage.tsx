@@ -13,10 +13,15 @@ export default function AltaUsuarioPage() {
   const [password, setPassword] = useState('')
   const [mail, setMail] = useState('')
   const [rol, setRol] = useState<'UsuarioComun' | 'Admin'>('UsuarioComun')
-  const [empresaRepresenta, setEmpresaRepresenta] = useState('')
+  const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const { notifyError, notifySuccess } = useNotification()
+  const [formError, setFormError] = useState('')
+  const [listError, setListError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [desactivandoId, setDesactivandoId] = useState<number | null>(null)
+  const [cambiandoSuscripcionId, setCambiandoSuscripcionId] = useState<number | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
@@ -51,14 +56,14 @@ export default function AltaUsuarioPage() {
         password,
         mail,
         rol,
-        empresaRepresenta: rol === 'Admin' ? empresaRepresenta : null,
+        empresaId: rol === 'Admin' && empresaId ? parseInt(empresaId) : null,
       })
       notifySuccess(`Usuario ${rol === 'Admin' ? 'admin' : 'común'} creado correctamente.`)
       setUsuario('')
       setPassword('')
       setMail('')
       setRol('UsuarioComun')
-      setEmpresaRepresenta('')
+      setEmpresaId('')
       await loadUsuarios()
     } catch (err: any) {
       const msg = err.message || 'Error al crear usuario'
@@ -72,6 +77,65 @@ export default function AltaUsuarioPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDesactivarUsuario(usuarioId: number, nombreUsuario: string) {
+    const confirmacion = window.confirm(`¿Dar de baja a ${nombreUsuario}?`)
+    if (!confirmacion) {
+      return
+    }
+
+    setListError('')
+    setSuccess('')
+    setDesactivandoId(usuarioId)
+
+    try {
+      await api.usuarios.desactivar(usuarioId)
+      setSuccess(`Usuario ${nombreUsuario} dado de baja correctamente.`)
+      await loadUsuarios()
+    } catch (err: any) {
+      const msg = err.message || 'Error al dar de baja al usuario'
+      try {
+        const parts = msg.split(': ')
+        const jsonPart = parts[parts.length - 1]
+        const parsed = JSON.parse(jsonPart)
+        setListError(parsed.error || msg)
+      } catch {
+        setListError(msg)
+      }
+    } finally {
+      setDesactivandoId(null)
+    }
+  }
+
+  async function handleCambiarSuscripcion(usuarioId: number, nombreUsuario: string, activa: boolean) {
+    const textoAccion = activa ? 'reactivar' : 'suspender'
+    const confirmacion = window.confirm(`¿${textoAccion} la suscripción de ${nombreUsuario} y sus dependientes?`)
+    if (!confirmacion) {
+      return
+    }
+
+    setListError('')
+    setSuccess('')
+    setCambiandoSuscripcionId(usuarioId)
+
+    try {
+      await api.usuarios.cambiarSuscripcion(usuarioId, activa)
+      setSuccess(`Suscripción de ${nombreUsuario} ${activa ? 'reactivada' : 'suspendida'} correctamente.`)
+      await loadUsuarios()
+    } catch (err: any) {
+      const msg = err.message || 'Error al cambiar la suscripción'
+      try {
+        const parts = msg.split(': ')
+        const jsonPart = parts[parts.length - 1]
+        const parsed = JSON.parse(jsonPart)
+        setListError(parsed.error || msg)
+      } catch {
+        setListError(msg)
+      }
+    } finally {
+      setCambiandoSuscripcionId(null)
     }
   }
 
@@ -142,11 +206,11 @@ export default function AltaUsuarioPage() {
 
           {rol === 'Admin' && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa representa</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa ID</label>
               <input
-                type="text"
-                value={empresaRepresenta}
-                onChange={e => setEmpresaRepresenta(e.target.value)}
+                type="number"
+                value={empresaId}
+                onChange={e => setEmpresaId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Opcional"
               />
@@ -207,7 +271,12 @@ export default function AltaUsuarioPage() {
                   <th className="py-2 pr-4 font-medium">Responde a</th>
                   <th className="py-2 pr-4 font-medium">Empresa</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
+                  <th className="py-2 pr-4 font-medium">Nivel</th>
+                  <th className="py-2 pr-4 font-medium">Costo</th>
+                  <th className="py-2 pr-4 font-medium">Suscripción</th>
+                  <th className="py-2 pr-4 font-medium">Acceso</th>
                   <th className="py-2 pr-4 font-medium">PIN</th>
+                  <th className="py-2 pr-4 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -224,7 +293,7 @@ export default function AltaUsuarioPage() {
                       {usuarioItem.usuarioResponsableNombre || '-'}
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
-                      {usuarioItem.empresaRepresenta || '-'}
+                      {usuarioItem.empresaId ?? '-'}
                     </td>
                     <td className="py-3 pr-4">
                       <span
@@ -238,7 +307,78 @@ export default function AltaUsuarioPage() {
                       </span>
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
+                      {usuarioItem.suscripcionNivel || '-'}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {usuarioItem.costoMensual != null ? `$${usuarioItem.costoMensual.toFixed(2)}` : '-'}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                          usuarioItem.suscripcionActiva
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {usuarioItem.suscripcionActiva ? 'Activa' : 'Suspendida'}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                          usuarioItem.accesoHabilitado
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {usuarioItem.accesoHabilitado ? 'Habilitado' : 'Bloqueado'}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
                       {usuarioItem.pinConfigurado ? 'Configurado' : 'No configurado'}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex flex-wrap gap-2">
+                        {usuarioItem.activo && usuarioItem.rol === 'UsuarioComun' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDesactivarUsuario(usuarioItem.id, usuarioItem.nombreUsuario)}
+                            disabled={desactivandoId === usuarioItem.id}
+                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {desactivandoId === usuarioItem.id ? 'Dando de baja...' : 'Dar de baja'}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin baja</span>
+                        )}
+
+                        {usuarioItem.activo && usuarioItem.rol === 'Admin' ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCambiarSuscripcion(
+                                usuarioItem.id,
+                                usuarioItem.nombreUsuario,
+                                !usuarioItem.suscripcionActiva
+                              )
+                            }
+                            disabled={cambiandoSuscripcionId === usuarioItem.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                              usuarioItem.suscripcionActiva
+                                ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {cambiandoSuscripcionId === usuarioItem.id
+                              ? 'Actualizando...'
+                              : usuarioItem.suscripcionActiva
+                                ? 'Suspender suscripción'
+                                : 'Reactivar suscripción'}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

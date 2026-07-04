@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -247,6 +247,11 @@ export const api = {
   // Usuarios
   usuarios: {
     listar: () => request<UsuarioListadoDto[]>('/usuarios'),
+    desactivar: (id: number) => request<void>(`/usuarios/${id}`, { method: 'DELETE' }),
+    cambiarSuscripcion: (id: number, activa: boolean) => request<CambiarSuscripcionResponse>(`/usuarios/${id}/suscripcion`, {
+      method: 'PUT',
+      body: JSON.stringify({ activa }),
+    }),
   },
 
   // Cajas
