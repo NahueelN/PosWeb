@@ -107,7 +107,10 @@ export default function VentasPage() {
   // Effects
   useEffect(() => { if (!recibioManuallyEdited.current) setRecibio(total.toFixed(2)) }, [total])
   useEffect(() => { if (step === 'venta') { const id = setTimeout(() => searchInputRef.current?.focus(), 150); return () => clearTimeout(id) } }, [step])
-  useEffect(() => { if (!ctxSucursal && step !== 'sucursal') setStep('sucursal') }, [ctxSucursal, step])
+  useEffect(() => {
+    if (ctxSucursal && step === 'sucursal') setStep('venta')
+    if (!ctxSucursal && step !== 'sucursal') setStep('sucursal')
+  }, [ctxSucursal, step])
   useEffect(() => { if (cartListRef.current) cartListRef.current.scrollTop = cartListRef.current.scrollHeight }, [cart.items])
   useEffect(() => { if (cart.items.length === 0 && dismissedCombos.size > 0) setDismissedCombos(new Set()) }, [cart.items.length === 0])
 
