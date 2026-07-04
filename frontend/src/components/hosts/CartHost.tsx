@@ -210,7 +210,6 @@ export default function CartHost<T extends CartItemBase>({
         />
         {cartExtra}
       </CartPanel>
-      </div>
 
       {/* Clear cart confirmation */}
       <Dialog
