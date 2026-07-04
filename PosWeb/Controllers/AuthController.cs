@@ -48,8 +48,19 @@ public class AuthController : ControllerBase
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? currentUserId = int.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : null;
 
-        var result = _authService.Register(request, currentUserId);
-        return Ok(result);
+        try
+        {
+            var result = _authService.Register(request, currentUserId);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 
     [HttpGet("me")]

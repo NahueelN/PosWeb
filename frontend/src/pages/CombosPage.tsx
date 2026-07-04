@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { COMBO_PREFIX } from '../lib/constants'
 import DiasSemanaSelector from '../components/shared/DiasSemanaSelector'
@@ -11,6 +12,7 @@ type Tab = 'combos' | 'ofertas'
 
 export default function CombosPage() {
   const { notifyError, notifySuccess } = useNotification()
+  const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('combos')
 
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -281,10 +283,12 @@ export default function CombosPage() {
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'combos' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
           Combos
         </button>
+        {user?.rol !== 'UsuarioComun' && (
         <button onClick={() => setTab('ofertas')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'ofertas' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
           Ofertas
         </button>
+        )}
       </div>
 
       {/* ---- COMBOS TAB ---- */}

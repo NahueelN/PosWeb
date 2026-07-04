@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import { PageShell } from '../components/shared';
 import { formatCurrency } from '../formats';
 
@@ -37,6 +38,7 @@ export default function DeudaPage() {
   const [periodoActivo, setPeriodoActivo] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
   const { notifyError } = useNotification();
+  const { user } = useAuth();
 
   // Detail view
   const [cuenta, setCuenta] = useState<CuentaCorrienteDto | null>(null);
@@ -440,10 +442,12 @@ export default function DeudaPage() {
             className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
             Clientes
           </button>
+          {user?.rol !== 'UsuarioComun' && (
           <button onClick={() => setModo('proveedores')}
             className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
             Proveedores
           </button>
+          )}
         </div>
       }
     >

@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react'
 import { api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import type { VentaHistorialDto, VentaDetalleDto, PagedResult, SucursalDto } from '../types'
 import { Clock, ChevronDown } from 'lucide-react'
@@ -38,6 +39,7 @@ export default function HistorialVentasPage() {
   const [data, setData] = useState<PagedResult<VentaHistorialDto> | null>(null)
   const [loading, setLoading] = useState(true)
   const { notifyError, notifySuccess } = useNotification()
+  const { user } = useAuth()
   const [searchId, setSearchId] = useState(0)
 
   // Detail expand
@@ -290,7 +292,7 @@ export default function HistorialVentasPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {!venta.anulada && isWithinLastMonth(venta.fecha) && (
+                        {!venta.anulada && isWithinLastMonth(venta.fecha) && user?.rol !== 'UsuarioComun' && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setUndoVentaId(venta.ventaId) }}
                             className="text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors"

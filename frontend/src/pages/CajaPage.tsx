@@ -8,7 +8,20 @@ import { formatDate, formatCurrency } from '../formats'
 import { Clock, Plus } from 'lucide-react'
 
 export default function CajaPage() {
-  const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
+  const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
+  const [sucursalLocal, setSucursalLocal] = useState<SucursalDto | null>(null)
+  const sucursal = ctxSucursal ?? sucursalLocal
+
+  // Auto-cargar primera sucursal si no hay en contexto
+  useEffect(() => {
+    if (ctxSucursal || sucursalLocal) return
+    api.sucursales.listar().then(lst => {
+      if (lst.length > 0) {
+        localStorage.setItem('sucursalActiva', JSON.stringify(lst[0]))
+        setSucursalLocal(lst[0])
+      }
+    }).catch(() => {})
+  }, [ctxSucursal, sucursalLocal])
   const [caja, setCaja] = useState<CajaDto | null>(null)
   const [activa, setActiva] = useState(false)
   const [loading, setLoading] = useState(false)

@@ -35,7 +35,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/clientes', '/sucursales'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/estadisticas'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
