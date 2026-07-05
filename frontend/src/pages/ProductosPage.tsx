@@ -373,5 +373,20 @@ export default function ProductosPage() {
         <></>
       </Dialog>
     </PageShell>
+
+    {/* Delete confirmation */}
+    <Dialog
+      open={confirmDeleteId != null}
+      onClose={() => setConfirmDeleteId(null)}
+      title="Eliminar producto"
+      description="¿Estás seguro? Esta acción no se puede deshacer."
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+          <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
+        </>
+      }
+    />
+    </>
   )
 }
