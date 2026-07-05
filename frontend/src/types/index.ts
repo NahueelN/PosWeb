@@ -36,29 +36,9 @@ export interface ProductoDetailDto {
   activo: boolean
 }
 
-export interface ProductoDetailDto {
-  id: number
-  codigoBarra: string
-  codProducto: string
-  nombre: string
-  precio: number
-  costo: number
-  stock: number
-  categoria?: string
-  descAdicional?: string
-  contenido?: number
-  unidadMedida?: string
-  tamano?: string
-  fechaAlta: string
-  fechaUltimaMod: string
-  fechaBaja?: string
-  activo: boolean
-}
-
 export interface CategoriaDto {
   id: number
   descripcion: string
-  margenGanancia?: number | null
 }
 
 export interface UnidadMedidaDto {
@@ -113,6 +93,7 @@ export interface VentaItemDto {
   productoId: number
   cantidad: number
   comboId?: number
+  ofertaId?: number
 }
 
 export interface VentaDto {
@@ -120,7 +101,6 @@ export interface VentaDto {
   items: VentaItemDto[]
   pagos?: PagoVentaDto[]
   clienteId?: number
-  allowSinStock?: boolean
 }
 
 export interface VentaResultadoDto {
@@ -129,12 +109,6 @@ export interface VentaResultadoDto {
   total: number
   pagos: PagoVentaResultDto[]
   cambio: number
-  clienteId?: number
-  clienteNombre?: string
-  deudaId?: number
-  deudaMonto?: number
-  cajaId?: number
-  empresaNombre?: string
 }
 
 export interface StockSucursalDto {
@@ -254,8 +228,6 @@ export interface ClienteDto {
   ivaCondicion: string
   telefono?: string
   domicilio?: string
-  codCliente?: string
-  mail?: string
   activo?: boolean
 }
 
@@ -372,10 +344,6 @@ export interface CompraItemDto {
    items: CompraItemResultDto[]
  }
 
-export interface CajaListResponse {
-  items: CajaDto[]
-}
-
 export interface CajaDto {
   id: number
   sucursalId: number
@@ -440,43 +408,14 @@ export interface CategoriaGastoListResponse {
 }
 
 // --- Deuda types ---
-export interface PagoDeudaDto {
-  id: number
-  deudaId: number
-  monto: number
-  fecha: string
-  clienteNombre?: string
-  proveedorNombre?: string
-  usuarioNombre?: string
-}
-
-export interface MovimientoCuentaDto {
-  tipo: 'deuda' | 'pago'
-  fecha: string
-  monto: number
-  descripcion?: string
-  usuario?: string
-  pagoId?: number
-}
-
-export interface CuentaCorrienteDto {
-  entidadNombre: string
-  saldoActual: number
-  movimientos: MovimientoCuentaDto[]
-}
-
 export interface DeudaDto {
   id: number
-  proveedorNombre?: string
-  clienteNombre?: string
+  proveedorNombre: string
   monto: number
-  fecha?: string
+  fecha: string
   fechaPago?: string
   pago: boolean
   compraId?: number
-  ventaId?: number
-  proveedorId?: number
-  clienteId?: number
   montoPagado: number
   saldoPendiente: number
 }
@@ -577,6 +516,9 @@ export interface ComboDto {
   descCombo: string
   precio: number
   activo: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  diasSemana?: string | null
   items: ComboItemDto[]
 }
 
@@ -584,6 +526,9 @@ export interface ComboUpsertDto {
   codCombo: string
   descCombo: string
   precio: number
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  diasSemana?: string | null
   items: ComboItemDto[]
 }
 
@@ -592,4 +537,25 @@ export interface ComboItemDto {
   cantidad: number
   productoNombre?: string | null
   codigoBarra?: string | null
+}
+
+// --- Oferta types ---
+export interface OfertaDto {
+  id: number
+  fechaInicio: string
+  fechaFin: string
+  productoId: number
+  productoNombre?: string | null
+  codigoBarra?: string | null
+  descuento: number
+  activo: boolean
+  diasSemana?: string | null
+}
+
+export interface OfertaUpsertDto {
+  fechaInicio: string
+  fechaFin: string
+  productoId: number
+  descuento: number
+  diasSemana?: string | null
 }

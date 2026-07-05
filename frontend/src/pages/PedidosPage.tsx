@@ -58,10 +58,6 @@ export default function PedidosPage() {
   const provFocusRef = useRef(false);
   const provInputRef = useRef<HTMLInputElement>(null);
 
-  const proveedoresFilt = proveedorSearch.trim()
-    ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
-    : proveedores;
-
   const createProveedoresFilt = createProveedorSearch.trim()
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(createProveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(createProveedorSearch.toLowerCase()))
     : proveedores;
@@ -110,8 +106,6 @@ export default function PedidosPage() {
     const timer = setTimeout(loadPedidos, 300);
     return () => clearTimeout(timer);
   }, [loadPedidos]);
-
-  const totalPedidos = pedidos.reduce((s, p) => s + p.total, 0);
 
   // Date filtering (client-side)
   const pedidosFiltrados = useMemo(() => {

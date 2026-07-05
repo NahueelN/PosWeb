@@ -1,32 +1,32 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PosWeb.Application.Combos;
+using PosWeb.Application.Ofertas;
 using PosWeb.Contracts;
 
 namespace PosWeb.Controllers;
 
 [ApiController]
-[Route("api/combos")]
+[Route("api/ofertas")]
 [Authorize]
-public class CombosController : ControllerBase
+public class OfertasController : ControllerBase
 {
-    private readonly ComboService _comboService;
+    private readonly OfertaService _ofertaService;
 
-    public CombosController(ComboService comboService)
+    public OfertasController(OfertaService ofertaService)
     {
-        _comboService = comboService;
+        _ofertaService = ofertaService;
     }
 
     [HttpGet]
     public IActionResult Get()
-        => Ok(_comboService.ObtenerTodos());
+        => Ok(_ofertaService.ObtenerTodos());
 
     [HttpGet("{id}")]
     public IActionResult GetById(int id)
     {
         try
         {
-            return Ok(_comboService.ObtenerPorId(id));
+            return Ok(_ofertaService.ObtenerPorId(id));
         }
         catch (KeyNotFoundException ex)
         {
@@ -34,25 +34,12 @@ public class CombosController : ControllerBase
         }
     }
 
-    [HttpGet("codigo/{codigo}")]
-    public IActionResult GetByCodigo(string codigo)
-    {
-        try
-        {
-            return Ok(_comboService.ObtenerPorCodigo(codigo));
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(new { error = $"Combo con código '{codigo}' no encontrado" });
-        }
-    }
-
     [HttpPost]
-    public IActionResult Post([FromBody] ComboUpsertDto dto)
+    public IActionResult Post([FromBody] OfertaUpsertDto dto)
     {
         try
         {
-            return Ok(_comboService.Crear(dto));
+            return Ok(_ofertaService.Crear(dto));
         }
         catch (InvalidOperationException ex)
         {
@@ -65,11 +52,11 @@ public class CombosController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public IActionResult Put(int id, [FromBody] ComboUpsertDto dto)
+    public IActionResult Put(int id, [FromBody] OfertaUpsertDto dto)
     {
         try
         {
-            return Ok(_comboService.Modificar(id, dto));
+            return Ok(_ofertaService.Modificar(id, dto));
         }
         catch (KeyNotFoundException ex)
         {
@@ -86,7 +73,7 @@ public class CombosController : ControllerBase
     {
         try
         {
-            _comboService.Eliminar(id);
+            _ofertaService.Eliminar(id);
             return NoContent();
         }
         catch (KeyNotFoundException ex)
@@ -100,7 +87,7 @@ public class CombosController : ControllerBase
     {
         try
         {
-            _comboService.Reactivar(id);
+            _ofertaService.Reactivar(id);
             return NoContent();
         }
         catch (KeyNotFoundException ex)
@@ -114,16 +101,12 @@ public class CombosController : ControllerBase
     {
         try
         {
-            _comboService.EliminarDefinitivo(id);
+            _ofertaService.EliminarDefinitivo(id);
             return NoContent();
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
         }
     }
 }

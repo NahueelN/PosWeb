@@ -15,6 +15,8 @@ public class RenglonVenta
 
     public int? ID_COMBO { get; private set; }
 
+    public int? ID_OFERTA { get; private set; }
+
     public decimal CANTIDAD { get; private set; }
 
     public decimal PRECIO_UNITARIO { get; private set; }
@@ -39,6 +41,16 @@ public class RenglonVenta
         CANTIDAD = SetCantidad(cantidad);
         PRECIO_UNITARIO = precioUnitario;
         SUBTOTAL = cantidad * precioUnitario;
+    }
+
+    public RenglonVenta(int productoId, decimal cantidad, decimal precioUnitario, int? ofertaId = null)
+    {
+        ID_PRODUCTO = SetProductoId(productoId);
+        CANTIDAD = SetCantidad(cantidad);
+        PRECIO_UNITARIO = SetPrecioUnitario(precioUnitario);
+        SUBTOTAL = cantidad * precioUnitario;
+        if (ofertaId.HasValue && ofertaId.Value > 0)
+            ID_OFERTA = ofertaId.Value;
     }
 
     protected RenglonVenta()
