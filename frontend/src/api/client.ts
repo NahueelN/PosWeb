@@ -237,6 +237,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(dto),
     }),
+    desactivar: (id: number) => request<void>(`/clientes/${id}`, { method: 'DELETE' }),
   },
 
   // Medios de pago
@@ -285,7 +286,8 @@ export const api = {
        method: 'PUT',
        body: JSON.stringify(dto),
      }),
-   },
+     desactivar: (id: number) => request<void>(`/proveedores/${id}`, { method: 'DELETE' }),
+    },
 
 // Compras
    compras: {

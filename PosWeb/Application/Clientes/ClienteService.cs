@@ -40,7 +40,7 @@ public class ClienteService
                 Nombre = c.NOMBRE,
                 TipoDocumento = c.TIPO_DOCUMENTO,
                 NumeroDocumento = c.NRO_DOCUMENTO,
-                IvaCondicion = "ConsumidorFinal",
+                IvaCondicion = c.IVA_CONDICION,
                 Telefono = c.TELEFONO,
                 Domicilio = c.DOMICILIO,
                 Activo = c.ACTIVO
@@ -100,7 +100,8 @@ public class ClienteService
             dto.CodCliente,
             dto.Telefono,
             dto.Domicilio,
-            dto.Mail
+            dto.Mail,
+            dto.IvaCondicion
         );
 
         _context.Cliente.Add(cliente);
@@ -134,10 +135,21 @@ public class ClienteService
         cliente.CambiarTelefono(dto.Telefono);
         cliente.CambiarDomicilio(dto.Domicilio);
         cliente.SetMail(dto.Mail);
+        cliente.SetIvaCondicion(dto.IvaCondicion);
 
         _context.SaveChanges();
 
         return MapToDto(cliente);
+    }
+
+    public void Desactivar(int id)
+    {
+        Cliente? cliente = _context.Cliente.Find(id);
+        if (cliente == null || !cliente.ACTIVO)
+            throw new ClienteNoEncontradoException(id);
+
+        cliente.Desactivar();
+        _context.SaveChanges();
     }
 
     private static ClienteDto MapToDto(Cliente cliente)
@@ -148,7 +160,7 @@ public class ClienteService
             Nombre = cliente.NOMBRE,
             TipoDocumento = cliente.TIPO_DOCUMENTO,
             NumeroDocumento = cliente.NRO_DOCUMENTO,
-            IvaCondicion = "ConsumidorFinal",
+            IvaCondicion = cliente.IVA_CONDICION,
             Telefono = cliente.TELEFONO,
             Domicilio = cliente.DOMICILIO,
             CodCliente = cliente.COD_CLIENTE,

@@ -190,6 +190,7 @@ Estándares globales del proyecto: coding standards, naming conventions, UX guid
 | Service | `SERVICE-` | Servicio o API |
 | Model | `MODEL-` | Modelo de datos cuya comprensión aporta conocimiento |
 | Standard | `STAND-` | Estándar global del proyecto |
+| Product Rule | `PRD-` | Decisión de producto permanente que toda implementación debe respetar |
 | Glossary | `GLOSSARY-` | Término oficial del proyecto |
 
 Si en el futuro aparece un nuevo tipo, podrá incorporarse. Todo Knowledge Item tiene un identificador permanente con el formato `{PREFIJO}-{nombre}`. No debe depender nunca del nombre del archivo.

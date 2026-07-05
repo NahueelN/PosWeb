@@ -75,6 +75,7 @@ export default function VentasPage() {
     ivaCondicion: 'ConsumidorFinal',
     telefono: '',
     domicilio: '',
+    mail: '',
   })
 
   // Product grid
@@ -328,6 +329,7 @@ export default function VentasPage() {
             ivaCondicion: formCliente.ivaCondicion,
             telefono: formCliente.telefono || undefined,
             domicilio: formCliente.domicilio || undefined,
+            mail: formCliente.mail || undefined,
           }
       const nuevo = await api.clientes.crear(dto)
       setClienteSeleccionado(nuevo)
@@ -335,7 +337,7 @@ export default function VentasPage() {
       setShowClientPopup(false)
       setNuevoClienteNombre('')
       setEsOcasional(true)
-      setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
+      setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '', mail: '' })
       ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, nuevo)
     } catch (e: any) { notifyError(e.message) }
   }
@@ -1246,6 +1248,15 @@ export default function VentasPage() {
                 <option value="Exento">Exento</option>
                 <option value="ConsumidorFinal">Consumidor Final</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Mail</label>
+              <input
+                type="email"
+                value={formCliente.mail}
+                onChange={e => setFormCliente({ ...formCliente, mail: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

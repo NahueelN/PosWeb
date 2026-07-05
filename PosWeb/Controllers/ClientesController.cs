@@ -49,4 +49,11 @@ public class ClientesController : ControllerBase
         var result = _clienteService.Actualizar(id, dto);
         return Ok(result);
     }
+
+    [HttpDelete("{id}")]
+    public IActionResult Desactivar(int id)
+    {
+        _clienteService.Desactivar(id);
+        return NoContent();
+    }
 }

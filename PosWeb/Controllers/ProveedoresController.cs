@@ -44,6 +44,10 @@ public class ProveedoresController : ControllerBase
         {
             return Conflict(new { error = ex.Message });
         }
+        catch (ProveedorDocumentoDuplicadoException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -76,9 +80,27 @@ public class ProveedoresController : ControllerBase
         {
             return NotFound(new { error = ex.Message });
         }
+        catch (ProveedorDocumentoDuplicadoException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:int}")]
+    public ActionResult Desactivar(int id)
+    {
+        try
+        {
+            _proveedorService.Desactivar(id);
+            return NoContent();
+        }
+        catch (ProveedorNoEncontradoException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 }

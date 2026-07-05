@@ -8,6 +8,18 @@
 
 ## Propuestas activas
 
+### STAND-entity-identity — Estándar de diseño de identidad de entidades
+
+**Origen**: Auditoría UX de Entity Lists (Clientes, Proveedores, Productos).
+
+**Qué define**: Proceso de 4 preguntas para definir cualquier entidad antes de diseñar su pantalla. Flujo conceptual: dominio → identidad → representación → lista → página → workflow → componentes. Categorías de información: Identidad, Estado, Contexto, Acción.
+
+**Documento**: `docs/ENTITY_IDENTITY_STANDARD.md`
+
+**Evidencia**: Aplicado retrospectivamente a 3 entidades. Identificó datos faltantes (deuda en clientes, última compra en proveedores, categoría en productos) y datos sobrantes (IVA en lista, código interno).
+
+**Condición para promover a Knowledge Item**: usado para diseñar ≥2 nuevas entidades desde cero (Marcas, Categorías, Rubros, Depósitos).
+
 ### Template Pattern: agregar Origin, Invariants y Expected Evolution
 
 **Origen**: Creación de PAT-cart-flow (primer Knowledge Item real).

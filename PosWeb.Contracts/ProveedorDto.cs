@@ -10,6 +10,7 @@ public class ProveedorDto
     public string? Telefono { get; set; }
     public string? Domicilio { get; set; }
     public string? Mail { get; set; }
+    public string IvaCondicion { get; set; } = "ConsumidorFinal";
     public bool Activo { get; set; }
     public decimal DeudaPendiente { get; set; }
 }
