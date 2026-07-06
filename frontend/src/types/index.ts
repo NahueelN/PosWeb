@@ -189,7 +189,7 @@ export interface RegisterRequest {
   password: string
   mail: string
   rol: string
-  empresaRepresenta?: string | null
+  empresaId?: number | null
 }
 
 export interface RegisterResponse {
@@ -198,7 +198,7 @@ export interface RegisterResponse {
   mail: string
   rol: string
   usuarioResponsableId?: number | null
-  empresaRepresenta?: string | null
+  empresaId?: number | null
 }
 
 export interface UsuarioInfo {
@@ -214,9 +214,23 @@ export interface UsuarioListadoDto {
   rol: string
   usuarioResponsableId?: number | null
   usuarioResponsableNombre?: string | null
-  empresaRepresenta?: string | null
+  empresaId?: number | null
   activo: boolean
+  suscripcionActiva: boolean
+  accesoHabilitado: boolean
+  suscripcionNivel?: string | null
+  suscripcionEstado?: string | null
+  costoMensual?: number | null
+  maxSucursales?: number | null
+  maxAdmins?: number | null
+  maxUsuarios?: number | null
   pinConfigurado: boolean
+}
+
+export interface CambiarSuscripcionResponse {
+  id: number
+  suscripcionActiva: boolean
+  nivel: string
 }
 
 // --- Cliente types ---

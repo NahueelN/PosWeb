@@ -42,6 +42,11 @@ public class AuthService
             throw new UsuarioInactivoException(request.Usuario);
         }
 
+        if (!TieneAccesoPorSuscripcion(usuario))
+        {
+            throw new UsuarioSinSuscripcionException(request.Usuario);
+        }
+
         if (!BCrypt.Net.BCrypt.Verify(request.Password, usuario.PASSWORD_HASH))
         {
             throw new CredencialesInvalidasException();
@@ -80,6 +85,11 @@ public class AuthService
         if (!usuario.ACTIVO)
         {
             throw new UsuarioInactivoException(request.Usuario);
+        }
+
+        if (!TieneAccesoPorSuscripcion(usuario))
+        {
+            throw new UsuarioSinSuscripcionException(request.Usuario);
         }
 
         if (!usuario.TienePin())
@@ -174,16 +184,27 @@ public class AuthService
 
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
 
+        int? empresaId = request.EmpresaId;
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
         var nuevoUsuario = new Usuario(
             nombreUsuario,
             passwordHash,
             rol,
             mail,
-            usuarioResponsableId: usuarioResponsableId);
+            usuarioResponsableId: usuarioResponsableId,
+            empresaId: empresaId);
 
         _context.Usuario.Add(nuevoUsuario);
         _context.SaveChanges();
+
+        if (rol == Roles.Admin)
+        {
+            var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
+            _context.Suscripcion.Add(suscripcion);
+            _context.SaveChanges();
+        }
 
         return new RegisterResponseDto
         {
@@ -193,5 +214,35 @@ public class AuthService
             Rol = nuevoUsuario.ROL,
             UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP
         };
+    }
+
+    private bool TieneAccesoPorSuscripcion(Usuario usuario)
+    {
+        var titular = ObtenerTitularSuscripcion(usuario);
+        if (titular == null)
+        {
+            return usuario.SUSCRIPCION_ACTIVA;
+        }
+
+        var suscripcion = _context.Suscripcion
+            .FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
+
+        if (suscripcion == null)
+        {
+            return titular.SUSCRIPCION_ACTIVA;
+        }
+
+        return suscripcion.EstaActiva();
+    }
+
+    private Usuario? ObtenerTitularSuscripcion(Usuario usuario)
+    {
+        if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        {
+            return usuario;
+        }
+
+        return _context.Usuario
+            .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
     }
 }
