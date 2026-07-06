@@ -7,6 +7,7 @@ import DiasSemanaSelector from '../components/shared/DiasSemanaSelector'
 import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto, OfertaDto, OfertaUpsertDto } from '../types'
 import { Plus, Search, X, AlertTriangle, Trash2 } from 'lucide-react'
 import Button from '../components/ui/Button'
+import Dialog from '../components/ui/Dialog'
 
 type Tab = 'combos' | 'ofertas'
 
@@ -16,6 +17,9 @@ export default function CombosPage() {
   const [tab, setTab] = useState<Tab>('combos')
 
   const [productos, setProductos] = useState<ProductoDto[]>([])
+
+  // ---- confirm dialog ----
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'combo' | 'oferta'; id: number } | null>(null)
 
   // ---- combos ----
   const [combos, setCombos] = useState<ComboDto[]>([])
@@ -171,12 +175,17 @@ export default function CombosPage() {
   }
 
   async function handleEliminarDefinitivoCombo(id: number) {
-    if (!confirm('¿Eliminar este combo permanentemente? Esta acción no se puede deshacer.')) return
+    setConfirmDelete({ type: 'combo', id })
+  }
+
+  async function confirmarEliminarCombo() {
+    if (!confirmDelete || confirmDelete.type !== 'combo') return
     try {
-      await api.combos.eliminarDefinitivo(id)
+      await api.combos.eliminarDefinitivo(confirmDelete.id)
       notifySuccess('Combo eliminado')
       cargarCombos()
     } catch (e: any) { notifyError(e.message) }
+    setConfirmDelete(null)
   }
 
   // ===================================================================
@@ -251,16 +260,22 @@ export default function CombosPage() {
   }
 
   async function handleEliminarDefinitivoOferta(id: number) {
-    if (!confirm('¿Eliminar esta oferta permanentemente? Esta acción no se puede deshacer.')) return
+    setConfirmDelete({ type: 'oferta', id })
+  }
+
+  async function confirmarEliminarOferta() {
+    if (!confirmDelete || confirmDelete.type !== 'oferta') return
     try {
-      await api.ofertas.eliminarDefinitivo(id)
+      await api.ofertas.eliminarDefinitivo(confirmDelete.id)
       notifySuccess('Oferta eliminada')
       cargarOfertas()
     } catch (e: any) { notifyError(e.message) }
+    setConfirmDelete(null)
   }
 
   return (
-    <div className="space-y-5">
+    <>
+      <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -458,6 +473,33 @@ export default function CombosPage() {
         onClose={cerrarOfertaModal}
       />}
     </div>
+
+    <Dialog
+      open={confirmDelete !== null}
+      onClose={() => setConfirmDelete(null)}
+      title={confirmDelete?.type === 'combo' ? 'Eliminar combo' : 'Eliminar oferta'}
+      description="¿Eliminar permanentemente? Esta acción no se puede deshacer."
+      footer={
+        <div className="flex items-center justify-end gap-3 w-full">
+          <button
+            onClick={() => setConfirmDelete(null)}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              if (confirmDelete?.type === 'combo') confirmarEliminarCombo()
+              else if (confirmDelete?.type === 'oferta') confirmarEliminarOferta()
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            Eliminar
+          </button>
+        </div>
+      }
+    />
+    </>
   )
 }
 
@@ -552,7 +594,7 @@ function ComboFormModal({
       setSelectedProductId(0)
       return
     }
-    const cant = parseInt(cantidad)
+    const cant = parseFloat(cantidad)
     if (isNaN(cant) || cant <= 0) {
       notifyError('Cantidad inválida')
       return
@@ -673,7 +715,7 @@ function ComboFormModal({
             </div>
             <div className="w-24">
               <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
-              <input ref={cantInputRef} type="number" min="1" value={cantidad}
+              <input ref={cantInputRef} type="number" min="0.001" step="0.001" value={cantidad}
                 onChange={e => setCantidad(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
             </div>

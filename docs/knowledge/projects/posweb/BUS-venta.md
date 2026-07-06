@@ -37,7 +37,7 @@ Defines the business rules exclusive to the sales process. These extend `BUS-car
 
 3. **Change only if the method allows it.** `pagaVuelto` controls whether change is calculated. If the selected method does not pay change, `recibido > total` should not compute change.
 
-4. **Stock is validated before sale.** Items exceeding available stock show a warning and require explicit confirmation to proceed with `allowSinStock`.
+4. **Stock is validated before sale.** Items exceeding available stock show a warning and require explicit confirmation to proceed with `allowSinStock`. Stock comparison uses `decimal` to support fractional kg for pesable products.
 
 5. **Partial payment requires a client.** If the amount received is less than the total, a client must be selected to register the debt.
 
@@ -55,4 +55,6 @@ RELATIONS:
     target: BUS-carrito
   - type: RELATED
     target: PAT-cart-flow
+  - type: RELATED
+    target: BUS-pesables
 ```

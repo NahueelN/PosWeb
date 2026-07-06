@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PosWeb.Application.Exceptions;
 using PosWeb.Domain.Exceptions;
 using System.Net;
@@ -60,6 +61,26 @@ public class ExceptionMiddleware
             await context.Response.WriteAsJsonAsync(new
             {
                 error = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Invalid operation during {Phase}: {Message}",
+                GetPhase(context), ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning("Database update error during {Phase}: {Message}",
+                GetPhase(context), ex.InnerException?.Message ?? ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "Error al guardar: " + (ex.InnerException?.Message ?? "violación de restricción")
             });
         }
         catch (Exception ex)
