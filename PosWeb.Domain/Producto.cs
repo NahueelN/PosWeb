@@ -32,6 +32,8 @@ public class Producto
 
     public bool SEGUIR_STOCK { get; private set; } = true;
 
+    public bool ES_PESABLE { get; private set; }
+
     public DateTime FECHA_ALTA { get; private set; }
 
     public DateTime FECHA_ULTIMA_MOD { get; private set; }
@@ -51,8 +53,10 @@ public class Producto
         decimal? contenido = null,
         int? idUnidadMedida = null,
         string? marca = null,
-        decimal? margenGanancia = null)
+        decimal? margenGanancia = null,
+        bool esPesable = false)
     {
+        ES_PESABLE = esPesable;
         CambiarCodigoProducto(codProducto);
         CambiarCodigoBarras(codigoBarras);
         CambiarDescripcion(descProducto);
@@ -88,7 +92,10 @@ public class Producto
     {
         if (string.IsNullOrWhiteSpace(codigoBarras))
         {
-            throw new CodigoBarraInvalidoException(codigoBarras);
+            if (!ES_PESABLE)
+                throw new CodigoBarraInvalidoException(codigoBarras);
+
+            codigoBarras = string.Empty;
         }
 
         CODIGO_BARRAS = codigoBarras;
@@ -167,6 +174,12 @@ public class Producto
     public void CambiarSeguirStock(bool seguir)
     {
         SEGUIR_STOCK = seguir;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarEsPesable(bool esPesable)
+    {
+        ES_PESABLE = esPesable;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 

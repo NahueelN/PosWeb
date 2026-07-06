@@ -234,9 +234,10 @@ export default function VentasPage() {
   function agregarProducto(producto: ProductoDto) {
     const oferta = ofertasMap.get(producto.id)
     markAdded(producto.id, cart.items.find(i => !i.comboId && i.producto.id === producto.id)?.cantidad)
+    const cantidadInicial = producto.esPesable ? 0 : 1
     const item: Item = oferta
-      ? { producto: { ...producto, precio: producto.precio * (1 - oferta.descuento / 100) }, cantidad: 1, ofertaId: oferta.id, descuentoAplicado: oferta.descuento, precioOriginal: producto.precio }
-      : { producto, cantidad: 1 }
+      ? { producto: { ...producto, precio: producto.precio * (1 - oferta.descuento / 100) }, cantidad: cantidadInicial, ofertaId: oferta.id, descuentoAplicado: oferta.descuento, precioOriginal: producto.precio }
+      : { producto, cantidad: cantidadInicial }
     cart.addItem(item)
     setSearchQuery('')
     const el = searchInputRef.current; if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
@@ -332,12 +333,18 @@ export default function VentasPage() {
         getItemProps={(i) => {
           const itemId = i.comboId ?? i.producto.id
           const tieneOferta = i.ofertaId && i.precioOriginal
+          const esPesable = i.producto.esPesable
+          const dec = esPesable ? 3 : 0
+          const s = esPesable ? 0.1 : 1
+          const label = esPesable ? '/kg' : ' c/u'
           return {
             nombre: i.producto.nombre,
             codigo: formatCodigoBarra(i.producto, unidadesMap),
-            precioUnitario: tieneOferta ? `$${i.producto.precio.toFixed(2)} c/u  (${i.descuentoAplicado}% OFF)` : `$${i.producto.precio.toFixed(2)} c/u`,
-            subtotal: `$${(i.producto.precio * i.cantidad).toFixed(2)}`,
+            precioUnitario: tieneOferta ? `$${i.producto.precio.toFixed(2)}${label}  (${i.descuentoAplicado}% OFF)` : `$${i.producto.precio.toFixed(2)}${label}`,
+            subtotal: `$${(i.producto.precio * i.cantidad).toFixed(esPesable ? 2 : 2)}`,
             cantidad: i.cantidad,
+            step: s,
+            decimales: dec,
             onCantidadChange: (c: number) => { setCantidadDrafts(prev => { const next = { ...prev }; delete next[itemId]; return next }); handleCambiarCantidad(itemId, c) },
             onEnter: () => searchInputRef.current?.focus(),
             onFocusQty: () => onFocusQty(itemId, i.cantidad),

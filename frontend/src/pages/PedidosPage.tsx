@@ -3,6 +3,7 @@ import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirIt
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import { formatCurrency } from '../formats';
+import Dialog from '../components/ui/Dialog';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -28,6 +29,7 @@ export default function PedidosPage() {
   const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
   const [productos, setProductos] = useState<ProductoDto[]>([]);
   const [prodLoading, setProdLoading] = useState(false);
+  const [pedidoCancelarId, setPedidoCancelarId] = useState<number | null>(null);
   const { notifyError, notifySuccess } = useNotification();
 
   // Modal state
@@ -215,15 +217,20 @@ export default function PedidosPage() {
     }
   };
 
-  const handleCancelar = async (id: number) => {
-    if (!confirm('¿Cancelar este pedido?')) return;
+  const handleCancelar = (id: number) => {
+    setPedidoCancelarId(id);
+  };
+
+  const confirmarCancelar = async () => {
+    if (!pedidoCancelarId) return;
     try {
-      await api.pedidos.cancelar(id);
+      await api.pedidos.cancelar(pedidoCancelarId);
       notifySuccess('Pedido cancelado');
       loadPedidos();
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al cancelar pedido');
     }
+    setPedidoCancelarId(null);
   };
 
   const handleCrearPedido = async () => {
@@ -256,7 +263,8 @@ export default function PedidosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+    <>
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Pedidos a proveedores</h1>
@@ -765,5 +773,29 @@ export default function PedidosPage() {
         </div>
       )}
     </div>
+
+    <Dialog
+      open={pedidoCancelarId !== null}
+      onClose={() => setPedidoCancelarId(null)}
+      title="Cancelar pedido"
+      description="¿Cancelar este pedido? Esta acción no se puede deshacer."
+      footer={
+        <div className="flex items-center justify-end gap-3 w-full">
+          <button
+            onClick={() => setPedidoCancelarId(null)}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={confirmarCancelar}
+            className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            Cancelar pedido
+          </button>
+        </div>
+      }
+    />
+    </>
   );
 }

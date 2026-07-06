@@ -11,6 +11,7 @@ interface ProductFormModalProps {
   initialCodigo?: string
   editingProduct?: ProductoDto | null
   sucursalId?: number
+  defaultEsPesable?: boolean
   onCreated: (producto: ProductoDto) => void
   onClose: () => void
 }
@@ -21,6 +22,7 @@ export default function ProductFormModal({
   initialCodigo,
   editingProduct,
   sucursalId,
+  defaultEsPesable,
   onCreated,
   onClose,
 }: ProductFormModalProps) {
@@ -38,6 +40,7 @@ export default function ProductFormModal({
   const [margen, setMargen] = useState('')
   const [bloquearMargen, setBloquearMargen] = useState(false)
   const [seguirStock, setSeguirStock] = useState(true)
+  const [esPesable, setEsPesable] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -67,6 +70,7 @@ export default function ProductFormModal({
         setUnidadMedidaId(editingProduct.unidadMedidaId?.toString() || '')
         setStock(editingProduct.stock?.toString() || '')
         setSeguirStock(editingProduct.seguirStock ?? true)
+        setEsPesable(editingProduct.esPesable ?? false)
         setDescripcion(editingProduct.descAdicional || '')
         setMargen(editingProduct.margenGanancia?.toString() || '')
         setBloquearMargen(false)
@@ -83,6 +87,7 @@ export default function ProductFormModal({
         setDescripcion('')
         setStock('')
         setSeguirStock(true)
+        setEsPesable(defaultEsPesable ?? false)
         setMargen('')
         setBloquearMargen(false)
         setBarcodeStatus('idle')
@@ -116,6 +121,9 @@ export default function ProductFormModal({
       if (match) setCategoriaId(match.id.toString())
     }
   }, [prefillData, categorias])
+
+  // Force KG for pesables (KG = id 2 from seed data)
+  const unidadEfectiva = esPesable ? '2' : unidadMedidaId
 
   // Auto-fill margen when category changes
   useEffect(() => {
@@ -180,7 +188,7 @@ export default function ProductFormModal({
     const precioNum = Number(precio)
     const costoNum = Number(costo)
 
-    if (!codigoBarra.trim()) {
+    if (!esPesable && !codigoBarra.trim()) {
       setError('El código de barras es obligatorio')
       return
     }
@@ -207,11 +215,12 @@ export default function ProductFormModal({
         marca: marca.trim() || undefined,
         contenido: contenido ? Number(contenido) : undefined,
         categoriaId: categoriaId ? Number(categoriaId) : undefined,
-        unidadMedidaId: unidadMedidaId ? Number(unidadMedidaId) : undefined,
+        unidadMedidaId: unidadEfectiva ? Number(unidadEfectiva) : undefined,
         descAdicional: descripcion.trim() || undefined,
         codigoProducto: codigoProducto.startsWith('PROD') && codigoProducto.length > 4 ? codigoProducto.trim() : undefined,
         margenGanancia: margen ? Number(margen) : undefined,
         seguirStock,
+        esPesable,
       }
       const result = isEditing
         ? await api.productos.actualizar(editingProduct!.id, dto)
@@ -250,8 +259,8 @@ export default function ProductFormModal({
 
   const isReadonlyCodigo = !!(prefillData?.codigoBarras) || isEditing
   const canSubmit = nombre.trim()
-    && (isEditing || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
-    && codigoBarra.trim()
+    && (isEditing || esPesable || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
+    && (esPesable || codigoBarra.trim())
 
   return (
     <Dialog
@@ -274,6 +283,31 @@ export default function ProductFormModal({
       }
     >
       <form id="producto-form" onSubmit={handleSubmit} className="space-y-4">
+        {/* Tipo de producto toggle */}
+        <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+          <button
+            type="button"
+            onClick={() => setEsPesable(false)}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+              !esPesable
+                ? 'bg-white shadow text-indigo-700'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Producto normal
+          </button>
+          <button
+            type="button"
+            onClick={() => setEsPesable(true)}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+              esPesable
+                ? 'bg-white shadow text-indigo-700'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Producto por peso
+          </button>
+        </div>
           {/* Código de barras + Código interno */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -357,25 +391,40 @@ export default function ProductFormModal({
           </div>
 
           {/* Contenido + Unidad + Stock */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid ${esPesable ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+            {!esPesable && (
+              <div>
+                <label className="text-xs font-semibold text-gray-700">Contenido</label>
+                <input type="number" step="0.01" value={contenido} onChange={e => setContenido(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  placeholder="ej: 1750" />
+              </div>
+            )}
             <div>
-              <label className="text-xs font-semibold text-gray-700">Contenido</label>
-              <input type="number" step="0.01" value={contenido} onChange={e => setContenido(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                placeholder="ej: 1750" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-700">Unidad de medida</label>
-              <select value={unidadMedidaId} onChange={e => setUnidadMedidaId(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
-                <option value="">Sin unidad</option>
-                {unidades.map(u => (
-                  <option key={u.id} value={u.id}>{u.codigo} - {u.descripcion}</option>
-                ))}
+              <label className={`text-xs font-semibold ${esPesable ? 'text-gray-400' : 'text-gray-700'}`}>Unidad de medida{esPesable ? ' (KG)' : ''}</label>
+              <select value={unidadEfectiva} onChange={e => setUnidadMedidaId(e.target.value)}
+                disabled={esPesable}
+                className={`w-full px-3 py-2 border rounded-lg text-sm outline-none ${
+                  esPesable
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                    : 'bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
+                }`}>
+                {esPesable ? (
+                  <option value="2">KG - kilogramo</option>
+                ) : (
+                  <>
+                    <option value="">Sin unidad</option>
+                    {unidades.map(u => (
+                      <option key={u.id} value={u.id}>{u.codigo} - {u.descripcion}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
             <div>
-              <label className={`text-xs font-semibold ${!seguirStock ? 'text-gray-400' : 'text-gray-700'}`}>{isEditing ? 'Stock' : 'Stock inicial'}</label>
+              <label className={`text-xs font-semibold ${!seguirStock ? 'text-gray-400' : 'text-gray-700'}`}>
+                {isEditing ? 'Stock' : 'Stock inicial'}{esPesable ? ' (en kg)' : ''}
+              </label>
               <input type="number" min="0" step="1" value={seguirStock ? stock : ''} onChange={e => setStock(e.target.value)}
                 disabled={!seguirStock}
                 className={`w-full px-3 py-2 border rounded-lg text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
@@ -413,7 +462,7 @@ export default function ProductFormModal({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-700">Costo *</label>
+                <label className="text-xs font-semibold text-gray-700">{esPesable ? 'Costo por kg *' : 'Costo *'}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
                   <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
@@ -422,7 +471,7 @@ export default function ProductFormModal({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-700">Precio venta *</label>
+                <label className="text-xs font-semibold text-gray-700">{esPesable ? 'Precio por kg *' : 'Precio venta *'}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">$</span>
                   <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}

@@ -20,9 +20,9 @@ public class ProductosController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult Get([FromQuery] int? sucursalId = null)
+    public IActionResult Get([FromQuery] int? sucursalId = null, [FromQuery] bool? esPesable = null)
     {
-        return Ok(_productoService.ObtenerActivos(sucursalId));
+        return Ok(_productoService.ObtenerActivos(sucursalId, esPesable));
     }
 
     [HttpGet("{id}/detalle")]

@@ -17,7 +17,7 @@ export default function ProductosPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { notifyError, notifySuccess } = useNotification()
-  const [tab, setTab] = useState<'productos' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
+  const [tab, setTab] = useState<'productos' | 'pesables' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
@@ -41,13 +41,20 @@ export default function ProductosPage() {
   const [query, setQuery] = useState('')
 
   const filteredProductos = useMemo(() => {
-    if (!query.trim()) return productos
+    let list = productos
+    if (tab === 'pesables') {
+      list = list.filter(p => p.esPesable)
+    } else if (tab === 'productos') {
+      list = list.filter(p => !p.esPesable)
+    }
+    if (!query.trim()) return list
     const q = query.toLowerCase()
-    return productos.filter(p =>
+    return list.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
-      p.codigoBarra.toLowerCase().includes(q)
+      p.codigoBarra.toLowerCase().includes(q) ||
+      (p.codigoProducto && p.codigoProducto.toLowerCase().includes(q))
     )
-  }, [productos, query])
+  }, [productos, query, tab])
 
   useEffect(() => { listar() }, [sucursal?.id])
 
@@ -183,8 +190,8 @@ export default function ProductosPage() {
   return (
     <><PageShell
       title="Productos"
-      subtitle={`${productos.length} productos activos`}
-      actions={tab === 'productos' ? (
+      subtitle={`${filteredProductos.length} ${tab === 'pesables' ? 'productos por peso' : 'productos activos'}`}
+      actions={(tab === 'productos' || tab === 'pesables') ? (
         <Button onClick={handleOpenForm} variant="primary" size="sm">
           Nuevo producto
         </Button>
@@ -197,6 +204,12 @@ export default function ProductosPage() {
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}>Productos</button>
+          <button onClick={() => setTab('pesables')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'pesables'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Pesables</button>
           <button onClick={() => setTab('margenes')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === 'margenes'
@@ -227,11 +240,12 @@ export default function ProductosPage() {
         initialCodigo={modalCodigo}
         editingProduct={editingProduct}
         sucursalId={sucursal?.id}
+        defaultEsPesable={tab === 'pesables'}
         onCreated={handleProductCreated}
         onClose={handleCloseModal}
       />
 
-      {tab === 'productos' ? (
+      {(tab === 'productos' || tab === 'pesables') ? (
         <ProductCardPanel
           searchQuery={query}
           onSearchChange={setQuery}
@@ -255,6 +269,9 @@ export default function ProductosPage() {
                   title={p.nombre}>
                   <div className="flex items-start justify-between gap-1.5">
                     <p className="font-bold text-gray-900 text-base leading-tight truncate">{p.nombre}</p>
+                    {p.esPesable && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
+                    )}
                     {p.tamano && (
                       <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
                     )}
@@ -265,6 +282,124 @@ export default function ProductosPage() {
                     {p.seguirStock === false ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />sin control
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
+                        p.stock === 0
+                          ? 'bg-red-50 text-red-600'
+                          : p.stock <= 5
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`} />
+                        {p.stock === 0
+                          ? 'sin stock'
+                          : p.esPesable
+                            ? `${Number(p.stock.toFixed(3))} kg`
+                            : `${p.stock}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -mb-0.5">
+                    <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
+                    <span role="button" tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setConfirmDeleteId(p.id) } }}
+                      className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer">Eliminar</span>
+                  </div>
+                </button>
+              ))}
+        </ProductCardPanel>
+      ) : tab === 'margenes' ? (
+        <MargenesTab notifyError={notifyError} />
+      ) : tab === 'stock' ? (
+        <StockTab notifyError={notifyError} />
+      ) : (
+        <div className="bg-white rounded-xl p-6 shadow-xl space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Actualización masiva</h2>
+            <p className="text-sm text-slate-500">Ajustá precios por marca aplicando un porcentaje de aumento.</p>
+          </div>
+          {gruposMarcas.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Marcas similares detectadas ({gruposMarcas.length} grupo{gruposMarcas.length !== 1 ? 's' : ''})
+              </h3>
+              <div className="space-y-2">
+                {gruposMarcas.map((g, i) => (
+                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-amber-600 font-medium">⚠ Posibles variantes:</span>
+                    {g.marcas.map(m => (
+                      <button key={m} type="button"
+                        onClick={() => { setAjusteMarca(m); setMarcaBusqueda(m) }}
+                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                          ajusteMarca === m
+                            ? 'bg-amber-100 border-amber-400 text-amber-800'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-amber-50 hover:border-amber-300'
+                        }`}>{m}</button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="space-y-4 max-w-sm">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1 block">Marca</label>
+              <div className="relative">
+                <input type="text" value={marcaBusqueda}
+                  onChange={e => { setMarcaBusqueda(e.target.value); setAjusteMarca(e.target.value); setMarcaDropdown(true) }}
+                  onFocus={() => setMarcaDropdown(true)}
+                  onBlur={() => setTimeout(() => setMarcaDropdown(false), 150)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  placeholder="Buscar marca..." />
+                {marcaDropdown && marcasFiltradas.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {marcasFiltradas.map(m => (
+                      <button key={m} type="button"
+                        onMouseDown={() => { setAjusteMarca(m); setMarcaBusqueda(m); setMarcaDropdown(false) }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 transition-colors">{m}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1 block">% de aumento</label>
+              <div className="relative">
+                <input type="number" step="0.01" min="0.01" value={ajustePorcentaje}
+                  onChange={e => setAjustePorcentaje(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+                  placeholder="ej: 15" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">Se aplica sobre costo y precio de venta. Las marcas similares se ajustan juntas.</p>
+            </div>
+            <button onClick={handleAjusteSubmit} disabled={ajusteLoading || !ajusteMarca || !ajustePorcentaje}
+              className="w-full py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors text-sm">
+              {ajusteLoading ? 'Aplicando...' : `Aplicar aumento del ${ajustePorcentaje || '...'}%`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Dialog
+        open={confirmDeleteId != null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Eliminar producto"
+        description="¿Estás seguro? Esta acción no se puede deshacer."
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+            <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
+          </>
+        }
+      >
+        <></>
+      </Dialog>
+    </PageShell></>
                       </span>
                     ) : (
                       <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${

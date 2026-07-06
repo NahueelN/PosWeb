@@ -12,8 +12,7 @@ public class ProductoDto
     public decimal Precio { get; set; }
     public decimal Costo { get; set; }
 
-    public int Stock { get; set; }
-
+    public decimal Stock { get; set; }
     public bool Activo { get; set; }
 
     public string? Marca { get; set; }
@@ -25,6 +24,8 @@ public class ProductoDto
     public decimal? MargenGanancia { get; set; }
 
     public bool SeguirStock { get; set; } = true;
+
+    public bool EsPesable { get; set; }
 
     /// <summary>
     /// Código interno del producto.
@@ -40,8 +41,7 @@ public class ProductoDetailDto
     public string Nombre { get; set; } = string.Empty;
     public decimal Precio { get; set; }
     public decimal Costo { get; set; }
-    public int Stock { get; set; }
-    public string? Categoria { get; set; }
+    public decimal Stock { get; set; }    public string? Categoria { get; set; }
     public string? DescAdicional { get; set; }
     public decimal? Contenido { get; set; }
     public string? UnidadMedida { get; set; }
