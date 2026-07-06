@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
+using PosWeb.Application.Productos;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -40,7 +41,8 @@ public class CompraServiceTest
     private static CompraService CrearService(PosDbContext context)
     {
         var deudaService = new DeudaService(context);
-        return new CompraService(context, deudaService);
+        var productoService = new ProductoService(context);
+        return new CompraService(context, deudaService, productoService);
     }
 
     private static Caja CrearCajaAbierta(PosDbContext context, int sucursalId, int usuarioId)

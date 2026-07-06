@@ -247,29 +247,87 @@ Señales débiles (apoyan pero no determinan solas):
 
 ### CMD-project-init — Inicialización de sesión del Project Companion
 
-**Origen**: Necesidad de estandarizar la inicialización del Companion al comenzar una sesión. Reemplaza al antiguo "modo pks".
+**Origen**: Necesidad de estandarizar la inicialización del Companion al comenzar una sesión. Reemplaza al antiguo "modo pks". Optimizado en 2026-07-06 para aplicar el principio de Carga Mínima.
 
-**Qué define**: Comando que prepara al Project Companion para trabajar siguiendo la metodología del proyecto. No modifica archivos, no crea PASS, no ejecuta sync, no genera documentación. Su única responsabilidad es preparar la sesión.
+**Qué define**: Comando que prepara al Project Companion para trabajar siguiendo la metodología del proyecto. No modifica archivos, no crea PASS, no ejecuta sync, no genera documentación. Su única responsabilidad es dejar la sesión lista para empezar.
+
+**Principio rector**: Carga Mínima
+
+`project init` debe cargar únicamente el contexto indispensable para iniciar la sesión. Todo el resto se carga bajo demanda, cuando otra capacidad del Companion lo requiera. `project init` prepara la sesión, no el trabajo.
 
 **Comportamiento**:
 
-Al ejecutar `project init`, el Companion debe:
+Al ejecutar `project init`, el Companion debe hacer **exactamente** esto:
 
-1. **Cargar el contexto del proyecto**: leer los documentos mínimos necesarios para inicializar la sesión. Son obligatorios: `PROJECT_KNOWLEDGE_SYSTEM.md` y `PROJECT_COMPANION.md`. Los demás documentos (PASS, STAND, ADR, CMD, registries, propuestas) se cargan automáticamente solo si son relevantes para la sesión o si el Companion determina que forman parte del contexto necesario.
+1. **Cargar contexto base**: leer `PROJECT_COMPANION.md` y `PROJECT_KNOWLEDGE_SYSTEM.md`.
+2. **Conocer la rama actual**: `git branch --show-current`.
+3. **Conocer el estado del repositorio**: `git status --short`.
+4. **Detectar PASS activa**: buscar en `docs/passes/` una PASS con `Status: Active`.
+5. **Inicializar el Companion** con la metodología del proyecto.
+6. **Activar PASS Discovery**: detectar durante la sesión cuándo la conversación evoluciona a unidad de trabajo.
 
-2. **Reconocer el estado del proyecto**: informar brevemente la rama actual, estado del repositorio (cambios sin commit), PASS activa (si existe), comandos disponibles del Companion, y propuestas activas relevantes (solo si afectan la sesión). Resumen ejecutivo breve, no un reporte largo.
+Nada más. No debe hacer nada que no esté en esta lista.
 
-3. **Inicializar el Companion para trabajar con la metodología**: a partir de ese momento, utilizar PKS, PASS, Standards, ADR, CMD y Narrativas como parte natural del razonamiento. No esperar a que el usuario los mencione nuevamente.
+**No debe hacer automáticamente**:
 
-4. **Aplicar PASS Discovery durante la sesión**: detectar cuándo la conversación evoluciona a unidad de trabajo y sugerir crear una PASS. Nunca crearla automáticamente.
+- Recorrer todos los archivos Markdown del proyecto.
+- Leer `PKS_PROPOSALS.md`, ADR, Standards, Narrativas, registries, propuestas.
+- Leer PASS históricas ni analizar su contenido.
+- Buscar comandos disponibles del Companion.
+- Generar auditorías, reportes largos o resúmenes del proyecto.
+- Ejecutar búsquedas que todavía no son necesarias para la sesión.
 
-5. **Mantener el contexto sin releer continuamente**: el conocimiento cargado persiste como contexto base durante toda la sesión.
+**Carga incremental**:
 
-**Relación con CMD-project-sync**: comando complementario. `project init` prepara la sesión; `project sync` alinea ramas. Si `project sync` se ejecuta después de `project init`, no necesita recargar el contexto.
+A partir de la inicialización, el Companion carga contexto únicamente cuando aparece una necesidad concreta. Cada capacidad (PASS Discovery, Code Discovery, PKS Discovery, review, sync) es responsable de cargar el conocimiento que necesita. Ninguna debe asumir que `project init` ya lo cargó.
+
+Ejemplos:
+
+- Modificar Compras → PASS Discovery → Code Discovery → si aparecen reglas → PKS Discovery
+- Project Sync → Assessment → si aparecen ADR relevantes → ADR Discovery
+- Review de PR → Narrative Discovery → Standards relevantes
+
+**Salida esperada**:
+
+```
+Project Companion inicializado
+
+Rama:
+<rama actual>
+
+Estado:
+<N> archivos modificados / Sin cambios
+
+PASS:
+PASS activa / Sin PASS activa
+
+Companion listo.
+```
+
+Sin secciones adicionales. Sin resúmenes. Sin comandos. Sin propuestas. Sin referencias a documentos que no se leyeron. Ocho líneas como máximo.
+
+**Qué cambió respecto a la versión anterior** (2026-07-06):
+
+| Aspecto | Antes | Ahora |
+|---------|-------|-------|
+| Propósito | "preparar la sesión" | "dejar la sesión lista para empezar" |
+| Carga de contexto | documentos mínimos + "otros si son relevantes" | solo PROJECT_COMPANION.md + PKS.md |
+| Estado del proyecto | rama, cambios, PASS, comandos, propuestas activas | solo rama + git status + PASS activa |
+| Carga de documentos externos | permitida si "el Companion determina que son relevantes" | prohibida explícitamente |
+| Output | "resumen ejecutivo breve" (sin formato fijo) | formato fijo de 8 líneas máximo |
+| Carga incremental | no mencionada | principio central: cada capacidad carga lo suyo |
+| Lista de exclusión | no existía | "No debe hacer automáticamente" explícito |
+
+Este cambio es consistente con:
+- El **Principio de Carga Mínima** de PROJECT_COMPANION.md.
+- La filosofía de Quick Sync (Assessment mínimo, no análisis completo).
+- La evolución del Companion hacia carga bajo demanda.
+
+**Relación con CMD-project-sync**: comando complementario. `project init` prepara la sesión; `project sync` alinea ramas. Cuando se ejecutan juntos, `project init` no duplica trabajo de `project sync`.
 
 **Relación con el ADR-project-commands-family**: Este es el segundo comando de la familia CMD-*, junto con CMD-project-sync. La infraestructura formal CMD-* sigue diferida hasta que uno de los dos sea promovido a Knowledge Item.
 
-**Estado**: Propuesta activa. No implementado.
+**Estado**: Implementado. Validación pendiente.
 
 **Condición para promover**: Implementación funcional validada en al menos 3 sesiones de trabajo real donde el usuario confirme que el comando agilizó el inicio de la sesión.
 
