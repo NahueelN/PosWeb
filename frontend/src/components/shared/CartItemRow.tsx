@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useState, useEffect, useRef } from 'react'
 import { Plus, Minus, Trash2, AlertTriangle } from 'lucide-react'
 
 // ── Shared cart item row props ──────────────────────────────────────
@@ -16,6 +16,10 @@ export interface CartItemRowProps {
   cantidad: number
   /** Min quantity (default 0 = allows removal at 0) */
   min?: number
+  /** Step for +/- buttons (default 1) */
+  step?: number
+  /** Decimal places for display and rounding (default 0) */
+  decimales?: number
   /** Called when quantity changes. cantidad=0 means remove. */
   onCantidadChange: (cantidad: number) => void
   /** Called on Enter after quantity input — focus next element */
@@ -49,6 +53,8 @@ export default function CartItemRow({
   subtotal,
   cantidad,
   min = 0,
+  step = 1,
+  decimales = 0,
   onCantidadChange,
   onEnter,
   onEscape,
@@ -61,6 +67,30 @@ export default function CartItemRow({
   onRemove,
   removeButton,
 }: CartItemRowProps) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const localInput = useRef(false)
+
+  useEffect(() => {
+    if (!localInput.current) setDraft(null)
+  }, [cantidad])
+
+  function commit(valor: string) {
+    const raw = valor.replace(',', '.')
+    const v = parseFloat(raw)
+    const rounded = isNaN(v) ? min : Math.round(v * Math.pow(10, decimales)) / Math.pow(10, decimales)
+    localInput.current = false
+    setDraft(null)
+    onCantidadChange(rounded)
+  }
+
+  const display = draft !== null
+    ? draft
+    : decimales > 0 && cantidad !== 0
+      ? cantidad.toFixed(decimales)
+      : cantidad === 0
+        ? '0'
+        : String(cantidad)
+
   return (
     <div>
       <div className="flex items-center px-2 py-1 transition-colors hover:bg-gray-50/60">
@@ -92,42 +122,54 @@ export default function CartItemRow({
         {/* Qty controls — fixed column */}
         <div className="shrink-0 w-[88px] flex items-center justify-center gap-0.5">
           <button type="button"
-            onClick={() => cantidad <= 1 ? onRemove() : onCantidadChange(cantidad - 1)}
+            onClick={() => cantidad <= step ? onRemove() : onCantidadChange(Math.round((cantidad - step) * Math.pow(10, decimales)) / Math.pow(10, decimales))}
             className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-[oklch(0.52_0.255_278_/_0.50)] hover:bg-[oklch(0.52_0.255_278_/_0.05)] hover:text-[oklch(0.52_0.255_278)] active:scale-90 transition-all duration-100"
             aria-label={`Reducir cantidad de ${nombre}`}
           >
             <Minus size={10} strokeWidth={3} />
           </button>
 
-          <input type="text" inputMode="numeric" min={min} data-cart-qty
+          <input type="text" inputMode="decimal" min={min} step={step} data-cart-qty
             ref={inputRef}
-            onFocus={onFocusQty}
-            className="w-10 text-center border border-gray-200 rounded px-0.5 py-0.5 text-[12px] font-bold tabular-nums text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]"
-            value={cantidad}
-            onChange={(e) => {
-              const v = parseInt(e.target.value)
-              onCantidadChange(isNaN(v) ? min : v)
+            onFocus={(e) => {
+              localInput.current = true
+              onFocusQty?.()
             }}
+            onBlur={() => { if (draft !== null) commit(draft) }}
+            className={`${decimales > 0 ? 'w-16' : 'w-10'} text-center border border-gray-200 rounded px-0.5 py-0.5 text-[12px] font-bold tabular-nums text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]`}
+            value={display}
+            onChange={(e) => { setDraft(e.target.value) }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowUp') {
                 e.preventDefault()
-                onCantidadChange(cantidad + 1)
+                localInput.current = false
+                const next = Math.round((cantidad + step) * Math.pow(10, decimales)) / Math.pow(10, decimales)
+                onCantidadChange(next)
                 return
               }
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
-                if (cantidad <= 1) { onCantidadChange(0); return }
-                onCantidadChange(cantidad - 1)
+                localInput.current = false
+                if (cantidad <= step) { onCantidadChange(0); return }
+                const next = Math.round((cantidad - step) * Math.pow(10, decimales)) / Math.pow(10, decimales)
+                onCantidadChange(next)
                 return
               }
               if (e.key === 'Enter') {
                 e.preventDefault()
+                if (draft !== null) {
+                  commit(draft)
+                  onEnter?.()
+                  return
+                }
                 if (cantidad === 0 || cantidad <= min) { onRemove(); onEnter?.(); return }
                 onEnter?.()
               }
               if (e.key === 'Escape') {
                 e.preventDefault()
                 e.stopPropagation()
+                localInput.current = false
+                setDraft(null)
                 ;(onEscape || onRemove)()
                 onEnter?.()
                 return
@@ -136,7 +178,7 @@ export default function CartItemRow({
           />
 
           <button type="button"
-            onClick={() => onCantidadChange(cantidad + 1)}
+            onClick={() => onCantidadChange(Math.round((cantidad + step) * Math.pow(10, decimales)) / Math.pow(10, decimales))}
             className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-[oklch(0.52_0.255_278_/_0.50)] hover:bg-[oklch(0.52_0.255_278_/_0.05)] hover:text-[oklch(0.52_0.255_278)] active:scale-90 transition-all duration-100"
             aria-label={`Aumentar cantidad de ${nombre}`}
           >

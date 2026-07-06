@@ -17,7 +17,7 @@ public class StockSucursalDto
     public int SucursalId { get; set; }
 
     [JsonPropertyName("stock")]
-    public int Stock { get; set; }
+    public decimal Stock { get; set; }
 
     [JsonPropertyName("inicializado")]
     public bool Inicializado { get; set; }

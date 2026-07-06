@@ -97,6 +97,9 @@ public class PosDbContext : DbContext
             entity.Property(p => p.SEGUIR_STOCK)
                 .HasColumnName("SEGUIR_STOCK");
 
+            entity.Property(p => p.ES_PESABLE)
+                .HasColumnName("ES_PESABLE");
+
             entity.HasOne<Categoria>()
                 .WithMany()
                 .HasForeignKey(p => p.ID_CATEGORIA)
@@ -159,7 +162,7 @@ public class PosDbContext : DbContext
 
             entity.Property(s => s.STOCK)
                 .HasColumnName("STOCK")
-                .HasColumnType("decimal(18,2)");
+                .HasColumnType("decimal(18,3)");
 
             entity.HasOne(s => s.Producto)
                 .WithMany()
@@ -342,7 +345,7 @@ public class PosDbContext : DbContext
 
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
-                .HasColumnType("decimal(18,2)");
+                .HasColumnType("decimal(18,3)");
 
             entity.Property(r => r.PRECIO_UNITARIO)
                 .HasColumnName("PRECIO_UNITARIO")
@@ -443,7 +446,7 @@ public class PosDbContext : DbContext
 
             entity.Property(ci => ci.CANTIDAD)
                 .HasColumnName("CANTIDAD")
-                .HasColumnType("decimal(18,2)");
+                .HasColumnType("decimal(18,3)");
 
             entity.HasOne<Combo>()
                 .WithMany(c => c.ITEMS)
@@ -957,7 +960,7 @@ public class PosDbContext : DbContext
 
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
-                .HasColumnType("decimal(18,2)");
+                .HasColumnType("decimal(18,3)");
 
             entity.Property(r => r.PRECIO_UNITARIO)
                 .HasColumnName("PRECIO_UNITARIO")

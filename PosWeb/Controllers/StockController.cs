@@ -89,5 +89,5 @@ public class StockController : ControllerBase
 public record AjustarStockRequest(
     [property: JsonPropertyName("productoId")] int ProductoId,
     [property: JsonPropertyName("sucursalId")] int SucursalId,
-    [property: JsonPropertyName("stock")] int Stock
+    [property: JsonPropertyName("stock")] decimal Stock
 );

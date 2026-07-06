@@ -13,7 +13,7 @@ export default function ProductosPage() {
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
   const { notifyError, notifySuccess } = useNotification()
-  const [tab, setTab] = useState<'productos' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
+  const [tab, setTab] = useState<'productos' | 'pesables' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
@@ -35,13 +35,20 @@ export default function ProductosPage() {
   const [query, setQuery] = useState('')
 
   const filteredProductos = useMemo(() => {
-    if (!query.trim()) return productos
+    let list = productos
+    if (tab === 'pesables') {
+      list = list.filter(p => p.esPesable)
+    } else if (tab === 'productos') {
+      list = list.filter(p => !p.esPesable)
+    }
+    if (!query.trim()) return list
     const q = query.toLowerCase()
-    return productos.filter(p =>
+    return list.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
-      p.codigoBarra.toLowerCase().includes(q)
+      p.codigoBarra.toLowerCase().includes(q) ||
+      (p.codigoProducto && p.codigoProducto.toLowerCase().includes(q))
     )
-  }, [productos, query])
+  }, [productos, query, tab])
 
   useEffect(() => { listar() }, [sucursal?.id])
 
@@ -171,10 +178,10 @@ export default function ProductosPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Productos</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{productos.length} productos activos</p>
+          <h2 className="text-xl font-bold text-gray-900">{tab === 'pesables' ? 'Productos por peso' : 'Productos'}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{filteredProductos.length} {tab === 'pesables' ? 'productos por peso' : 'productos activos'}</p>
         </div>
-        {tab === 'productos' && (
+        {(tab === 'productos' || tab === 'pesables') && (
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenForm}
@@ -200,6 +207,16 @@ export default function ProductosPage() {
           }`}
         >
           Productos
+        </button>
+        <button
+          onClick={() => setTab('pesables')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'pesables'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Pesables
         </button>
         <button
           onClick={() => setTab('margenes')}
@@ -233,7 +250,7 @@ export default function ProductosPage() {
         </button>
       </div>
 
-      {tab === 'productos' ? (
+      {(tab === 'productos' || tab === 'pesables') ? (
         <>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
@@ -250,6 +267,7 @@ export default function ProductosPage() {
             initialCodigo={modalCodigo}
             editingProduct={editingProduct}
             sucursalId={sucursal?.id}
+            defaultEsPesable={tab === 'pesables'}
             onCreated={handleProductCreated}
             onClose={handleCloseModal}
           />
@@ -283,6 +301,9 @@ export default function ProductosPage() {
                       <p className="font-bold text-gray-900 text-base leading-tight truncate">
                         {p.nombre}
                       </p>
+                      {p.esPesable && (
+                        <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
+                      )}
                       {p.tamano && (
                         <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
                       )}
@@ -308,7 +329,11 @@ export default function ProductosPage() {
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
                           }`} />
-                          {p.stock === 0 ? 'sin stock' : `${p.stock}`}
+                          {p.stock === 0
+                            ? 'sin stock'
+                            : p.esPesable
+                              ? `${Number(p.stock.toFixed(3))} kg`
+                              : `${p.stock}`}
                         </span>
                       )}
                     </div>

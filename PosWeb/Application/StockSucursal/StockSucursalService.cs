@@ -33,7 +33,7 @@ public class StockSucursalService
             .FirstOrDefault();
     }
 
-    public void AjustarStock(int productoId, int sucursalId, int nuevoStock)
+    public void AjustarStock(int productoId, int sucursalId, decimal nuevoStock)
     {
         EnsureSucursalExists(sucursalId);
         EnsureProductoActivo(productoId);
@@ -83,7 +83,7 @@ public class StockSucursalService
                 ProductoNombre = x.producto.DESC_PRODUCTO,
                 CodigoBarra = x.producto.CODIGO_BARRAS,
                 SucursalId = sucursalId,
-                Stock = x.stock != null ? (int)x.stock.STOCK : 0,
+                Stock = x.stock != null ? x.stock.STOCK : 0,
                 Inicializado = x.stock != null
             });
     }

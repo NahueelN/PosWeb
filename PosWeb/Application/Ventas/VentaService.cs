@@ -119,7 +119,7 @@ public class VentaService
                         StockSucursal? cstock = _context.StockSucursal
                             .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
 
-                        int cdisponible = (int)(cstock?.STOCK ?? 0);
+                        decimal cdisponible = cstock?.STOCK ?? 0;
 
                         if (cdisponible < cantidadNecesaria && !dto.AllowSinStock)
                         {
@@ -127,7 +127,7 @@ public class VentaService
                                 cproducto.DESC_PRODUCTO,
                                 dto.SucursalId,
                                 cdisponible,
-                                (int)cantidadNecesaria
+                                cantidadNecesaria
                             );
                         }
 
@@ -160,7 +160,7 @@ public class VentaService
                     StockSucursal? stockSuc = _context.StockSucursal
                         .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
 
-                    int available = (int)(stockSuc?.STOCK ?? 0);
+                    decimal available = stockSuc?.STOCK ?? 0;
 
                     if (available < item.Cantidad && !dto.AllowSinStock)
                     {
@@ -389,7 +389,7 @@ public class VentaService
                 CodigoBarra = r.ID_COMBO != null
                     ? _context.Combo.Where(c => c.ID_COMBO == r.ID_COMBO).Select(c => c.COD_COMBO).FirstOrDefault() ?? ""
                     : _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.CODIGO_BARRAS).FirstOrDefault() ?? "",
-                Cantidad = (int)r.CANTIDAD,
+                Cantidad = r.CANTIDAD,
                 PrecioUnitario = r.PRECIO_UNITARIO,
                 Subtotal = r.SUBTOTAL
             }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706010842_AddEsPesableToProducto")]
+    partial class AddEsPesableToProducto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -259,7 +262,7 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_COMBO_ITEM"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_COMBO")
@@ -885,7 +888,7 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_COMPRA"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_COMPRA")
@@ -972,7 +975,7 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_VENTA"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int?>("ID_COMBO")
@@ -1023,7 +1026,7 @@ namespace PosWeb.Migrations
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<decimal>("STOCK")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("STOCK");
 
                     b.HasKey("ID_PRODUCTO", "ID_SUCURSAL");
