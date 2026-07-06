@@ -242,6 +242,7 @@ export interface ClienteDto {
   ivaCondicion: string
   telefono?: string
   domicilio?: string
+  mail?: string
   activo?: boolean
 }
 

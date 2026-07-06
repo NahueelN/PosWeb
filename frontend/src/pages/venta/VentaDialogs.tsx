@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import Dialog from '../../components/ui/Dialog'
 import Button from '../../components/ui/Button'
-import type { ClienteDto, DeudaDto } from '../../types'
+import type { ClienteDto } from '../../types'
 
-interface StockConflictItem {
+export interface StockConflictItem {
   producto: { id: number; nombre: string; stock: number }
   cantidad: number
 }
@@ -33,7 +33,7 @@ interface VentaDialogsProps {
   onNuevoClienteClose: () => void
   onNuevoClienteNombreChange: (n: string) => void
   onEsOcasionalChange: (v: boolean) => void
-  onFormClienteChange: (f: typeof formCliente) => void
+  onFormClienteChange: (f: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string; mail: string }) => void
   onCrearCliente: () => void
   onAbrirNuevoCliente: () => void
 }
@@ -170,7 +170,6 @@ export default function VentaDialogs({
                 <p className="text-sm font-medium text-gray-900 truncate">{cl.nombre}</p>
                 <p className="text-xs text-gray-400 truncate">
                   {cl.tipoDocumento} {cl.numeroDocumento}
-                  {cl.codCliente && ` · #${cl.codCliente}`}
                   {cl.telefono && ` · ${cl.telefono}`}
                 </p>
               </div>

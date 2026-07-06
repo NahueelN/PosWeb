@@ -181,7 +181,7 @@ export default function ProductosPage() {
   }
 
   return (
-    <PageShell
+    <><PageShell
       title="Productos"
       subtitle={`${productos.length} productos activos`}
       actions={tab === 'productos' ? (

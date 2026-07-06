@@ -38,7 +38,7 @@ No es una optimización de tokens. Es un principio de diseño. Un artefacto que 
 
 Project Companion no se perfecciona escribiendo teoría aislada. Se perfecciona resolviendo problemas reales mientras se desarrolla software.
 
-PosWeb es el laboratorio permanente. Cada mejora de la aplicación es una pasada del ciclo completo (Comprender → Diseñar → Construir → Aprender → Preservar → Reutilizar) ejecutada con la metodología.
+PosWeb es el laboratorio permanente. Cada mejora de la aplicación es una pasada del ciclo completo (Comprender → Diseñar → Construir → Aprender → Preservar → Retrospectiva) ejecutada con la metodología.
 
 Durante cada tarea se distinguen dos clases de problemas:
 
@@ -64,6 +64,8 @@ Trigger → Comprender → Diseñar → Construir → Aprender → Preservar →
 
 Cada Pass tiene id (PASS-001, PASS-002, ...), trigger (la tarea real que la origina), y bitácora de cada etapa con una evaluación local: ¿la metodología fue suficiente?, ¿faltó información?, ¿sobró algún paso?, ¿hubo fricción?, ¿la transición a la siguiente etapa fue natural?
 
+La especificación completa de la estructura, principios y campos de PASS está en `docs/passes/PASS-V1.md`.
+
 La retrospectiva es obligatoria y responde exactamente dos preguntas:
 
 1. ¿Qué aprendimos sobre PosWeb? → actualiza el PKS si corresponde.
@@ -77,6 +79,129 @@ Separación de fuentes (no negociable):
 - **PROJECT_COMPANION.md** captura conocimiento sobre la ingeniería de desarrollar cualquier proyecto.
 
 Confundir las dos contamina ambos documentos. Lo específico del proyecto se trata en Pass; lo generalizable va a retrospectiva.
+
+---
+
+## Protocolo de Activación del Companion (OBLIGATORIO)
+
+Regla obligatoria del Project Companion. Se activa cada vez que el Companion inicia una tarea de implementación tras `project init` o el comando de activación equivalente.
+
+El Companion **no puede modificar ningún archivo de código** sin haber completado este protocolo y presentado el resumen de validación.
+
+### Orden obligatorio
+
+```
+1. PASS Discovery
+2. Code Discovery (OBLIGATORIO)
+3. PKS Discovery (solo si aplica)
+4. Pattern Discovery
+5. Propuesta
+6. Confirmación del usuario
+7. Implementación
+```
+
+### 1. PASS Discovery
+
+Si existe una PASS activa relacionada con el trabajo:
+
+- leerla;
+- comprender el objetivo;
+- comprender el contexto;
+- identificar decisiones abiertas;
+- identificar el próximo paso recomendado.
+
+Si no existe PASS activa, continuar.
+
+### 2. Code Discovery (OBLIGATORIO)
+
+Antes de proponer cualquier modificación, el Companion debe entender la implementación actual respondiendo explícitamente:
+
+- ¿Dónde está implementado el comportamiento actual?
+- ¿Cómo funciona hoy?
+- ¿Qué componente o sección de código controla ese comportamiento?
+- ¿Por qué ocurre el comportamiento actual?
+
+No modificar todavía. Este paso no puede saltarse.
+
+### 3. PKS Discovery (solo si aplica)
+
+No se ejecuta automáticamente. Solo cuando durante Code Discovery se detecte evidencia de que el PKS puede afectar la implementación. Por ejemplo:
+
+- reglas de negocio documentadas;
+- decisiones arquitectónicas;
+- Standards;
+- Knowledge Items;
+- restricciones funcionales;
+- decisiones de UX previamente documentadas.
+
+Si existe evidencia, buscar únicamente los Knowledge Items relacionados con el módulo o dominio afectado. No cargar el PKS completo.
+
+Si no existe evidencia, continuar directamente.
+
+### 4. Pattern Discovery
+
+Buscar implementaciones equivalentes dentro del proyecto. Verificar si ya existe:
+
+- componente similar;
+- patrón similar;
+- validación similar;
+- comportamiento similar.
+
+Si existe:
+
+- reutilizarlo; o
+- justificar por qué no aplica.
+
+Encontrar un patrón no obliga a refactorizar. El refactor siempre debe evaluarse según el objetivo de la PASS actual.
+
+### 5. Propuesta
+
+Con toda la información recopilada, el Companion presenta una propuesta de modificación que describe qué cambiar y por qué.
+
+### 6. Confirmación del usuario
+
+Cuando corresponda, el Companion espera la confirmación del usuario antes de comenzar la implementación. La decisión final pertenece al desarrollador.
+
+### 7. Implementación
+
+Recién después de completar los pasos anteriores y obtener confirmación, comenzar la implementación.
+
+### Validación obligatoria
+
+Antes de modificar el primer archivo, el Companion debe mostrar un resumen de las etapas realizadas en este formato:
+
+```
+PASS Discovery
+✓ PASS-003 activa
+o
+— Sin PASS activa
+
+Code Discovery
+✓ Explicación breve del comportamiento actual.
+
+PKS Discovery
+✓ Knowledge Items encontrados y utilizados
+o
+— No aplica (explicar por qué)
+
+Pattern Discovery
+✓ Patrones encontrados y decisión tomada
+o
+— No existen patrones equivalentes
+```
+
+Solo después de mostrar este resumen puede comenzar la implementación.
+
+### Principios
+
+- **Carga mínima**: nunca cargar todo el PKS. La búsqueda debe ser incremental y guiada por relevancia.
+- **Reutilización primero**: antes de crear algo nuevo, verificar si ya existe.
+- **Consistencia entre módulos**: evitar implementar soluciones diferentes para el mismo problema.
+- **Progresión guiada**: si un paso no produce información útil, continuar inmediatamente con el siguiente.
+- **Justificación breve**: el Companion debe informar qué conocimiento encontró y cómo influyó (o no) en la implementación.
+- **Validación visible**: no alcanza con ejecutar el protocolo — el Companion debe demostrar que lo ejecutó mostrando el resumen antes de modificar código.
+
+Este protocolo no modifica las etapas del ciclo. Es el comportamiento obligatorio del Companion al activarse para cualquier implementación (bug, feature, refactor, mejora UX, auditoría, etc.).
 
 ---
 

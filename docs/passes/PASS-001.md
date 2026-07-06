@@ -2,10 +2,12 @@
 
 ---
 
-## Nivel 1 — Resumen canónico
+## Resumen
 
 - **ID:** PASS-001
-- **Estado:** Construir completado. Aprender/Preservar/Retrospectiva pendientes.
+- **Trigger:** Feature/UX
+- **Estado:** Completed (extracción de conocimiento pendiente)
+- **Especificación:** [PASS-V1](PASS-V1.md)
 - **Objetivo:** Migrar `loading` / `error` de `ClientesPage` a los props de `PageShell`.
 - **Cambio seleccionado:** C6 — Migrar loading/error a props de PageShell (score 12/16; tiene par comparable en `ProveedoresPage` para Fase 4 del experimento).
 - **Archivos modificados:**
@@ -22,7 +24,7 @@
 
 ---
 
-## Nivel 2 — Detalle expandible
+## Detalle
 
 ### Mapa de comprensión (resumido)
 

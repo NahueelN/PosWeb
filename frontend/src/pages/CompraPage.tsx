@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from 'react';
+﻿import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CrearProveedorRequestDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
@@ -103,7 +103,22 @@ export default function CompraPage() {
   const [showNewProvModal, setShowNewProvModal] = useState(false);
   const [newProvNombre, setNewProvNombre] = useState('');
   const [newProvForm, setNewProvForm] = useState({ tipoDocumento: '', nroDocumento: '', telefono: '', mail: '', domicilio: '', ivaCondicion: 'ConsumidorFinal' });
-  const [ocasional, setOcasional] = useState(false);
+
+  const handleSelectOcasional = useCallback(() => {
+    const occ = proveedores.find(p => p.nombre === 'Proveedor ocasional' || p.codigo === 'OCASIONAL');
+    if (occ) {
+      setProveedorId(occ.id); setProveedorNombre(occ.nombre); setProveedorSearch('');
+    } else {
+      api.proveedores.crear({ nombre: 'Proveedor ocasional', ivaCondicion: 'ConsumidorFinal' })
+        .then(nuevo => {
+          setProveedores(prev => [...prev, nuevo]);
+          setProveedorId(nuevo.id); setProveedorNombre(nuevo.nombre); setProveedorSearch('');
+        })
+        .catch(err => notifyError(err instanceof Error ? err.message : 'Error'));
+    }
+    setShowProvDropdown(false);
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }, [proveedores]);
 
   const provInputRef = useRef<HTMLInputElement>(null);
 
@@ -474,65 +489,64 @@ export default function CompraPage() {
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <input ref={provInputRef} type="text"
                 value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
-                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
-                onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
+                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } setShowProvDropdown(true); setProvHighIdx(-1); }}
+                onFocus={() => {}}
                 onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
                 onKeyDown={e => {
-                  if (!showProvDropdown || proveedoresFilt.length === 0) return;
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setProvHighIdx(Math.min(provHighIdx + 1, proveedoresFilt.length - 1)); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
-                  else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault(); const p = proveedoresFilt[provHighIdx]; setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); setTimeout(() => searchRef.current?.focus(), 0); }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!showProvDropdown) { setShowProvDropdown(true); setProvHighIdx(-1); return; }
+                    setProvHighIdx(prev => prev < proveedoresFilt.length - 1 ? prev + 1 : prev);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setProvHighIdx(prev => prev <= 0 ? -1 : prev - 1);
+                  } else if (e.key === 'Enter') {
+                    if (!showProvDropdown) return;
+                    e.preventDefault();
+                    if (provHighIdx === -1) { handleSelectOcasional(); }
+                    else if (provHighIdx >= 0 && provHighIdx < proveedoresFilt.length) {
+                      const p = proveedoresFilt[provHighIdx];
+                      setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false);
+                      setTimeout(() => searchRef.current?.focus(), 0);
+                    }
+                  }
                 }}
                 placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
-                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] placeholder:text-gray-400" />
-              {showProvDropdown && (proveedoresFilt.length > 0 || proveedorSearch.trim().length > 0) && (
+                className="w-full h-10 px-3 pr-10 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] placeholder:text-gray-400" />
+              <button type="button" onClick={() => setShowNewProvModal(true)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg text-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.08)] transition-all flex items-center justify-center"
+                title="Nuevo proveedor"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </button>
+              {showProvDropdown && (
                 <div className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg text-[13px] overflow-hidden">
-                  {proveedoresFilt.length > 0 && (
-                    <ul className="max-h-48 overflow-y-auto">
-                      {proveedoresFilt.map((p, i) => (
-                        <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
-                          onMouseEnter={() => setProvHighIdx(i)}
-                          className={`px-3 py-2 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
-                          <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                    {proveedorSearch.trim().length > 0 && proveedoresFilt.length === 0 && (
-                    <div className="px-3 py-6 text-center text-gray-400 text-xs">Sin resultados</div>
+                  <ul className="max-h-48 overflow-y-auto">
+                    <li key="ocasional" onMouseDown={handleSelectOcasional}
+                      onMouseEnter={() => setProvHighIdx(-1)}
+                      className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${provHighIdx === -1 ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'}`}>
+                      <span className="font-medium">Ocasional</span>
+                      <span className="text-xs text-gray-400">Proveedor sin registro fijo</span>
+                    </li>
+                    {proveedoresFilt.length > 0 && (
+                      <>
+                        <li className="mx-2 border-t border-gray-100" />
+                        {proveedoresFilt.map((p, i) => (
+                          <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
+                            onMouseEnter={() => setProvHighIdx(i)}
+                            className={`px-3 py-2 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
+                            <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                          </li>
+                        ))}
+                      </>
+                    )}
+                  </ul>
+                  {proveedorSearch.trim().length > 0 && proveedoresFilt.length === 0 && (
+                    <div className="px-3 py-4 text-center text-gray-400 text-xs border-t border-gray-100">Sin resultados</div>
                   )}
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => setShowNewProvModal(true)}
-              className="w-10 h-10 shrink-0 rounded-xl border border-dashed border-[oklch(0.52_0.255_278_/_0.35)] text-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.08)] hover:border-[oklch(0.52_0.255_278)] transition-all flex items-center justify-center"
-              title="Nuevo proveedor"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-            </button>
-            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none shrink-0" title="Proveedor ocasional">
-              <input type="checkbox" checked={ocasional} onChange={async e => {
-                const checked = e.target.checked; setOcasional(checked);
-                if (checked) {
-                  const occ = proveedores.find(p => p.nombre === 'Proveedor ocasional' || p.codigo === 'OCASIONAL');
-                  if (occ) {
-                    setProveedorId(occ.id); setProveedorNombre(occ.nombre); setProveedorSearch('');
-                  } else {
-                    try {
-                      const nuevo = await api.proveedores.crear({ nombre: 'Proveedor ocasional', ivaCondicion: 'ConsumidorFinal' });
-                      setProveedores(prev => [...prev, nuevo]);
-                      setProveedorId(nuevo.id); setProveedorNombre(nuevo.nombre); setProveedorSearch('');
-                    } catch (err: unknown) {
-                      notifyError(err instanceof Error ? err.message : 'Error');
-                    }
-                  }
-                } else if (proveedorId > 0 && proveedores.find(p => p.id === proveedorId)?.codigo === 'PROVEEDOR OCASIONAL') {
-                  setProveedorId(0); setProveedorNombre('');
-                }
-                setTimeout(() => proveedorOk ? searchRef.current?.focus() : provInputRef.current?.focus(), 50);
-              }} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-              <span>Ocasional</span>
-            </label>
             {proveedorOk && <Button variant="primary" size="sm" onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} icon={<Plus size={14} />}>Nuevo producto</Button>}
           </div>
           <div className="relative">
