@@ -234,6 +234,7 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("DIAS_SEMANA");
 
+
                     b.Property<DateTime?>("FECHA_FIN")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_FIN");
