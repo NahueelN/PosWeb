@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ProveedorDto, CrearProveedorRequestDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
-
-function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { formatCurrency } from '../formats';
 
 export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState<ProveedorDto[]>([]);
