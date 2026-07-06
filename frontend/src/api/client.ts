@@ -123,8 +123,11 @@ export const api = {
 
   // Productos
   productos: {
-    listar: (sucursalId?: number) => {
-      const query = sucursalId ? `?sucursalId=${sucursalId}` : '';
+    listar: (sucursalId?: number, esPesable?: boolean) => {
+      const params = new URLSearchParams();
+      if (sucursalId) params.append('sucursalId', String(sucursalId));
+      if (esPesable !== undefined) params.append('esPesable', String(esPesable));
+      const query = params.toString() ? `?${params.toString()}` : '';
       return request<ProductoDto[]>(`/productos${query}`);
     },
     buscar: (q: string) => request<ProductoDto[]>(`/productos/buscar?q=${encodeURIComponent(q)}`),

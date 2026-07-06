@@ -22,4 +22,6 @@ public class ProductoUpsertDto
     /// Código interno del producto (opcional). Si no se envía, se auto-genera.
     /// </summary>
     public string? CodigoProducto { get; set; }
+
+    public bool EsPesable { get; set; }
 }

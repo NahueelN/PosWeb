@@ -16,11 +16,17 @@ public class ProductoService
         _context = context;
     }
 
-    public List<ProductoDto> ObtenerActivos(int? sucursalId = null)
+    public List<ProductoDto> ObtenerActivos(int? sucursalId = null, bool? esPesable = null)
     {
         var query = _context.Producto
-            .Where(p => p.ACTIVO)
-            .OrderBy(p => p.DESC_PRODUCTO)
+            .Where(p => p.ACTIVO);
+
+        if (esPesable.HasValue)
+        {
+            query = query.Where(p => p.ES_PESABLE == esPesable.Value);
+        }
+
+        var projected = query.OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
@@ -36,16 +42,17 @@ public class ProductoService
                 DescAdicional = p.DESC_ADICIONAL,
                 CodigoProducto = p.COD_PRODUCTO,
                 MargenGanancia = p.MARGEN_GANANCIA,
-                SeguirStock = p.SEGUIR_STOCK
+                SeguirStock = p.SEGUIR_STOCK,
+                EsPesable = p.ES_PESABLE
             });
 
         if (sucursalId.HasValue)
         {
             var stockDict = _context.StockSucursal
                 .Where(s => s.ID_SUCURSAL == sucursalId.Value)
-                .ToDictionary(s => s.ID_PRODUCTO, s => (int)s.STOCK);
+                .ToDictionary(s => s.ID_PRODUCTO, s => s.STOCK);
 
-            var result = query.ToList();
+            var result = projected.ToList();
             foreach (var p in result)
             {
                 p.Stock = stockDict.TryGetValue(p.Id, out var s) ? s : 0;
@@ -53,7 +60,7 @@ public class ProductoService
             return result;
         }
 
-        return query.ToList();
+        return projected.ToList();
     }
 
     public ProductoDetailDto? ObtenerDetalle(int id, int? sucursalId = null)
@@ -72,7 +79,7 @@ public class ProductoService
             Stock = sucursalId.HasValue
                 ? _context.StockSucursal
                     .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value)
-                    .Select(s => (int)s.STOCK)
+                    .Select(s => s.STOCK)
                     .FirstOrDefault()
                 : 0,
             DescAdicional = p.DESC_ADICIONAL,
@@ -104,12 +111,15 @@ public class ProductoService
 
     public ProductoDto Crear(ProductoUpsertDto dto)
     {
-        bool codigoExiste = _context.Producto
-            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra && p.ACTIVO);
-
-        if (codigoExiste)
+        if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
         {
-            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
+            bool codigoExiste = _context.Producto
+                .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra && p.ACTIVO);
+
+            if (codigoExiste)
+            {
+                throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
+            }
         }
 
         string codProducto = !string.IsNullOrWhiteSpace(dto.CodigoProducto)
@@ -146,7 +156,8 @@ public class ProductoService
             dto.Contenido,
             dto.UnidadMedidaId,
             dto.Marca,
-            margen
+            margen,
+            dto.EsPesable
         );
 
         _context.Producto.Add(producto);
@@ -200,7 +211,7 @@ public class ProductoService
         {
             StockSucursal? stock = _context.StockSucursal
                 .FirstOrDefault(s => s.ID_PRODUCTO == producto.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId.Value);
-            dto.Stock = (int)(stock?.STOCK ?? 0);
+            dto.Stock = stock?.STOCK ?? 0;
         }
 
         return dto;
@@ -236,7 +247,8 @@ public class ProductoService
             DescAdicional = producto.DESC_ADICIONAL,
             CodigoProducto = producto.COD_PRODUCTO,
             MargenGanancia = producto.MARGEN_GANANCIA,
-            SeguirStock = producto.SEGUIR_STOCK
+            SeguirStock = producto.SEGUIR_STOCK,
+            EsPesable = producto.ES_PESABLE
         };
     }
 
@@ -248,15 +260,20 @@ public class ProductoService
         {
             throw new ProductoNoEncontradoException(id);
         }
-        
-        bool codigoDuplicado = _context.Producto
-            .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra
-                      && p.ID_PRODUCTO != id
-                      && p.ACTIVO);
 
-        if (codigoDuplicado)
+        producto.CambiarEsPesable(dto.EsPesable);
+        
+        if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
         {
-            throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
+            bool codigoDuplicado = _context.Producto
+                .Any(p => p.CODIGO_BARRAS == dto.CodigoBarra
+                          && p.ID_PRODUCTO != id
+                          && p.ACTIVO);
+
+            if (codigoDuplicado)
+            {
+                throw new ProductoCodigoDuplicadoException(dto.CodigoBarra);
+            }
         }
 
         producto.CambiarCodigoBarras(dto.CodigoBarra);
@@ -293,7 +310,8 @@ public class ProductoService
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
-                Activo = p.ACTIVO
+                Activo = p.ACTIVO,
+                EsPesable = p.ES_PESABLE
             })
             .ToList();
     }
@@ -319,9 +337,10 @@ public class ProductoService
                 Costo = p.COSTO,
                     Stock = _context.StockSucursal
                         .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO && s.ID_SUCURSAL == sucursalId)
-                        .Select(s => (int)s.STOCK)
+                        .Select(s => s.STOCK)
                         .FirstOrDefault(),
-                    Activo = p.ACTIVO
+                    Activo = p.ACTIVO,
+                    EsPesable = p.ES_PESABLE
             })
             .ToList();
     }
