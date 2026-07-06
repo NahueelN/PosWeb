@@ -240,6 +240,19 @@ namespace PosWeb.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("PRECIO");
 
+                    b.Property<DateTime?>("FECHA_INICIO")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FECHA_INICIO");
+
+                    b.Property<DateTime?>("FECHA_FIN")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FECHA_FIN");
+
+                    b.Property<string>("DIAS_SEMANA")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("DIAS_SEMANA");
+
                     b.HasKey("ID_COMBO");
 
                     b.HasIndex("COD_COMBO")
@@ -277,6 +290,47 @@ namespace PosWeb.Migrations
                     b.HasIndex("ID_PRODUCTO");
 
                     b.ToTable("COMBO_ITEM", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
+                {
+                    b.Property<int>("ID_OFERTA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("ID_OFERTA");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_OFERTA"));
+
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ACTIVO");
+
+                    b.Property<decimal>("DESCUENTO")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("DESCUENTO");
+
+                    b.Property<string>("DIAS_SEMANA")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("DIAS_SEMANA");
+
+                    b.Property<DateTime>("FECHA_FIN")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FECHA_FIN");
+
+                    b.Property<DateTime>("FECHA_INICIO")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FECHA_INICIO");
+
+                    b.Property<int>("ID_PRODUCTO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_PRODUCTO");
+
+                    b.HasKey("ID_OFERTA");
+
+                    b.HasIndex("ID_PRODUCTO");
+
+                    b.ToTable("OFERTA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Compra", b =>
@@ -459,6 +513,14 @@ namespace PosWeb.Migrations
                     b.Property<decimal>("MONTO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("MONTO");
+
+                    b.Property<bool>("ANULADO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ANULADO");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_USUARIO");
 
                     b.HasKey("ID_GASTO");
 
@@ -1414,6 +1476,15 @@ namespace PosWeb.Migrations
                     b.Navigation("Compra");
 
                     b.Navigation("Proveedor");
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Producto", null)
+                        .WithMany()
+                        .HasForeignKey("ID_PRODUCTO")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Empresa", b =>
