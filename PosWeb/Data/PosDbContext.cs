@@ -33,6 +33,7 @@ public class PosDbContext : DbContext
     public DbSet<RenglonPedido> RenglonPedido { get; set; }
     public DbSet<Combo> Combo { get; set; }
     public DbSet<ComboItem> ComboItem { get; set; }
+    public DbSet<Oferta> Oferta { get; set; }
     public DbSet<PagoDeuda> PagoDeuda { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -215,9 +216,23 @@ public class PosDbContext : DbContext
             entity.Property(u => u.ACTIVO)
                 .HasColumnName("ACTIVO");
 
+            entity.Property(u => u.ID_SUCURSAL_DEFAULT)
+                .HasColumnName("ID_SUCURSAL_DEFAULT");
+
+            entity.Property(u => u.ID_USUARIO_RESPONSABLE)
+                .HasColumnName("ID_USUARIO_RESPONSABLE");
+
+            entity.Property(u => u.ID_EMPRESA)
+                .HasColumnName("ID_EMPRESA");
+
             entity.HasOne<Usuario>()
                 .WithMany()
                 .HasForeignKey(u => u.ID_USUARIO_RESP)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Empresa>()
+                .WithMany()
+                .HasForeignKey(u => u.ID_EMPRESA)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -358,6 +373,15 @@ public class PosDbContext : DbContext
                 .HasForeignKey(r => r.ID_COMBO)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(r => r.ID_OFERTA)
+                .HasColumnName("ID_OFERTA");
+
+            entity.HasOne<Oferta>()
+                .WithMany()
+                .HasForeignKey(r => r.ID_OFERTA)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ---- COMBO ----
@@ -392,6 +416,16 @@ public class PosDbContext : DbContext
             entity.Property(c => c.ACTIVO)
                 .HasColumnName("ACTIVO");
 
+            entity.Property(c => c.FECHA_INICIO)
+                .HasColumnName("FECHA_INICIO");
+
+            entity.Property(c => c.FECHA_FIN)
+                .HasColumnName("FECHA_FIN");
+
+            entity.Property(c => c.DIAS_SEMANA)
+                .HasColumnName("DIAS_SEMANA")
+                .HasMaxLength(50);
+
             entity.Navigation(c => c.ITEMS)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
@@ -424,6 +458,46 @@ public class PosDbContext : DbContext
             entity.HasOne<Producto>()
                 .WithMany()
                 .HasForeignKey(ci => ci.ID_PRODUCTO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- OFERTA ----
+        modelBuilder.Entity<Oferta>(entity =>
+        {
+            entity.ToTable("OFERTA");
+
+            entity.HasKey(o => o.ID_OFERTA);
+
+            entity.Property(o => o.ID_OFERTA)
+                .HasColumnName("ID_OFERTA");
+
+            entity.Property(o => o.FECHA_INICIO)
+                .HasColumnName("FECHA_INICIO")
+                .IsRequired();
+
+            entity.Property(o => o.FECHA_FIN)
+                .HasColumnName("FECHA_FIN")
+                .IsRequired();
+
+            entity.Property(o => o.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO")
+                .IsRequired();
+
+            entity.Property(o => o.DESCUENTO)
+                .HasColumnName("DESCUENTO")
+                .HasColumnType("decimal(5,2)")
+                .IsRequired();
+
+            entity.Property(o => o.ACTIVO)
+                .HasColumnName("ACTIVO");
+
+            entity.Property(o => o.DIAS_SEMANA)
+                .HasColumnName("DIAS_SEMANA")
+                .HasMaxLength(50);
+
+            entity.HasOne<Producto>()
+                .WithMany()
+                .HasForeignKey(o => o.ID_PRODUCTO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

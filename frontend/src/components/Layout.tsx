@@ -21,7 +21,7 @@ const menuGroups = [
     label: 'Gestión',
     links: [
       { to: '/productos', label: 'Productos', icon: '📦' },
-      { to: '/combos', label: 'Combos', icon: '🎁' },
+      { to: '/combos', label: 'Ofertas', icon: '🎁' },
       { to: '/historial', label: 'Historial', icon: '📋' },
       { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
@@ -35,7 +35,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/clientes', '/sucursales'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/estadisticas'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)

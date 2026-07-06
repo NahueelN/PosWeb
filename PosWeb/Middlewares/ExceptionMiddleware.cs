@@ -52,6 +52,16 @@ public class ExceptionMiddleware
                 error = ex.Message
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning("Argument exception occurred during {Phase}: {Message}",
+                GetPhase(context), ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception occurred during {Phase}", 

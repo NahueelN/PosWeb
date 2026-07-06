@@ -1,9 +1,11 @@
-import { type ReactNode, type RefObject, useEffect } from 'react'
+import { type ReactNode, type RefObject, useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { CartPanel, PaymentFooter, MontoInput, PageShell, CartItemList } from '../shared'
 import type { CartItemRowProps } from '../shared/CartItemRow'
 import type { UseCartReturn } from '../../hooks/useCart'
 import type { CartItemBase } from '../../cart/cart-logic'
+import Dialog from '../ui/Dialog'
+import Button from '../ui/Button'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -106,6 +108,8 @@ export default function CartHost<T extends CartItemBase>({
   topContent,
   children,
 }: CartHostProps<T>) {
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+
   // Escape global — vuelve al buscador desde cualquier lado
   useEffect(() => {
     if (!searchInputRef) return
@@ -164,7 +168,7 @@ export default function CartHost<T extends CartItemBase>({
           <div className="flex items-center gap-2">
             {headerExtra}
             {cart.items.length > 0 && (
-              <button onClick={() => cart.clearCart()} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Vaciar carrito">
+              <button onClick={() => setShowClearConfirm(true)} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Vaciar carrito">
                 <Trash2 size={16} />
               </button>
             )}
@@ -206,6 +210,21 @@ export default function CartHost<T extends CartItemBase>({
         />
         {cartExtra}
       </CartPanel>
+
+      {/* Clear cart confirmation */}
+      <Dialog
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        title="Vaciar carrito"
+        description="¿Estás seguro de que querés eliminar todos los productos del carrito?"
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" size="md" onClick={() => setShowClearConfirm(false)}>Cancelar</Button>
+            <Button variant="destructive" size="md" onClick={() => { cart.clearCart(); setShowClearConfirm(false) }}>Vaciar</Button>
+          </>
+        }
+      />
     </div>
   )
 }

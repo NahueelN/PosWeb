@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Combos;
 using PosWeb.Contracts;
@@ -6,6 +7,7 @@ namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/combos")]
+[Authorize]
 public class CombosController : ControllerBase
 {
     private readonly ComboService _comboService;
@@ -17,7 +19,7 @@ public class CombosController : ControllerBase
 
     [HttpGet]
     public IActionResult Get()
-        => Ok(_comboService.ObtenerActivos());
+        => Ok(_comboService.ObtenerTodos());
 
     [HttpGet("{id}")]
     public IActionResult GetById(int id)
@@ -90,6 +92,38 @@ public class CombosController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/reactivar")]
+    public IActionResult Reactivar(int id)
+    {
+        try
+        {
+            _comboService.Reactivar(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id}/definitivo")]
+    public IActionResult DeleteDefinitivo(int id)
+    {
+        try
+        {
+            _comboService.EliminarDefinitivo(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 }

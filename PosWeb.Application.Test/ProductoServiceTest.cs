@@ -92,7 +92,7 @@ public class ProductoServiceTest
 
         ProductoUpsertDto dto = new ProductoUpsertDto
         {
-            CodigoBarras = "123",
+            CodigoBarra = "123",
             Nombre = "Producto Test",
             Precio = 100m,
             Costo = 80m
@@ -100,7 +100,7 @@ public class ProductoServiceTest
 
         ProductoDto resultado = service.Crear(dto);
 
-        Assert.Equal("123", resultado.CodigoBarras);
+        Assert.Equal("123", resultado.CodigoBarra);
         Assert.Equal("Producto Test", resultado.Nombre);
         Assert.True(resultado.Activo);
         Assert.Equal(0, resultado.Stock);
@@ -117,7 +117,7 @@ public class ProductoServiceTest
 
         ProductoUpsertDto dto = new ProductoUpsertDto
         {
-            CodigoBarras = "123",
+            CodigoBarra = "123",
             Nombre = "Nuevo",
             Precio = 100m,
             Costo = 80m

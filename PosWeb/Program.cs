@@ -20,9 +20,11 @@ using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
+using PosWeb.Application.Ofertas;
 using PosWeb.Data;
 using PosWeb.Middlewares;
-
+using PosWeb.Domain;
+using System.Security.Claims;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -93,6 +95,7 @@ builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
+builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
 
 // Open Food Facts � optional barcode lookup
@@ -144,6 +147,12 @@ using (var scope = app.Services.CreateScope())
         admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
         ctx.SaveChanges();
     }
+
+    if (admin != null && !ctx.Suscripcion.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
+    {
+        ctx.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        ctx.SaveChanges();
+    }
 }
 
 // Log application startup
@@ -160,6 +169,31 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        var userIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdValue, out var userId))
+        {
+            var db = context.RequestServices.GetRequiredService<PosDbContext>();
+            var usuario = db.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
+
+            if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "Acceso suspendido por suscripción vencida"
+                });
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 // Add CORS middleware
@@ -170,4 +204,31 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();
+
+
+static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
+{
+    if (!usuario.ACTIVO)
+    {
+        return false;
+    }
+
+    var titular = usuario.ID_USUARIO_RESPONSABLE.HasValue
+        ? ctx.Usuario.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value)
+        : usuario;
+
+    if (titular == null || !titular.ACTIVO)
+    {
+        return false;
+    }
+
+    var suscripcion = ctx.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
+    if (suscripcion != null)
+    {
+        return suscripcion.EstaActiva();
+    }
+
+    return titular.SUSCRIPCION_ACTIVA;
+}
+
 

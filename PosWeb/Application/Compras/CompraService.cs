@@ -32,6 +32,9 @@ public class CompraService
         if (items.Count == 0)
             throw new CompraSinItemsException();
 
+        if (userId <= 0)
+            throw new ArgumentException("Usuario inválido");
+
         // InMemory provider (used in tests) doesn't support transactions — skip gracefully
         bool supportsTx = _context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
         using var transaction = supportsTx ? _context.Database.BeginTransaction() : null;
@@ -83,10 +86,15 @@ public class CompraService
                 // INLINE CREATION: item with ProductoId == 0 creates a new product via ProductoService
                 if (productoId == 0)
                 {
+                    if (string.IsNullOrWhiteSpace(item.CodigoBarra))
+                        throw new ArgumentException("Código de barra requerido para producto nuevo");
+                    if (string.IsNullOrWhiteSpace(item.Nombre))
+                        throw new ArgumentException("Nombre requerido para producto nuevo");
+
                     var nuevo = _productoService.Crear(new ProductoUpsertDto
                     {
-                        CodigoBarra = item.CodigoBarra!,
-                        Nombre = item.Nombre!,
+                        CodigoBarra = item.CodigoBarra,
+                        Nombre = item.Nombre,
                         Precio = item.Precio,
                         Costo = item.Costo ?? 0,
                         CategoriaId = item.CategoriaId,

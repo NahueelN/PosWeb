@@ -2,10 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
-
-function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { formatCurrency } from '../formats';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -58,10 +55,6 @@ export default function PedidosPage() {
   const provFocusRef = useRef(false);
   const provInputRef = useRef<HTMLInputElement>(null);
 
-  const proveedoresFilt = proveedorSearch.trim()
-    ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
-    : proveedores;
-
   const createProveedoresFilt = createProveedorSearch.trim()
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(createProveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(createProveedorSearch.toLowerCase()))
     : proveedores;
@@ -110,8 +103,6 @@ export default function PedidosPage() {
     const timer = setTimeout(loadPedidos, 300);
     return () => clearTimeout(timer);
   }, [loadPedidos]);
-
-  const totalPedidos = pedidos.reduce((s, p) => s + p.total, 0);
 
   // Date filtering (client-side)
   const pedidosFiltrados = useMemo(() => {
