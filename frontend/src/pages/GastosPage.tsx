@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
-import { useNotification } from '../context/NotificationContext'
 import type { SucursalDto, GastoDto, CajaDto, CategoriaGastoDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
 import PageHeader from '../components/ui/PageHeader'
@@ -85,7 +84,7 @@ export default function GastosPage() {
   const [categorias, setCategorias] = useState<CategoriaGastoDto[]>([])
   const [catSearch, setCatSearch] = useState('')
   const [showCatDropdown, setShowCatDropdown] = useState(false)
-  const [creandoCat, setCreandoCat] = useState(false)
+  const [_creandoCat, setCreandoCat] = useState(false)
   const [catHighIdx, setCatHighIdx] = useState(-1)
 
   const categoriasFiltradas = useMemo(() => {

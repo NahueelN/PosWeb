@@ -131,7 +131,7 @@ export default function CartItemRow({
 
           <input type="text" inputMode="decimal" min={min} step={step} data-cart-qty
             ref={inputRef}
-            onFocus={(e) => {
+            onFocus={(_e) => {
               localInput.current = true
               onFocusQty?.()
             }}

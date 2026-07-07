@@ -185,21 +185,6 @@ export default function CajaPage() {
   const tarjetasEsperado = preview ? tarjetasVentas : 0
   const diffEfectivo = ef - efectivoEsperado
   const diffTarjetas = tj - tarjetasEsperado
-  const saldoEsperado = preview ? preview.montoInicial + preview.totalVentas - totalGastos : 0
-  const totalContado = ef + tj
-  const diferenciaCierre = totalContado - saldoEsperado
-
-  // Reporte derivado
-  const ventaCountR = reporteCierre?.desglosePagos?.reduce((s, p) => s + (p.cantidadVentas ?? 1), 0) ?? 0
-  const ventasEfectivoR = reporteCierre?.desglosePagos?.find(p => p.medioPago.toLowerCase().includes('efectivo'))?.monto ?? 0
-  const ventasDebitoR = reporteCierre?.desglosePagos?.filter(p => p.medioPago.toLowerCase().includes('débito') || p.medioPago.toLowerCase().includes('debito'))?.reduce((s, p) => s + p.monto, 0) ?? 0
-  const ventasCreditoR = reporteCierre?.desglosePagos?.filter(p => p.medioPago.toLowerCase().includes('crédito') || p.medioPago.toLowerCase().includes('credito'))?.reduce((s, p) => s + p.monto, 0) ?? 0
-  const ventasTransferenciaR = reporteCierre?.desglosePagos?.filter(p => p.medioPago.toLowerCase().includes('transferencia'))?.reduce((s, p) => s + p.monto, 0) ?? 0
-  const ventasFiadasR = reporteCierre?.desglosePagos?.filter(p => p.medioPago.toLowerCase().includes('fiado') || p.medioPago.toLowerCase().includes('deuda'))?.reduce((s, p) => s + p.monto, 0) ?? 0
-  const ventasOtrasR = (reporteCierre?.totalVentas ?? 0) - ventasEfectivoR - ventasDebitoR - ventasCreditoR - ventasTransferenciaR - ventasFiadasR
-  const efectivoEsperadoR = reporteCierre ? reporteCierre.montoInicial + ventasEfectivoR - reporteCierre.gastos : 0
-  const contadoEfectivoR = reporteCierre?.montoContadoEfectivo ?? 0
-  const diffEfectivoR = contadoEfectivoR - efectivoEsperadoR
 
   // Reusable summary row
   function SummaryRow({ label, value, bold, accent, muted }: {
@@ -215,16 +200,6 @@ export default function CajaPage() {
           bold ? 'font-bold text-gray-900' :
           muted ? 'text-gray-400' : 'font-medium text-gray-800'
         }`}>{value}</dd>
-      </div>
-    )
-  }
-
-  function SectionCard({ title, color, children }: { title: string; color: 'green' | 'orange' | 'blue' | 'indigo'; children: React.ReactNode }) {
-    const borderColor = { green: 'border-l-green-500', orange: 'border-l-orange-500', blue: 'border-l-blue-500', indigo: 'border-l-indigo-500' }
-    return (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 border-l-4 ${borderColor[color]} p-5`}>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{title}</h3>
-        <dl className="space-y-2">{children}</dl>
       </div>
     )
   }

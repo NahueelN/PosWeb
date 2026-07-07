@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
-import type { UsuarioListadoDto, CategoriaDto } from '../types'
+import type { UsuarioListadoDto } from '../types'
 
 export default function ConfiguracionPage() {
   const { user } = useAuth()

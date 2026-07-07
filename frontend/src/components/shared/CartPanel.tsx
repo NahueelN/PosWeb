@@ -7,7 +7,7 @@ interface CartPanelProps {
   /** Extra controls in the header row (e.g., proveedor name, clear cart button) */
   headerExtra?: ReactNode
   /** Ref for the scrollable cart list container */
-  cartRef: RefObject<HTMLDivElement | null>
+  cartRef?: RefObject<HTMLDivElement | null>
   /** Cart items content */
   children: ReactNode
   /** Footer section (payment summary) */

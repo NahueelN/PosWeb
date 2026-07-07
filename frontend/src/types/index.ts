@@ -40,6 +40,7 @@ export interface ProductoDetailDto {
 export interface CategoriaDto {
   id: number
   descripcion: string
+  margenGanancia?: number | null
 }
 
 export interface UnidadMedidaDto {
@@ -103,6 +104,7 @@ export interface VentaDto {
   items: VentaItemDto[]
   pagos?: PagoVentaDto[]
   clienteId?: number
+  allowSinStock?: boolean
 }
 
 export interface VentaResultadoDto {
@@ -111,6 +113,7 @@ export interface VentaResultadoDto {
   total: number
   pagos: PagoVentaResultDto[]
   cambio: number
+  empresaNombre?: string
 }
 
 export interface StockSucursalDto {
@@ -285,6 +288,7 @@ export interface PagoPorMedioDto {
    medioPago: string
    monto: number
    pagaVuelto: boolean
+   cantidadVentas?: number
  }
 
 // --- Proveedor types ---
@@ -437,6 +441,8 @@ export interface DeudaDto {
   compraId?: number
   montoPagado: number
   saldoPendiente: number
+  proveedorId?: number
+  clienteId?: number
 }
 
 export interface PagarDeudaRequestDto {
@@ -577,4 +583,31 @@ export interface OfertaUpsertDto {
   productoId: number
   descuento: number
   diasSemana?: string | null
+}
+
+// --- PagoDeuda types ---
+export interface PagoDeudaDto {
+  id: number
+  deudaId: number
+  monto: number
+  fecha: string
+}
+
+// --- CuentaCorriente types ---
+export interface CuentaCorrienteDto {
+  saldoActual: number
+  movimientos: MovimientoCuentaDto[]
+}
+
+export interface MovimientoCuentaDto {
+  fecha: string
+  concepto: string
+  cargo: number
+  pago: number
+  saldo: number
+  tipo: string
+  monto: number
+  descripcion?: string
+  usuario?: string
+  pagoId?: number
 }

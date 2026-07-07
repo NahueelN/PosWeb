@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto } from '../types'
-import { Loader2, Search, Check, Info } from 'lucide-react'
+import { Search, Check, Info } from 'lucide-react'
 import Button from './ui/Button'
 
 interface BarcodeLookupProps {

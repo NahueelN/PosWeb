@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import CartHost from '../CartHost'
 import { useCart } from '../../../hooks/useCart'
-import { createMockStorage, mockSucursalContext } from '../../../test-utils'
+import { createMockStorage } from '../../../test-utils'
 
 // ── Test item ──────────────────────────────────────────────────────
 interface TestItem {
@@ -75,7 +74,6 @@ describe('CartHost', () => {
   it('disables confirm button when confirmDisabled is true', () => {
     render(<TestCartHost confirmDisabled={true} confirmLabel="Test" />)
     // Since cart is empty and we override disabled, the button should be there but disabled
-    const btn = screen.queryByText('Test')
     // PaymentFooter may not render button when cart is empty
   })
 

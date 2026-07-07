@@ -76,7 +76,7 @@ export default function CompraPage() {
   const [proveedorSearch, setProveedorSearch] = useState('');
   const [showProvDropdown, setShowProvDropdown] = useState(false);
   const [provHighIdx, setProvHighIdx] = useState(-1);
-  const [categorias, setCategorias] = useState<CategoriaDto[]>([]);
+  const [_categorias, setCategorias] = useState<CategoriaDto[]>([]);
   const [unidades, setUnidades] = useState<UnidadMedidaDto[]>([]);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -184,7 +184,6 @@ export default function CompraPage() {
   }, [unidades])
 
   const cartTotal = cart.total;
-  const cartCount = cart.items.reduce((s, i) => s + i.cantidad, 0);
   const proveedorOk = proveedorId > 0;
 
   // Auto-complete montoPago with cartTotal for caja/ahorro
@@ -345,7 +344,6 @@ export default function CompraPage() {
   };
 
   const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setVerified(false); setDeudaGenerada(0); setTimeout(() => provInputRef.current?.focus(), 100); };
-  const handlePrint = () => window.print();
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
   return (
@@ -422,7 +420,7 @@ export default function CompraPage() {
       verifyRef={verifyRef}
       searchInputRef={searchRef}
       emptyState={<div className="text-center py-12 text-gray-400"><p className="text-sm">Agregá productos desde la grilla</p></div>}
-      getItemProps={(item, i) => 
+      getItemProps={(item: any, i: number) =>
         editingIdx === i ? {
           nombre: item.productoNombre || '(nuevo)',
           codigo: item.codigoBarra,
@@ -482,7 +480,7 @@ export default function CompraPage() {
           badge: item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined,
         }
       }
-      getItemKey={(item, i) => i}
+      getItemKey={(_item, i) => i}
       topContent={
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">

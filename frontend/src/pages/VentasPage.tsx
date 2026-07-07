@@ -14,7 +14,7 @@ import TicketResultado from './venta/TicketResultado'
 import VentaProductGrid from './venta/VentaProductGrid'
 import VentaPaymentSlot from './venta/VentaPaymentSlot'
 import VentaDialogs, { type StockConflictItem } from './venta/VentaDialogs'
-import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto, VentaDto } from '../types'
+import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto } from '../types'
 
 interface Item {
   producto: ProductoDto
@@ -36,7 +36,7 @@ export default function VentasPage() {
   const { user } = useAuth()
 
   // Step state
-  const [sucursales, setSucursales] = useState<SucursalDto[]>([])
+  const [sucursales, _setSucursales] = useState<SucursalDto[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
 
@@ -102,7 +102,7 @@ export default function VentasPage() {
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
   const pendingAllowSinStock = useRef(false)
-  const [cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
+  const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
 
   // Computed
@@ -330,7 +330,7 @@ export default function VentasPage() {
           </div>
         ) : undefined}
         paymentSlot={<VentaPaymentSlot mediosPago={mediosPago} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} total={total} recibio={recibio} />}
-        getItemProps={(i) => {
+        getItemProps={(i: any) => {
           const itemId = i.comboId ?? i.producto.id
           const tieneOferta = i.ofertaId && i.precioOriginal
           const esPesable = i.producto.esPesable

@@ -16,7 +16,7 @@ export interface DialogProps {
   /** Dialog width. 'sm' = 384px, 'md' = 448px, 'lg' = 512px */
   width?: 'sm' | 'md' | 'lg'
   /** Main content */
-  children: ReactNode
+  children?: ReactNode
   /** Footer actions (buttons). Rendered right-aligned with gap. */
   footer?: ReactNode
   /** Whether clicking the backdrop closes the dialog. Default true. */

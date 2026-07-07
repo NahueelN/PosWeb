@@ -1,8 +1,8 @@
 import { type RefObject } from 'react'
 import { Search, X, PackageSearch, Plus, Sparkles } from 'lucide-react'
-import ProductCard, { formatCodigoBarra } from '../../components/shared/ProductCard'
+import ProductCard from '../../components/shared/ProductCard'
 import KeyboardHints from '../../components/shared/KeyboardHints'
-import type { ProductoDto, ComboDto, UnidadMedidaDto } from '../../types'
+import type { ProductoDto, ComboDto } from '../../types'
 
 interface VentaProductGridProps {
   productosLoading: boolean

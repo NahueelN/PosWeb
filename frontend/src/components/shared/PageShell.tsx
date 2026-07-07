@@ -3,9 +3,9 @@ import { AlertTriangle, CircleAlert, X } from 'lucide-react'
 
 interface CajaStatus {
   /** True while checking if caja is open */
-  loading: boolean
+  loading?: boolean
   /** null = still checking, true = open, false = closed */
-  activa: boolean | null
+  activa?: boolean | null
   /** Custom message when caja is closed */
   closedMessage?: string
   /** Message while checking caja status */

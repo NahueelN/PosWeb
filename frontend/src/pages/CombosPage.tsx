@@ -552,8 +552,6 @@ function ComboFormModal({
     )
   }, [productos, prodSearch])
 
-  const prodSeleccionado = productos.find(p => p.id === selectedProductId)
-
   function seleccionarDelDropdown(id: number) {
     if (itemsYaAgregados.has(id)) {
       notifyError('El producto ya está en el combo')

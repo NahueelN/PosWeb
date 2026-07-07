@@ -57,8 +57,6 @@ export interface CartHostProps<T extends CartItemBase> {
   onMontoKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
   /** Search input ref — used by global Escape handler to return focus */
   searchInputRef?: RefObject<HTMLInputElement | null>
-  /** Monto button label — defaults to "Sin pago" */
-  montoButtonLabel?: string
   /** Ref for the verify checkbox — keyboard focus target after monto Enter */
   verifyRef?: RefObject<HTMLInputElement | null>
   /** Override confirm button (e.g. "Sin caja abierta") */
