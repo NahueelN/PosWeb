@@ -27,7 +27,7 @@ const menuGroups = [
     ],
   },
   {
-    label: 'Personas',
+    label: 'Contactos',
     links: [
       { to: '/clientes', label: 'Clientes', icon: '👤' },
       { to: '/proveedores', label: 'Proveedores', icon: '🏭' },
