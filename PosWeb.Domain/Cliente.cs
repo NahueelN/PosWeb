@@ -22,12 +22,15 @@ public class Cliente
 
     public string? MAIL { get; private set; }
 
+    public string IVA_CONDICION { get; private set; } = "ConsumidorFinal";
+
     public bool ACTIVO { get; private set; }
 
     private static readonly string[] TiposDocumentoValidos = { "DNI", "CUIT", "CUIL", "ConsumidorFinal" };
 
     public Cliente(string nombre, string tipoDocumento, string nroDocumento,
-                   string? codCliente = null, string? telefono = null, string? domicilio = null, string? mail = null)
+                   string? codCliente = null, string? telefono = null, string? domicilio = null, string? mail = null,
+                   string? ivaCondicion = null)
     {
         CambiarNombre(nombre);
         CambiarTipoDocumento(tipoDocumento, nroDocumento);
@@ -35,6 +38,7 @@ public class Cliente
         TELEFONO = telefono;
         DOMICILIO = domicilio;
         SetMail(mail);
+        SetIvaCondicion(ivaCondicion);
         ACTIVO = true;
     }
 
@@ -99,6 +103,13 @@ public class Cliente
     public void CambiarCodCliente(string? codCliente)
     {
         COD_CLIENTE = string.IsNullOrWhiteSpace(codCliente) ? null : codCliente.Trim();
+    }
+
+    public void SetIvaCondicion(string? ivaCondicion)
+    {
+        IVA_CONDICION = !string.IsNullOrWhiteSpace(ivaCondicion)
+            ? ivaCondicion.Trim()
+            : "ConsumidorFinal";
     }
 
     public void SetMail(string? mail)

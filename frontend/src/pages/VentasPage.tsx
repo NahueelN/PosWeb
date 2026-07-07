@@ -13,7 +13,8 @@ import SucursalSelector from './venta/SucursalSelector'
 import TicketResultado from './venta/TicketResultado'
 import VentaProductGrid from './venta/VentaProductGrid'
 import VentaPaymentSlot from './venta/VentaPaymentSlot'
-import VentaDialogs from './venta/VentaDialogs'
+import VentaDialogs, { type StockConflictItem } from './venta/VentaDialogs'
+import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto, VentaDto } from '../types'
 
 interface Item {
   producto: ProductoDto
@@ -72,7 +73,7 @@ export default function VentasPage() {
 
   // Deuda / Cliente flow
   const [showStockConfirm, setShowStockConfirm] = useState(false)
-  const [stockConflictItems, setStockConflictItems] = useState<Item[]>([])
+  const [stockConflictItems, setStockConflictItems] = useState<StockConflictItem[]>([])
   const [showClientPopup, setShowClientPopup] = useState(false)
   const [clientesBusqueda, setClientesBusqueda] = useState('')
   const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
@@ -81,7 +82,14 @@ export default function VentasPage() {
   const [showNuevoCliente, setShowNuevoCliente] = useState(false)
   const [nuevoClienteNombre, setNuevoClienteNombre] = useState('')
   const [esOcasional, setEsOcasional] = useState(true)
-  const [formCliente, setFormCliente] = useState({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
+  const [formCliente, setFormCliente] = useState({
+    tipoDocumento: 'DNI',
+    numeroDocumento: '',
+    ivaCondicion: 'ConsumidorFinal',
+    telefono: '',
+    domicilio: '',
+    mail: '',
+  })
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null!)
@@ -181,6 +189,36 @@ export default function VentasPage() {
     return () => clearTimeout(timer)
   }, [clientesBusqueda, showClientPopup])
 
+  async function crearClienteYRevertir() {
+    if (nuevoClienteNombre.trim().length < 2) return
+    try {
+      const dto: ClienteDto = esOcasional
+        ? {
+            nombre: nuevoClienteNombre.trim(),
+            tipoDocumento: 'ConsumidorFinal',
+            numeroDocumento: '',
+            ivaCondicion: 'ConsumidorFinal',
+          }
+        : {
+            nombre: nuevoClienteNombre.trim(),
+            tipoDocumento: formCliente.tipoDocumento,
+            numeroDocumento: formCliente.numeroDocumento,
+            ivaCondicion: formCliente.ivaCondicion,
+            telefono: formCliente.telefono || undefined,
+            domicilio: formCliente.domicilio || undefined,
+            mail: formCliente.mail || undefined,
+          }
+      const nuevo = await api.clientes.crear(dto)
+      setClienteSeleccionado(nuevo)
+      setShowNuevoCliente(false)
+      setShowClientPopup(false)
+      setNuevoClienteNombre('')
+      setEsOcasional(true)
+      setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '', mail: '' })
+      ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, nuevo)
+    } catch (e: any) { notifyError(e.message) }
+  }
+
   // Ctrl+Enter shortcut
   useEffect(() => {
     if (step !== 'venta') return
@@ -233,7 +271,7 @@ export default function VentasPage() {
     if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
     const r = parseFloat(recibio) || 0
-    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock); setShowStockConfirm(true); return } }
+    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
     await ejecutarVenta(r, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
@@ -255,18 +293,7 @@ export default function VentasPage() {
     } catch (e: any) { notifyError(e.message) }
   }
 
-  async function crearClienteYRevertir() {
-    if (nuevoClienteNombre.trim().length < 2) return
-    try {
-      const dto: ClienteDto = esOcasional ? { nombre: nuevoClienteNombre.trim(), tipoDocumento: 'ConsumidorFinal', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal' }
-        : { nombre: nuevoClienteNombre.trim(), tipoDocumento: formCliente.tipoDocumento, numeroDocumento: formCliente.numeroDocumento, ivaCondicion: formCliente.ivaCondicion, telefono: formCliente.telefono || undefined, domicilio: formCliente.domicilio || undefined }
-      const nuevo = await api.clientes.crear(dto); setClienteSeleccionado(nuevo); setShowNuevoCliente(false); setShowClientPopup(false)
-      setNuevoClienteNombre(''); setEsOcasional(true); setFormCliente({ tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
-      ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, nuevo)
-    } catch (e: any) { notifyError(e.message) }
-  }
-
-  function handleStockCancel(firstItem: Item | null) {
+  function handleStockCancel(firstItem: StockConflictItem | null) {
     setShowStockConfirm(false); setStockConflictItems([])
     if (firstItem) { const input = cantidadRefs.current.get(firstItem.producto.id); if (input) { cartListRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); input.focus(); input.select() } }
   }

@@ -244,6 +244,7 @@ export interface ClienteDto {
   ivaCondicion: string
   telefono?: string
   domicilio?: string
+  mail?: string
   activo?: boolean
 }
 
@@ -296,6 +297,7 @@ export interface ProveedorDto {
   telefono?: string
   domicilio?: string
   mail?: string
+  ivaCondicion: string
   activo: boolean
   deudaPendiente: number
 }
@@ -307,6 +309,7 @@ export interface CrearProveedorRequestDto {
   telefono?: string
   domicilio?: string
   mail?: string
+  ivaCondicion?: string
 }
 
 // --- Compra types ---

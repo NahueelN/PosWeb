@@ -8,4 +8,5 @@ public class CrearProveedorRequestDto
     public string? Telefono { get; set; }
     public string? Domicilio { get; set; }
     public string? Mail { get; set; }
+    public string? IvaCondicion { get; set; }
 }

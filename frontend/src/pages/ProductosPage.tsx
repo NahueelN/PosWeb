@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
@@ -7,11 +7,15 @@ import ProductFormModal from '../components/ProductFormModal'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
+import Dialog from '../components/ui/Dialog'
+import Button from '../components/ui/Button'
+import PageShell from '../components/shared/PageShell'
 
 export default function ProductosPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const { notifyError, notifySuccess } = useNotification()
   const [tab, setTab] = useState<'productos' | 'pesables' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
 
@@ -19,6 +23,8 @@ export default function ProductosPage() {
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
   const [modalCodigo, setModalCodigo] = useState('')
   const [editingProduct, setEditingProduct] = useState<ProductoDto | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
 
   const [ajusteMarca, setAjusteMarca] = useState('')
   const [ajustePorcentaje, setAjustePorcentaje] = useState('')
@@ -60,9 +66,12 @@ export default function ProductosPage() {
   }, [tab])
 
   async function listar() {
+    setLoading(true)
+    setError('')
     try {
       setProductos(await api.productos.listar(sucursal?.id))
-    } catch (e: any) { notifyError(e.message) }
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
   }
 
   function handleProductCreated(product: ProductoDto) {
@@ -75,6 +84,7 @@ export default function ProductosPage() {
     } else {
       listar()
     }
+    searchRef.current?.focus()
   }
 
   function handleCloseModal() {
@@ -82,6 +92,7 @@ export default function ProductosPage() {
     setModalPrefill(null)
     setModalCodigo('')
     setEditingProduct(null)
+    searchRef.current?.focus()
   }
 
   async function handleBarcodeLookup(codigo: string) {
@@ -137,9 +148,11 @@ export default function ProductosPage() {
     setModalOpen(true)
   }
 
-  async   function handleEliminar(id: number) {
+  async function confirmarEliminar() {
+    if (confirmDeleteId == null) return
     try {
-      await api.productos.eliminar(id)
+      await api.productos.eliminar(confirmDeleteId)
+      setConfirmDeleteId(null)
       await listar()
     } catch (e: any) { notifyError(e.message) }
   }
@@ -175,184 +188,130 @@ export default function ProductosPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">{tab === 'pesables' ? 'Productos por peso' : 'Productos'}</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{filteredProductos.length} {tab === 'pesables' ? 'productos por peso' : 'productos activos'}</p>
+    <><PageShell
+      title="Productos"
+      subtitle={`${filteredProductos.length} ${tab === 'pesables' ? 'productos por peso' : 'productos activos'}`}
+      actions={(tab === 'productos' || tab === 'pesables') ? (
+        <Button onClick={handleOpenForm} variant="primary" size="sm">
+          Nuevo producto
+        </Button>
+      ) : undefined}
+      tabs={
+        <div className="flex border-b border-slate-200">
+          <button onClick={() => setTab('productos')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'productos'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Productos</button>
+          <button onClick={() => setTab('pesables')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'pesables'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Pesables</button>
+          <button onClick={() => setTab('margenes')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'margenes'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Márgenes</button>
+          <button onClick={() => setTab('stock')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'stock'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Stock</button>
+          <button onClick={() => setTab('actualizacion-masiva')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'actualizacion-masiva'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Actualización masiva</button>
         </div>
-        {(tab === 'productos' || tab === 'pesables') && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleOpenForm}
-              className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nuevo producto
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setTab('productos')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'productos'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Productos
-        </button>
-        <button
-          onClick={() => setTab('pesables')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'pesables'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Pesables
-        </button>
-        <button
-          onClick={() => setTab('margenes')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'margenes'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Márgenes
-        </button>
-        <button
-          onClick={() => setTab('stock')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'stock'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Stock
-        </button>
-        <button
-          onClick={() => setTab('actualizacion-masiva')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === 'actualizacion-masiva'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Actualización masiva
-        </button>
-      </div>
+      }
+      error={error}
+      onErrorClose={() => setError('')}
+      loading={loading}
+    >
+      <ProductFormModal
+        open={modalOpen}
+        prefillData={modalPrefill}
+        initialCodigo={modalCodigo}
+        editingProduct={editingProduct}
+        sucursalId={sucursal?.id}
+        defaultEsPesable={tab === 'pesables'}
+        onCreated={handleProductCreated}
+        onClose={handleCloseModal}
+      />
 
       {(tab === 'productos' || tab === 'pesables') ? (
-        <>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-              </svg>
-              {error}
-            </div>
-          )}
-
-          <ProductFormModal
-            open={modalOpen}
-            prefillData={modalPrefill}
-            initialCodigo={modalCodigo}
-            editingProduct={editingProduct}
-            sucursalId={sucursal?.id}
-            defaultEsPesable={tab === 'pesables'}
-            onCreated={handleProductCreated}
-            onClose={handleCloseModal}
-          />
-
-          <ProductCardPanel
-            searchQuery={query}
-            onSearchChange={setQuery}
-            showHints={true}
-            onBarcodeLookup={handleBarcodeLookup}
-          >
-            {filteredProductos.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                  </svg>
-                </div>
-                <p className="text-gray-500 font-medium text-sm">No hay productos</p>
+        <ProductCardPanel
+          searchQuery={query}
+          onSearchChange={setQuery}
+          showHints={true}
+          onBarcodeLookup={handleBarcodeLookup}
+          searchInputRef={searchRef}
+        >
+          {filteredProductos.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
               </div>
-            ) : filteredProductos.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    data-card
-                    data-card-id={p.id}
-                    onClick={() => handleEditProduct(p)}
-                    className="bg-white rounded-lg border border-gray-200 p-1.5 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
-                    title={p.nombre}
-                  >
-                    <div className="flex items-start justify-between gap-1.5">
-                      <p className="font-bold text-gray-900 text-base leading-tight truncate">
-                        {p.nombre}
-                      </p>
-                      {p.esPesable && (
-                        <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
-                      )}
-                      {p.tamano && (
-                        <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-gray-400 font-mono truncate mt-0.5">
-                      {p.codigoBarra}
-                    </div>
-                    <div className="flex items-end justify-between mt-1 gap-1.5">
-                      <p className="text-xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
-                      {p.seguirStock === false ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                          sin control
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
-                          p.stock === 0
-                            ? 'bg-red-50 text-red-600'
-                            : p.stock <= 5
-                              ? 'bg-amber-50 text-amber-700'
-                              : 'bg-emerald-50 text-emerald-700'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`} />
-                          {p.stock === 0
-                            ? 'sin stock'
-                            : p.esPesable
-                              ? `${Number(p.stock.toFixed(3))} kg`
-                              : `${p.stock}`}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex justify-end gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -mb-0.5">
-                      <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); handleEliminar(p.id) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEliminar(p.id) } }}
-                        className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
-                      >
-                        Eliminar
+              <p className="text-gray-500 font-medium text-sm">No hay productos</p>
+            </div>
+          ) : filteredProductos.map((p) => (
+                <button key={p.id} type="button" data-card data-card-id={p.id}
+                  onClick={() => handleEditProduct(p)}
+                  className="bg-white rounded-lg border border-gray-200 p-1.5 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
+                  title={p.nombre}>
+                  <div className="flex items-start justify-between gap-1.5">
+                    <p className="font-bold text-gray-900 text-base leading-tight truncate">{p.nombre}</p>
+                    {p.esPesable && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
+                    )}
+                    {p.tamano && (
+                      <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</div>
+                  <div className="flex items-end justify-between mt-1 gap-1.5">
+                    <p className="text-xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
+                    {p.seguirStock === false ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />sin control
                       </span>
-                    </div>
-                  </button>
-                ))}
-          </ProductCardPanel>
-        </>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
+                        p.stock === 0
+                          ? 'bg-red-50 text-red-600'
+                          : p.stock <= 5
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`} />
+                        {p.stock === 0
+                          ? 'sin stock'
+                          : p.esPesable
+                            ? `${Number(p.stock.toFixed(3))} kg`
+                            : `${p.stock}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -mb-0.5">
+                    <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
+                    <span role="button" tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setConfirmDeleteId(p.id) } }}
+                      className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer">Eliminar</span>
+                  </div>
+                </button>
+              ))}
+        </ProductCardPanel>
       ) : tab === 'margenes' ? (
         <MargenesTab notifyError={notifyError} />
       ) : tab === 'stock' ? (
@@ -363,7 +322,6 @@ export default function ProductosPage() {
             <h2 className="text-lg font-semibold text-slate-900">Actualización masiva</h2>
             <p className="text-sm text-slate-500">Ajustá precios por marca aplicando un porcentaje de aumento.</p>
           </div>
-
           {gruposMarcas.length > 0 && (
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -380,22 +338,18 @@ export default function ProductosPage() {
                           ajusteMarca === m
                             ? 'bg-amber-100 border-amber-400 text-amber-800'
                             : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-amber-50 hover:border-amber-300'
-                        }`}>
-                        {m}
-                      </button>
+                        }`}>{m}</button>
                     ))}
                   </div>
                 ))}
               </div>
             </div>
           )}
-
           <div className="space-y-4 max-w-sm">
             <div>
               <label className="text-xs font-semibold text-gray-700 mb-1 block">Marca</label>
               <div className="relative">
-                <input type="text"
-                  value={marcaBusqueda}
+                <input type="text" value={marcaBusqueda}
                   onChange={e => { setMarcaBusqueda(e.target.value); setAjusteMarca(e.target.value); setMarcaDropdown(true) }}
                   onFocus={() => setMarcaDropdown(true)}
                   onBlur={() => setTimeout(() => setMarcaDropdown(false), 150)}
@@ -406,9 +360,7 @@ export default function ProductosPage() {
                     {marcasFiltradas.map(m => (
                       <button key={m} type="button"
                         onMouseDown={() => { setAjusteMarca(m); setMarcaBusqueda(m); setMarcaDropdown(false) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 transition-colors">
-                        {m}
-                      </button>
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 transition-colors">{m}</button>
                     ))}
                   </div>
                 )}
@@ -417,7 +369,8 @@ export default function ProductosPage() {
             <div>
               <label className="text-xs font-semibold text-gray-700 mb-1 block">% de aumento</label>
               <div className="relative">
-                <input type="number" step="0.01" min="0.01" value={ajustePorcentaje} onChange={e => setAjustePorcentaje(e.target.value)}
+                <input type="number" step="0.01" min="0.01" value={ajustePorcentaje}
+                  onChange={e => setAjustePorcentaje(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
                   placeholder="ej: 15" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
@@ -431,6 +384,36 @@ export default function ProductosPage() {
           </div>
         </div>
       )}
-    </div>
+
+      <Dialog
+        open={confirmDeleteId != null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Eliminar producto"
+        description="¿Estás seguro? Esta acción no se puede deshacer."
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+            <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
+          </>
+        }
+      >
+        <></>
+      </Dialog>
+    </PageShell>
+
+    {/* Delete confirmation */}
+    <Dialog
+      open={confirmDeleteId != null}
+      onClose={() => setConfirmDeleteId(null)}
+      title="Eliminar producto"
+      description="¿Estás seguro? Esta acción no se puede deshacer."
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+          <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
+        </>
+      }
+    />
+    </>
   )
 }

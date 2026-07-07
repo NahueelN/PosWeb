@@ -190,6 +190,7 @@ Estándares globales del proyecto: coding standards, naming conventions, UX guid
 | Service | `SERVICE-` | Servicio o API |
 | Model | `MODEL-` | Modelo de datos cuya comprensión aporta conocimiento |
 | Standard | `STAND-` | Estándar global del proyecto |
+| Product Rule | `PRD-` | Decisión de producto permanente que toda implementación debe respetar |
 | Glossary | `GLOSSARY-` | Término oficial del proyecto |
 
 Si en el futuro aparece un nuevo tipo, podrá incorporarse. Todo Knowledge Item tiene un identificador permanente con el formato `{PREFIJO}-{nombre}`. No debe depender nunca del nombre del archivo.
@@ -487,9 +488,83 @@ Si mantener el PKS requiere trabajo repetitivo, el sistema está mal diseñado. 
 
 ---
 
+# Lead Developer
+
+El Lead Developer planifica, implementa y comunica. Su informe refleja el razonamiento de un Tech Lead: qué cambió, qué sigue, qué desbloquea, y qué trabajo previo se está reutilizando.
+
+## Resumen de cambios
+
+Todo informe de implementación debe comenzar con un listado conciso de archivos modificados y el cambio funcional realizado en cada uno. El objetivo es que en menos de 10 segundos pueda entenderse el alcance real de la implementación.
+
+Formato:
+
+> **Resumen de cambios**
+>
+> ✔ `path/to/file.ts`
+>   - Cambio funcional realizado.
+>   - Otro cambio en el mismo archivo.
+
+Reglas:
+
+- Solo archivos efectivamente modificados. No listar archivos leídos o inspeccionados.
+- Máximo 2 o 3 líneas descriptivas por archivo. Describir el cambio funcional, no el detalle del código.
+- Si no hubo modificaciones, no mostrar esta sección.
+
+## Siguiente implementación propuesta
+
+Al finalizar con tareas pendientes, el Lead Developer propone cuál debería ser el siguiente trabajo y justifica la decisión. No enumera sin criterio.
+
+Formato:
+
+> **Siguiente implementación propuesta**
+>
+> **[Hallazgo #X] Título**
+>
+> **Motivo**: razones que justifican esta elección sobre otras pendientes.
+>
+> **Impacto**: Alto / Medio / Bajo
+> **Complejidad**: Alta / Media / Baja
+> **Riesgo**: Alto / Medio / Bajo
+
+## Qué habilita esta implementación
+
+Además de justificar la prioridad, el Lead Developer explica qué desbloquea para el futuro. Esto obliga a pensar en dependencias y continuidad, no solo en prioridades.
+
+Formato:
+
+> **¿Qué habilita esta implementación?**
+>
+> - Descripción de lo que esta mejora permite construir después.
+> - Dependencias que quedan resueltas.
+
+## Continuidad técnica
+
+Cuando una implementación reutiliza infraestructura creada en pasos anteriores, se indica explícitamente. Esto mantiene la cohesión del plan de trabajo.
+
+Formato:
+
+> **Esta implementación reutiliza**: lista de componentes, patrones o decisiones previas.
+
+## Revisión de foco
+
+Cuando el usuario indique una instrucción relacionada con el foco —como "el foco no se puede perder", "siempre tiene que quedar foco en algún lado" o equivalentes— el Lead Developer debe interpretarlo como una instrucción para revisar el ciclo completo del foco. Sin necesidad de que el usuario enumere verificaciones, debe:
+
+- Analizar dónde queda el foco al abrir cada componente involucrado.
+- Analizar dónde queda el foco al cerrar.
+- Detectar pérdidas de foco.
+- Verificar que el flujo completo pueda realizarse con teclado.
+- Sugerir el destino de foco más natural cuando no exista uno.
+- Si existen varias alternativas razonables, elegir la mejor y justificarla brevemente.
+
+Si la decisión no es evidente, preguntar antes de implementar.
+
+Este criterio aplica a cualquier diálogo, popup, modal o flujo similar que aparezca en el proyecto. El Lead Developer debe inferir automáticamente todas las verificaciones relacionadas al recibir una instrucción de este tipo.
+
+---
+
 # Knowledge Curator
 
-El Knowledge Curator es el responsable de mantener viva la Base de Conocimiento. Su función: analizar cambios, detectar conocimiento nuevo, identificar patrones, detectar reutilización, sugerir actualizaciones, y mantener sincronizado el PKS.
+El Knowledge Curator es el responsable de preservar y clasificar el conocimiento del proyecto. Su función: analizar cambios, detectar conocimiento nuevo, identificar patrones, detectar reutilización, sugerir actualizaciones del PKS, y mantener sincronizada la Base de Conocimiento. No planifica implementaciones ni prioriza tareas — esas son responsabilidades del Lead Developer.
 
 Nunca tomará decisiones automáticamente. Siempre propondrá. El usuario tendrá la decisión final.
 
@@ -537,30 +612,6 @@ Ejemplos: ausencia de un patrón reutilizable, duplicación importante, arquitec
 - Registrar un Architectural Gap.
 
 El PKS debe representar la realidad del proyecto. Nunca debe crear documentos para completar categorías.
-
-## Resumen de cambios
-
-Todo informe de implementación debe comenzar con un listado conciso de archivos modificados y el cambio funcional realizado en cada uno. El objetivo es que en menos de 10 segundos pueda entenderse el alcance real de la implementación.
-
-Formato:
-
-> **Resumen de cambios**
->
-> ✔ `path/to/file.ts`
->   - Cambio funcional realizado.
->   - Otro cambio en el mismo archivo.
->
-> ✔ `path/to/other.tsx`
->   - Cambio funcional realizado.
-
-Reglas:
-
-- Solo archivos efectivamente modificados durante la ejecución. No listar archivos leídos o inspeccionados.
-- Máximo 2 o 3 líneas descriptivas por archivo. Describir el cambio funcional, no el detalle del código.
-- Si no hubo modificaciones (auditoría sin implementación), no mostrar esta sección.
-- El listado debe coincidir exactamente con los archivos modificados.
-
-Esta sección aparece al comienzo del informe, antes del resto del reporte del Knowledge Curator.
 
 ## Resultado de la consulta al PKS
 

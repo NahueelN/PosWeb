@@ -274,6 +274,11 @@ public class PosDbContext : DbContext
 
             entity.Property(c => c.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.Property(c => c.IVA_CONDICION)
+                .HasColumnName("IVA_CONDICION")
+                .HasMaxLength(50)
+                .IsRequired();
         });
 
         // ---- VENTA ----
@@ -875,6 +880,11 @@ public class PosDbContext : DbContext
 
             entity.Property(p => p.ACTIVO)
                 .HasColumnName("ACTIVO");
+
+            entity.Property(p => p.IVA_CONDICION)
+                .HasColumnName("IVA_CONDICION")
+                .HasMaxLength(50)
+                .IsRequired();
         });
 
         // ---- COMPRA ----

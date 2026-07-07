@@ -58,6 +58,7 @@ Preserva lo que el código NO puede explicar:
 | Service | `SERVICE-` | Servicio o API |
 | Model | `MODEL-` | Modelo de datos cuya comprensión aporta conocimiento |
 | Standard | `STAND-` | Estándar global del proyecto (coding, naming, UX, testing, etc.) |
+| Product Rule | `PRD-` | Decisión de producto permanente que toda implementación debe respetar |
 | Glossary | `GLOSSARY-` | Término oficial del proyecto |
 
 ---

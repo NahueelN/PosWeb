@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import Dialog from '../../components/ui/Dialog'
 import Button from '../../components/ui/Button'
-import type { ClienteDto, DeudaDto } from '../../types'
+import type { ClienteDto } from '../../types'
 
-interface StockConflictItem {
+export interface StockConflictItem {
   producto: { id: number; nombre: string; stock: number }
   cantidad: number
 }
@@ -29,11 +29,11 @@ interface VentaDialogsProps {
   showNuevoCliente: boolean
   nuevoClienteNombre: string
   esOcasional: boolean
-  formCliente: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string }
+  formCliente: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string; mail: string }
   onNuevoClienteClose: () => void
   onNuevoClienteNombreChange: (n: string) => void
   onEsOcasionalChange: (v: boolean) => void
-  onFormClienteChange: (f: typeof formCliente) => void
+  onFormClienteChange: (f: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string; mail: string }) => void
   onCrearCliente: () => void
   onAbrirNuevoCliente: () => void
 }
@@ -170,7 +170,6 @@ export default function VentaDialogs({
                 <p className="text-sm font-medium text-gray-900 truncate">{cl.nombre}</p>
                 <p className="text-xs text-gray-400 truncate">
                   {cl.tipoDocumento} {cl.numeroDocumento}
-                  {cl.codCliente && ` · #${cl.codCliente}`}
                   {cl.telefono && ` · ${cl.telefono}`}
                 </p>
               </div>
@@ -254,6 +253,12 @@ export default function VentaDialogs({
                 <option value="Exento">Exento</option>
                 <option value="ConsumidorFinal">Consumidor Final</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Mail</label>
+              <input type="email" value={formCliente.mail}
+                onChange={e => onFormClienteChange({ ...formCliente, mail: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

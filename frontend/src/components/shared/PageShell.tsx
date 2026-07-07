@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { AlertTriangle, CircleAlert } from 'lucide-react'
+import { AlertTriangle, CircleAlert, X } from 'lucide-react'
 
 interface CajaStatus {
   /** True while checking if caja is open */
@@ -38,6 +38,8 @@ interface PageShellProps {
   loadingMessage?: string
   /** Show an error banner at the top */
   error?: string | null
+  /** When provided, renders a dismiss button on the error banner */
+  onErrorClose?: () => void
   /** Main page content */
   children: ReactNode
 }
@@ -69,6 +71,7 @@ export default function PageShell({
   loading = false,
   loadingMessage = 'Cargando...',
   error,
+  onErrorClose,
   children,
 }: PageShellProps) {
   return (
@@ -112,7 +115,13 @@ export default function PageShell({
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-6 flex items-center gap-2">
           <CircleAlert size={20} strokeWidth={2} className="shrink-0" />
-          {error}
+          <div className="flex-1">{error}</div>
+          {onErrorClose && (
+            <button type="button" onClick={onErrorClose} aria-label="Cerrar error"
+              className="text-red-500 hover:text-red-700 shrink-0">
+              <X size={16} strokeWidth={2} />
+            </button>
+          )}
         </div>
       )}
 

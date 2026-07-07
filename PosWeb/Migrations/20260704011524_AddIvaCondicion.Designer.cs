@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260704011524_AddIvaCondicion")]
+    partial class AddIvaCondicion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -229,20 +232,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_COMBO");
 
-                    b.Property<string>("DIAS_SEMANA")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("DIAS_SEMANA");
-
-
-                    b.Property<DateTime?>("FECHA_FIN")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_FIN");
-
-                    b.Property<DateTime?>("FECHA_INICIO")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_INICIO");
-
                     b.Property<decimal>("PRECIO")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("PRECIO");
@@ -266,7 +255,7 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_COMBO_ITEM"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_COMBO")
@@ -554,47 +543,6 @@ namespace PosWeb.Migrations
                         });
                 });
 
-            modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
-                {
-                    b.Property<int>("ID_OFERTA")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_OFERTA");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_OFERTA"));
-
-                    b.Property<bool>("ACTIVO")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ACTIVO");
-
-                    b.Property<decimal>("DESCUENTO")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("DESCUENTO");
-
-                    b.Property<string>("DIAS_SEMANA")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("DIAS_SEMANA");
-
-                    b.Property<DateTime>("FECHA_FIN")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_FIN");
-
-                    b.Property<DateTime>("FECHA_INICIO")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_INICIO");
-
-                    b.Property<int>("ID_PRODUCTO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_PRODUCTO");
-
-                    b.HasKey("ID_OFERTA");
-
-                    b.HasIndex("ID_PRODUCTO");
-
-                    b.ToTable("OFERTA", (string)null);
-                });
-
             modelBuilder.Entity("PosWeb.Domain.Pago", b =>
                 {
                     b.Property<int>("ID_PAGO")
@@ -773,10 +721,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_PRODUCTO");
 
-                    b.Property<bool>("ES_PESABLE")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ES_PESABLE");
-
                     b.Property<DateTime>("FECHA_ALTA")
                         .HasColumnType("datetime(6)");
 
@@ -898,7 +842,7 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_COMPRA"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int>("ID_COMPRA")
@@ -985,16 +929,12 @@ namespace PosWeb.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_RENGLON_VENTA"));
 
                     b.Property<decimal>("CANTIDAD")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("CANTIDAD");
 
                     b.Property<int?>("ID_COMBO")
                         .HasColumnType("int")
                         .HasColumnName("ID_COMBO");
-
-                    b.Property<int?>("ID_OFERTA")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_OFERTA");
 
                     b.Property<int?>("ID_PRODUCTO")
                         .HasColumnType("int")
@@ -1016,8 +956,6 @@ namespace PosWeb.Migrations
 
                     b.HasIndex("ID_COMBO");
 
-                    b.HasIndex("ID_OFERTA");
-
                     b.HasIndex("ID_PRODUCTO");
 
                     b.HasIndex("ID_VENTA");
@@ -1036,7 +974,7 @@ namespace PosWeb.Migrations
                         .HasColumnName("ID_SUCURSAL");
 
                     b.Property<decimal>("STOCK")
-                        .HasColumnType("decimal(18,3)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("STOCK");
 
                     b.HasKey("ID_PRODUCTO", "ID_SUCURSAL");
@@ -1117,15 +1055,15 @@ namespace PosWeb.Migrations
                         .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_TITULAR");
 
-                    b.Property<int?>("MAX_ADMIN")
+                    b.Property<int>("MAX_ADMIN")
                         .HasColumnType("int")
                         .HasColumnName("MAX_ADMIN");
 
-                    b.Property<int?>("MAX_SUCURSALES")
+                    b.Property<int>("MAX_SUCURSALES")
                         .HasColumnType("int")
                         .HasColumnName("MAX_SUCURSALES");
 
-                    b.Property<int?>("MAX_USUARIOS")
+                    b.Property<int>("MAX_USUARIOS")
                         .HasColumnType("int")
                         .HasColumnName("MAX_USUARIOS");
 
@@ -1225,21 +1163,12 @@ namespace PosWeb.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("ACTIVO");
 
-                    b.Property<int?>("ID_EMPRESA")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_EMPRESA");
-
                     b.Property<int?>("ID_SUCURSAL_DEFAULT")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_SUCURSAL_DEFAULT");
+                        .HasColumnType("int");
 
                     b.Property<int?>("ID_USUARIO_RESP")
                         .HasColumnType("int")
                         .HasColumnName("ID_USUARIO_RESP");
-
-                    b.Property<int?>("ID_USUARIO_RESPONSABLE")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_USUARIO_RESPONSABLE");
 
                     b.Property<string>("MAIL")
                         .HasMaxLength(200)
@@ -1272,8 +1201,6 @@ namespace PosWeb.Migrations
                         .HasColumnName("SUSCRIPCION_ACTIVA");
 
                     b.HasKey("ID_USUARIO");
-
-                    b.HasIndex("ID_EMPRESA");
 
                     b.HasIndex("ID_USUARIO_RESP");
 
@@ -1450,15 +1377,6 @@ namespace PosWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Producto", null)
-                        .WithMany()
-                        .HasForeignKey("ID_PRODUCTO")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("PosWeb.Domain.Pago", b =>
                 {
                     b.HasOne("PosWeb.Domain.Caja", null)
@@ -1566,11 +1484,6 @@ namespace PosWeb.Migrations
                         .HasForeignKey("ID_COMBO")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PosWeb.Domain.Oferta", null)
-                        .WithMany()
-                        .HasForeignKey("ID_OFERTA")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("PosWeb.Domain.Producto", null)
                         .WithMany()
                         .HasForeignKey("ID_PRODUCTO")
@@ -1622,11 +1535,6 @@ namespace PosWeb.Migrations
 
             modelBuilder.Entity("PosWeb.Domain.Usuario", b =>
                 {
-                    b.HasOne("PosWeb.Domain.Empresa", null)
-                        .WithMany()
-                        .HasForeignKey("ID_EMPRESA")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("PosWeb.Domain.Usuario", null)
                         .WithMany()
                         .HasForeignKey("ID_USUARIO_RESP")

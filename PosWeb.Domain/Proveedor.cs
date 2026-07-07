@@ -22,6 +22,8 @@ public class Proveedor
 
     public string? MAIL { get; private set; }
 
+    public string IVA_CONDICION { get; private set; } = "ConsumidorFinal";
+
     public bool ACTIVO { get; private set; }
 
     public Proveedor(
@@ -31,7 +33,8 @@ public class Proveedor
         string? nroDocumento = null,
         string? telefono = null,
         string? domicilio = null,
-        string? mail = null)
+        string? mail = null,
+        string? ivaCondicion = null)
     {
         CambiarCodigo(codProveedor);
         CambiarNombre(nombre);
@@ -40,6 +43,7 @@ public class Proveedor
         TELEFONO = telefono;
         DOMICILIO = domicilio;
         SetMail(mail);
+        SetIvaCondicion(ivaCondicion);
         ACTIVO = true;
     }
 
@@ -85,6 +89,13 @@ public class Proveedor
     public void SetDomicilio(string? domicilio)
     {
         DOMICILIO = string.IsNullOrWhiteSpace(domicilio) ? null : domicilio.Trim();
+    }
+
+    public void SetIvaCondicion(string? ivaCondicion)
+    {
+        IVA_CONDICION = !string.IsNullOrWhiteSpace(ivaCondicion)
+            ? ivaCondicion.Trim()
+            : "ConsumidorFinal";
     }
 
     public void SetMail(string? mail)

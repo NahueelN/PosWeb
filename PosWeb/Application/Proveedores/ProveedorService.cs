@@ -53,6 +53,19 @@ public class ProveedorService
             throw new ProveedorCodigoDuplicadoException(codigo);
         }
 
+        // Check duplicate document
+        if (!string.IsNullOrWhiteSpace(dto.TipoDocumento) && !string.IsNullOrWhiteSpace(dto.NroDocumento))
+        {
+            bool docExiste = _context.Proveedor
+                .Any(p => p.TIPO_DOCUMENTO == dto.TipoDocumento
+                          && p.NRO_DOCUMENTO == dto.NroDocumento
+                          && p.ACTIVO);
+            if (docExiste)
+            {
+                throw new ProveedorDocumentoDuplicadoException(dto.TipoDocumento, dto.NroDocumento);
+            }
+        }
+
         var proveedor = new Proveedor(
             codigo,
             dto.Nombre.Trim(),
@@ -60,7 +73,8 @@ public class ProveedorService
             dto.NroDocumento,
             dto.Telefono,
             dto.Domicilio,
-            dto.Mail
+            dto.Mail,
+            dto.IvaCondicion
         );
 
         _context.Proveedor.Add(proveedor);
@@ -83,11 +97,26 @@ public class ProveedorService
             proveedor.CambiarCodigo(codigo);
         }
 
+        // Check duplicate document excluding self
+        if (!string.IsNullOrWhiteSpace(dto.TipoDocumento) && !string.IsNullOrWhiteSpace(dto.NroDocumento))
+        {
+            bool docExiste = _context.Proveedor
+                .Any(p => p.TIPO_DOCUMENTO == dto.TipoDocumento
+                          && p.NRO_DOCUMENTO == dto.NroDocumento
+                          && p.ID_PROVEEDOR != id
+                          && p.ACTIVO);
+            if (docExiste)
+            {
+                throw new ProveedorDocumentoDuplicadoException(dto.TipoDocumento, dto.NroDocumento);
+            }
+        }
+
         proveedor.SetTipoDocumento(dto.TipoDocumento);
         proveedor.SetNroDocumento(dto.NroDocumento);
         proveedor.SetTelefono(dto.Telefono);
         proveedor.SetDomicilio(dto.Domicilio);
         proveedor.SetMail(dto.Mail);
+        proveedor.SetIvaCondicion(dto.IvaCondicion);
 
         _context.SaveChanges();
         return ObtenerPorId(id);
@@ -111,6 +140,16 @@ public class ProveedorService
         return dto;
     }
 
+    public void Desactivar(int id)
+    {
+        Proveedor? proveedor = _context.Proveedor.Find(id);
+        if (proveedor == null || !proveedor.ACTIVO)
+            throw new ProveedorNoEncontradoException(id);
+
+        proveedor.Desactivar();
+        _context.SaveChanges();
+    }
+
     private decimal CalcularDeudaPendiente(int proveedorId)
     {
         return _context.Deuda
@@ -130,6 +169,7 @@ public class ProveedorService
             Telefono = proveedor.TELEFONO,
             Domicilio = proveedor.DOMICILIO,
             Mail = proveedor.MAIL,
+            IvaCondicion = proveedor.IVA_CONDICION,
             Activo = proveedor.ACTIVO
         };
     }

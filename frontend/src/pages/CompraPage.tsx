@@ -1,6 +1,6 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from 'react';
+﻿import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
+import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CrearProveedorRequestDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
 import { useNotification } from '../context/NotificationContext';
@@ -9,6 +9,7 @@ import { useItemSnapshot } from '../hooks/useItemSnapshot';
 import CartHost from '../components/hosts/CartHost';
 import KeyboardHints from '../components/shared/KeyboardHints';
 import ProductCard, { formatCodigoBarra } from '../components/shared/ProductCard';
+import Dialog from '../components/ui/Dialog';
 import { Search, X, Plus, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import './CompraPage.css';
@@ -98,6 +99,27 @@ export default function CompraPage() {
   const [initialCodigo, setInitialCodigo] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // Nuevo proveedor
+  const [showNewProvModal, setShowNewProvModal] = useState(false);
+  const [newProvNombre, setNewProvNombre] = useState('');
+  const [newProvForm, setNewProvForm] = useState({ tipoDocumento: '', nroDocumento: '', telefono: '', mail: '', domicilio: '', ivaCondicion: 'ConsumidorFinal' });
+
+  const handleSelectOcasional = useCallback(() => {
+    const occ = proveedores.find(p => p.nombre === 'Proveedor ocasional' || p.codigo === 'OCASIONAL');
+    if (occ) {
+      setProveedorId(occ.id); setProveedorNombre(occ.nombre); setProveedorSearch('');
+    } else {
+      api.proveedores.crear({ nombre: 'Proveedor ocasional', ivaCondicion: 'ConsumidorFinal' })
+        .then(nuevo => {
+          setProveedores(prev => [...prev, nuevo]);
+          setProveedorId(nuevo.id); setProveedorNombre(nuevo.nombre); setProveedorSearch('');
+        })
+        .catch(err => notifyError(err instanceof Error ? err.message : 'Error'));
+    }
+    setShowProvDropdown(false);
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }, [proveedores]);
+
   const provInputRef = useRef<HTMLInputElement>(null);
 
   // Load data
@@ -137,7 +159,7 @@ export default function CompraPage() {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (editingIdx !== null) { setEditingIdx(null); return; }
-        if (showNewModal) { setShowNewModal(false); return; }
+        if (showNewModal) { setShowNewModal(false); searchRef.current?.focus(); return; }
       }
     };
     window.addEventListener('keydown', h);
@@ -219,11 +241,40 @@ export default function CompraPage() {
     // Add the newly created product to cart with quantity 1
     addToCart(producto);
     setShowNewModal(false);
+    searchRef.current?.focus()
     setProductos(prev => {
       if (prev.find(p => p.id === producto.id)) return prev;
       return [...prev, producto];
     });
   };
+
+  async function crearProveedor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newProvNombre.trim()) return;
+    try {
+      const dto: CrearProveedorRequestDto = {
+        nombre: newProvNombre.trim(),
+        tipoDocumento: newProvForm.tipoDocumento || undefined,
+        nroDocumento: newProvForm.nroDocumento || undefined,
+        telefono: newProvForm.telefono || undefined,
+        mail: newProvForm.mail || undefined,
+        domicilio: newProvForm.domicilio || undefined,
+        ivaCondicion: newProvForm.ivaCondicion || 'ConsumidorFinal',
+      };
+      const nuevo = await api.proveedores.crear(dto);
+      setProveedores(prev => [...prev, nuevo]);
+      setProveedorId(nuevo.id);
+      setProveedorNombre(nuevo.nombre);
+      setProveedorSearch('');
+      setShowProvDropdown(false);
+      setShowNewProvModal(false);
+      setNewProvNombre('');
+      setNewProvForm({ tipoDocumento: '', nroDocumento: '', telefono: '', mail: '', domicilio: '', ivaCondicion: 'ConsumidorFinal' });
+      setTimeout(() => searchRef.current?.focus(), 50);
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al crear proveedor');
+    }
+  }
 
   const handleBarcodeLookup = async (codigo: string) => {
     if (!proveedorOk) return;
@@ -438,27 +489,62 @@ export default function CompraPage() {
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <input ref={provInputRef} type="text"
                 value={proveedorId > 0 ? proveedorNombre : proveedorSearch}
-                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } if (e.target.value) setShowProvDropdown(true); setProvHighIdx(-1); }}
-                onFocus={() => { if (proveedorSearch) setShowProvDropdown(true); }}
+                onChange={e => { setProveedorSearch(e.target.value); if (proveedorId > 0) { setProveedorId(0); setProveedorNombre('') } setShowProvDropdown(true); setProvHighIdx(-1); }}
+                onFocus={() => {}}
                 onBlur={() => setTimeout(() => setShowProvDropdown(false), 200)}
                 onKeyDown={e => {
-                  if (!showProvDropdown || proveedoresFilt.length === 0) return;
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setProvHighIdx(Math.min(provHighIdx + 1, proveedoresFilt.length - 1)); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); setProvHighIdx(Math.max(provHighIdx - 1, 0)); }
-                  else if (e.key === 'Enter' && provHighIdx >= 0) { e.preventDefault(); const p = proveedoresFilt[provHighIdx]; setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); setTimeout(() => searchRef.current?.focus(), 0); }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!showProvDropdown) { setShowProvDropdown(true); setProvHighIdx(-1); return; }
+                    setProvHighIdx(prev => prev < proveedoresFilt.length - 1 ? prev + 1 : prev);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setProvHighIdx(prev => prev <= 0 ? -1 : prev - 1);
+                  } else if (e.key === 'Enter') {
+                    if (!showProvDropdown) return;
+                    e.preventDefault();
+                    if (provHighIdx === -1) { handleSelectOcasional(); }
+                    else if (provHighIdx >= 0 && provHighIdx < proveedoresFilt.length) {
+                      const p = proveedoresFilt[provHighIdx];
+                      setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false);
+                      setTimeout(() => searchRef.current?.focus(), 0);
+                    }
+                  }
                 }}
                 placeholder={proveedorId > 0 ? proveedorNombre : 'Seleccionar proveedor *'}
-                className="w-full h-10 px-3 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] placeholder:text-gray-400" />
-              {showProvDropdown && proveedoresFilt.length > 0 && (
-                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
-                  {proveedoresFilt.map((p, i) => (
-                    <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
-                      onMouseEnter={() => setProvHighIdx(i)}
-                      className={`px-3 py-2 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
-                      <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                className="w-full h-10 px-3 pr-10 border border-gray-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)] placeholder:text-gray-400" />
+              <button type="button" onClick={() => setShowNewProvModal(true)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg text-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.08)] transition-all flex items-center justify-center"
+                title="Nuevo proveedor"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </button>
+              {showProvDropdown && (
+                <div className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg text-[13px] overflow-hidden">
+                  <ul className="max-h-48 overflow-y-auto">
+                    <li key="ocasional" onMouseDown={handleSelectOcasional}
+                      onMouseEnter={() => setProvHighIdx(-1)}
+                      className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${provHighIdx === -1 ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'}`}>
+                      <span className="font-medium">Ocasional</span>
+                      <span className="text-xs text-gray-400">Proveedor sin registro fijo</span>
                     </li>
-                  ))}
-                </ul>
+                    {proveedoresFilt.length > 0 && (
+                      <>
+                        <li className="mx-2 border-t border-gray-100" />
+                        {proveedoresFilt.map((p, i) => (
+                          <li key={p.id} onMouseDown={() => { setProveedorId(p.id); setProveedorNombre(p.nombre); setProveedorSearch(''); setShowProvDropdown(false); searchRef.current?.focus(); }}
+                            onMouseEnter={() => setProvHighIdx(i)}
+                            className={`px-3 py-2 cursor-pointer flex justify-between ${i === provHighIdx ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${p.id === proveedorId ? 'font-semibold' : ''}`}>
+                            <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                          </li>
+                        ))}
+                      </>
+                    )}
+                  </ul>
+                  {proveedorSearch.trim().length > 0 && proveedoresFilt.length === 0 && (
+                    <div className="px-3 py-4 text-center text-gray-400 text-xs border-t border-gray-100">Sin resultados</div>
+                  )}
+                </div>
               )}
             </div>
             {proveedorOk && <Button variant="primary" size="sm" onClick={() => { setShowNewModal(true); setOffPrefillData(null); setInitialCodigo(''); }} icon={<Plus size={14} />}>Nuevo producto</Button>}
@@ -527,7 +613,73 @@ export default function CompraPage() {
 
     {/* New Product Modal */}
     <ProductFormModal open={showNewModal} prefillData={offPrefillData} initialCodigo={initialCodigo || undefined}
-      onCreated={handleProductCreatedInModal} onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); }} />
+      onCreated={handleProductCreatedInModal} onClose={() => { setShowNewModal(false); setOffPrefillData(null); setInitialCodigo(''); searchRef.current?.focus() }} />
+
+    {/* Nuevo Proveedor Modal */}
+      <Dialog
+        open={showNewProvModal}
+        onClose={() => { setShowNewProvModal(false); setNewProvNombre(''); setNewProvForm({ tipoDocumento: '', nroDocumento: '', telefono: '', mail: '', domicilio: '', ivaCondicion: 'ConsumidorFinal' }); }}
+        title="Nuevo proveedor"
+        width="md"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => { setShowNewProvModal(false); setNewProvNombre(''); setNewProvForm({ tipoDocumento: '', nroDocumento: '', telefono: '', mail: '', domicilio: '', ivaCondicion: 'ConsumidorFinal' }); }}>Cancelar</Button>
+            <Button variant="primary" size="sm" onClick={crearProveedor} disabled={!newProvNombre.trim()}>Crear proveedor</Button>
+          </>
+        }
+      >
+        <form id="nuevo-prov-form" onSubmit={crearProveedor} className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Nombre *</label>
+            <input type="text" value={newProvNombre} onChange={e => setNewProvNombre(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Tipo documento</label>
+              <select value={newProvForm.tipoDocumento} onChange={e => setNewProvForm({ ...newProvForm, tipoDocumento: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                <option value="">—</option>
+                <option value="CUIT">CUIT</option>
+                <option value="CUIL">CUIL</option>
+                <option value="DNI">DNI</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Nro. documento</label>
+              <input type="text" value={newProvForm.nroDocumento} onChange={e => setNewProvForm({ ...newProvForm, nroDocumento: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">IVA</label>
+            <select value={newProvForm.ivaCondicion} onChange={e => setNewProvForm({ ...newProvForm, ivaCondicion: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+              <option value="ConsumidorFinal">Consumidor Final</option>
+              <option value="ResponsableInscripto">Responsable Inscripto</option>
+              <option value="Monotributista">Monotributista</option>
+              <option value="Exento">Exento</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Teléfono</label>
+              <input type="text" value={newProvForm.telefono} onChange={e => setNewProvForm({ ...newProvForm, telefono: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Mail</label>
+              <input type="email" value={newProvForm.mail} onChange={e => setNewProvForm({ ...newProvForm, mail: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Domicilio</label>
+            <input type="text" value={newProvForm.domicilio} onChange={e => setNewProvForm({ ...newProvForm, domicilio: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+          </div>
+        </form>
+      </Dialog>
 
     {/* Success Popup */}
     {step === 'done' && success && (

@@ -1,197 +1,95 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
-import type { ClienteDto, PagedResult } from '../types'
-import { Plus } from 'lucide-react'
+import type { ClienteDto } from '../types'
 import Button from '../components/ui/Button'
+import Dialog from '../components/ui/Dialog'
+import PageShell from '../components/shared/PageShell'
+import EntityToolbar from '../components/shared/EntityToolbar'
+import EntityEmptyState from '../components/shared/EntityEmptyState'
+import { useEntityList } from '../hooks/useEntityList'
+import { useEntitySearch } from '../hooks/useEntitySearch'
+import { useEntityForm } from '../hooks/useEntityForm'
+import { useEntityPagination } from '../hooks/useEntityPagination'
 
 const TIPOS_DOCUMENTO = ['DNI', 'CUIT', 'CUIL', 'ConsumidorFinal']
 const IVA_CONDICIONES = ['ResponsableInscripto', 'Monotributo', 'Exento', 'ConsumidorFinal']
 
-export default function ClientesPage() {
-  const [data, setData] = useState<PagedResult<ClienteDto> | null>(null)
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const { notifyError } = useNotification()
+const emptyForm: ClienteDto = {
+  nombre: '',
+  tipoDocumento: 'DNI',
+  numeroDocumento: '',
+  ivaCondicion: 'ConsumidorFinal',
+  telefono: '',
+  mail: '',
+  domicilio: '',
+}
 
-  // Form state
-  const [form, setForm] = useState<ClienteDto>({
-    nombre: '',
-    tipoDocumento: 'DNI',
-    numeroDocumento: '',
-    ivaCondicion: 'ConsumidorFinal',
-    telefono: '',
-    domicilio: '',
+export default function ClientesPage() {
+  const { notifyError } = useNotification()
+  const searchRef = useRef<HTMLInputElement>(null!)
+
+  // ── Hooks ──────────────────────────────────────────────────────────
+  const list = useEntityList<ClienteDto, { q?: string; page?: number }>({
+    fetchFn: async (params) => {
+      const result = await api.clientes.listar(params.q || undefined, params.page || 1)
+      return result
+    },
   })
 
-  const load = useCallback(async (q?: string, p: number = 1) => {
-    setLoading(true)
-    try {
-      const result = await api.clientes.listar(q || undefined, p)
-      setData(result)
-    } catch (err: any) {
-      notifyError(err.message || 'Error al cargar clientes')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const search = useEntitySearch()
 
-  useEffect(() => { load(search, page) }, [load, search, page])
+  const pagination = useEntityPagination(list.totalPages)
 
-  function handleSearch(e: React.FormEvent) {
+  const form = useEntityForm<ClienteDto, ClienteDto>({ emptyForm })
+
+  // ── Workflow ───────────────────────────────────────────────────────
+  // LOAD on mount, search, or page change
+  useEffect(() => {
+    list.load({ q: search.debouncedSearch || undefined, page: pagination.page })
+  }, [search.debouncedSearch, pagination.page])
+
+  // SAVING → DONE → REFRESH
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    setPage(1)
-    load(search, 1)
-  }
-
-  function resetForm() {
-    setForm({ nombre: '', tipoDocumento: 'DNI', numeroDocumento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', domicilio: '' })
-    setEditingId(null)
-    setShowForm(false)
-  }
-
-  function openEdit(cliente: ClienteDto) {
-    setForm({
-      nombre: cliente.nombre,
-      tipoDocumento: cliente.tipoDocumento,
-      numeroDocumento: cliente.numeroDocumento,
-      ivaCondicion: cliente.ivaCondicion,
-      telefono: cliente.telefono || '',
-      domicilio: cliente.domicilio || '',
-    })
-    setEditingId(cliente.id ?? null)
-    setShowForm(true)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-
+    if (!form.form.nombre.trim()) return
+    form.setSaving(true)
     try {
-      if (editingId) {
-        await api.clientes.actualizar(editingId, form)
+      if (form.editingId) {
+        await api.clientes.actualizar(form.editingId, form.form)
       } else {
-        await api.clientes.crear(form)
+        await api.clientes.crear(form.form)
       }
-      resetForm()
-      load(search, page)
+      form.closeForm(() => searchRef.current?.focus())
+      list.load({ q: search.debouncedSearch || undefined, page: pagination.page })
     } catch (err: any) {
-      try {
-        const parts = err.message.split(': ')
-        const parsed = JSON.parse(parts[parts.length - 1])
-        notifyError(parsed.error || err.message)
-      } catch {
-        notifyError(err.message || 'Error al guardar cliente')
-      }
+      notifyError(err.message || 'Error al guardar cliente')
     } finally {
-      setLoading(false)
+      form.setSaving(false)
     }
-  }
+  }, [form, list, search.debouncedSearch, pagination.page, notifyError])
 
+  // ── Render ────────────────────────────────────────────────────────
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <Button variant="primary" size="md" onClick={() => { resetForm(); setShowForm(true) }} icon={<Plus size={16} />}>
-          Nuevo cliente
-        </Button>
-      </div>
+    <PageShell
+      title="Clientes"
+      subtitle={`${list.totalCount} clientes`}
+      loading={list.loading && list.data.length === 0}
+      error={list.error}
+      onErrorClose={list.clearError}
+    >
+      <EntityToolbar
+        search={search.search}
+        onSearchChange={v => { search.setSearch(v); pagination.setPage(1) }}
+        searchRef={searchRef}
+        searchPlaceholder="Buscar por nombre o documento..."
+        createLabel="Nuevo cliente"
+        onCreate={form.openCreate}
+      />
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por nombre o documento..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-        />
-        <button type="submit" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-          Buscar
-        </button>
-      </form>
-
-      {/* Form modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">{editingId ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
-                  type="text" value={form.nombre}
-                  onChange={e => setForm({ ...form, nombre: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo documento</label>
-                  <select
-                    value={form.tipoDocumento}
-                    onChange={e => setForm({ ...form, tipoDocumento: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  >
-                    {TIPOS_DOCUMENTO.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">N° documento</label>
-                  <input
-                    type="text" value={form.numeroDocumento}
-                    onChange={e => setForm({ ...form, numeroDocumento: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    disabled={form.tipoDocumento === 'ConsumidorFinal'}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Condición IVA</label>
-                <select
-                  value={form.ivaCondicion}
-                  onChange={e => setForm({ ...form, ivaCondicion: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  {IVA_CONDICIONES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                  <input
-                    type="text" value={form.telefono || ''}
-                    onChange={e => setForm({ ...form, telefono: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Domicilio</label>
-                  <input
-                    type="text" value={form.domicilio || ''}
-                    onChange={e => setForm({ ...form, domicilio: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={resetForm} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
-                <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-500 disabled:opacity-50">
-                  {loading ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      {loading && !data ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
-      ) : data && data.items.length > 0 ? (
+      {list.data.length === 0 ? (
+        <EntityEmptyState hasSearch={!!search.debouncedSearch} emptyMessage="No hay clientes" />
+      ) : (
         <>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
@@ -201,18 +99,40 @@ export default function ClientesPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Documento</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">IVA</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Teléfono</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Mail</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-600">Estado</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Acción</th>
                 </tr>
               </thead>
               <tbody>
-                {data.items.map(c => (
+                {list.data.map(c => (
                   <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium">{c.nombre}</td>
                     <td className="px-4 py-3 text-gray-600">{c.tipoDocumento} {c.numeroDocumento}</td>
                     <td className="px-4 py-3 text-gray-600">{c.ivaCondicion}</td>
-                    <td className="px-4 py-3 text-gray-600">{c.telefono || '-'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(c)} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Editar</button>
+                    <td className="px-4 py-3 text-gray-600">{c.telefono || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{c.mail || '—'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.activo !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {c.activo !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-1">
+                      <Button variant="ghost" size="sm"                       onClick={() => form.openEdit(c, item => ({
+                        nombre: item.nombre,
+                        tipoDocumento: item.tipoDocumento,
+                        numeroDocumento: item.numeroDocumento,
+                        ivaCondicion: item.ivaCondicion,
+                        telefono: item.telefono || '',
+                        mail: item.mail || '',
+                        domicilio: item.domicilio || '',
+                      }))}>Editar</Button>
+                      {c.activo !== false && (
+                        <Button variant="ghost" size="sm" onClick={async () => {
+                          try { await api.clientes.desactivar(c.id!); list.load({ q: search.debouncedSearch || undefined, page: pagination.page }) }
+                          catch (err: any) { notifyError(err.message || 'Error') }
+                        }}>Desactivar</Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -220,31 +140,80 @@ export default function ClientesPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>{data.totalCount} cliente(s)</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1">Pág. {page} / {data.totalPages}</span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={page >= data.totalPages}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Siguiente
-              </button>
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+              <span>{list.totalCount} cliente(s)</span>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={pagination.prevPage} disabled={pagination.page <= 1}>Anterior</Button>
+                <span className="px-2 text-gray-500">Pág. {pagination.page} / {pagination.totalPages}</span>
+                <Button variant="secondary" size="sm" onClick={pagination.nextPage} disabled={pagination.page >= pagination.totalPages}>Siguiente</Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <Dialog
+        open={form.showForm}
+        onClose={() => form.closeForm(() => searchRef.current?.focus())}
+        title={form.editingId ? 'Editar cliente' : 'Nuevo cliente'}
+        width="md"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => form.closeForm(() => searchRef.current?.focus())}>Cancelar</Button>
+            <Button variant="primary" size="sm" onClick={handleSubmit} disabled={form.saving || !form.form.nombre.trim()}>
+              {form.saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </>
+        }
+      >
+        <form id="cliente-form" onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Nombre *</label>
+            <input type="text" value={form.form.nombre} onChange={e => form.setForm({ ...form.form, nombre: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Tipo documento</label>
+              <select value={form.form.tipoDocumento} onChange={e => form.setForm({ ...form.form, tipoDocumento: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                {TIPOS_DOCUMENTO.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">N° documento</label>
+              <input type="text" value={form.form.numeroDocumento} onChange={e => form.setForm({ ...form.form, numeroDocumento: e.target.value })}
+                disabled={form.form.tipoDocumento === 'ConsumidorFinal'}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:bg-gray-100" />
             </div>
           </div>
-        </>
-      ) : (
-        <div className="text-center py-8 text-gray-500">No hay clientes</div>
-      )}
-    </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Condición IVA</label>
+            <select value={form.form.ivaCondicion} onChange={e => form.setForm({ ...form.form, ivaCondicion: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+              {IVA_CONDICIONES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Teléfono</label>
+              <input type="text" value={form.form.telefono || ''} onChange={e => form.setForm({ ...form.form, telefono: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Mail</label>
+              <input type="email" value={form.form.mail || ''} onChange={e => form.setForm({ ...form.form, mail: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700">Domicilio</label>
+              <input type="text" value={form.form.domicilio || ''} onChange={e => form.setForm({ ...form.form, domicilio: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+            </div>
+          </div>
+        </form>
+      </Dialog>
+    </PageShell>
   )
 }
