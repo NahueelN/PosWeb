@@ -1,10 +1,11 @@
 trigger:
   branches:
     include:
-      - master # El pipeline solo se ejecutará cuando se haga un merge/push en master
+      - master
+      - main # Incluimos ambas por seguridad en el disparador
 
 variables:
-- group: Github-Sync-Keys # Tu grupo de variables con el GITHUB_PAT
+- group: Github-Sync-Keys
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -13,24 +14,31 @@ steps:
 - checkout: self
   persistCredentials: true
   clean: true
+  fetchDepth: 0 # Forzamos a que descargue todo el historial y ramas (evita el shallow clone)
 
 - script: |
     # Configurar la identidad de Git
     git config --global user.name "PosWeb Sync Bot"
     git config --global user.email "deployments@posweb.com"
 
+    # Detectar cuál es la rama actual en Azure (main o master)
+    BUILD_BRANCH="$(Build.SourceBranchName)"
+    echo "La rama actual detectada en Azure es: $BUILD_BRANCH"
+
+    # Asegurarnos de estar parados en esa rama localmente
+    git checkout $BUILD_BRANCH
+
     # Formatear la URL de GitHub con el token seguro
-    # Reemplaza TU_ORGANIZACION y TU_REPOSITORIO por tus datos reales
     GITHUB_URL="https://$(GITHUB_PAT)@github.com/NahueelN/PosWeb.git"
 
     echo "Añadiendo el repositorio remoto de GitHub..."
-    git remote add github $GITHUB_URL
+    # Usamos || true por si el remoto ya existe de una ejecución previa
+    git remote add github $GITHUB_URL || git remote set-url github $GITHUB_URL
 
-    echo "Sincronizando únicamente la rama master y los tags..."
-    # Se empuja solo la rama master local hacia la rama master de GitHub
-    git push github master
+    echo "Sincronizando únicamente la rama $BUILD_BRANCH..."
+    # Empuja la rama activa actual hacia la rama equivalente en GitHub
+    git push github $BUILD_BRANCH
 
     echo "Sincronizando los tags para las GitHub Actions y Releases..."
-    # Se empujan los tags, necesarios para tus flujos de DevOps en GitHub
     git push github --tags
-  displayName: 'Sincronizar rama master a GitHub'
+  displayName: 'Sincronizar rama activa a GitHub'
