@@ -1,0 +1,36 @@
+trigger:
+  branches:
+    include:
+      - master # El pipeline solo se ejecutará cuando se haga un merge/push en master
+
+variables:
+- group: Github-Sync-Keys # Tu grupo de variables con el GITHUB_PAT
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: self
+  persistCredentials: true
+  clean: true
+
+- script: |
+    # Configurar la identidad de Git
+    git config --global user.name "PosWeb Sync Bot"
+    git config --global user.email "deployments@posweb.com"
+
+    # Formatear la URL de GitHub con el token seguro
+    # Reemplaza TU_ORGANIZACION y TU_REPOSITORIO por tus datos reales
+    GITHUB_URL="https://$(GITHUB_PAT)@github.com/NahueelN/PosWeb.git"
+
+    echo "Añadiendo el repositorio remoto de GitHub..."
+    git remote add github $GITHUB_URL
+
+    echo "Sincronizando únicamente la rama master y los tags..."
+    # Se empuja solo la rama master local hacia la rama master de GitHub
+    git push github master
+
+    echo "Sincronizando los tags para las GitHub Actions y Releases..."
+    # Se empujan los tags, necesarios para tus flujos de DevOps en GitHub
+    git push github --tags
+  displayName: 'Sincronizar rama master a GitHub'
