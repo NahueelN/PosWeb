@@ -92,7 +92,7 @@ RELATIONS:
   - type: RELATED
     target: PAT-cart-flow
   - type: RELATED
-    target: ADR-sqlite-choice
+    target: ADR-db-hybrid
 ```
 
 ---

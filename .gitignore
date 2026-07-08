@@ -373,5 +373,10 @@ frontend/src-tauri/binaries/
 mysql-data/
 *.pid
 
+# SQLite local database
+*.db
+*.db-shm
+*.db-wal
+
 # App settings with local passwords
 **/appsettings.Development.json

@@ -5,9 +5,9 @@ namespace PosWeb.Application.MediosPago;
 
 public class MedioPagoService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public MedioPagoService(PosDbContext context)
+    public MedioPagoService(PosDbContextLocal context)
     {
         _context = context;
     }

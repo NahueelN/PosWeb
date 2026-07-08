@@ -130,6 +130,12 @@ builder.Services.AddDbContext<PosDbContext>(options =>
     )
 );
 
+builder.Services.AddDbContext<PosDbContextLocal>(options =>
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("LocalConnection")
+    )
+);
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -138,7 +144,7 @@ var app = builder.Build();
 // Ensure seed admin has a real BCrypt hash (migration placed a fake placeholder)
 using (var scope = app.Services.CreateScope())
 {
-    var ctx = scope.ServiceProvider.GetRequiredService<PosDbContext>();
+    var ctx = scope.ServiceProvider.GetRequiredService<PosDbContextLocal>();
     ctx.Database.Migrate();
 
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
@@ -150,7 +156,16 @@ using (var scope = app.Services.CreateScope())
 
     if (admin != null && !ctx.Suscripcion.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
     {
-        ctx.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
+        ctx.Suscripcion.Add(suscripcion);
+        ctx.SaveChanges();
+
+        var empresa = new Empresa("PosWeb", "00000000000", suscripcion.ID_SUSCRIPCION);
+        ctx.Empresa.Add(empresa);
+        ctx.SaveChanges();
+
+        var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);
+        ctx.Sucursal.Add(sucursal);
         ctx.SaveChanges();
     }
 }
@@ -176,7 +191,7 @@ app.Use(async (context, next) =>
         var userIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (int.TryParse(userIdValue, out var userId))
         {
-            var db = context.RequestServices.GetRequiredService<PosDbContext>();
+            var db = context.RequestServices.GetRequiredService<PosDbContextLocal>();
             var usuario = db.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
 
             if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
@@ -206,7 +221,7 @@ app.MapControllers();
 app.Run();
 
 
-static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContext ctx)
+static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContextLocal ctx)
 {
     if (!usuario.ACTIVO)
     {

@@ -14,14 +14,14 @@ namespace PosWeb.Application.Test;
 
 public class CompraServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        var context = new PosDbContext(options);
+        var context = new PosDbContextLocal(options);
         // Seed basic data needed for tests
         Sucursal sucursal = new Sucursal("001", "Sucursal Test", 1);
         sucursal.Activar();
@@ -38,14 +38,14 @@ public class CompraServiceTest
         return context;
     }
 
-    private static CompraService CrearService(PosDbContext context)
+    private static CompraService CrearService(PosDbContextLocal context)
     {
         var deudaService = new DeudaService(context);
         var productoService = new ProductoService(context);
         return new CompraService(context, deudaService, productoService);
     }
 
-    private static Caja CrearCajaAbierta(PosDbContext context, int sucursalId, int usuarioId)
+    private static Caja CrearCajaAbierta(PosDbContextLocal context, int sucursalId, int usuarioId)
     {
         var caja = new Caja(sucursalId, 1000, usuarioId);
         context.Caja.Add(caja);
@@ -53,7 +53,7 @@ public class CompraServiceTest
         return caja;
     }
 
-    private static Producto CrearProducto(PosDbContext context, int id, string codigo, string nombre, decimal precio, decimal costo)
+    private static Producto CrearProducto(PosDbContextLocal context, int id, string codigo, string nombre, decimal precio, decimal costo)
     {
         Producto producto = new Producto(codigo, codigo, nombre, precio, costo);
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
@@ -62,7 +62,7 @@ public class CompraServiceTest
         return producto;
     }
 
-    private static int SeedProveedor(PosDbContext context)
+    private static int SeedProveedor(PosDbContextLocal context)
     {
         return context.Proveedor.First().ID_PROVEEDOR;
     }
@@ -71,7 +71,7 @@ public class CompraServiceTest
     public void CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ConItemsValidos_CreaCompraGastoYActualizaStockAtomico));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -129,7 +129,7 @@ public class CompraServiceTest
     public void CrearCompra_SinCajaActiva_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_SinCajaActiva_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_SinCajaActiva_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -149,7 +149,7 @@ public class CompraServiceTest
     public void CrearCompra_ProveedorInexistente_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ProveedorInexistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ProveedorInexistente_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -172,7 +172,7 @@ public class CompraServiceTest
     public void CrearCompra_ItemsVacios_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ItemsVacios_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ItemsVacios_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -192,7 +192,7 @@ public class CompraServiceTest
     public void CrearCompra_ConNuevosProductos_CreaProductosAtomicos()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ConNuevosProductos_CreaProductosAtomicos));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ConNuevosProductos_CreaProductosAtomicos));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -239,7 +239,7 @@ public class CompraServiceTest
     public void CrearCompra_CodigoBarraDuplicado_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_CodigoBarraDuplicado_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_CodigoBarraDuplicado_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -273,7 +273,7 @@ public class CompraServiceTest
     public void CrearCompra_ProductoExistente_ActualizaPrecioYCosto()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ProductoExistente_ActualizaPrecioYCosto));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ProductoExistente_ActualizaPrecioYCosto));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -307,7 +307,7 @@ public class CompraServiceTest
     public void CrearCompra_ProductoExistente_PrecioCostoIguales_NoActualiza()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ProductoExistente_PrecioCostoIguales_NoActualiza));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ProductoExistente_PrecioCostoIguales_NoActualiza));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -341,7 +341,7 @@ public class CompraServiceTest
     public void CrearCompra_InlineCreation_SinCodigoBarra_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_InlineCreation_SinCodigoBarra_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_InlineCreation_SinCodigoBarra_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -366,7 +366,7 @@ public class CompraServiceTest
     public void CrearCompra_InlineCreation_SinNombre_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_InlineCreation_SinNombre_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_InlineCreation_SinNombre_LanzaExcepcion));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -391,7 +391,7 @@ public class CompraServiceTest
     public void CrearCompra_StockNoInicializado_CreayActualizaStock()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_StockNoInicializado_CreayActualizaStock));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_StockNoInicializado_CreayActualizaStock));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -425,7 +425,7 @@ public class CompraServiceTest
     public void CrearCompra_ConProveedor_CreaDeuda()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearCompra_ConProveedor_CreaDeuda));
+        PosDbContextLocal context = CrearContexto(nameof(CrearCompra_ConProveedor_CreaDeuda));
         CompraService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();

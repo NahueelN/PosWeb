@@ -6,9 +6,9 @@ namespace PosWeb.Application.Estadisticas;
 
 public class EstadisticasService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public EstadisticasService(PosDbContext context)
+    public EstadisticasService(PosDbContextLocal context)
     {
         _context = context;
     }

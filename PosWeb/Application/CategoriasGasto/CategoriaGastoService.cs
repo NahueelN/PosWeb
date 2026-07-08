@@ -7,9 +7,9 @@ namespace PosWeb.Application.CategoriasGasto;
 
 public class CategoriaGastoService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public CategoriaGastoService(PosDbContext context)
+    public CategoriaGastoService(PosDbContextLocal context)
     {
         _context = context;
     }

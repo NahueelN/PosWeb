@@ -10,23 +10,23 @@ namespace PosWeb.Application.Test;
 
 public class SucursalServiceTest
 {
-    private static PosDbContext CrearContexto()
+    private static PosDbContextLocal CrearContexto()
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options;
 
-        return new PosDbContext(options);
+        return new PosDbContextLocal(options);
     }
 
-    private static SucursalService CrearService(PosDbContext context)
+    private static SucursalService CrearService(PosDbContextLocal context)
     {
         return new SucursalService(context);
     }
 
     private static void AgregarSucursal(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         int numero,
         bool activa = true)
@@ -51,7 +51,7 @@ public class SucursalServiceTest
     [Fact]
     public void ObtenerActivas_SoloDevuelveSucursalesActivas()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1, true);
@@ -67,7 +67,7 @@ public class SucursalServiceTest
     [Fact]
     public void CrearSucursal_CreaCorrectamente()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         SucursalDto dto = new SucursalDto
@@ -87,7 +87,7 @@ public class SucursalServiceTest
     [Fact]
     public void ObtenerPorId_ExistenteYActiva_DevuelveSucursal()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -101,7 +101,7 @@ public class SucursalServiceTest
     [Fact]
     public void ObtenerPorId_NoExiste_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         Assert.Throws<SucursalNoExisteException>(() =>
@@ -113,7 +113,7 @@ public class SucursalServiceTest
     [Fact]
     public void EliminarSucursal_DesactivaSucursal()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -128,7 +128,7 @@ public class SucursalServiceTest
     [Fact]
     public void EliminarSucursal_NoExiste_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         SucursalService service = CrearService(context);
 
         Assert.Throws<SucursalNoExisteException>(() =>

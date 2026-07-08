@@ -11,19 +11,19 @@ namespace PosWeb.Application.Test;
 
 public class ProveedorServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        var context = new PosDbContext(options);
+        var context = new PosDbContextLocal(options);
         context.SaveChanges();
         return context;
     }
 
-    private static ProveedorService CrearService(PosDbContext context)
+    private static ProveedorService CrearService(PosDbContextLocal context)
     {
         return new ProveedorService(context);
     }
@@ -32,7 +32,7 @@ public class ProveedorServiceTest
     public void Listar_SinFiltro_RetornaTodos()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_SinFiltro_RetornaTodos));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_SinFiltro_RetornaTodos));
         ProveedorService service = CrearService(context);
 
         context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha", telefono: "111"));
@@ -50,7 +50,7 @@ public class ProveedorServiceTest
     public void Listar_ConFiltro_RetornaCoincidentes()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_ConFiltro_RetornaCoincidentes));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_ConFiltro_RetornaCoincidentes));
         ProveedorService service = CrearService(context);
 
         context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
@@ -69,7 +69,7 @@ public class ProveedorServiceTest
     public void Listar_ConFiltroCodigo_RetornaCoincidentes()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_ConFiltroCodigo_RetornaCoincidentes));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_ConFiltroCodigo_RetornaCoincidentes));
         ProveedorService service = CrearService(context);
 
         context.Proveedor.Add(new Proveedor("ALPHA", "Distribuidora Alpha"));
@@ -88,7 +88,7 @@ public class ProveedorServiceTest
     public void Crear_ConNombreValido_CreaConCodigoAutogenerado()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_ConNombreValido_CreaConCodigoAutogenerado));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_ConNombreValido_CreaConCodigoAutogenerado));
         ProveedorService service = CrearService(context);
 
         var dto = new CrearProveedorRequestDto
@@ -112,7 +112,7 @@ public class ProveedorServiceTest
     public void Crear_SinNombre_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_SinNombre_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_SinNombre_LanzaExcepcion));
         ProveedorService service = CrearService(context);
 
         var dto = new CrearProveedorRequestDto
@@ -129,7 +129,7 @@ public class ProveedorServiceTest
     public void Crear_CodigoDuplicado_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));
         ProveedorService service = CrearService(context);
 
         // Seed a proveedor
@@ -147,7 +147,7 @@ public class ProveedorServiceTest
     public void ObtenerPorId_Existente_RetornaProveedor()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorId_Existente_RetornaProveedor));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorId_Existente_RetornaProveedor));
         ProveedorService service = CrearService(context);
 
         var proveedor = new Proveedor("ALPHA", "Distribuidora Alpha");
@@ -166,7 +166,7 @@ public class ProveedorServiceTest
     public void ObtenerPorId_Inexistente_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorId_Inexistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorId_Inexistente_LanzaExcepcion));
         ProveedorService service = CrearService(context);
 
         // Act & Assert

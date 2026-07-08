@@ -9,10 +9,10 @@ namespace PosWeb.Application.Pedidos;
 
 public class PedidoService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
     private readonly DeudaService _deudaService;
 
-    public PedidoService(PosDbContext context, DeudaService deudaService)
+    public PedidoService(PosDbContextLocal context, DeudaService deudaService)
     {
         _context = context;
         _deudaService = deudaService;

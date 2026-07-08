@@ -7,9 +7,9 @@ namespace PosWeb.Application.Sucursales;
 
 public class SucursalService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public SucursalService(PosDbContext context)
+    public SucursalService(PosDbContextLocal context)
     {
         _context = context;
     }

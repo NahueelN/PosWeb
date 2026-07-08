@@ -8,9 +8,9 @@ namespace PosWeb.Application.StockSucursales;
 
 public class StockSucursalService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public StockSucursalService(PosDbContext context)
+    public StockSucursalService(PosDbContextLocal context)
     {
         _context = context;
     }

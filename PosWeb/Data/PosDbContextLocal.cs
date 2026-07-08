@@ -3,9 +3,9 @@ using PosWeb.Domain;
 
 namespace PosWeb.Data;
 
-public partial class PosDbContext : DbContext
+public class PosDbContextLocal : DbContext
 {
-    public PosDbContext(DbContextOptions<PosDbContext> options)
+    public PosDbContextLocal(DbContextOptions<PosDbContextLocal> options)
         : base(options)
     {
     }
@@ -40,17 +40,8 @@ public partial class PosDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        ConfigureEntities(modelBuilder);
+        PosDbContext.ConfigureEntities(modelBuilder);
 
-        // MySQL-specific filtered indexes (SQLite doesn't support HasFilter)
-        modelBuilder.Entity<Producto>().HasIndex(p => p.COD_PRODUCTO).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<Sucursal>().HasIndex(s => s.COD_SUCURSAL).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<Usuario>().HasIndex(u => u.NOMBRE_USUARIO).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<Cliente>().HasIndex(c => c.COD_CLIENTE).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<Combo>().HasIndex(c => c.COD_COMBO).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<MedioPago>().HasIndex(m => m.COD_MEDIO_PAGO).HasFilter("ACTIVO = 1");
-        modelBuilder.Entity<Proveedor>().HasIndex(p => p.COD_PROVEEDOR).HasFilter("ACTIVO = 1");
-
-        SeedLocalData(modelBuilder);
+        PosDbContext.SeedLocalData(modelBuilder);
     }
 }

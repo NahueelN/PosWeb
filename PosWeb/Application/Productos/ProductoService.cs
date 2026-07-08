@@ -9,9 +9,9 @@ namespace PosWeb.Application.Productos;
 
 public class ProductoService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public ProductoService(PosDbContext context)
+    public ProductoService(PosDbContextLocal context)
     {
         _context = context;
     }

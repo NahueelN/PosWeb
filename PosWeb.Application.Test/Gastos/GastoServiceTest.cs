@@ -10,14 +10,14 @@ namespace PosWeb.Application.Test.Gastos;
 
 public class GastoServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        var context = new PosDbContext(options);
+        var context = new PosDbContextLocal(options);
 
         // Seed basic data
         Sucursal sucursal = new Sucursal("001", "Sucursal Test", 1);
@@ -32,12 +32,12 @@ public class GastoServiceTest
         return context;
     }
 
-    private static GastoService CrearService(PosDbContext context)
+    private static GastoService CrearService(PosDbContextLocal context)
     {
         return new GastoService(context);
     }
 
-    private static Caja CrearCajaAbierta(PosDbContext context, int usuarioId)
+    private static Caja CrearCajaAbierta(PosDbContextLocal context, int usuarioId)
     {
         var caja = new Caja(1, 1000, usuarioId);
         context.Caja.Add(caja);
@@ -49,7 +49,7 @@ public class GastoServiceTest
     public void Crear_ConMontoYDetalleValidos_CreaGastoVinculadoACajaActiva()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_ConMontoYDetalleValidos_CreaGastoVinculadoACajaActiva));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_ConMontoYDetalleValidos_CreaGastoVinculadoACajaActiva));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -76,7 +76,7 @@ public class GastoServiceTest
     public void Crear_MontoCeroOLanzar_LanzaArgumentException()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_MontoCeroOLanzar_LanzaArgumentException));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_MontoCeroOLanzar_LanzaArgumentException));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -97,7 +97,7 @@ public class GastoServiceTest
     public void Crear_DetalleVacio_LanzaArgumentException()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_DetalleVacio_LanzaArgumentException));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_DetalleVacio_LanzaArgumentException));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -113,7 +113,7 @@ public class GastoServiceTest
     public void Crear_DetalleSoloEspacios_LanzaArgumentException()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_DetalleSoloEspacios_LanzaArgumentException));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_DetalleSoloEspacios_LanzaArgumentException));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -129,7 +129,7 @@ public class GastoServiceTest
     public void Crear_DetalleExcede500Caracteres_LanzaArgumentException()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_DetalleExcede500Caracteres_LanzaArgumentException));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_DetalleExcede500Caracteres_LanzaArgumentException));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -147,7 +147,7 @@ public class GastoServiceTest
     public void Crear_SinCajaActiva_LanzaGastoSinCajaActivaException()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Crear_SinCajaActiva_LanzaGastoSinCajaActivaException));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_SinCajaActiva_LanzaGastoSinCajaActivaException));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -162,7 +162,7 @@ public class GastoServiceTest
     public void ObtenerPorCaja_ConGastos_RetornaFiltradosYOrdenadosDesc()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorCaja_ConGastos_RetornaFiltradosYOrdenadosDesc));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCaja_ConGastos_RetornaFiltradosYOrdenadosDesc));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();
@@ -206,7 +206,7 @@ public class GastoServiceTest
     public void ObtenerPorCaja_SinGastos_RetornaListaVacia()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorCaja_SinGastos_RetornaListaVacia));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCaja_SinGastos_RetornaListaVacia));
         GastoService service = CrearService(context);
 
         Usuario usuario = context.Usuario.First();

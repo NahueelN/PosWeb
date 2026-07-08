@@ -12,22 +12,22 @@ namespace PosWeb.Application.Test;
 
 public class StockSucursalServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        return new PosDbContext(options);
+        return new PosDbContextLocal(options);
     }
 
-    private static StockSucursalService CrearService(PosDbContext context)
+    private static StockSucursalService CrearService(PosDbContextLocal context)
     {
         return new StockSucursalService(context);
     }
 
-    private static Producto CrearProducto(PosDbContext context, int id, string codigo, string nombre, bool activo = true)
+    private static Producto CrearProducto(PosDbContextLocal context, int id, string codigo, string nombre, bool activo = true)
     {
         Producto producto = new Producto(codigo, codigo, nombre, 100m, 80m);
         TestHelpers.SetId(producto, id, "ID_PRODUCTO");
@@ -42,7 +42,7 @@ public class StockSucursalServiceTest
         return producto;
     }
 
-    private static Sucursal CrearSucursal(PosDbContext context, int id, string codigo, string nombre, bool activo = true)
+    private static Sucursal CrearSucursal(PosDbContextLocal context, int id, string codigo, string nombre, bool activo = true)
     {
         Sucursal sucursal = new Sucursal(codigo, nombre, 1);
         TestHelpers.SetId(sucursal, id, "ID_SUCURSAL");
@@ -57,7 +57,7 @@ public class StockSucursalServiceTest
         return sucursal;
     }
 
-    private static void CrearStock(PosDbContext context, int productoId, int sucursalId, int stock)
+    private static void CrearStock(PosDbContextLocal context, int productoId, int sucursalId, int stock)
     {
         StockSucursal stockSucursal = new StockSucursal(productoId, sucursalId, stock);
         context.StockSucursal.Add(stockSucursal);
@@ -67,7 +67,7 @@ public class StockSucursalServiceTest
     [Fact]
     public void ListarPorSucursal_IncluyeProductosSinFilaComoNoInicializados()
     {
-        PosDbContext context = CrearContexto(nameof(ListarPorSucursal_IncluyeProductosSinFilaComoNoInicializados));
+        PosDbContextLocal context = CrearContexto(nameof(ListarPorSucursal_IncluyeProductosSinFilaComoNoInicializados));
         CrearSucursal(context, 1, "SUC-1", "Sucursal Centro");
         Producto conStock = CrearProducto(context, 1, "111", "Alfajor");
         Producto sinStock = CrearProducto(context, 2, "222", "Yerba");
@@ -92,7 +92,7 @@ public class StockSucursalServiceTest
     [Fact]
     public void ListarPorSucursal_SinStocksPrevios_RetornaCatalogoActivo()
     {
-        PosDbContext context = CrearContexto(nameof(ListarPorSucursal_SinStocksPrevios_RetornaCatalogoActivo));
+        PosDbContextLocal context = CrearContexto(nameof(ListarPorSucursal_SinStocksPrevios_RetornaCatalogoActivo));
         CrearSucursal(context, 1, "SUC-1", "Sucursal Centro");
         CrearProducto(context, 1, "111", "Alfajor");
         CrearProducto(context, 2, "222", "Yerba");
@@ -113,7 +113,7 @@ public class StockSucursalServiceTest
     [Fact]
     public void AjustarStock_SinFilaPrevia_CreaStockSucursal()
     {
-        PosDbContext context = CrearContexto(nameof(AjustarStock_SinFilaPrevia_CreaStockSucursal));
+        PosDbContextLocal context = CrearContexto(nameof(AjustarStock_SinFilaPrevia_CreaStockSucursal));
         Producto producto = CrearProducto(context, 1, "111", "Alfajor");
         CrearSucursal(context, 1, "SUC-1", "Sucursal Centro");
         StockSucursalService service = CrearService(context);
@@ -129,7 +129,7 @@ public class StockSucursalServiceTest
     [Fact]
     public void AjustarStock_SucursalInexistente_LanzaExcepcion()
     {
-        PosDbContext context = CrearContexto(nameof(AjustarStock_SucursalInexistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(AjustarStock_SucursalInexistente_LanzaExcepcion));
         Producto producto = CrearProducto(context, 1, "111", "Alfajor");
         StockSucursalService service = CrearService(context);
 
@@ -139,7 +139,7 @@ public class StockSucursalServiceTest
     [Fact]
     public void ControladorAjustar_SucursalInexistente_DevuelveNotFound()
     {
-        PosDbContext context = CrearContexto(nameof(ControladorAjustar_SucursalInexistente_DevuelveNotFound));
+        PosDbContextLocal context = CrearContexto(nameof(ControladorAjustar_SucursalInexistente_DevuelveNotFound));
         CrearProducto(context, 1, "111", "Alfajor");
         StockController controller = new StockController(CrearService(context));
 

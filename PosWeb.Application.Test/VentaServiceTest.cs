@@ -12,24 +12,24 @@ namespace PosWeb.Application.Test;
 
 public class VentaServiceTest
 {
-    private static PosDbContext CrearContexto()
+    private static PosDbContextLocal CrearContexto()
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options;
 
-        return new PosDbContext(options);
+        return new PosDbContextLocal(options);
     }
 
-    private static VentaService CrearService(PosDbContext context)
+    private static VentaService CrearService(PosDbContextLocal context)
     {
         StockSucursalService stockService = new StockSucursalService(context);
         return new VentaService(context, stockService);
     }
 
     private static void AgregarSucursal(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         int numero,
         bool activa = true)
@@ -52,7 +52,7 @@ public class VentaServiceTest
     }
 
     private static void AgregarProducto(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         int stock,
         bool activo = true)
@@ -76,14 +76,14 @@ public class VentaServiceTest
         context.SaveChanges();
     }
 
-    private static void AgregarUsuario(PosDbContext context, int id)
+    private static void AgregarUsuario(PosDbContextLocal context, int id)
     {
         Usuario usuario = new Usuario(id, "test_user", "$2a$11$dummyhash", "UsuarioComun");
         context.Usuario.Add(usuario);
         context.SaveChanges();
     }
 
-    private static void AgregarCajaActiva(PosDbContext context, int sucursalId)
+    private static void AgregarCajaActiva(PosDbContextLocal context, int sucursalId)
     {
         if (!context.Usuario.Any())
         {
@@ -101,7 +101,7 @@ public class VentaServiceTest
     }
 
     private static void AgregarStockSucursal(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         int productoId,
         int sucursalId,
@@ -112,7 +112,7 @@ public class VentaServiceTest
         context.SaveChanges();
     }
 
-    private static void AgregarMedioPago(PosDbContext context, int id, string descripcion, bool pagaVuelto)
+    private static void AgregarMedioPago(PosDbContextLocal context, int id, string descripcion, bool pagaVuelto)
     {
         string codigo = descripcion.ToUpper().Replace(" ", "_");
         context.MedioPago.Add(new MedioPago(id, codigo, descripcion, pagaVuelto));
@@ -135,7 +135,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_Valida_CreaVentaCorrectamente()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -159,7 +159,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_SinItems_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         VentaDto dto = new VentaDto
@@ -177,7 +177,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_SucursalNoExiste_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         VentaDto dto = CrearVentaDto(
@@ -194,7 +194,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_SucursalInactiva_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1, false);
@@ -213,7 +213,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_ProductoNoExiste_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -234,7 +234,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_ProductoInactivo_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -256,7 +256,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_StockSucursalInsuficiente_LanzaExcepcion()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);
@@ -280,7 +280,7 @@ public class VentaServiceTest
     [Fact]
     public void CrearVenta_DescuentaStockSucursalCorrectamente()
     {
-        using PosDbContext context = CrearContexto();
+        using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
 
         AgregarSucursal(context, 1, 1);

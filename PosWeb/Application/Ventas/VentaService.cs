@@ -9,10 +9,10 @@ namespace PosWeb.Application.Ventas;
 
 public class VentaService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
     private readonly StockSucursalService _stockSucursalService;
 
-    public VentaService(PosDbContext context, StockSucursalService stockSucursalService)
+    public VentaService(PosDbContextLocal context, StockSucursalService stockSucursalService)
     {
         _context = context;
         _stockSucursalService = stockSucursalService;
