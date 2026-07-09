@@ -8,9 +8,9 @@ namespace PosWeb.Application.Clientes;
 
 public class ClienteService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public ClienteService(PosDbContext context)
+    public ClienteService(PosDbContextLocal context)
     {
         _context = context;
     }

@@ -14,13 +14,13 @@ namespace PosWeb.Application.Test;
 
 public class UsuariosSubscriptionTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        var options = new DbContextOptionsBuilder<PosDbContext>()
+        var options = new DbContextOptionsBuilder<PosDbContextLocal>()
             .UseInMemoryDatabase(dbName)
             .Options;
 
-        return new PosDbContext(options);
+        return new PosDbContextLocal(options);
     }
 
     private static JwtTokenService CrearJwtTokenService()
@@ -37,7 +37,7 @@ public class UsuariosSubscriptionTest
     }
 
     private static Usuario CrearUsuario(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         string nombreUsuario,
         string rol,

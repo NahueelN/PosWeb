@@ -8,9 +8,9 @@ namespace PosWeb.Application.Deudas;
 
 public class DeudaService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public DeudaService(PosDbContext context)
+    public DeudaService(PosDbContextLocal context)
     {
         _context = context;
     }

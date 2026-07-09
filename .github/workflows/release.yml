@@ -46,3 +46,35 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: frontend/src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Update latest.json for auto-updater
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+
+          $msiFile = Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          $msiName = $msiFile.Name
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/${tag}/${msiName}"
+
+          $generated = Get-Content "frontend/src-tauri/target/release/bundle/msi/latest.json" -Raw | ConvertFrom-Json
+
+          $latest = @{
+            version = $version
+            notes   = $generated.notes
+            pub_date = (Get-Date -AsUTC).ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                url       = $downloadUrl
+                signature = $generated.platforms."windows-x86_64".signature
+              }
+            }
+          }
+
+          $latest | ConvertTo-Json -Depth 4 | Set-Content latest.json -Encoding UTF8
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add latest.json
+          git commit -m "chore: update latest.json to v${version}" --allow-empty
+          git push

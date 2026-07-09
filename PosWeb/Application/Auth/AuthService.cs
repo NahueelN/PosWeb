@@ -8,10 +8,10 @@ namespace PosWeb.Application.Auth;
 
 public class AuthService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
     private readonly JwtTokenService _jwtTokenService;
 
-    public AuthService(PosDbContext context, JwtTokenService jwtTokenService)
+    public AuthService(PosDbContextLocal context, JwtTokenService jwtTokenService)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;

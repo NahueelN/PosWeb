@@ -8,9 +8,9 @@ namespace PosWeb.Application.Proveedores;
 
 public class ProveedorService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public ProveedorService(PosDbContext context)
+    public ProveedorService(PosDbContextLocal context)
     {
         _context = context;
     }
@@ -133,7 +133,9 @@ public class ProveedorService
 
         var deudaPendiente = _context.Deuda
             .Where(d => d.ID_PROVEEDOR == id && !d.PAGO)
-            .Sum(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO)) ?? 0;
+            .Select(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO))
+            .ToList()
+            .Sum() ?? 0;
 
         var dto = MapToDto(proveedor);
         dto.DeudaPendiente = deudaPendiente;
@@ -154,7 +156,9 @@ public class ProveedorService
     {
         return _context.Deuda
             .Where(d => d.ID_PROVEEDOR == proveedorId && !d.PAGO)
-            .Sum(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO)) ?? 0;
+            .Select(d => (decimal?)(d.MONTO_DEUDA - d.MONTO_PAGADO))
+            .ToList()
+            .Sum() ?? 0;
     }
 
     private static ProveedorDto MapToDto(Proveedor proveedor)

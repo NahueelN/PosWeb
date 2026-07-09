@@ -11,23 +11,23 @@ namespace PosWeb.Application.Test;
 
 public class ProductoServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        return new PosDbContext(options);
+        return new PosDbContextLocal(options);
     }
 
-    private static ProductoService CrearService(PosDbContext context)
+    private static ProductoService CrearService(PosDbContextLocal context)
     {
         return new ProductoService(context);
     }
 
     private static Producto CrearProducto(
-        PosDbContext context,
+        PosDbContextLocal context,
         int id,
         string codigo,
         string nombre,
@@ -57,7 +57,7 @@ public class ProductoServiceTest
     [Fact]
     public void ObtenerActivos_SoloDevuelveProductosActivos()
     {
-        PosDbContext context = CrearContexto(nameof(ObtenerActivos_SoloDevuelveProductosActivos));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerActivos_SoloDevuelveProductosActivos));
         CrearProducto(context, 1, "111", "Activo");
         CrearProducto(context, 2, "222", "Inactivo", false);
 
@@ -72,7 +72,7 @@ public class ProductoServiceTest
     [Fact]
     public void ObtenerActivos_OrdenaPorNombre()
     {
-        PosDbContext context = CrearContexto(nameof(ObtenerActivos_OrdenaPorNombre));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerActivos_OrdenaPorNombre));
         CrearProducto(context, 1, "111", "Zeta");
         CrearProducto(context, 2, "222", "Alfa");
 
@@ -87,7 +87,7 @@ public class ProductoServiceTest
     [Fact]
     public void Crear_ProductoValido_SeCreaCorrectamente()
     {
-        PosDbContext context = CrearContexto(nameof(Crear_ProductoValido_SeCreaCorrectamente));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_ProductoValido_SeCreaCorrectamente));
         ProductoService service = CrearService(context);
 
         ProductoUpsertDto dto = new ProductoUpsertDto
@@ -110,7 +110,7 @@ public class ProductoServiceTest
     [Fact]
     public void Crear_CodigoDuplicado_LanzaExcepcion()
     {
-        PosDbContext context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));
         CrearProducto(context, 1, "123", "Producto Existente");
 
         ProductoService service = CrearService(context);
@@ -132,7 +132,7 @@ public class ProductoServiceTest
     [Fact]
     public void ObtenerPorCodigoBarra_Existente_DevuelveProducto()
     {
-        PosDbContext context = CrearContexto(nameof(ObtenerPorCodigoBarra_Existente_DevuelveProducto));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCodigoBarra_Existente_DevuelveProducto));
         CrearProducto(context, 1, "ABC", "Producto ABC");
 
         ProductoService service = CrearService(context);
@@ -145,7 +145,7 @@ public class ProductoServiceTest
     [Fact]
     public void ObtenerPorCodigoBarra_Vacio_LanzaExcepcion()
     {
-        PosDbContext context = CrearContexto(nameof(ObtenerPorCodigoBarra_Vacio_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCodigoBarra_Vacio_LanzaExcepcion));
         ProductoService service = CrearService(context);
 
         Assert.Throws<CodigoBarraRequeridoException>(() =>
@@ -157,7 +157,7 @@ public class ProductoServiceTest
     [Fact]
     public void ObtenerPorCodigoBarra_NoExiste_LanzaExcepcion()
     {
-        PosDbContext context = CrearContexto(nameof(ObtenerPorCodigoBarra_NoExiste_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCodigoBarra_NoExiste_LanzaExcepcion));
         ProductoService service = CrearService(context);
 
         Assert.Throws<ProductoNoEncontradoException>(() =>
@@ -169,7 +169,7 @@ public class ProductoServiceTest
     [Fact]
     public void Eliminar_ProductoExistente_DesactivaProducto()
     {
-        PosDbContext context = CrearContexto(nameof(Eliminar_ProductoExistente_DesactivaProducto));
+        PosDbContextLocal context = CrearContexto(nameof(Eliminar_ProductoExistente_DesactivaProducto));
         Producto producto = CrearProducto(context, 1, "123", "Producto");
 
         ProductoService service = CrearService(context);
@@ -184,7 +184,7 @@ public class ProductoServiceTest
     [Fact]
     public void Eliminar_ProductoInexistente_LanzaExcepcion()
     {
-        PosDbContext context = CrearContexto(nameof(Eliminar_ProductoInexistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(Eliminar_ProductoInexistente_LanzaExcepcion));
         ProductoService service = CrearService(context);
 
         Assert.Throws<ProductoNoEncontradoException>(() =>

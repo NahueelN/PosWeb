@@ -10,13 +10,29 @@ stack:
     styling: Tailwind CSS 4.3.0
     routing: react-router-dom 7.15.1
     desktop: Tauri v2 (Rust 2021 edition)
-    test_framework: none
+    test_framework: vitest
+    test_deps: "@testing-library/react, @testing-library/user-event, @testing-library/jest-dom, jsdom"
+    test_files: 4 (smoke, useCart, cart-logic, CartHost)
     linter: ESLint 10.3.0 (flat config via eslint.config.js)
     type_checker: tsc (via tsc -b, part of build script)
     formatter: none — no Prettier, dprint, or biome config detected
   backend:
     runtime: .NET 8.0 (ASP.NET Core)
-    orm: Entity Framework Core 8.0.2 + SQLite
+    orm: Entity Framework Core 8.0.13
+    db_primary: SQLite (local, offline-first) via Microsoft.EntityFrameworkCore.Sqlite
+    db_secondary: MySQL (remote, cloud) via Pomelo.EntityFrameworkCore.MySql 8.0.3
+    db_architecture: |
+      Dual-context: PosDbContextLocal (SQLite) + PosDbContext (MySQL).
+      Both share entity config via PosDbContextModel.cs partial class.
+      MySQL has 7 HasFilter("ACTIVO = 1") unique indexes; SQLite skips them.
+      Currently all services/controllers use PosDbContextLocal (offline mode).
+      MySQL stack preserved but inactive — ready for hybrid sync.
+    migrations:
+      mysql: Migrations/ (22 files, InitialMySql through AddEsPesable)
+      sqlite: Migrations/Local/ (1 file, InitialSqlite)
+    connection_strings:
+      mysql: "DefaultConnection" (Server=localhost;Database=posweb;User=root;Password=...)
+      sqlite: "LocalConnection" (Data Source=posweb.db)
     api_docs: Swashbuckle / Swagger 6.4.0
     architecture: Layered (Domain → Contracts → Application → API)
     test_framework: xUnit 2.5.3 (modern, 3 projects) + legacy MSTest 2.2.10 (.NET Framework 4.7.2, 1 project)
@@ -37,10 +53,10 @@ strict_tdd: false
 
 testing:
   frontend:
-    runner: none
-    reason: No test framework in package.json dependencies (no vitest, jest, playwright, cypress)
-    test_files: 0
-    test_scripts: none
+    runner: vitest
+    reason: Installed 2026-07-08: vitest, @testing-library/react, @testing-library/user-event, @testing-library/jest-dom, jsdom
+    test_files: 4 (smoke.test.tsx, useCart.test.ts, cart-logic.test.ts, CartHost.test.tsx)
+    test_scripts: none (no "test" script in package.json — need to add)
     type_checker:
       command: npx tsc -b
     linter:
@@ -85,11 +101,14 @@ conventions:
     pattern: Layered (Domain → Application → Controllers)
     api_prefix: /api
     proxy: Vite dev server proxies /api → localhost:5196
-    db: SQLite via EF Core
+    db_sqlite: SQLite via EF Core (PosDbContextLocal, offline-first)
+    db_mysql: MySQL via Pomelo EF Core (PosDbContext, cloud, preserved for future hybrid sync)
+    db_config_shared: PosDbContextModel.cs (partial class with ConfigureEntities + SeedLocalData)
   frontend:
     routing: React Router v7 with Layout outlet pattern
     state: useState / useReducer (no external state lib)
     api_client: fetch wrapper in src/api/client.ts
+    types: src/types/index.ts (all DTOs — PagoDeudaDto, CuentaCorrienteDto added 2026-07-08)
   desktop:
     window: 1024x768, min 800x600, centered, resizable
     build: npm run build → Tauri bundles

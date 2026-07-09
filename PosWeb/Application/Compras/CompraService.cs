@@ -10,11 +10,11 @@ namespace PosWeb.Application.Compras;
 
 public class CompraService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
     private readonly DeudaService _deudaService;
     private readonly ProductoService _productoService;
 
-    public CompraService(PosDbContext context, DeudaService deudaService, ProductoService productoService)
+    public CompraService(PosDbContextLocal context, DeudaService deudaService, ProductoService productoService)
     {
         _context = context;
         _deudaService = deudaService;

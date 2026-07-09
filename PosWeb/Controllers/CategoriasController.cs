@@ -12,9 +12,9 @@ namespace PosWeb.Controllers;
 [Authorize]
 public class CategoriasController : ControllerBase
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public CategoriasController(PosDbContext context)
+    public CategoriasController(PosDbContextLocal context)
     {
         _context = context;
     }

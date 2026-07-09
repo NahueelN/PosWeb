@@ -8,9 +8,9 @@ namespace PosWeb.Application.Cajas;
 
 public class CajaService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public CajaService(PosDbContext context)
+    public CajaService(PosDbContextLocal context)
     {
         _context = context;
     }
@@ -199,13 +199,22 @@ public class CajaService
                 .FirstOrDefault();
         }
 
-        var desglosePagos = _context.Pago
+        // Materialize first — SQLite can't SUM(decimal) server-side
+        var pagosRaw = _context.Pago
             .Where(p => p.ID_CAJA == caja.ID_CAJA)
+            .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO })
+            .ToList();
+
+        var medios = _context.MedioPago
+            .Select(m => new { m.ID_MEDIO_PAGO, m.DESC_MEDIO_PAGO })
+            .ToList();
+
+        var desglosePagos = pagosRaw
             .GroupBy(p => p.ID_MEDIO_PAGO)
             .Select(g => new PagoPorMedioDto
             {
                 IdMedioPago = g.Key,
-                MedioPago = _context.MedioPago
+                MedioPago = medios
                     .Where(m => m.ID_MEDIO_PAGO == g.Key)
                     .Select(m => m.DESC_MEDIO_PAGO)
                     .FirstOrDefault() ?? "Desconocido",

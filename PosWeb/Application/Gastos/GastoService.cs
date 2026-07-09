@@ -8,9 +8,9 @@ namespace PosWeb.Application.Gastos;
 
 public class GastoService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public GastoService(PosDbContext context)
+    public GastoService(PosDbContextLocal context)
     {
         _context = context;
     }

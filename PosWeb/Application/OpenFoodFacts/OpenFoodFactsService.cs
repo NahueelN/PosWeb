@@ -10,7 +10,7 @@ public class OpenFoodFactsService
 {
     private readonly HttpClient _http;
     private readonly ILogger<OpenFoodFactsService> _logger;
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
     /// <summary>
     /// Tags de Open Food Facts que indican que un producto es una bebida.
@@ -63,7 +63,7 @@ public class OpenFoodFactsService
         ["pack"] = "PACK",
     };
 
-    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger, PosDbContext context)
+    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger, PosDbContextLocal context)
     {
         _http = http;
         _logger = logger;

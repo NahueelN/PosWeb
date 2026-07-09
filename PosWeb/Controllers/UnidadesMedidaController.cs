@@ -11,9 +11,9 @@ namespace PosWeb.Controllers;
 [Authorize]
 public class UnidadesMedidaController : ControllerBase
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public UnidadesMedidaController(PosDbContext context)
+    public UnidadesMedidaController(PosDbContextLocal context)
     {
         _context = context;
     }

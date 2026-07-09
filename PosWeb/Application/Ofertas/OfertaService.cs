@@ -7,9 +7,9 @@ namespace PosWeb.Application.Ofertas;
 
 public class OfertaService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public OfertaService(PosDbContext context)
+    public OfertaService(PosDbContextLocal context)
     {
         _context = context;
     }

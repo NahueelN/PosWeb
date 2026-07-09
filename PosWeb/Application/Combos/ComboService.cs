@@ -7,9 +7,9 @@ namespace PosWeb.Application.Combos;
 
 public class ComboService
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public ComboService(PosDbContext context)
+    public ComboService(PosDbContextLocal context)
     {
         _context = context;
     }

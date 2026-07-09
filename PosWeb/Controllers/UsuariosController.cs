@@ -12,9 +12,9 @@ namespace PosWeb.Controllers;
 [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
 public class UsuariosController : ControllerBase
 {
-    private readonly PosDbContext _context;
+    private readonly PosDbContextLocal _context;
 
-    public UsuariosController(PosDbContext context)
+    public UsuariosController(PosDbContextLocal context)
     {
         _context = context;
     }

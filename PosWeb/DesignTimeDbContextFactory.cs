@@ -5,9 +5,9 @@ using PosWeb.Data;
 
 namespace PosWeb;
 
-public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<PosDbContext>
+public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<PosDbContextLocal>
 {
-    public PosDbContext CreateDbContext(string[] args)
+    public PosDbContextLocal CreateDbContext(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -16,14 +16,11 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<PosDbConte
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = configuration.GetConnectionString("LocalConnection");
 
-        var optionsBuilder = new DbContextOptionsBuilder<PosDbContext>();
-        optionsBuilder.UseMySql(
-            connectionString,
-            ServerVersion.AutoDetect(connectionString)
-        );
+        var optionsBuilder = new DbContextOptionsBuilder<PosDbContextLocal>();
+        optionsBuilder.UseSqlite(connectionString);
 
-        return new PosDbContext(optionsBuilder.Options);
+        return new PosDbContextLocal(optionsBuilder.Options);
     }
 }

@@ -11,19 +11,19 @@ namespace PosWeb.Application.Test;
 
 public class DeudaServiceTest
 {
-    private static PosDbContext CrearContexto(string dbName)
+    private static PosDbContextLocal CrearContexto(string dbName)
     {
-        DbContextOptions<PosDbContext> options =
-            new DbContextOptionsBuilder<PosDbContext>()
+        DbContextOptions<PosDbContextLocal> options =
+            new DbContextOptionsBuilder<PosDbContextLocal>()
                 .UseInMemoryDatabase(dbName)
                 .Options;
 
-        var context = new PosDbContext(options);
+        var context = new PosDbContextLocal(options);
         context.SaveChanges();
         return context;
     }
 
-    private static DeudaService CrearService(PosDbContext context)
+    private static DeudaService CrearService(PosDbContextLocal context)
     {
         return new DeudaService(context);
     }
@@ -32,7 +32,7 @@ public class DeudaServiceTest
     public async Task Listar_SinFiltro_RetornaTodas()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_SinFiltro_RetornaTodas));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_SinFiltro_RetornaTodas));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
@@ -54,7 +54,7 @@ public class DeudaServiceTest
     public async Task Listar_ConProveedorId_RetornaSoloDeEseProveedor()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_ConProveedorId_RetornaSoloDeEseProveedor));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_ConProveedorId_RetornaSoloDeEseProveedor));
         DeudaService service = CrearService(context);
 
         Proveedor p1 = new Proveedor("P001", "Proveedor Uno");
@@ -80,7 +80,7 @@ public class DeudaServiceTest
     public async Task Listar_SoloPendientes_RetornaSoloNoPagadas()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(Listar_SoloPendientes_RetornaSoloNoPagadas));
+        PosDbContextLocal context = CrearContexto(nameof(Listar_SoloPendientes_RetornaSoloNoPagadas));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
@@ -106,7 +106,7 @@ public class DeudaServiceTest
     public async Task ObtenerPorId_Existente_RetornaDeuda()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorId_Existente_RetornaDeuda));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorId_Existente_RetornaDeuda));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
@@ -129,7 +129,7 @@ public class DeudaServiceTest
     public async Task ObtenerPorId_NoExistente_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(ObtenerPorId_NoExistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerPorId_NoExistente_LanzaExcepcion));
         DeudaService service = CrearService(context);
 
         // Act & Assert
@@ -141,7 +141,7 @@ public class DeudaServiceTest
     public async Task RegistrarPago_DeudaPendiente_MarcaComoPagada()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(RegistrarPago_DeudaPendiente_MarcaComoPagada));
+        PosDbContextLocal context = CrearContexto(nameof(RegistrarPago_DeudaPendiente_MarcaComoPagada));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
@@ -169,7 +169,7 @@ public class DeudaServiceTest
     public async Task RegistrarPago_DeudaYaPagada_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(RegistrarPago_DeudaYaPagada_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(RegistrarPago_DeudaYaPagada_LanzaExcepcion));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
@@ -190,7 +190,7 @@ public class DeudaServiceTest
     public async Task RegistrarPago_NoExistente_LanzaExcepcion()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(RegistrarPago_NoExistente_LanzaExcepcion));
+        PosDbContextLocal context = CrearContexto(nameof(RegistrarPago_NoExistente_LanzaExcepcion));
         DeudaService service = CrearService(context);
 
         // Act & Assert
@@ -202,7 +202,7 @@ public class DeudaServiceTest
     public void CrearDeuda_CreaConValoresCorrectos()
     {
         // Arrange
-        PosDbContext context = CrearContexto(nameof(CrearDeuda_CreaConValoresCorrectos));
+        PosDbContextLocal context = CrearContexto(nameof(CrearDeuda_CreaConValoresCorrectos));
         DeudaService service = CrearService(context);
 
         Proveedor prov = new Proveedor("P001", "Proveedor Uno");
