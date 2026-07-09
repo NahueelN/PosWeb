@@ -36,7 +36,8 @@ steps:
     git remote add github $GITHUB_URL || git remote set-url github $GITHUB_URL
 
     echo "Sincronizando únicamente la rama $BUILD_BRANCH..."
-    # Empuja la rama activa actual hacia la rama equivalente en GitHub
+    git fetch github $BUILD_BRANCH
+    git merge FETCH_HEAD --no-edit || echo "Nothing to merge"
     git push github $BUILD_BRANCH
 
     echo "Sincronizando los tags para las GitHub Actions y Releases..."
