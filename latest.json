@@ -1,10 +1,10 @@
 {
-  "version": "0.1.0",
-  "notes": "Primera versión con autoupdater",
-  "pub_date": "2026-07-01T00:00:00Z",
+  "version": "0.2.0",
+  "notes": "Release v0.2.0",
+  "pub_date": "2026-07-09T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v0.1.0/PosWeb_0.1.0_x64.msi",
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v0.2.0/PosWeb_0.2.0_x64_en-US.msi",
       "signature": ""
     }
   }
