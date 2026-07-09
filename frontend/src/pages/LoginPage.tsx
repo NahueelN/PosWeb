@@ -119,7 +119,7 @@ export default function LoginPage() {
             <span className="text-white text-2xl font-bold">PW</span>
           </div>
           <h1 className="text-2xl font-bold text-white">PosWeb</h1>
-          <p className="text-slate-400 text-sm mt-1">Iniciar lesión</p>
+          <p className="text-slate-400 text-sm mt-1">Iniciar sesión</p>
         </div>
 
         {!showRegister && (
