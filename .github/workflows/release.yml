@@ -90,9 +90,10 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout master 2>/dev/null || git checkout main 2>/dev/null || true
           git add latest.json
           git commit -m "chore: update latest.json to v${version}" --allow-empty
-          git push
+          git push origin HEAD:master
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
