@@ -1,11 +1,11 @@
 {
-  "version": "0.2.2",
-  "notes": "Release v0.2.2",
-  "pub_date": "2026-07-09T17:45:06Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v0.2.2/PosWeb_0.2.2_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkRSblhqelg5ei9EUGRNOUFNR3V4NUVYZ2FuL29tQWlDWWUzYStIazFJNmp0QUJBY0hCeloxYmZQcUlSMDkwbUdOLzN3Z0daNWV4cUNmb3ZTcnFOb0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjE5MDk5CWZpbGU6UG9zV2ViXzAuMi4yX3g2NF9lbi1VUy5tc2kKTnlId3JYUDhMZ2hjb3RrUURncXNHTnorcHZ4VjdmN2EyRlVpR2F3RFBQQ0Z1ZDNXK2dtZGJUUWR2Rk5kSUtMK09vMnJ5L0QwMjEvdmFLOWF3VWljQlE9PQo="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZlA5cERiaEUrbDFhZEIxV1AvMlZVaXAzNk0zUVRxTlVwZEhoRWhMT0ZXTU5oSm81NlhOaDdRYU4reTkvMzdkd1ZlcXhhMHR5cjNUdENob2JvSTk4UHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjIwMTk2CWZpbGU6UG9zV2ViXzAuMi4zX3g2NF9lbi1VUy5tc2kKQWxiazdKZHRVS21JK1JJaWthc1BjSU9jRUJuYlFzZlUxMHgvVlFlNFRKdlkvUHpHOUJKWHBmSVlVMklEcUtDVWF3R3hnOG9hbWQxZzRjZ2pkK1FZREE9PQo=",
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v0.2.3/PosWeb_0.2.3_x64_en-US.msi"
     }
-  }
+  },
+  "version": "0.2.3",
+  "notes": "Release v0.2.3",
+  "pub_date": "2026-07-09T18:03:26Z"
 }
