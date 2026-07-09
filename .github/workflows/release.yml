@@ -54,27 +54,61 @@ jobs:
           $version = $tag -replace '^v', ''
 
           $msiFile = Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          if (-not $msiFile) {
+            Write-Error "MSI file not found"
+            exit 1
+          }
           $msiName = $msiFile.Name
           $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/${tag}/${msiName}"
 
-          $generated = Get-Content "frontend/src-tauri/target/release/bundle/msi/latest.json" -Raw | ConvertFrom-Json
+          # Tauri v2 generates latest.json at the bundle root
+          $generatedPaths = @(
+            "frontend/src-tauri/target/release/bundle/latest.json",
+            "frontend/src-tauri/target/release/bundle/msi/latest.json"
+          )
+          $signature = $null
+          foreach ($p in $generatedPaths) {
+            if (Test-Path $p) {
+              $generated = Get-Content $p -Raw | ConvertFrom-Json
+              $signature = $generated.platforms."windows-x86_64".signature
+              Write-Host "Found signature in: $p"
+              break
+            }
+          }
+
+          if (-not $signature) {
+            Write-Host "No generated manifest found, using cargo tauri signer..."
+            $msiPath = $msiFile.FullName
+            $output = cargo tauri signer sign --private-key $env:TAURI_SIGNING_PRIVATE_KEY --password $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD $msiPath 2>&1
+            $signature = ($output | Select-String -Pattern '^[A-Za-z0-9+/=]+$').Matches.Value
+            if (-not $signature) {
+              Write-Error "Failed to generate signature. Output: $output"
+              exit 1
+            }
+          }
+          Write-Host "Signature: $signature"
 
           $latest = @{
-            version = $version
-            notes   = $generated.notes
+            version  = $version
+            notes    = "Release v${version}"
             pub_date = (Get-Date -AsUTC).ToString("yyyy-MM-ddTHH:mm:ssZ")
             platforms = @{
               "windows-x86_64" = @{
                 url       = $downloadUrl
-                signature = $generated.platforms."windows-x86_64".signature
+                signature = $signature.Trim()
               }
             }
           }
 
           $latest | ConvertTo-Json -Depth 4 | Set-Content latest.json -Encoding UTF8
+          Write-Host "Generated latest.json:"
+          Get-Content latest.json
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add latest.json
           git commit -m "chore: update latest.json to v${version}" --allow-empty
           git push
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
