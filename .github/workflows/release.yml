@@ -90,7 +90,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout master 2>/dev/null || git checkout main 2>/dev/null || true
+          git checkout master 2>$null; if ($LASTEXITCODE -ne 0) { git checkout main 2>$null }
           git add latest.json
           git commit -m "chore: update latest.json to v${version}" --allow-empty
           git push origin HEAD:master
