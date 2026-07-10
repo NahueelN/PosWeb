@@ -7,14 +7,18 @@
   ],
   "permissions": [
     "core:default",
-    "shell:allow-execute",
-    "shell:allow-spawn",
+    "shell:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [
         {
           "name": "binaries/posweb-backend",
           "sidecar": true
+        },
+        {
+          "name": "taskkill",
+          "cmd": "taskkill",
+          "args": true
         }
       ]
     },

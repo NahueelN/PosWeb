@@ -25,12 +25,15 @@ import { esperarBackend } from './api/client'
 // Tauri updater — solo disponible en escritorio
 let checkUpdate: (() => Promise<void>) | null = null
 try {
-  const mod = await import('@tauri-apps/plugin-updater')
+  const upMod = await import('@tauri-apps/plugin-updater')
+  const shMod = await import('@tauri-apps/plugin-shell')
   checkUpdate = async () => {
     try {
-      const update = await mod.check()
+      const update = await upMod.check()
       if (update) {
         console.log('[Updater] Nueva versión disponible:', update.version)
+        // Kill backend sidecar before installing to avoid "file in use"
+        try { await shMod.Command.create('taskkill', ['/f', '/im', 'posweb-backend.exe']).execute() } catch { /* ok if not running */ }
         await update.downloadAndInstall()
       }
     } catch {
