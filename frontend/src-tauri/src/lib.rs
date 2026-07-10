@@ -14,11 +14,24 @@ impl Drop for SidecarProcess {
     }
 }
 
+#[tauri::command]
+fn kill_sidecar(state: tauri::State<SidecarProcess>) {
+    if let Ok(mut guard) = state.0.lock() {
+        if let Some(child) = guard.take() {
+            log::info!("[Tauri] Killing posweb-backend sidecar before update...");
+            let _ = child.kill();
+        } else {
+            log::info!("[Tauri] Sidecar already stopped, nothing to kill");
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![kill_sidecar])
         .setup(|app| {
             // Log plugin only in debug
             if cfg!(debug_assertions) {

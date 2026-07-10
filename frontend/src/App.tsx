@@ -21,58 +21,44 @@ import EstadisticasPage from './pages/EstadisticasPage'
 import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
+import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 
-// Tauri updater — solo disponible en escritorio
-let checkUpdate: (() => Promise<void>) | null = null
-try {
-  const upMod = await import('@tauri-apps/plugin-updater')
-  const shMod = await import('@tauri-apps/plugin-shell')
-  checkUpdate = async () => {
-    try {
-      console.log('[Updater] Checking for updates...')
-      const update = await upMod.check()
-      if (!update) {
-        console.log('[Updater] No updates available')
-        return
-      }
-      console.log('[Updater] Nueva versión disponible:', update.version)
-      // Kill backend sidecar before installing to avoid "file in use"
-      try {
-        console.log('[Updater] Killing posweb-backend.exe...')
-        await shMod.Command.create('taskkill', ['/f', '/im', 'posweb-backend.exe']).execute()
-      } catch {
-        console.log('[Updater] Backend was not running, skipping kill')
-      }
-      console.log('[Updater] Downloading and installing...')
-      await update.downloadAndInstall()
-      console.log('[Updater] Update installed successfully')
-    } catch (e: any) {
-      const msg = e?.message ?? String(e)
-      console.error('[Updater] Update failed:', msg)
-      console.error('[Updater] Error details:', JSON.stringify(e, Object.getOwnPropertyNames(e)))
-      try {
-        const now = new Date().toISOString()
-        const entry = `[${now}] Update failed: ${msg}\n`
-        // Log to localStorage so we can show it in UI later if needed
-        const existing = localStorage.getItem('update_errors') ?? ''
-        localStorage.setItem('update_errors', existing + entry)
-      } catch {
-        // Can't log, nothing to do
-      }
-    }
-  }
-} catch {
-  // No Tauri, correr en navegador — sin updater
-  console.log('[Updater] Tauri updater plugin not available (browser mode)')
+function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
+  if (status === 'idle' || status === 'no-update') return null
+
+  return (
+    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+      <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${
+        status === 'error' ? 'bg-red-500/90 text-white' :
+        status === 'checking' ? 'bg-slate-700/90 text-white' :
+        'bg-indigo-600/90 text-white'
+      }`}>
+        {status === 'error' && <span className="text-base">⚠</span>}
+        {(status === 'checking' || status === 'downloading' || status === 'installing') && (
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+        )}
+        <span>
+          {status === 'checking' && 'Buscando actualizaciones…'}
+          {status === 'downloading' && `Descargando v${version}…`}
+          {status === 'installing' && `Instalando v${version}…`}
+          {status === 'error' && (errorMsg ?? 'Error al actualizar')}
+        </span>
+      </div>
+    </div>
+  )
 }
 
-function LoadingScreen() {
+function LoadingScreen({ updaterStatus }: { updaterStatus: UpdaterStatus }) {
   return (
     <div className="grid h-screen place-items-center bg-slate-900">
       <div className="text-center text-white">
         <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
         <p className="text-lg font-medium">Iniciando PosWeb…</p>
-        <p className="mt-1 text-sm text-gray-400">Conectando con el servidor</p>
+        <p className="mt-1 text-sm text-gray-400">
+          {updaterStatus === 'checking' || updaterStatus === 'downloading' || updaterStatus === 'installing'
+            ? 'Actualizando…'
+            : 'Conectando con el servidor'}
+        </p>
       </div>
     </div>
   )
@@ -81,13 +67,16 @@ function LoadingScreen() {
 export default function App() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [updater, setUpdater] = useState<UpdaterState>({ status: 'idle' })
+
+  useEffect(() => onUpdaterChange(setUpdater), [])
 
   useEffect(() => {
     esperarBackend()
       .then(() => {
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
-        checkUpdate?.()
+        runUpdateCheck()
       })
       .catch(e => {
         console.error('[Startup] Backend connection failed:', e.message)
@@ -112,13 +101,14 @@ export default function App() {
     )
   }
 
-  if (!ready) return <LoadingScreen />
+  if (!ready) return <LoadingScreen updaterStatus={updater.status} />
 
   return (
     <BrowserRouter>
       <NotificationProvider>
         <AuthProvider>
           <DialogContainer />
+          <UpdaterBanner {...updater} />
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
