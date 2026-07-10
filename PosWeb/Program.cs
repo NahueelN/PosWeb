@@ -158,28 +158,39 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContextLocal>();
-    ctx.Database.Migrate();
-
-    var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
-    if (admin != null && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
+    try
     {
-        admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
-        ctx.SaveChanges();
+        ctx.Database.Migrate();
+    }
+    catch
+    {
+        ctx.Database.EnsureCreated();
     }
 
-    if (admin != null && !ctx.Suscripcion.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
+    var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
+    if (admin != null)
     {
-        var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
-        ctx.Suscripcion.Add(suscripcion);
+        if (!BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
+        {
+            admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
+        }
+        admin.ActivarSuscripcion();
         ctx.SaveChanges();
 
-        var empresa = new Empresa("PosWeb", "00000000000", suscripcion.ID_SUSCRIPCION);
-        ctx.Empresa.Add(empresa);
-        ctx.SaveChanges();
+        if (!ctx.Suscripcion.Any(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO))
+        {
+            var suscripcion = Suscripcion.CrearBasica(admin.ID_USUARIO);
+            ctx.Suscripcion.Add(suscripcion);
+            ctx.SaveChanges();
 
-        var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);
-        ctx.Sucursal.Add(sucursal);
-        ctx.SaveChanges();
+            var empresa = new Empresa("PosWeb", "00000000000", suscripcion.ID_SUSCRIPCION);
+            ctx.Empresa.Add(empresa);
+            ctx.SaveChanges();
+
+            var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);
+            ctx.Sucursal.Add(sucursal);
+            ctx.SaveChanges();
+        }
     }
 }
 
