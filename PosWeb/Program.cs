@@ -147,10 +147,8 @@ builder.Services.AddDbContext<PosDbContext>(options =>
 builder.Services.AddDbContext<PosDbContextLocal>(options =>
 {
     var connStr = builder.Configuration.GetConnectionString("LocalConnection") ?? "Data Source=posweb.db";
-    // In published builds (MSI), resolve relative paths to LocalAppData since Program Files is not writable
-    var isPublished = string.IsNullOrEmpty(AppContext.BaseDirectory) is false
-        && AppContext.BaseDirectory.Contains("Program Files", StringComparison.OrdinalIgnoreCase);
-    if (isPublished && connStr.StartsWith("Data Source="))
+    // In published builds, resolve relative DB paths to AppData (dev keeps it in project dir)
+    if (!builder.Environment.IsDevelopment() && connStr.StartsWith("Data Source="))
     {
         var source = connStr["Data Source=".Length..].Trim();
         if (!Path.IsPathRooted(source))
