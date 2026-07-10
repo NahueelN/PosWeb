@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext'
 import ProductLookupModal from './ProductLookupModal'
 import { Menu, MapPin, ChevronDown, LogOut } from 'lucide-react'
 
+let getVersion: (() => Promise<string>) | null = null
+import('@tauri-apps/api/app').then(m => { getVersion = m.getVersion }).catch(() => {})
+
 const menuGroups = [
   {
     label: 'Operaciones',
@@ -122,6 +125,13 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    if (getVersion) {
+      getVersion().then(v => setAppVersion(`v${v}`)).catch(() => {})
+    }
+  }, [])
 
   // F2 global: quick product lookup
   useEffect(() => {
@@ -303,6 +313,12 @@ export default function Layout() {
       </main>
 
       <ProductLookupModal open={lookupOpen} onClose={() => setLookupOpen(false)} />
+
+      {appVersion && (
+        <span className="fixed bottom-2 right-3 text-[10px] text-gray-400/60 select-none pointer-events-none z-50">
+          {appVersion}
+        </span>
+      )}
     </div>
   )
 }
