@@ -29,19 +29,41 @@ try {
   const shMod = await import('@tauri-apps/plugin-shell')
   checkUpdate = async () => {
     try {
+      console.log('[Updater] Checking for updates...')
       const update = await upMod.check()
-      if (update) {
-        console.log('[Updater] Nueva versión disponible:', update.version)
-        // Kill backend sidecar before installing to avoid "file in use"
-        try { await shMod.Command.create('taskkill', ['/f', '/im', 'posweb-backend.exe']).execute() } catch { /* ok if not running */ }
-        await update.downloadAndInstall()
+      if (!update) {
+        console.log('[Updater] No updates available')
+        return
       }
-    } catch {
-      // Browser context — Tauri internals not available
+      console.log('[Updater] Nueva versión disponible:', update.version)
+      // Kill backend sidecar before installing to avoid "file in use"
+      try {
+        console.log('[Updater] Killing posweb-backend.exe...')
+        await shMod.Command.create('taskkill', ['/f', '/im', 'posweb-backend.exe']).execute()
+      } catch {
+        console.log('[Updater] Backend was not running, skipping kill')
+      }
+      console.log('[Updater] Downloading and installing...')
+      await update.downloadAndInstall()
+      console.log('[Updater] Update installed successfully')
+    } catch (e: any) {
+      const msg = e?.message ?? String(e)
+      console.error('[Updater] Update failed:', msg)
+      console.error('[Updater] Error details:', JSON.stringify(e, Object.getOwnPropertyNames(e)))
+      try {
+        const now = new Date().toISOString()
+        const entry = `[${now}] Update failed: ${msg}\n`
+        // Log to localStorage so we can show it in UI later if needed
+        const existing = localStorage.getItem('update_errors') ?? ''
+        localStorage.setItem('update_errors', existing + entry)
+      } catch {
+        // Can't log, nothing to do
+      }
     }
   }
 } catch {
   // No Tauri, correr en navegador — sin updater
+  console.log('[Updater] Tauri updater plugin not available (browser mode)')
 }
 
 function LoadingScreen() {
