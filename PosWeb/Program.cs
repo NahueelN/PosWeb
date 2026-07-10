@@ -28,6 +28,7 @@ using System.Security.Claims;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:5196");
 
 builder.Host.UseSerilog((context, services, configuration) =>
 {
