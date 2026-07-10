@@ -127,12 +127,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendOrigins", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",          // Vite dev server (localhost)
-                "http://192.168.1.39:5173")       // Vite dev server (network)
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyMethod();
     });
 });
 
