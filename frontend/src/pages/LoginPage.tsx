@@ -31,8 +31,9 @@ export default function LoginPage() {
       return
     }
 
-    api.sucursales.listar()
-      .then(s => {
+    const load = async () => {
+      try {
+        const s = await api.sucursales.listar()
         setSucursales(s)
         const saved = localStorage.getItem('sucursalActiva')
         if (saved) {
@@ -47,9 +48,13 @@ export default function LoginPage() {
         if (s.length > 0 && sucursalId === 0) {
           setSucursalId(s[0].id)
         }
-      })
-      .catch(() => notifyError('Error al cargar sucursales'))
-      .finally(() => setLoadingSucursales(false))
+      } catch {
+        notifyError('Error al cargar sucursales')
+      } finally {
+        setLoadingSucursales(false)
+      }
+    }
+    load()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {

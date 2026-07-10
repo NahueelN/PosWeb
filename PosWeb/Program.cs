@@ -28,6 +28,7 @@ using System.Security.Claims;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:5196");
 
 builder.Host.UseSerilog((context, services, configuration) =>
 {
@@ -141,10 +142,22 @@ builder.Services.AddDbContext<PosDbContext>(options =>
 );
 
 builder.Services.AddDbContext<PosDbContextLocal>(options =>
-    options.UseSqlite(
-        builder.Configuration.GetConnectionString("LocalConnection")
-    )
-);
+{
+    var connStr = builder.Configuration.GetConnectionString("LocalConnection") ?? "Data Source=posweb.db";
+    // In published builds, resolve relative DB paths to AppData (dev keeps it in project dir)
+    if (!builder.Environment.IsDevelopment() && connStr.StartsWith("Data Source="))
+    {
+        var source = connStr["Data Source=".Length..].Trim();
+        if (!Path.IsPathRooted(source))
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var dbDir = Path.Combine(appData, "KIO");
+            Directory.CreateDirectory(dbDir);
+            connStr = $"Data Source={Path.Combine(dbDir, source)}";
+        }
+    }
+    options.UseSqlite(connStr);
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
