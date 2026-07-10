@@ -43,7 +43,7 @@ export default function LoginPage() {
           } catch {
             /* ignore */
           }
-        }
+    
         if (s.length > 0 && sucursalId === 0) {
           setSucursalId(s[0].id)
         }
