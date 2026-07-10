@@ -144,10 +144,24 @@ builder.Services.AddDbContext<PosDbContext>(options =>
 );
 
 builder.Services.AddDbContext<PosDbContextLocal>(options =>
-    options.UseSqlite(
-        builder.Configuration.GetConnectionString("LocalConnection")
-    )
-);
+{
+    var connStr = builder.Configuration.GetConnectionString("LocalConnection") ?? "Data Source=posweb.db";
+    // In published builds (MSI), resolve relative paths to LocalAppData since Program Files is not writable
+    var isPublished = string.IsNullOrEmpty(AppContext.BaseDirectory) is false
+        && AppContext.BaseDirectory.Contains("Program Files", StringComparison.OrdinalIgnoreCase);
+    if (isPublished && connStr.StartsWith("Data Source="))
+    {
+        var source = connStr["Data Source=".Length..].Trim();
+        if (!Path.IsPathRooted(source))
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var dbDir = Path.Combine(appData, "KIO");
+            Directory.CreateDirectory(dbDir);
+            connStr = $"Data Source={Path.Combine(dbDir, source)}";
+        }
+    }
+    options.UseSqlite(connStr);
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
