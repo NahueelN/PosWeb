@@ -25,7 +25,20 @@ using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
 using System.Security.Claims;
+using Serilog;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    var logPath = Path.Combine(AppContext.BaseDirectory, "logs", "posweb-.txt");
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .WriteTo.Console()
+        .WriteTo.File(logPath,
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 30);
+});
 
 // Add services to the container.
 
