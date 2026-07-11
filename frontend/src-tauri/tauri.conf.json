@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PosWeb",
-  "version": "0.2.22",
+  "version": "0.2.23",
   "identifier": "com.posweb.app",
   "build": {
     "frontendDist": "../dist",
@@ -44,7 +44,6 @@
   "plugins": {
     "log": {
       "targets": [
-        { "kind": "logDir" },
         { "kind": "webview" }
       ],
       "level": "info"
