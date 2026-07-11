@@ -4,9 +4,7 @@ import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
 import ProductLookupModal from './ProductLookupModal'
 import { Menu, MapPin, ChevronDown, LogOut } from 'lucide-react'
-
-let getVersion: (() => Promise<string>) | null = null
-import('@tauri-apps/api/app').then(m => { getVersion = m.getVersion }).catch(() => {})
+import { getCurrentVersion } from '../versionCheck'
 
 const menuGroups = [
   {
@@ -128,9 +126,8 @@ export default function Layout() {
   const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
-    if (getVersion) {
-      getVersion().then(v => setAppVersion(`v${v}`)).catch(() => {})
-    }
+    const v = getCurrentVersion()
+    if (v) setAppVersion(`v${v}`)
   }, [])
 
   // F2 global: quick product lookup

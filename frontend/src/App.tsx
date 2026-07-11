@@ -22,6 +22,7 @@ import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
+import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
   if (status === 'idle' || status === 'no-update') return null
@@ -72,11 +73,12 @@ export default function App() {
   useEffect(() => onUpdaterChange(setUpdater), [])
 
   useEffect(() => {
+    initVersionCheck()
     esperarBackend()
       .then(() => {
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
-        runUpdateCheck()
+        runUpdateCheck(getCurrentVersion())
       })
       .catch(e => {
         console.error('[Startup] Backend connection failed:', e.message)

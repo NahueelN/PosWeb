@@ -31,6 +31,15 @@ function logError(msg: string) {
   } catch { /* ignore */ }
 }
 
+function logUpdate(msg: string) {
+  try {
+    const now = new Date().toISOString()
+    const line = `[${now}] ${msg}\n`
+    const existing = localStorage.getItem('update_history') ?? ''
+    localStorage.setItem('update_history', existing + line)
+  } catch { /* ignore */ }
+}
+
 async function initUpdater() {
   try {
     const upMod = await import('@tauri-apps/plugin-updater')
@@ -57,6 +66,7 @@ async function initUpdater() {
 
         console.log('[Updater] Downloading and installing...')
         emit({ status: 'installing', version: update.version })
+        logUpdate(`Instalando v${update.version}`)
         await update.downloadAndInstall()
         console.log('[Updater] Update installed successfully')
         emit({ status: 'idle' })
@@ -75,7 +85,18 @@ async function initUpdater() {
 
 const initPromise = initUpdater()
 
-export async function runUpdateCheck(): Promise<void> {
+export async function runUpdateCheck(currentVersion?: string): Promise<void> {
   await initPromise
+  if (currentVersion) {
+    const orig = checkUpdate!
+    checkUpdate = async () => {
+      try {
+        logUpdate(`Buscando actualización (v${currentVersion})...`)
+        await orig()
+      } catch (e) {
+        logError(`Update check failed: ${String(e)}`)
+      }
+    }
+  }
   checkUpdate?.()
 }
