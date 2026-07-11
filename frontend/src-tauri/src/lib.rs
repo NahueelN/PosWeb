@@ -42,6 +42,11 @@ pub fn run() {
                 )?;
             }
 
+            // Kill any orphan backend from previous crashed session
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "posweb-backend.exe"])
+                .output();
+
             // Log sidecar spawn
             log::info!("[Tauri] Spawning posweb-backend sidecar...");
 
