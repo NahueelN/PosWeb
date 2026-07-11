@@ -31,11 +31,16 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build())
         .invoke_handler(tauri::generate_handler![kill_sidecar])
         .setup(|app| {
+            // Log plugin only in debug
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
 
             // Log sidecar spawn
             log::info!("[Tauri] Spawning posweb-backend sidecar...");
