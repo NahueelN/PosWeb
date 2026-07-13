@@ -39,13 +39,34 @@ export interface ProductoDetailDto {
 
 export interface CategoriaDto {
   id: number
+  codigo: string
   descripcion: string
   margenGanancia?: number | null
+}
+
+export interface CrearCategoriaRequest {
+  codigo?: string
+  descripcion: string
+}
+
+export interface ActualizarCategoriaRequest {
+  codigo?: string
+  descripcion: string
 }
 
 export interface UnidadMedidaDto {
   id: number
   codigo: string
+  descripcion: string
+}
+
+export interface CrearUnidadMedidaRequest {
+  codigo?: string
+  descripcion: string
+}
+
+export interface ActualizarUnidadMedidaRequest {
+  codigo?: string
   descripcion: string
 }
 
