@@ -40,7 +40,15 @@ function logUpdate(msg: string) {
   } catch { /* ignore */ }
 }
 
+function isTauri(): boolean {
+  return !!(window as any).__TAURI__
+}
+
 async function initUpdater() {
+  if (!isTauri()) {
+    console.log('[Updater] Not running in Tauri (browser mode) — updater disabled')
+    return
+  }
   try {
     const upMod = await import('@tauri-apps/plugin-updater')
     const invokeMod = await import('@tauri-apps/api/core')
