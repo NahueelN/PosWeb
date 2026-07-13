@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import DialogHeader, { type DialogHeaderProps } from './DialogHeader'
+import ErrorBoundary from './ErrorBoundary'
+import { useNotification } from '../../context/NotificationContext'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -9,12 +11,16 @@ export interface DialogProps {
   open: boolean
   /** Called when the user requests closing (backdrop click, Escape, X button) */
   onClose: () => void
-  /** Optional title — renders a header row */
+  /** Optional title — renders DialogHeader with primary background */
   title?: string
-  /** Optional description below the title */
+  /** Optional Lucide icon next to the title (component or element) */
+  icon?: DialogHeaderProps['icon']
+  /** Optional entity name — rendered with more weight below the title */
+  highlight?: string
+  /** Optional description below the title, rendered in the body area */
   description?: string
-  /** Dialog width. 'sm' = 384px, 'md' = 448px, 'lg' = 512px */
-  width?: 'sm' | 'md' | 'lg'
+  /** Dialog width. 'sm' = 384px, 'md' = 448px, 'lg' = 512px, 'xl' = 1024px */
+  width?: 'sm' | 'md' | 'lg' | 'xl'
   /** Main content */
   children?: ReactNode
   /** Footer actions (buttons). Rendered right-aligned with gap. */
@@ -29,6 +35,7 @@ const widthMap: Record<string, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
+  xl: 'max-w-[1100px]',
 }
 
 // ── Component ──────────────────────────────────────────────────────
@@ -37,6 +44,8 @@ export default function Dialog({
   open,
   onClose,
   title,
+  icon,
+  highlight,
   description,
   width = 'sm',
   children,
@@ -44,6 +53,7 @@ export default function Dialog({
   closeOnBackdrop = true,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const { notifyError } = useNotification()
 
   // Close on Escape
   useEffect(() => {
@@ -86,34 +96,33 @@ export default function Dialog({
         aria-label={title}
         className={[
           'bg-white rounded-2xl shadow-xl w-full animate-[fadeIn_0.15s_ease]',
+          'overflow-hidden',
           widthMap[width] || widthMap.sm,
           'mx-4 max-h-[85vh] flex flex-col',
         ].join(' ')}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        {(title || description) && (
-          <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
-            <div className="min-w-0">
-              {title && (
-                <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-              )}
-              {description && (
-                <p className="text-sm text-gray-500 mt-1">{description}</p>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="ml-4 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-              aria-label="Cerrar"
-            >
-              <X size={16} strokeWidth={2} />
-            </button>
+        {/* DialogHeader — primary background, icon, title, highlight, X */}
+        {title && (
+          <DialogHeader icon={icon} title={title} highlight={highlight} onClose={onClose} />
+        )}
+
+        {/* Description badge (only when there's no header — rare) */}
+        {!title && description && (
+          <div className="px-6 pt-6 pb-2 shrink-0">
+            <p className="text-sm text-gray-500">{description}</p>
           </div>
         )}
 
         {/* Body */}
-        <div data-dialog-body className="px-6 py-3 overflow-y-auto">{children}</div>
+        <div data-dialog-body className="px-6 py-3 overflow-y-auto">
+          <ErrorBoundary onUnexpectedError={(err) => { notifyError(err.message); onClose() }}>
+            {title && description && (
+              <p className="text-sm text-gray-500 mb-4">{description}</p>
+            )}
+            {children}
+          </ErrorBoundary>
+        </div>
 
         {/* Footer */}
         {footer && (

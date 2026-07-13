@@ -4,12 +4,13 @@ import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
 import ProductFormModal from '../components/ProductFormModal'
-import MargenesTab from '../components/MargenesTab'
-import StockTab from '../components/StockTab'
+import ConfiguracionProductosTab from '../components/ConfiguracionProductosTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
 import Dialog from '../components/ui/Dialog'
 import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 import PageShell from '../components/shared/PageShell'
+import { TrendingUp } from 'lucide-react'
 
 export default function ProductosPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -17,9 +18,11 @@ export default function ProductosPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { notifyError, notifySuccess } = useNotification()
-  const [tab, setTab] = useState<'productos' | 'pesables' | 'margenes' | 'stock' | 'actualizacion-masiva'>('productos')
+  const [tab, setTab] = useState<'productos' | 'configuracion' | 'actualizacion-masiva'>('productos')
+
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [modalContext, setModalContext] = useState<'manual' | 'scanner' | 'off' | 'edit'>('manual')
   const [modalPrefill, setModalPrefill] = useState<OpenFoodFactsResultDto | null>(null)
   const [modalCodigo, setModalCodigo] = useState('')
   const [editingProduct, setEditingProduct] = useState<ProductoDto | null>(null)
@@ -41,20 +44,14 @@ export default function ProductosPage() {
   const [query, setQuery] = useState('')
 
   const filteredProductos = useMemo(() => {
-    let list = productos
-    if (tab === 'pesables') {
-      list = list.filter(p => p.esPesable)
-    } else if (tab === 'productos') {
-      list = list.filter(p => !p.esPesable)
-    }
-    if (!query.trim()) return list
+    if (!query.trim()) return productos
     const q = query.toLowerCase()
-    return list.filter(p =>
+    return productos.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
       p.codigoBarra.toLowerCase().includes(q) ||
       (p.codigoProducto && p.codigoProducto.toLowerCase().includes(q))
     )
-  }, [productos, query, tab])
+  }, [productos, query])
 
   useEffect(() => { listar() }, [sucursal?.id])
 
@@ -76,6 +73,7 @@ export default function ProductosPage() {
 
   function handleProductCreated(product: ProductoDto) {
     setModalOpen(false)
+    setModalContext('manual')
     setModalPrefill(null)
     setModalCodigo('')
     if (editingProduct) {
@@ -89,6 +87,7 @@ export default function ProductosPage() {
 
   function handleCloseModal() {
     setModalOpen(false)
+    setModalContext('manual')
     setModalPrefill(null)
     setModalCodigo('')
     setEditingProduct(null)
@@ -116,18 +115,21 @@ export default function ProductosPage() {
       const res = await api.productos.lookupOpenFoodFacts(codigo)
       if (res.encontrado && res.datos) {
         setModalPrefill(res.datos)
+        setModalContext('off')
         setModalCodigo('')
         setModalOpen(true)
         setQuery('')
       } else {
         notifyError(`Producto no encontrado: "${codigo}"`)
         setModalPrefill(null)
+        setModalContext('scanner')
         setModalCodigo(codigo)
         setModalOpen(true)
       }
     } catch {
       notifyError(`Error al buscar producto: "${codigo}"`)
       setModalPrefill(null)
+      setModalContext('scanner')
       setModalCodigo(codigo)
       setModalOpen(true)
     }
@@ -135,6 +137,7 @@ export default function ProductosPage() {
 
   function handleOpenForm() {
     setEditingProduct(null)
+    setModalContext('manual')
     setModalPrefill(null)
     setModalCodigo('')
     setModalOpen(true)
@@ -143,6 +146,7 @@ export default function ProductosPage() {
 
   function handleEditProduct(p: ProductoDto) {
     setEditingProduct(p)
+    setModalContext('edit')
     setModalPrefill(null)
     setModalCodigo('')
     setModalOpen(true)
@@ -190,8 +194,7 @@ export default function ProductosPage() {
   return (
     <><PageShell
       title="Productos"
-      subtitle={`${filteredProductos.length} ${tab === 'pesables' ? 'productos por peso' : 'productos activos'}`}
-      actions={(tab === 'productos' || tab === 'pesables') ? (
+      actions={tab === 'productos' ? (
         <Button onClick={handleOpenForm} variant="primary" size="sm">
           Nuevo producto
         </Button>
@@ -204,24 +207,12 @@ export default function ProductosPage() {
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}>Productos</button>
-          <button onClick={() => setTab('pesables')}
+          <button onClick={() => setTab('configuracion')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'pesables'
+              tab === 'configuracion'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}>Pesables</button>
-          <button onClick={() => setTab('margenes')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'margenes'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}>Márgenes</button>
-          <button onClick={() => setTab('stock')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'stock'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}>Stock</button>
+            }`}>Configuración</button>
           <button onClick={() => setTab('actualizacion-masiva')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === 'actualizacion-masiva'
@@ -236,16 +227,18 @@ export default function ProductosPage() {
     >
       <ProductFormModal
         open={modalOpen}
+        openContext={modalContext}
         prefillData={modalPrefill}
         initialCodigo={modalCodigo}
         editingProduct={editingProduct}
         sucursalId={sucursal?.id}
-        defaultEsPesable={tab === 'pesables'}
+        defaultEsPesable={false}
         onCreated={handleProductCreated}
         onClose={handleCloseModal}
       />
 
-      {(tab === 'productos' || tab === 'pesables') ? (
+      {tab === 'productos' ? (
+        <Card padding="lg">
         <ProductCardPanel
           searchQuery={query}
           onSearchChange={setQuery}
@@ -265,9 +258,9 @@ export default function ProductosPage() {
           ) : filteredProductos.map((p) => (
                 <button key={p.id} type="button" data-card data-card-id={p.id}
                   onClick={() => handleEditProduct(p)}
-                  className="bg-white rounded-lg border border-gray-200 p-1.5 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
+                  className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
                   title={p.nombre}>
-                  <div className="flex items-start justify-between gap-1.5">
+                  <div className="flex items-start justify-between gap-2">
                     <p className="font-bold text-gray-900 text-base leading-tight truncate">{p.nombre}</p>
                     {p.esPesable && (
                       <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
@@ -276,8 +269,8 @@ export default function ProductosPage() {
                       <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-gray-400 font-mono truncate mt-0.5">{p.codigoBarra}</div>
-                  <div className="flex items-end justify-between mt-1 gap-1.5">
+                  <div className="text-[11px] text-gray-400 font-mono truncate mt-1">{p.codigoBarra}</div>
+                  <div className="flex items-end justify-between mt-2 gap-1.5">
                     <p className="text-xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
                     {p.seguirStock === false ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
@@ -302,7 +295,7 @@ export default function ProductosPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex justify-end gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -mb-0.5">
+                  <div className="flex justify-end gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
                     <span role="button" tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
@@ -312,15 +305,18 @@ export default function ProductosPage() {
                 </button>
               ))}
         </ProductCardPanel>
-      ) : tab === 'margenes' ? (
-        <MargenesTab notifyError={notifyError} />
-      ) : tab === 'stock' ? (
-        <StockTab notifyError={notifyError} />
+        </Card>
+      ) : tab === 'configuracion' ? (
+        <ConfiguracionProductosTab notifyError={notifyError} />
       ) : (
-        <div className="bg-white rounded-xl p-6 shadow-xl space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Actualización masiva</h2>
-            <p className="text-sm text-slate-500">Ajustá precios por marca aplicando un porcentaje de aumento.</p>
+        <div className="space-y-6">
+          <Card padding="lg">
+          <div className="flex items-start gap-3 mb-5">
+            <span className="mt-0.5 text-indigo-600 shrink-0"><TrendingUp size={22} /></span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-gray-900">Actualización masiva</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Ajustá precios por marca aplicando un porcentaje de aumento.</p>
+            </div>
           </div>
           {gruposMarcas.length > 0 && (
             <div>
@@ -382,7 +378,8 @@ export default function ProductosPage() {
               {ajusteLoading ? 'Aplicando...' : `Aplicar aumento del ${ajustePorcentaje || '...'}%`}
             </button>
           </div>
-        </div>
+        </Card>
+      </div>
       )}
 
       <Dialog

@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, UnidadMedidaDto, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -412,6 +412,19 @@ export const api = {
   // Lookups
     categorias: {
       listar: () => request<CategoriaDto[]>('/categorias'),
+      crear: (dto: CrearCategoriaRequest) =>
+        request<CategoriaDto>('/categorias', {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        }),
+      actualizar: (id: number, dto: ActualizarCategoriaRequest) =>
+        request<CategoriaDto>(`/categorias/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(dto),
+        }),
+      eliminar: (id: number) => request<void>(`/categorias/${id}`, {
+        method: 'DELETE',
+      }),
       actualizarMargen: (id: number, margenGanancia: number | null) =>
         request<CategoriaDto>(`/categorias/${id}/margen`, {
           method: 'PUT',
@@ -420,6 +433,19 @@ export const api = {
     },
     unidadesMedida: {
       listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
+      crear: (dto: CrearUnidadMedidaRequest) =>
+        request<UnidadMedidaDto>('/unidades-medida', {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        }),
+      actualizar: (id: number, dto: ActualizarUnidadMedidaRequest) =>
+        request<UnidadMedidaDto>(`/unidades-medida/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(dto),
+        }),
+      eliminar: (id: number) => request<void>(`/unidades-medida/${id}`, {
+        method: 'DELETE',
+      }),
     },
 
   // Estadísticas

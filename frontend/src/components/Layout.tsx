@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, UserPlus } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 const menuGroups = [
@@ -203,10 +203,12 @@ export default function Layout() {
               }`
             }
           >
-            <span className="text-sm w-5 text-center shrink-0">👥+</span>
+            <UserPlus size={14} className="shrink-0" />
             Alta usuario
           </NavLink>
         )}
+        {/* Configuración — oculto por ahora */}
+        {false && (
         <NavLink
           to="/configuracion"
           onClick={closeSidebar}
@@ -221,6 +223,7 @@ export default function Layout() {
           <span className="text-sm w-5 text-center shrink-0">⚙️</span>
           Configuración
         </NavLink>
+        )}
       </div>
     </>
   )
