@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715182934_AddVentaEstadoAndMpFields")]
+    partial class AddVentaEstadoAndMpFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1141,19 +1144,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("MP_FECHA_VINC");
 
-                    b.Property<string>("MP_POS_ID")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("MP_POS_ID");
-
-                    b.Property<string>("MP_QR_DATA")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_QR_DATA");
-
-                    b.Property<string>("MP_REFRESH_TOKEN")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_REFRESH_TOKEN");
-
                     b.Property<string>("MP_USER_ID")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
@@ -1363,11 +1353,6 @@ namespace PosWeb.Migrations
                     b.Property<int?>("ID_USUARIO")
                         .HasColumnType("int")
                         .HasColumnName("ID_USUARIO");
-
-                    b.Property<string>("REFERENCIA_MP")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("REFERENCIA_MP");
 
                     b.Property<decimal>("TOTAL")
                         .HasColumnType("decimal(18,2)")

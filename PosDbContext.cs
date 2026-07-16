@@ -182,6 +182,9 @@ public class PosDbContext : DbContext
             entity.Property(e => e.TOTAL).HasColumnName("TOTAL").HasColumnType("decimal(18,2)");
             entity.Property(e => e.ID_USUARIO).HasColumnName("ID_USUARIO");
             entity.Property(e => e.ID_CLIENTE).HasColumnName("ID_CLIENTE");
+            entity.Property(e => e.ANULADA).HasColumnName("ANULADA").IsRequired();
+            entity.Property(e => e.ESTADO).HasColumnName("ESTADO").HasMaxLength(20).IsRequired().HasDefaultValue("Completada");
+            entity.Property(e => e.REFERENCIA_MP).HasColumnName("REFERENCIA_MP").HasMaxLength(100);
 
             entity.HasOne<Sucursal>()
                 .WithMany()
@@ -299,6 +302,13 @@ public class PosDbContext : DbContext
             entity.Property(e => e.FECHA_FIN).HasColumnName("FECHA_FIN");
             entity.Property(e => e.PROXIMO_COBRO).HasColumnName("PROXIMO_COBRO");
             entity.Property(e => e.MERCADOPAGO_PREAPPROVAL_ID).HasColumnName("MERCADOPAGO_PREAPPROVAL_ID").HasMaxLength(100);
+            entity.Property(e => e.MP_ACCESS_TOKEN).HasColumnName("MP_ACCESS_TOKEN");
+            entity.Property(e => e.MP_REFRESH_TOKEN).HasColumnName("MP_REFRESH_TOKEN");
+            entity.Property(e => e.MP_USER_ID).HasColumnName("MP_USER_ID").HasMaxLength(50);
+            entity.Property(e => e.MP_VINCULADO).HasColumnName("MP_VINCULADO").IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.MP_FECHA_VINC).HasColumnName("MP_FECHA_VINC");
+            entity.Property(e => e.MP_POS_ID).HasColumnName("MP_POS_ID").HasMaxLength(50);
+            entity.Property(e => e.MP_QR_DATA).HasColumnName("MP_QR_DATA");
 
             entity.HasOne<Usuario>()
                 .WithMany()

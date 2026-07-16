@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -204,6 +204,15 @@ export const api = {
     deshacer: (id: number, conDevolucion: boolean) => request<{ message: string }>(`/ventas/${id}/deshacer`, {
       method: 'POST',
       body: JSON.stringify({ conDevolucion }),
+    }),
+
+    confirmarTransferencia: (id: number) => request<VentaResultadoDto>(`/ventas/${id}/confirmar-transferencia`, {
+      method: 'POST',
+    }),
+
+    cancelarPendiente: (id: number, esTimeout: boolean = false) => request<{ message: string }>(`/ventas/${id}/cancelar-pendiente`, {
+      method: 'POST',
+      body: JSON.stringify({ esTimeout }),
     }),
   },
 
@@ -491,4 +500,18 @@ export const api = {
       reactivar: (id: number) => request<void>(`/ofertas/${id}/reactivar`, { method: 'POST' }),
       eliminarDefinitivo: (id: number) => request<void>(`/ofertas/${id}/definitivo`, { method: 'DELETE' }),
     },
+
+  // MercadoPago
+  mercadopago: {
+    authUrl: () => request<{ url: string }>('/mercadopago/auth-url'),
+    estado: () => request<MercadoPagoEstadoDto>('/mercadopago/estado'),
+    desvincular: () => request<{ vinculado: boolean }>('/mercadopago/desvincular', {
+      method: 'POST',
+    }),
+    verificarPago: (monto: number) => request<{ encontrado: boolean }>('/mercadopago/verificar-pago', {
+      method: 'POST',
+      body: JSON.stringify({ monto }),
+    }),
+    qr: () => request<{ qrData?: string }>('/mercadopago/qr'),
+  },
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.MercadoPago;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Contracts;
 using PosWeb.Data;
@@ -11,14 +12,16 @@ public class VentaService
 {
     private readonly PosDbContextLocal _context;
     private readonly StockSucursalService _stockSucursalService;
+    private readonly MercadoPagoService _mpService;
 
-    public VentaService(PosDbContextLocal context, StockSucursalService stockSucursalService)
+    public VentaService(PosDbContextLocal context, StockSucursalService stockSucursalService, MercadoPagoService mpService)
     {
         _context = context;
         _stockSucursalService = stockSucursalService;
+        _mpService = mpService;
     }
 
-    public VentaResultadoDto CrearVenta(VentaDto dto, int? usuarioId = null)
+    public async Task<VentaResultadoDto> CrearVenta(VentaDto dto, int? usuarioId = null)
     {
         if (dto.Items == null || dto.Items.Count == 0)
         {
@@ -36,6 +39,8 @@ public class VentaService
         {
             throw new SucursalInactivaException(dto.SucursalId);
         }
+
+        bool esTransferenciaPendiente = dto.EsperarTransferencia;
 
         // Check active caja — each user has their own caja
         Caja? cajaActiva;
@@ -59,7 +64,7 @@ public class VentaService
         decimal totalPagos = 0;
         List<(int medioPagoId, decimal monto, decimal? conCambio)> pagosData = new();
 
-        if (dto.Pagos is { Count: > 0 })
+        if (!esTransferenciaPendiente && dto.Pagos is { Count: > 0 })
         {
             foreach (var pago in dto.Pagos)
             {
@@ -91,6 +96,13 @@ public class VentaService
 
         Venta venta = new Venta(dto.SucursalId, usuarioId);
         venta.AsignarCliente(dto.ClienteId);
+
+        if (esTransferenciaPendiente)
+        {
+            venta.MarcarPendiente();
+        }
+
+        var esQr = esTransferenciaPendiente && dto.PendienteMedioId == 5;
 
         foreach (VentaItemDto item in dto.Items)
         {
@@ -199,36 +211,39 @@ public class VentaService
         decimal totalVenta = venta.TOTAL;
         bool isPartialPayment = dto.ClienteId.HasValue && totalPagos < totalVenta - 0.01m;
 
-        if (pagosData.Count > 0 && !isPartialPayment)
+        if (!esTransferenciaPendiente)
         {
-            if (Math.Abs(totalPagos - totalVenta) > 0.01m)
+            if (pagosData.Count > 0 && !isPartialPayment)
             {
-                // Check if it's a cash payment with extra (change scenario)
-                bool hasCashExtra = pagosData.Any(p =>
+                if (Math.Abs(totalPagos - totalVenta) > 0.01m)
                 {
-                    var medio = _context.MedioPago.Find(p.medioPagoId);
-                    return medio?.PAGA_VUELTO == true && p.conCambio.HasValue && p.conCambio > p.monto;
-                });
-
-                if (!hasCashExtra)
-                {
-                    throw new PagoSumaInvalidaException(totalPagos, totalVenta);
-                }
-
-                // Recalculate: cash overpayment is OK as long as the "real" payment covers the total
-                decimal realPayment = pagosData.Sum(p =>
-                {
-                    var medio = _context.MedioPago.Find(p.medioPagoId);
-                    if (medio?.PAGA_VUELTO == true && p.conCambio.HasValue)
+                    // Check if it's a cash payment with extra (change scenario)
+                    bool hasCashExtra = pagosData.Any(p =>
                     {
-                        return p.conCambio.Value;
-                    }
-                    return p.monto;
-                });
+                        var medio = _context.MedioPago.Find(p.medioPagoId);
+                        return medio?.PAGA_VUELTO == true && p.conCambio.HasValue && p.conCambio > p.monto;
+                    });
 
-                if (realPayment < totalVenta)
-                {
-                    throw new PagoSumaInvalidaException(realPayment, totalVenta);
+                    if (!hasCashExtra)
+                    {
+                        throw new PagoSumaInvalidaException(totalPagos, totalVenta);
+                    }
+
+                    // Recalculate: cash overpayment is OK as long as the "real" payment covers the total
+                    decimal realPayment = pagosData.Sum(p =>
+                    {
+                        var medio = _context.MedioPago.Find(p.medioPagoId);
+                        if (medio?.PAGA_VUELTO == true && p.conCambio.HasValue)
+                        {
+                            return p.conCambio.Value;
+                        }
+                        return p.monto;
+                    });
+
+                    if (realPayment < totalVenta)
+                    {
+                        throw new PagoSumaInvalidaException(realPayment, totalVenta);
+                    }
                 }
             }
         }
@@ -236,11 +251,31 @@ public class VentaService
         _context.Venta.Add(venta);
         _context.SaveChanges();
 
+        if (esQr)
+        {
+            var referencia = $"VENTA-{venta.ID_VENTA}";
+            var (ordenCreada, qrData) = await _mpService.CrearOrdenQr(venta.TOTAL, referencia);
+            if (ordenCreada)
+            {
+                venta.AsignarReferencia(referencia);
+                _context.SaveChanges();
+            }
+            return new VentaResultadoDto
+            {
+                VentaId = venta.ID_VENTA,
+                Fecha = venta.FECHA_VENTA,
+                Total = venta.TOTAL,
+                Estado = venta.ESTADO,
+                QrData = qrData,
+                CajaId = cajaActiva.ID_CAJA,
+            };
+        }
+
         // Persist Pago records
         decimal cambioTotal = 0;
         var pagosResult = new List<PagoVentaResultDto>();
 
-        if (pagosData.Count > 0)
+        if (!esTransferenciaPendiente && pagosData.Count > 0)
         {
             foreach (var (medioPagoId, monto, conCambio) in pagosData)
             {
@@ -278,7 +313,7 @@ public class VentaService
         // Auto-create client debt for partial payments
         int? deudaId = null;
         decimal? deudaMonto = null;
-        if (isPartialPayment && dto.ClienteId.HasValue)
+        if (!esTransferenciaPendiente && isPartialPayment && dto.ClienteId.HasValue)
         {
             deudaMonto = totalVenta - totalPagos;
             var deuda = new Deuda(deudaMonto.Value, idCliente: dto.ClienteId.Value, idVenta: venta.ID_VENTA, montoPagado: totalPagos);
@@ -311,9 +346,110 @@ public class VentaService
             DeudaId = deudaId,
             DeudaMonto = deudaMonto,
             CajaId = cajaActiva.ID_CAJA,
-            EmpresaNombre = empresaNombre
+            EmpresaNombre = empresaNombre,
+            Estado = venta.ESTADO
         };
     }
+
+    public VentaResultadoDto ConfirmarTransferencia(int ventaId)
+    {
+        var venta = _context.Venta.Find(ventaId)
+            ?? throw new VentaNoEncontradaException(ventaId);
+
+        if (venta.ESTADO != EstadosVenta.PendientePago)
+            throw new InvalidOperationException("La venta no está pendiente de pago");
+
+        var cajaActiva = _context.Caja
+            .FirstOrDefault(c => c.ID_SUCURSAL == venta.ID_SUCURSAL && c.ESTADO == "Abierta")
+            ?? throw new VentaSinCajaActivaException();
+
+        venta.Confirmar();
+
+        var pago = new Pago(
+            venta.ID_VENTA,
+            MedioPagoIdTransferencia,
+            venta.TOTAL,
+            venta.ID_USUARIO ?? 0,
+            cajaActiva.ID_CAJA
+        );
+        _context.Pago.Add(pago);
+        _context.SaveChanges();
+
+        string? clienteNombre = null;
+        if (venta.ID_CLIENTE.HasValue)
+        {
+            var cli = _context.Cliente.Find(venta.ID_CLIENTE.Value);
+            clienteNombre = cli?.NOMBRE;
+        }
+
+        string? empresaNombre = _context.Empresa
+            .Where(e => e.ID_EMPRESA == cajaActiva.ID_SUCURSAL)
+            .Select(e => e.NOMBRE)
+            .FirstOrDefault();
+
+        var medioNombre = _context.MedioPago
+            .Where(m => m.ID_MEDIO_PAGO == MedioPagoIdTransferencia)
+            .Select(m => m.DESC_MEDIO_PAGO)
+            .FirstOrDefault() ?? "Transferencia";
+
+        return new VentaResultadoDto
+        {
+            VentaId = venta.ID_VENTA,
+            Fecha = venta.FECHA_VENTA,
+            Total = venta.TOTAL,
+            Pagos = new List<PagoVentaResultDto>
+            {
+                new PagoVentaResultDto
+                {
+                    MedioPagoId = MedioPagoIdTransferencia,
+                    MedioPagoNombre = medioNombre,
+                    Monto = venta.TOTAL,
+                    Cambio = 0
+                }
+            },
+            Cambio = 0,
+            ClienteId = venta.ID_CLIENTE,
+            ClienteNombre = clienteNombre,
+            CajaId = cajaActiva.ID_CAJA,
+            EmpresaNombre = empresaNombre,
+            Estado = venta.ESTADO
+        };
+    }
+
+    public void CancelarVentaPendiente(int ventaId, bool esTimeout = false)
+    {
+        var venta = _context.Venta.Find(ventaId)
+            ?? throw new VentaNoEncontradaException(ventaId);
+
+        if (venta.ESTADO != EstadosVenta.PendientePago)
+            throw new InvalidOperationException("La venta no está pendiente de pago");
+
+        if (esTimeout)
+            venta.Vencer();
+        else
+            venta.Cancelar();
+
+        var renglones = _context.RenglonVenta
+            .Where(r => r.ID_VENTA == ventaId)
+            .ToList();
+
+        foreach (var r in renglones)
+        {
+            if (r.ID_PRODUCTO.HasValue)
+            {
+                var stock = _context.StockSucursal
+                    .FirstOrDefault(s => s.ID_PRODUCTO == r.ID_PRODUCTO.Value && s.ID_SUCURSAL == venta.ID_SUCURSAL);
+                if (stock != null)
+                {
+                    stock.AjustarStock(stock.STOCK + r.CANTIDAD);
+                }
+            }
+        }
+
+        _context.SaveChanges();
+    }
+
+    private const int MedioPagoIdTransferencia = 4;
 
     public async Task<bool> ExisteSucursalAsync(int sucursalId)
     {
@@ -353,7 +489,8 @@ public class VentaService
                     .FirstOrDefault(),
                 Total = v.TOTAL,
                 CantidadItems = v.RENGLONES.Count,
-                Anulada = v.ANULADA
+                Anulada = v.ANULADA,
+                Estado = v.ESTADO
             })
             .ToListAsync();
 

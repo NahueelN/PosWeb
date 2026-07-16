@@ -14,7 +14,8 @@ import TicketResultado from './venta/TicketResultado'
 import VentaProductGrid from './venta/VentaProductGrid'
 import VentaPaymentSlot from './venta/VentaPaymentSlot'
 import VentaDialogs, { type StockConflictItem } from './venta/VentaDialogs'
-import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto } from '../types'
+import TransferenciaEspera from './venta/TransferenciaEspera'
+import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto, MercadoPagoEstadoDto } from '../types'
 
 interface Item {
   producto: ProductoDto
@@ -27,18 +28,23 @@ interface Item {
   precioOriginal?: number
 }
 
-type Step = 'sucursal' | 'venta' | 'resultado'
+type Step = 'sucursal' | 'venta' | 'esperando_transferencia' | 'resultado'
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [step, setStep] = useState<Step>('venta')
-  const { notifyError } = useNotification()
+  const { notifyError, notifySuccess } = useNotification()
   const { user } = useAuth()
 
   // Step state
   const [sucursales, _setSucursales] = useState<SucursalDto[]>([])
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
+  const [ventaPendienteId, setVentaPendienteId] = useState<number | null>(null)
+  const [mpTimeout, setMpTimeout] = useState(300)
+  const [mpEstado, setMpEstado] = useState<MercadoPagoEstadoDto | null>(null)
+  const [mpConfirmando, setMpConfirmando] = useState(false)
+  const [qrData, setQrData] = useState<string | null>(null)
 
   // Cart
   const cart = useCart<Item>({
@@ -152,6 +158,31 @@ export default function VentasPage() {
   }, [step, sucursalEfectiva])
 
   useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match) }, [searchQuery, productos])
+
+  useEffect(() => {
+    if (step !== 'esperando_transferencia') return
+    const timer = setInterval(() => {
+      setMpTimeout(t => {
+        if (t <= 1) {
+          clearInterval(timer)
+          if (ventaPendienteId) {
+            api.ventas.cancelarPendiente(ventaPendienteId, true).catch(() => {})
+            setVentaPendienteId(null)
+            setSelectedMedio(null)
+            setStep('venta')
+          }
+          notifyError('Tiempo de espera agotado.')
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [step, ventaPendienteId])
+
+  useEffect(() => {
+    api.mercadopago.estado().then(setMpEstado).catch(() => setMpEstado(null))
+  }, [])
 
   // Combo auto-detection
   useEffect(() => {
@@ -270,11 +301,69 @@ export default function VentasPage() {
     if (!sucursalEfectiva || cart.items.length === 0) return
     if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
+
+    if (selectedMedio.id === 4 || selectedMedio.id === 5) {
+      await crearVentaPendiente()
+      return
+    }
+
     const r = parseFloat(recibio) || 0
     if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
     await ejecutarVenta(r, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
+  }
+
+  async function crearVentaPendiente() {
+    if (!sucursalEfectiva) return
+    try {
+      const res = await api.ventas.crear({
+        sucursalId: sucursalEfectiva.id,
+        items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })),
+        esperarTransferencia: true,
+        pendienteMedioId: selectedMedio?.id,
+      })
+      setVentaPendienteId(res.ventaId)
+      setMpTimeout(300)
+      setQrData(res.qrData || null)
+      setStep('esperando_transferencia')
+    } catch (e: any) {
+      notifyError(e.message)
+    }
+  }
+
+  async function handleConfirmarTransferencia() {
+    if (!ventaPendienteId) return
+    setMpConfirmando(true)
+    try {
+      const res = await api.ventas.confirmarTransferencia(ventaPendienteId)
+      setResultado(res)
+      setUltimosItems([...cart.items])
+      cart.clearCart()
+      setSelectedMedio(null)
+      setRecibio('')
+      setClienteSeleccionado(null)
+      setShowClientPopup(false)
+      setVentaPendienteId(null)
+      setMpConfirmando(false)
+      setStep('resultado')
+      notifySuccess('Venta confirmada')
+    } catch (e: any) {
+      setMpConfirmando(false)
+      notifyError(e.message)
+    }
+  }
+
+  async function handleCancelarTransferencia(esTimeout: boolean = false) {
+    if (!ventaPendienteId) return
+    try {
+      await api.ventas.cancelarPendiente(ventaPendienteId, esTimeout)
+    } catch (e: any) {
+      notifyError(e.message)
+    }
+    setVentaPendienteId(null)
+    setSelectedMedio(null)
+    setStep('venta')
   }
 
   function continuarVenta() { const r = parseFloat(recibio) || 0; if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }; ejecutarVenta(r, pendingAllowSinStock.current); pendingAllowSinStock.current = false }
@@ -306,6 +395,25 @@ export default function VentasPage() {
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
   if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
+
+  if (step === 'esperando_transferencia') {
+    return (
+      <>
+        <div className="flex-1 flex items-center justify-center bg-gray-100">
+          <TransferenciaEspera
+            total={total}
+            mpEstado={mpEstado}
+            tiempoRestante={mpTimeout}
+            onConfirmar={handleConfirmarTransferencia}
+            onCancelar={() => handleCancelarTransferencia(false)}
+            loading={mpConfirmando}
+            modoQr={selectedMedio?.id === 5}
+            qrData={qrData}
+          />
+        </div>
+      </>
+    )
+  }
 
   return (
     <>

@@ -24,4 +24,8 @@ public class VentaResultadoDto
     public int? CajaId { get; set; }
 
     public string? EmpresaNombre { get; set; }
+
+    public string Estado { get; set; } = "Completada";
+
+    public string? QrData { get; set; }
 }

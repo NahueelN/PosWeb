@@ -21,6 +21,7 @@ using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
+using PosWeb.Application.MercadoPago;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -112,12 +113,25 @@ builder.Services.AddScoped<ComboService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
 
-// Open Food Facts � optional barcode lookup
+// MercadoPago
+var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
+    ?? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("PosWeb_MP_EncryptKey_32bytes!!"));
+builder.Services.AddSingleton(new TokenEncryptionService(mpEncryptionKey));
+builder.Services.AddScoped<MercadoPagoService>();
+builder.Services.AddHostedService<TransferenciaPollingService>();
+
+// Open Food Facts — optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
 {
     client.BaseAddress = new Uri("https://world.openfoodfacts.org/");
     client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
     client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddHttpClient("MercadoPago", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
+    client.Timeout = TimeSpan.FromSeconds(15);
 });
 
 // HTTP context for user tracking

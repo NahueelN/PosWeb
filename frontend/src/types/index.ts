@@ -126,6 +126,8 @@ export interface VentaDto {
   pagos?: PagoVentaDto[]
   clienteId?: number
   allowSinStock?: boolean
+  esperarTransferencia?: boolean
+  pendienteMedioId?: number
 }
 
 export interface VentaResultadoDto {
@@ -135,6 +137,8 @@ export interface VentaResultadoDto {
   pagos: PagoVentaResultDto[]
   cambio: number
   empresaNombre?: string
+  estado?: string
+  qrData?: string | null
 }
 
 export interface StockSucursalDto {
@@ -160,6 +164,7 @@ export interface VentaHistorialDto {
   total: number
   cantidadItems: number
   anulada: boolean
+  estado?: string
 }
 
 export interface VentaDetalleDto {
@@ -631,4 +636,9 @@ export interface MovimientoCuentaDto {
   descripcion?: string
   usuario?: string
   pagoId?: number
+}
+
+export interface MercadoPagoEstadoDto {
+  vinculado: boolean
+  nombreTitular?: string
 }
