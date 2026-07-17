@@ -47,6 +47,9 @@ export default function ProductFormModal({
   const [bloquearMargen, setBloquearMargen] = useState(false)
   const [seguirStock, setSeguirStock] = useState(true)
   const [esPesable, setEsPesable] = useState(false)
+  const [esBulto, setEsBulto] = useState(false)
+  const [productoBultoId, setProductoBultoId] = useState('')
+  const [productosBulto, setProductosBulto] = useState<ProductoDto[]>([])
   const [loading, setLoading] = useState(false)
   const { notifyError } = useNotification()
 
@@ -84,19 +87,21 @@ export default function ProductFormModal({
     | 'seguirStock'
     | 'stock'
     | 'esPesable'
+    | 'esBulto'
+    | 'productoBulto'
 
   const FLOW_ORDERS: Record<'manual' | 'scanner' | 'off' | 'edit', FieldKey[]> = {
-    manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock', 'codigoProducto'],
-    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'codigoBarra', 'codigoProducto', 'seguirStock', 'margen'],
+    manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'esBulto', 'productoBulto', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock', 'codigoProducto'],
+    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'codigoBarra', 'codigoProducto', 'seguirStock', 'margen'],
   }
 
   const INITIAL_FOCUS_PRIORITY: Record<'manual' | 'scanner' | 'off' | 'edit', FieldKey[]> = {
-    manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion'],
+    manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'esBulto', 'productoBulto', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion'],
   }
 
   const SPATIAL_COORDS: Record<FieldKey, { row: number, col: number }> = {
@@ -104,6 +109,8 @@ export default function ProductFormModal({
     codigoBarra: { row: 1, col: 0 },
     codigoProducto: { row: 1, col: 1 },
     esPesable: { row: 2, col: 0 },
+    esBulto: { row: 2, col: 0 },
+    productoBulto: { row: 2, col: 1 },
     marca: { row: 3, col: 0 },
     categoria: { row: 3, col: 1 },
     unidadMedida: { row: 4, col: 0 },
@@ -163,6 +170,8 @@ export default function ProductFormModal({
       case 'precio': return !!(precio.trim() || editingProduct?.precio != null)
       case 'seguirStock': return true
       case 'esPesable': return true
+      case 'esBulto': return true
+      case 'productoBulto': return !!productoBultoId
       case 'stock': return !!(stock.trim() || editingProduct?.stock != null)
       default: return false
     }
@@ -172,7 +181,7 @@ export default function ProductFormModal({
     const order = INITIAL_FOCUS_PRIORITY[context]
     for (const key of order) {
       if (!isFieldVisible(key) || isFieldDisabled(key)) continue
-      if (key === 'codigoBarra' && esPesable) continue
+      if (key === 'codigoBarra' && (esPesable || esBulto)) continue
       if (isKnownValue(key)) continue
       return key
     }
@@ -271,6 +280,8 @@ export default function ProductFormModal({
         setStock(editingProduct.stock?.toString() || '')
         setSeguirStock(editingProduct.seguirStock ?? true)
         setEsPesable(editingProduct.esPesable ?? false)
+        setEsBulto(editingProduct.esBulto ?? false)
+        setProductoBultoId(editingProduct.productoBultoId?.toString() || '')
         setDescripcion(editingProduct.descAdicional || '')
         setMargen(editingProduct.margenGanancia?.toString() || '')
         setBloquearMargen(false)
@@ -288,6 +299,8 @@ export default function ProductFormModal({
         setStock('')
         setSeguirStock(true)
         setEsPesable(defaultEsPesable ?? false)
+        setEsBulto(false)
+        setProductoBultoId('')
         setMargen('')
         setBloquearMargen(false)
         setBarcodeStatus('idle')
@@ -301,6 +314,7 @@ export default function ProductFormModal({
   useEffect(() => {
     api.categorias.listar().then(setCategorias).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
+    api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
   }, [])
 
   // Preselect unit from OFF data
@@ -321,8 +335,8 @@ export default function ProductFormModal({
     }
   }, [prefillData, categorias])
 
-  // Force KG for pesables (KG = id 2 from seed data)
-  const unidadEfectiva = esPesable ? '2' : unidadMedidaId
+  // Force KG for pesables (KG = id 2 from seed data), force Unidad for bultos (Unidad = id 1)
+  const unidadEfectiva = esPesable ? '2' : esBulto ? '1' : unidadMedidaId
 
   // Auto-fill margen when category changes
   useEffect(() => {
@@ -367,7 +381,7 @@ export default function ProductFormModal({
       }
     }, 0)
     return () => clearTimeout(timer)
-  }, [open, context, codigoBarra, nombre, marca, contenido, precio, costo, stock, categoriaId, unidadMedidaId, descripcion, margen, esPesable, editingProduct, prefillData, initialCodigo])
+  }, [open, context, codigoBarra, nombre, marca, contenido, precio, costo, stock, categoriaId, unidadMedidaId, descripcion, margen, esPesable, esBulto, productoBultoId, editingProduct, prefillData, initialCodigo])
 
   // Barcode uniqueness check (debounced)
   useEffect(() => {
@@ -434,20 +448,25 @@ export default function ProductFormModal({
     const precioNum = Number(precio)
     const costoNum = Number(costo)
 
-    if (!esPesable && !codigoBarra.trim()) {
-      notifyError('El código de barras es obligatorio')
+    if (!esBulto && !codigoBarra.trim() && !codigoProducto.trim()) {
+      notifyError('Debe proporcionar código de barras o código personalizado')
       return
     }
     if (!nombre.trim()) {
       notifyError('El nombre del producto es obligatorio')
       return
     }
-    if (!precio || precioNum <= 0) {
+    if (!esBulto && (!precio || precioNum <= 0)) {
       notifyError('El precio debe ser mayor a 0')
       return
     }
-    if (!costo || costoNum < 0) {
+    if (!esBulto && (!costo || costoNum < 0)) {
       notifyError('El costo no puede ser negativo')
+      return
+    }
+
+    if (esBulto && !productoBultoId) {
+      notifyError('Debe seleccionar un producto unidad para el bulto')
       return
     }
 
@@ -456,8 +475,8 @@ export default function ProductFormModal({
       const dto = {
         codigoBarra: codigoBarra.trim(),
         nombre: nombre.trim(),
-        precio: precioNum,
-        costo: costoNum,
+        precio: esBulto ? 0 : precioNum,
+        costo: esBulto ? 0 : costoNum,
         marca: marca.trim() || undefined,
         contenido: contenido ? Number(contenido) : undefined,
         categoriaId: categoriaId ? Number(categoriaId) : undefined,
@@ -467,6 +486,8 @@ export default function ProductFormModal({
         margenGanancia: margen ? Number(margen) : undefined,
         seguirStock,
         esPesable,
+        esBulto,
+        productoBultoId: esBulto && productoBultoId ? Number(productoBultoId) : undefined,
       }
       const result = isEditing
         ? await api.productos.actualizar(editingProduct!.id, dto)
@@ -508,8 +529,7 @@ export default function ProductFormModal({
 
   const isReadonlyCodigo = !!(prefillData?.codigoBarras) || isEditing
   const canSubmit = nombre.trim()
-    && (isEditing || esPesable || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
-    && (esPesable || codigoBarra.trim())
+    && (isEditing || esPesable || esBulto || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
 
   return (
     <><Dialog
@@ -621,19 +641,32 @@ export default function ProductFormModal({
 
             {/* ── 2. CLASIFICACIÓN Y ATRIBUTOS ── */}
             <DialogSection icon={<Tag size={16} />} title="CLASIFICACIÓN Y ATRIBUTOS">
-              {/* Se vende por peso — checkbox único */}
-              <div className="flex items-center gap-2 mb-1.5">
+              {/* Se vende por peso / Es bulto — checkboxes en la misma línea */}
+              <div className="flex items-center gap-4 mb-1.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none group">
                   <input
                     type="checkbox"
                     checked={esPesable}
-                    onChange={e => setEsPesable(e.target.checked)}
+                    onChange={e => { setEsPesable(e.target.checked); if (e.target.checked) setEsBulto(false) }}
                     data-field="esPesable"
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow"
+                    disabled={esBulto}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
                   />
-                  <span className="text-[15px] font-semibold text-gray-800 group-hover:text-[var(--color-primary)] transition-colors">Se vende por peso</span>
+                  <span className={`text-[15px] font-semibold transition-colors ${esBulto ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Se vende por peso</span>
                 </label>
-                <span className="text-[10px] text-gray-400 font-normal">— fuerza KG, permite precio sin código de barras</span>
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <input
+                    type="checkbox"
+                    checked={esBulto}
+                    onChange={e => { setEsBulto(e.target.checked); if (e.target.checked) setEsPesable(false) }}
+                    data-field="esBulto"
+                    disabled={esPesable || isEditing}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
+                  />
+                  <span className={`text-[15px] font-semibold transition-colors ${esPesable || isEditing ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Es bulto</span>
+                </label>
+                {esPesable && <span className="text-[10px] text-gray-400 font-normal">— Producto por KG. Ej: Fiambres o verduras</span>}
+                {esBulto && <span className="text-[10px] text-gray-400 font-normal">— producto sin stock, costo ni precio; representa un empaque</span>}
               </div>
 
               {/* Fila 1: Marca + Categoría */}
@@ -678,19 +711,23 @@ export default function ProductFormModal({
                 <div>
                   <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1 ${esPesable ? 'text-gray-400' : 'text-gray-800'}`}>
                     <Scale size={13} className={`shrink-0 ${esPesable ? 'text-gray-300' : 'text-gray-500'}`} />
-                    Unidad de medida{esPesable ? ' (KG)' : ''}
+                    Unidad de medida{esPesable ? ' (KG)' : esBulto ? ' (UNIDAD)' : ''}
                   </label>
                   <div className="relative">
                   <select value={unidadEfectiva} onChange={e => setUnidadMedidaId(e.target.value)}
-                    disabled={esPesable}
+                    disabled={esPesable || esBulto}
                     data-field="unidadMedida"
                     className={`w-full h-7 px-1.5 pr-7 border rounded-md text-sm outline-none transition-all duration-150 ${
                       esPesable
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
+                        : esBulto
                         ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
                         : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300'
                     }`}>
                     {esPesable ? (
                       <option value="2">KG - kilogramo</option>
+                    ) : esBulto ? (
+                      <option value="1">Unidad - unidades</option>
                     ) : (
                       <>
                         <option value="">Sin unidad</option>
@@ -741,7 +778,30 @@ export default function ProductFormModal({
           {/* ══════ COLUMNA DERECHA ══════ */}
           <div className="flex-[3] min-w-0 flex flex-col gap-2">
 
-            {/* ── 4. PRECIOS Y GANANCIA ── */}
+            {/* ── 4. PRECIOS Y GANANCIA (o Producto unidad si es bulto) ── */}
+            {esBulto ? (
+              <div className="border rounded-xl bg-white overflow-hidden" style={{ borderColor: 'var(--color-primary-ring)' }}>
+                <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary-hover)' }}>
+                  <Package size={16} className="shrink-0 text-white" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-white">Producto unidad del bulto</h3>
+                </div>
+                <div className="p-2.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
+                    <Package size={13} className="text-gray-500 shrink-0" />
+                    Seleccionar producto
+                  </label>
+                  <select value={productoBultoId} onChange={e => setProductoBultoId(e.target.value)}
+                    data-field="productoBulto"
+                    className="w-full h-10 px-2 border border-gray-200 rounded-md text-sm bg-white outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300">
+                    <option value="">Seleccionar producto...</option>
+                    {productosBulto.map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre}{p.marca ? ` (${p.marca})` : ''}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-2">El producto unidad representa lo que contiene cada bulto (ej: 1 vino dentro de una caja de 6).</p>
+                </div>
+              </div>
+            ) : (
             <div className="border rounded-xl shadow-[var(--shadow-glow)] bg-white overflow-hidden" style={{ borderColor: 'var(--color-primary-ring)' }}>
               <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary-hover)' }}>
                 <DollarSign size={16} className="shrink-0 text-white" />
@@ -750,15 +810,16 @@ export default function ProductFormModal({
               <div className="p-2.5 flex flex-col gap-0">
                 {/* Costo */}
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                    <DollarSign size={13} className="text-gray-400" />
+                  <label className={`flex items-center gap-1.5 text-xs font-semibold ${esBulto ? 'text-gray-300' : 'text-gray-500'}`}>
+                    <DollarSign size={13} className={esBulto ? 'text-gray-300' : 'text-gray-400'} />
                     {esPesable ? 'Costo por kg' : 'Costo'}
                   </label>
                   <div className="relative mt-0.5">
                     <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
                       data-field="costo"
-                      className="w-full h-7 px-2 pl-5 border border-gray-200 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="0.00" />
+                      disabled={esBulto}
+                      className="w-full h-7 px-2 pl-5 border border-gray-200 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:bg-gray-100 disabled:text-gray-400"
+                      placeholder={esBulto ? '—' : '0.00'} />
                   </div>
                 </div>
 
@@ -787,21 +848,24 @@ export default function ProductFormModal({
 
                 {/* PRECIO DE VENTA — KPI */}
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    <Receipt size={13} className="text-gray-300" />
+                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${esBulto ? 'text-gray-300' : 'text-gray-400'}`}>
+                    <Receipt size={13} className={esBulto ? 'text-gray-300' : 'text-gray-300'} />
                     Precio de venta
                   </label>
                   <div className="relative mt-0.5">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl text-gray-300 select-none font-light">$</span>
                     <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
                       data-field="precio"
-                      className={`w-full h-14 pl-11 pr-3 rounded-xl text-5xl font-bold outline-none transition-all duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none caret-[var(--color-primary)] ${
-                        precioInferiorCosto
-                          ? 'text-red-700 bg-red-50/50 focus:ring-2 focus:ring-red-500/20 focus:bg-red-50'
-                          : 'text-gray-900 bg-transparent focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:bg-white hover:bg-[var(--color-primary-light)]'
+                      disabled={esBulto}
+                      className={`w-full h-14 pl-11 pr-3 rounded-xl text-5xl font-bold outline-none transition-all duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none caret-[var(--color-primary)] disabled:bg-gray-100 disabled:text-gray-400 ${
+                        esBulto
+                          ? 'text-gray-400 bg-gray-100'
+                          : precioInferiorCosto
+                            ? 'text-red-700 bg-red-50/50 focus:ring-2 focus:ring-red-500/20 focus:bg-red-50'
+                            : 'text-gray-900 bg-transparent focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:bg-white hover:bg-[var(--color-primary-light)]'
                       }`}
-                      placeholder="0,00" />
-                    {precioInferiorCosto && (
+                      placeholder={esBulto ? '—' : '0,00'} />
+                    {precioInferiorCosto && !esBulto && (
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500" title="Precio menor al costo">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
@@ -826,6 +890,7 @@ export default function ProductFormModal({
                 </div>
               </div>
             </div>
+            )}
 
             {/* ── 5. INVENTARIO ── */}
             <div className="border border-gray-200/60 rounded-xl bg-white shadow-[var(--shadow-card)] overflow-hidden">
@@ -835,27 +900,28 @@ export default function ProductFormModal({
               </div>
               <div className="p-2 space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                  <label className={`flex items-center gap-1.5 select-none group ${esBulto ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                     <input
                       type="checkbox"
                       checked={seguirStock}
                       onChange={e => setSeguirStock(e.target.checked)}
                       data-field="seguirStock"
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow"
+                      disabled={esBulto}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
                     />
-                    <span className="text-[15px] font-semibold text-gray-800 group-hover:text-[var(--color-primary)] transition-colors">Controlar inventario</span>
+                    <span className={`text-[15px] font-semibold transition-colors ${esBulto ? 'text-gray-400' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Controlar inventario</span>
                   </label>
                   <span className="text-[10px] text-gray-400 font-normal">— descuenta stock</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[15px] font-semibold text-gray-800 whitespace-nowrap">
+                  <span className={`text-[15px] font-semibold whitespace-nowrap ${esBulto ? 'text-gray-400' : 'text-gray-800'}`}>
                     {isEditing ? 'Stock' : 'Stock inicial'}{esPesable ? ' (kg)' : ''}
                   </span>
-                  <input type="number" min="0" step="1" value={seguirStock ? stock : ''} onChange={e => setStock(e.target.value)}
-                    disabled={!seguirStock}
+                  <input type="number" min="0" step="1" value={(seguirStock && !esBulto) ? stock : ''} onChange={e => setStock(e.target.value)}
+                    disabled={!seguirStock || esBulto}
                     data-field="stock"
                     className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none flex-1 h-7 px-1.5 border rounded-md text-sm outline-none transition-all duration-150 ${
-                      !seguirStock
+                      (!seguirStock || esBulto)
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
                         : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300'
                     }`}

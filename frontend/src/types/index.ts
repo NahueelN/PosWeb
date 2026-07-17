@@ -16,6 +16,8 @@ export interface ProductoDto {
   margenGanancia?: number | null
   seguirStock?: boolean
   esPesable?: boolean
+  esBulto?: boolean
+  productoBultoId?: number | null
 }
 
 export interface ProductoDetailDto {
@@ -85,6 +87,8 @@ export interface ProductoUpsertDto {
   margenGanancia?: number | null
   seguirStock?: boolean
   esPesable?: boolean
+  esBulto?: boolean
+  productoBultoId?: number | null
 }
 
 // --- Open Food Facts ---

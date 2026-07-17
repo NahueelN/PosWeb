@@ -146,7 +146,7 @@ export default function VentasPage() {
     api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp) }).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
     setProductosLoading(true)
-    api.productos.listar(sucursalEfectiva.id).then(setProductos).catch(() => {}).finally(() => setProductosLoading(false))
+    api.productos.listar(sucursalEfectiva.id).then(ps => setProductos(ps.filter(p => !p.esBulto))).catch(() => {}).finally(() => setProductosLoading(false))
     api.combos.listar().then(setCombos).catch(() => {})
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
@@ -378,7 +378,7 @@ export default function VentasPage() {
                 </div>
               )
             })() : undefined,
-            onRemove: () => cart.removeItem(i.producto.id),
+            onRemove: () => cart.removeItem(itemId),
             removeButton: undefined,
           }
         }}

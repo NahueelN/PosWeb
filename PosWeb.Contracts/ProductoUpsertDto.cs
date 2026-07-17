@@ -24,4 +24,11 @@ public class ProductoUpsertDto
     public string? CodigoProducto { get; set; }
 
     public bool EsPesable { get; set; }
+
+    public bool EsBulto { get; set; }
+
+    /// <summary>
+    /// ID del producto que representa la unidad del bulto (solo cuando EsBulto = true).
+    /// </summary>
+    public int? ProductoBultoId { get; set; }
 }
