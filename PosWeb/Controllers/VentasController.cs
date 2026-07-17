@@ -92,6 +92,15 @@ public class VentasController : ControllerBase
         return Ok(resultado);
     }
 
+    [HttpGet("{id}/estado")]
+    public IActionResult ObtenerEstado(int id)
+    {
+        var estado = _ventaService.ObtenerEstadoVenta(id);
+        if (estado == null)
+            return NotFound(new { error = "Venta no encontrada" });
+        return Ok(new { estado });
+    }
+
     [HttpPost("{id}/cancelar-pendiente")]
     [Authorize]
     public IActionResult CancelarPendiente(int id, [FromBody] CancelarPendienteRequest request)

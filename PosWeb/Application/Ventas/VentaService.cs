@@ -356,6 +356,11 @@ public class VentaService
         var venta = _context.Venta.Find(ventaId)
             ?? throw new VentaNoEncontradaException(ventaId);
 
+        if (venta.ESTADO == EstadosVenta.Completada)
+        {
+            return ConstruirVentaResultado(venta);
+        }
+
         if (venta.ESTADO != EstadosVenta.PendientePago)
             throw new InvalidOperationException("La venta no está pendiente de pago");
 
@@ -375,6 +380,16 @@ public class VentaService
         _context.Pago.Add(pago);
         _context.SaveChanges();
 
+        return ConstruirVentaResultado(venta);
+    }
+
+    private VentaResultadoDto ConstruirVentaResultado(Venta venta)
+    {
+        var pagoExistente = _context.Pago
+            .Where(p => p.ID_VENTA == venta.ID_VENTA)
+            .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO, Mediodesc = _context.MedioPago.Where(m => m.ID_MEDIO_PAGO == p.ID_MEDIO_PAGO).Select(m => m.DESC_MEDIO_PAGO).FirstOrDefault() })
+            .ToList();
+
         string? clienteNombre = null;
         if (venta.ID_CLIENTE.HasValue)
         {
@@ -382,38 +397,61 @@ public class VentaService
             clienteNombre = cli?.NOMBRE;
         }
 
+        var sucursalId = venta.ID_SUCURSAL;
         string? empresaNombre = _context.Empresa
-            .Where(e => e.ID_EMPRESA == cajaActiva.ID_SUCURSAL)
+            .Where(e => e.ID_EMPRESA == sucursalId)
             .Select(e => e.NOMBRE)
             .FirstOrDefault();
 
-        var medioNombre = _context.MedioPago
-            .Where(m => m.ID_MEDIO_PAGO == MedioPagoIdTransferencia)
-            .Select(m => m.DESC_MEDIO_PAGO)
-            .FirstOrDefault() ?? "Transferencia";
+        int? cajaId = _context.Caja
+            .Where(c => c.ID_SUCURSAL == sucursalId)
+            .OrderByDescending(c => c.FECHA_APERTURA)
+            .Select(c => (int?)c.ID_CAJA)
+            .FirstOrDefault();
+
+        var pagos = pagoExistente.Select(p => new PagoVentaResultDto
+        {
+            MedioPagoId = p.ID_MEDIO_PAGO,
+            MedioPagoNombre = p.Mediodesc ?? "Transferencia",
+            Monto = p.MONTO,
+            Cambio = 0
+        }).ToList();
+
+        if (pagos.Count == 0)
+        {
+            var medioNombre = _context.MedioPago
+                .Where(m => m.ID_MEDIO_PAGO == MedioPagoIdTransferencia)
+                .Select(m => m.DESC_MEDIO_PAGO)
+                .FirstOrDefault() ?? "Transferencia";
+
+            pagos.Add(new PagoVentaResultDto
+            {
+                MedioPagoId = MedioPagoIdTransferencia,
+                MedioPagoNombre = medioNombre,
+                Monto = venta.TOTAL,
+                Cambio = 0
+            });
+        }
 
         return new VentaResultadoDto
         {
             VentaId = venta.ID_VENTA,
             Fecha = venta.FECHA_VENTA,
             Total = venta.TOTAL,
-            Pagos = new List<PagoVentaResultDto>
-            {
-                new PagoVentaResultDto
-                {
-                    MedioPagoId = MedioPagoIdTransferencia,
-                    MedioPagoNombre = medioNombre,
-                    Monto = venta.TOTAL,
-                    Cambio = 0
-                }
-            },
+            Pagos = pagos,
             Cambio = 0,
             ClienteId = venta.ID_CLIENTE,
             ClienteNombre = clienteNombre,
-            CajaId = cajaActiva.ID_CAJA,
+            CajaId = cajaId,
             EmpresaNombre = empresaNombre,
             Estado = venta.ESTADO
         };
+    }
+
+    public string? ObtenerEstadoVenta(int ventaId)
+    {
+        var venta = _context.Venta.Find(ventaId);
+        return venta?.ESTADO;
     }
 
     public void CancelarVentaPendiente(int ventaId, bool esTimeout = false)

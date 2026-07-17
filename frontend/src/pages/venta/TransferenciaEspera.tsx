@@ -69,10 +69,16 @@ export default function TransferenciaEspera({
             </p>
           </div>
 
+          {modoQr && !qrData && (
+            <div className="flex justify-center">
+              <p className="text-lg font-bold text-gray-500 mt-4">📱 Mostrale el QR al cliente</p>
+            </div>
+          )}
+
           {modoQr && qrData && (
             <div className="flex justify-center">
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
+                src={qrData}
                 alt="QR de pago"
                 className="w-48 h-48 rounded-xl"
               />
@@ -91,7 +97,7 @@ export default function TransferenciaEspera({
             )}
             <p className="text-xs text-gray-400 leading-relaxed">
               {modoQr
-                ? 'Mostrale el QR impreso al cliente. Cuando lo escanee y pague, la venta se confirmará automáticamente.'
+                ? 'El cliente debe escanear el QR impreso en el mostrador. La venta se confirmará automáticamente cuando pague.'
                 : 'Transferí el monto a la cuenta de MercadoPago vinculada. Podés verificar si ya llegó o confirmar manualmente.'
               }
             </p>

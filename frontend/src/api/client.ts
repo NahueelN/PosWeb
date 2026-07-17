@@ -214,6 +214,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ esTimeout }),
     }),
+
+    estado: (id: number) => request<{ estado: string }>(`/ventas/${id}/estado`),
   },
 
   // Stock por sucursal

@@ -80,11 +80,11 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
 
     [HttpGet("qr")]
     [Authorize]
-    public async Task<IActionResult> Qr()
+    public IActionResult Qr()
     {
         if (!EsAdminOrSuperAdmin()) return Forbid();
 
-        var qrData = await _mpService.ObtenerQrDataActivo();
+        var qrData = _mpService.ObtenerQrDataActivo();
         if (qrData == null)
             return NotFound(new { error = "QR no disponible. Asegurate de haber vinculado MP correctamente." });
 

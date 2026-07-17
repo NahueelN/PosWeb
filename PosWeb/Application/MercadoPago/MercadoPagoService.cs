@@ -335,7 +335,7 @@ public class MercadoPagoService
                     qr = new
                     {
                         external_pos_id = suscripcion.MP_POS_ID,
-                        mode = "dynamic"
+                        mode = "static"
                     }
                 },
                 transactions = new
@@ -442,45 +442,13 @@ public class MercadoPagoService
         _context.SaveChanges();
     }
 
-    public async Task<string?> ObtenerQrDataActivo()
+    public string? ObtenerQrDataActivo()
     {
-        var token = await ObtenerTokenValido();
-        if (token == null) return null;
-
         var suscripcion = _context.Suscripcion.FirstOrDefault();
-        if (suscripcion == null || string.IsNullOrEmpty(suscripcion.MP_USER_ID) || string.IsNullOrEmpty(suscripcion.MP_POS_ID))
+        if (suscripcion == null || !suscripcion.MP_VINCULADO)
             return null;
 
-        try
-        {
-            var client = _httpClientFactory.CreateClient("MercadoPago");
-            var url = $"https://api.mercadopago.com/instore/qr/seller/collectors/{suscripcion.MP_USER_ID}/pos/{suscripcion.MP_POS_ID}/qrs";
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", $"Bearer {token}");
-
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode) return null;
-
-            var content = await response.Content.ReadAsStringAsync();
-            var doc = JsonSerializer.Deserialize<JsonElement>(content);
-
-            if (doc.TryGetProperty("qr_data", out var qrData))
-            {
-                var data = qrData.GetString();
-                if (!string.IsNullOrEmpty(data))
-                {
-                    suscripcion.AsignarQrData(data);
-                    _context.SaveChanges();
-                }
-                return data;
-            }
-
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
+        return suscripcion.MP_QR_DATA;
     }
 
     public string? ObtenerToken()

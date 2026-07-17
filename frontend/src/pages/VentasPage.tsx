@@ -181,6 +181,19 @@ export default function VentasPage() {
   }, [step, ventaPendienteId])
 
   useEffect(() => {
+    if (step !== 'esperando_transferencia' || !ventaPendienteId) return
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await api.ventas.estado(ventaPendienteId)
+        if (res.estado === 'Completada') {
+          completarVentaAutomatica()
+        }
+      } catch { /* ignorar errores de polling */ }
+    }, 3000)
+    return () => clearInterval(pollInterval)
+  }, [step, ventaPendienteId])
+
+  useEffect(() => {
     api.mercadopago.estado().then(setMpEstado).catch(() => setMpEstado(null))
   }, [])
 
@@ -332,26 +345,48 @@ export default function VentasPage() {
     }
   }
 
+  async function finalizarVentaPendiente() {
+    if (!ventaPendienteId) return
+    const res = await api.ventas.confirmarTransferencia(ventaPendienteId)
+    setResultado(res)
+    setUltimosItems([...cart.items])
+    cart.clearCart()
+    setSelectedMedio(null)
+    setRecibio('')
+    setClienteSeleccionado(null)
+    setShowClientPopup(false)
+    setVentaPendienteId(null)
+    setStep('resultado')
+    notifySuccess('Venta confirmada')
+  }
+
+  async function completarVentaAutomatica() {
+    try {
+      setMpConfirmando(true)
+      await finalizarVentaPendiente()
+    } catch {
+      notifyError('Pago detectado pero no se pudo confirmar la venta')
+    } finally {
+      setMpConfirmando(false)
+    }
+  }
+
   async function handleConfirmarTransferencia() {
     if (!ventaPendienteId) return
     setMpConfirmando(true)
     try {
-      const res = await api.ventas.confirmarTransferencia(ventaPendienteId)
-      setResultado(res)
-      setUltimosItems([...cart.items])
-      cart.clearCart()
-      setSelectedMedio(null)
-      setRecibio('')
-      setClienteSeleccionado(null)
-      setShowClientPopup(false)
-      setVentaPendienteId(null)
-      setMpConfirmando(false)
-      setStep('resultado')
-      notifySuccess('Venta confirmada')
+      await finalizarVentaPendiente()
     } catch (e: any) {
-      setMpConfirmando(false)
+      if (e.message?.includes('no está pendiente')) {
+        try {
+          await finalizarVentaPendiente()
+          setMpConfirmando(false)
+          return
+        } catch {}
+      }
       notifyError(e.message)
     }
+    setMpConfirmando(false)
   }
 
   async function handleCancelarTransferencia(esTimeout: boolean = false) {

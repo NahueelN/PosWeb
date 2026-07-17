@@ -375,7 +375,7 @@ export default function Layout() {
             {qrData ? (
               <div className="flex justify-center">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
+                  src={qrData}
                   alt="QR MercadoPago"
                   className="w-48 h-48"
                 />
