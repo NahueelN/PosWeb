@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, DashboardDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -455,6 +455,26 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ desde, hasta, sucursalId }),
         }),
+    },
+
+  // Dashboard Builder
+    dashboard: {
+      /** Build dashboard: sends user instances, returns definitions + rendered widgets */
+      build: (sucursalId: number, instances?: import('../analytics/types').WidgetInstance[]) => {
+        const qs = new URLSearchParams({ sucursalId: String(sucursalId) })
+        return request<import('../analytics/types').DashboardResponse>(`/dashboard/build?${qs}`, {
+          method: 'POST',
+          body: JSON.stringify(instances ?? []),
+        })
+      },
+      /** Get available definitions (no rendering) */
+      definitions: () =>
+        request<import('../analytics/types').WidgetDefinition[]>('/dashboard/definitions'),
+      /** Legacy: get dashboard without instances */
+      obtener: (sucursalId: number) => {
+        const qs = new URLSearchParams({ sucursalId: String(sucursalId) })
+        return request<import('../analytics/types').DashboardResponse>(`/dashboard?${qs}`)
+      },
     },
 
   // Combos

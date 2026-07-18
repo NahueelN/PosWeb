@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
@@ -18,6 +18,7 @@ import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
 import PedidosPage from './pages/PedidosPage'
 import EstadisticasPage from './pages/EstadisticasPage'
+import DashboardPage from './pages/DashboardPage'
 import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
@@ -115,7 +116,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/ventas" replace />} />
+              <Route path="/" element={<DashboardPage />} />
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/historial" element={<HistorialVentasPage />} />
