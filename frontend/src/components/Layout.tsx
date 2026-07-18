@@ -7,6 +7,7 @@ import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
 import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
+import { open } from '@tauri-apps/plugin-shell'
 
 const menuGroups = [
   {
@@ -160,7 +161,11 @@ export default function Layout() {
     setMpVinculando(true)
     try {
       const res = await api.mercadopago.authUrl()
-      window.open(res.url, '_blank')
+      try {
+        await open(res.url)
+      } catch {
+        window.open(res.url, '_blank')
+      }
     } catch (e: any) {
       notifyError(e.message || 'Error al iniciar vinculación')
     } finally {
