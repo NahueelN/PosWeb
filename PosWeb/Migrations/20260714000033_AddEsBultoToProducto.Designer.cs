@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714000033_AddEsBultoToProducto")]
+    partial class AddEsBultoToProducto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1141,38 +1144,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID");
 
-                    b.Property<string>("MP_ACCESS_TOKEN")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_ACCESS_TOKEN");
-
-                    b.Property<DateTime?>("MP_FECHA_VINC")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("MP_FECHA_VINC");
-
-                    b.Property<string>("MP_POS_ID")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("MP_POS_ID");
-
-                    b.Property<string>("MP_QR_DATA")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_QR_DATA");
-
-                    b.Property<string>("MP_REFRESH_TOKEN")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_REFRESH_TOKEN");
-
-                    b.Property<string>("MP_USER_ID")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("MP_USER_ID");
-
-                    b.Property<bool>("MP_VINCULADO")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("MP_VINCULADO");
-
                     b.Property<string>("NIVEL")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1348,14 +1319,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("ANULADA");
 
-                    b.Property<string>("ESTADO")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("Completada")
-                        .HasColumnName("ESTADO");
-
                     b.Property<DateTime>("FECHA_VENTA")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_VENTA");
@@ -1371,11 +1334,6 @@ namespace PosWeb.Migrations
                     b.Property<int?>("ID_USUARIO")
                         .HasColumnType("int")
                         .HasColumnName("ID_USUARIO");
-
-                    b.Property<string>("REFERENCIA_MP")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("REFERENCIA_MP");
 
                     b.Property<decimal>("TOTAL")
                         .HasColumnType("decimal(18,2)")

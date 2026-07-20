@@ -44,9 +44,10 @@ export default function ProductosPage() {
   const [query, setQuery] = useState('')
 
   const filteredProductos = useMemo(() => {
-    if (!query.trim()) return productos
+    const noBulto = productos.filter(p => !p.esBulto)
+    if (!query.trim()) return noBulto
     const q = query.toLowerCase()
-    return productos.filter(p =>
+    return noBulto.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
       p.codigoBarra.toLowerCase().includes(q) ||
       (p.codigoProducto && p.codigoProducto.toLowerCase().includes(q))
