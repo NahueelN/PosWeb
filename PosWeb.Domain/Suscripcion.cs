@@ -179,16 +179,6 @@ public class Suscripcion
         PROXIMO_COBRO = proximoCobro;
     }
 
-    public void VincularMercadoPago(string preapprovalId)
-    {
-        if (string.IsNullOrWhiteSpace(preapprovalId))
-        {
-            throw new ArgumentException("El identificador de Mercado Pago no puede estar vacío");
-        }
-
-        MERCADOPAGO_PREAPPROVAL_ID = preapprovalId.Trim();
-    }
-
     public void VincularMP(string accessToken, string? refreshToken, string mpUserId)
     {
         if (string.IsNullOrWhiteSpace(accessToken))

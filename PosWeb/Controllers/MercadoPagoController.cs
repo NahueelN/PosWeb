@@ -48,7 +48,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     [Authorize]
     public IActionResult Estado()
     {
-        if (!EsAdminOrSuperAdmin()) return Forbid();
+        if (!EsAdmin()) return Forbid();
 
         var estado = _mpService.ObtenerEstado();
         if (estado == null)
@@ -82,7 +82,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     [Authorize]
     public IActionResult Qr()
     {
-        if (!EsAdminOrSuperAdmin()) return Forbid();
+        if (!EsAdmin()) return Forbid();
 
         var qrData = _mpService.ObtenerQrDataActivo();
         if (qrData == null)
@@ -97,11 +97,6 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
         return rol == "SuperAdmin" || rol == "Admin";
     }
 
-    private bool EsAdminOrSuperAdmin()
-    {
-        var rol = User.FindFirst(ClaimTypes.Role)?.Value;
-        return rol == "SuperAdmin" || rol == "Admin";
-    }
 }
 
 public class VerificarPagoRequest

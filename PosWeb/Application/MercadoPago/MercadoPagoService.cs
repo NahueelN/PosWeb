@@ -215,75 +215,6 @@ public class MercadoPagoService
         }
     }
 
-    private async Task CrearPosAutomatico(string accessToken, string userId, Suscripcion suscripcion)
-    {
-        try
-        {
-            var client = _httpClientFactory.CreateClient("MercadoPago");
-
-            var storeBody = new StringContent(JsonSerializer.Serialize(new
-            {
-                name = "PosWeb",
-                external_id = "POSWEB-001",
-                location = new
-                {
-                    street_number = "0",
-                    street_name = "Principal",
-                    city_name = "Palermo",
-                    state_name = "Capital Federal",
-                    latitude = -34.6037,
-                    longitude = -58.3816,
-                    reference = "Local principal"
-                }
-            }), Encoding.UTF8, "application/json");
-
-            var storeRequest = new HttpRequestMessage(HttpMethod.Post,
-                "https://api.mercadopago.com/instore/stores")
-            { Content = storeBody };
-            storeRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
-
-            var storeResponse = await client.SendAsync(storeRequest);
-            if (!storeResponse.IsSuccessStatusCode)
-            {
-                var storeError = await storeResponse.Content.ReadAsStringAsync();
-                _logger.LogError($"MP Store create failed: {storeResponse.StatusCode} - {storeError}");
-                return;
-            }
-
-            var storeContent = await storeResponse.Content.ReadAsStringAsync();
-            var storeDoc = JsonSerializer.Deserialize<JsonElement>(storeContent);
-            var storeId = storeDoc.GetProperty("id").GetString()!;
-
-            var posBody = new StringContent(JsonSerializer.Serialize(new
-            {
-                name = "Caja 1",
-                external_id = "CAJA1"
-            }), Encoding.UTF8, "application/json");
-
-            var posRequest = new HttpRequestMessage(HttpMethod.Post,
-                $"https://api.mercadopago.com/instore/stores/{storeId}/pos")
-            { Content = posBody };
-            posRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
-
-            var posResponse = await client.SendAsync(posRequest);
-            if (!posResponse.IsSuccessStatusCode) return;
-
-            var posContent = await posResponse.Content.ReadAsStringAsync();
-            var posDoc = JsonSerializer.Deserialize<JsonElement>(posContent);
-            var posId = posDoc.GetProperty("id").GetString()!;
-
-            var qrData = await ObtenerQrData(client, accessToken, userId, posId);
-            suscripcion.AsignarPosId(posId);
-            if (qrData != null)
-                suscripcion.AsignarQrData(qrData);
-            _context.SaveChanges();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"MP CrearPosAutomatico error: {ex.Message}");
-        }
-    }
-
     private static async Task<string?> ObtenerQrData(HttpClient client, string accessToken, string userId, string posId)
     {
         try
@@ -507,37 +438,6 @@ public class MercadoPagoService
     private static string Base64UrlEncode(byte[] bytes)
     {
         return Convert.ToBase64String(bytes).Replace("=", "").Replace("+", "-").Replace("/", "_");
-    }
-
-    private static async Task<int> BuscarStoreExistente(HttpClient client, string accessToken, string userId)
-    {
-        try
-        {
-            var searchReq = new HttpRequestMessage(HttpMethod.Get,
-                $"https://api.mercadopago.com/users/{userId}/stores/search");
-            searchReq.Headers.Add("Authorization", $"Bearer {accessToken}");
-
-            var res = await client.SendAsync(searchReq);
-            if (!res.IsSuccessStatusCode) return 0;
-
-            var content = await res.Content.ReadAsStringAsync();
-            System.Diagnostics.Debug.WriteLine($"Store search response: {content}");
-            var doc = JsonSerializer.Deserialize<JsonElement>(content);
-
-            if (doc.TryGetProperty("results", out var results))
-            {
-                foreach (var store in results.EnumerateArray())
-                {
-                    if (store.TryGetProperty("external_id", out var extId) &&
-                        extId.GetString() == "POSWEB-001")
-                    {
-                        return int.Parse(store.GetProperty("id").GetRawText());
-                    }
-                }
-            }
-        }
-        catch { }
-        return 0;
     }
 
     private static async Task CrearPos(HttpClient client, string accessToken, int? storeIdInt, Suscripcion suscripcion)
