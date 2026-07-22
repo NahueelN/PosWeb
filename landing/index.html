@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PosWeb - Activá tu licencia</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>PosWeb</h1>
+    <p class="subtitle">Sistema de gestión para tu comercio</p>
+  </header>
+
+  <main>
+    <section class="plans" id="plans">
+      <div class="plan-card" data-plan="basica">
+        <h2>Plan Básico</h2>
+        <div class="price">$999<span class="period">/mes</span></div>
+        <ul>
+          <li>1 sucursal</li>
+          <li>1 administrador</li>
+          <li>1 usuario</li>
+          <li>Gestión de ventas</li>
+          <li>Control de stock</li>
+          <li>Caja diaria</li>
+        </ul>
+        <button class="btn btn-primary" onclick="openEmailModal('basica')">Contratar</button>
+      </div>
+
+      <div class="plan-card popular" data-plan="media">
+        <div class="badge">Más popular</div>
+        <h2>Plan Medio</h2>
+        <div class="price">$1.999<span class="period">/mes</span></div>
+        <ul>
+          <li>Hasta 3 sucursales</li>
+          <li>1 administrador</li>
+          <li>Hasta 5 usuarios</li>
+          <li>Todo lo del plan Básico</li>
+          <li>Múltiples cajas</li>
+          <li>Reportes avanzados</li>
+        </ul>
+        <button class="btn btn-primary" onclick="openEmailModal('media')">Contratar</button>
+      </div>
+
+      <div class="plan-card" data-plan="maxima">
+        <h2>Plan Máximo</h2>
+        <div class="price">$3.999<span class="period">/mes</span></div>
+        <ul>
+          <li>Sucursales ilimitadas</li>
+          <li>Admins ilimitados</li>
+          <li>Usuarios ilimitados</li>
+          <li>Todo lo del plan Medio</li>
+          <li>Soporte prioritario</li>
+          <li>Personalización</li>
+        </ul>
+        <button class="btn btn-primary" onclick="openEmailModal('maxima')">Contratar</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay hidden" id="emailModal">
+    <div class="modal">
+      <h3>Completá tu email</h3>
+      <p>Recibirás tu clave de licencia en este correo después del pago.</p>
+      <input type="email" id="emailInput" placeholder="tu@email.com" autocomplete="email" />
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeEmailModal()">Cancelar</button>
+        <button class="btn btn-primary" id="checkoutBtn" onclick="startCheckout()">Ir a pagar</button>
+      </div>
+      <div class="loader hidden" id="loader">Procesando...</div>
+      <div class="error hidden" id="errorMsg"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

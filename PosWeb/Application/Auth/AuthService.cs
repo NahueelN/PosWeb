@@ -1,4 +1,5 @@
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.Licensing;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -10,14 +11,16 @@ public class AuthService
 {
     private readonly PosDbContextLocal _context;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly LicenciaService _licenciaService;
 
-    public AuthService(PosDbContextLocal context, JwtTokenService jwtTokenService)
+    public AuthService(PosDbContextLocal context, JwtTokenService jwtTokenService, LicenciaService licenciaService)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
+        _licenciaService = licenciaService;
     }
 
-    public LoginResponseDto Login(LoginRequestDto request)
+    public async Task<LoginResponseDto> Login(LoginRequestDto request)
     {
         if (string.IsNullOrWhiteSpace(request.Usuario))
         {
@@ -40,6 +43,11 @@ public class AuthService
         if (!usuario.ACTIVO)
         {
             throw new UsuarioInactivoException(request.Usuario);
+        }
+
+        if (!await VerificarLicencia())
+        {
+            throw new LicenciaInvalidaException("No hay licencia configurada o la licencia no es válida");
         }
 
         if (!TieneAccesoPorSuscripcion(usuario))
@@ -67,7 +75,7 @@ public class AuthService
         };
     }
 
-    public LoginResponseDto PinLogin(LoginRequestDto request)
+    public async Task<LoginResponseDto> PinLogin(LoginRequestDto request)
     {
         if (string.IsNullOrWhiteSpace(request.Pin))
         {
@@ -85,6 +93,11 @@ public class AuthService
         if (!usuario.ACTIVO)
         {
             throw new UsuarioInactivoException(request.Usuario);
+        }
+
+        if (!await VerificarLicencia())
+        {
+            throw new LicenciaInvalidaException("No hay licencia configurada o la licencia no es válida");
         }
 
         if (!TieneAccesoPorSuscripcion(usuario))
@@ -177,9 +190,34 @@ public class AuthService
             ? Roles.Admin
             : (request.Rol?.Trim() ?? string.Empty);
 
+        if (!Roles.Todos.Contains(rol) && rol != string.Empty)
+        {
+            throw new ArgumentException($"Rol inválido: {rol}. Debe ser uno de: {string.Join(", ", Roles.Todos)}");
+        }
+
+        if (string.IsNullOrEmpty(rol))
+        {
+            throw new ArgumentException("El rol es requerido");
+        }
+
         if (_context.Usuario.Any(u => u.NOMBRE_USUARIO == nombreUsuario))
         {
             throw new ArgumentException("El usuario ya existe");
+        }
+
+        if (rol == Roles.Admin)
+        {
+            var adminCount = _context.Usuario.Count(u => u.ROL == Roles.Admin && u.ACTIVO);
+            var limites = _licenciaService.ObtenerLimitesPlan();
+            if (adminCount >= limites.maxAdmins)
+                throw new SuscripcionSinCupoException("administradores", "actual");
+        }
+        else if (rol == Roles.UsuarioComun)
+        {
+            var userCount = _context.Usuario.Count(u => u.ROL == Roles.UsuarioComun && u.ACTIVO);
+            var limites = _licenciaService.ObtenerLimitesPlan();
+            if (userCount >= limites.maxUsuarios)
+                throw new SuscripcionSinCupoException("usuarios", "actual");
         }
 
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
@@ -244,5 +282,11 @@ public class AuthService
 
         return _context.Usuario
             .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
+    }
+
+    private async Task<bool> VerificarLicencia()
+    {
+        var (permitido, _) = await _licenciaService.VerificarAcceso();
+        return permitido;
     }
 }

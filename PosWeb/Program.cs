@@ -21,6 +21,7 @@ using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
+using PosWeb.Application.Licensing;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -111,6 +112,15 @@ builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
+
+builder.Services.AddSingleton<IEncryptionService>(sp =>
+{
+    var key = builder.Configuration["Licensing:EncryptionKey"]
+        ?? builder.Configuration["MercadoPago:EncryptionKey"]
+        ?? "UG9zV2ViRW5jcnlwdGlvbktleUZvckxpY2Vuc2luZ1N5c3RlbQ==";
+    return new EncryptionService(key);
+});
+builder.Services.AddScoped<LicenciaService>();
 
 // Open Food Facts � optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
@@ -228,7 +238,29 @@ app.Use(async (context, next) =>
             var db = context.RequestServices.GetRequiredService<PosDbContextLocal>();
             var usuario = db.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
 
-            if (usuario == null || !UsuarioTieneAccesoPorSuscripcion(usuario, db))
+            if (usuario == null)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { error = "Usuario no encontrado" });
+                return;
+            }
+
+            var licenciaService = context.RequestServices.GetRequiredService<LicenciaService>();
+            var (permitido, motivo) = await licenciaService.VerificarAcceso();
+
+            if (!permitido)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = motivo ?? "Acceso denegado por licencia"
+                });
+                return;
+            }
+
+            if (!UsuarioTieneAccesoPorSuscripcion(usuario, db))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";

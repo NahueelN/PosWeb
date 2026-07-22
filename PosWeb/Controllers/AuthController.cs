@@ -18,26 +18,26 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequestDto request)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         if (request.SucursalId <= 0)
         {
             return BadRequest(new { error = "Sucursal requerida" });
         }
 
-        var result = _authService.Login(request);
+        var result = await _authService.Login(request);
         return Ok(result);
     }
 
     [HttpPost("pin")]
-    public IActionResult PinLogin([FromBody] LoginRequestDto request)
+    public async Task<IActionResult> PinLogin([FromBody] LoginRequestDto request)
     {
         if (request.SucursalId <= 0)
         {
             return BadRequest(new { error = "Sucursal requerida" });
         }
 
-        var result = _authService.PinLogin(request);
+        var result = await _authService.PinLogin(request);
         return Ok(result);
     }
 

@@ -636,3 +636,19 @@ export interface MovimientoCuentaDto {
   usuario?: string
   pagoId?: number
 }
+
+export interface ActivarLicenciaRequest {
+  licenseKey: string
+}
+
+export interface LicenciaEstado {
+  activa: boolean
+  plan: string
+  estado: string
+  verificadoHasta: string | null
+  graceHasta: string | null
+  maxSucursales: number
+  maxAdmins: number
+  maxUsuarios: number
+  cacheValido: boolean
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PosWeb - Licencia activada</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>PosWeb</h1>
+  </header>
+
+  <main>
+    <section class="result-card success">
+      <div class="icon">&#10003;</div>
+      <h2>Pago exitoso</h2>
+      <p>Tu licencia está lista. Copiá la clave y pegala en PosWeb para activarla.</p>
+
+      <div class="license-key-container">
+        <span class="license-label">Tu clave de licencia:</span>
+        <div class="license-key-box">
+          <code id="licenseKey">Cargando...</code>
+          <button class="btn btn-secondary btn-sm" onclick="copyLicenseKey()">Copiar</button>
+        </div>
+        <span class="copied hidden" id="copiedMsg">Copiado</span>
+      </div>
+
+      <div class="instructions">
+        <h3>Instrucciones</h3>
+        <ol>
+          <li>Copiá la clave de licencia</li>
+          <li>Abrí PosWeb en tu computadora</li>
+          <li>Pegá la clave en la pantalla de activación</li>
+          <li>Iniciá sesión normalmente</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const licenseKey = params.get('license_key');
+    if (licenseKey) {
+      document.getElementById('licenseKey').textContent = licenseKey;
+    } else {
+      document.getElementById('licenseKey').textContent = 'No se encontró la clave. Revisá tu email.';
+    }
+
+    function copyLicenseKey() {
+      const key = document.getElementById('licenseKey').textContent;
+      navigator.clipboard.writeText(key).then(() => {
+        const msg = document.getElementById('copiedMsg');
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 2000);
+      });
+    }
+  </script>
+</body>
+</html>

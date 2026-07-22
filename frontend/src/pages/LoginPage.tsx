@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
@@ -223,6 +223,12 @@ export default function LoginPage() {
             >
               Registrarse
             </button>
+
+            <div className="text-center">
+              <Link to="/activar" className="text-xs text-indigo-500 hover:underline">
+                Activar licencia
+              </Link>
+            </div>
           </form>
         )}
 

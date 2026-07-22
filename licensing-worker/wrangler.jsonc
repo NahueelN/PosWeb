@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "posweb-licensing",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "LICENSES_DB",
+      "database_name": "posweb-licenses",
+      "database_id": "6868dc46-399e-472c-92bc-665e013b8ec0",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
