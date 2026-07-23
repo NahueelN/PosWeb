@@ -15,6 +15,7 @@ using PosWeb.Application.Pedidos;
 using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.OpenFoodFacts;
+using PosWeb.Application.Catalogo;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
@@ -116,6 +117,15 @@ builder.Services.AddScoped<CategoriaGastoService>();
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
 {
     client.BaseAddress = new Uri("https://world.openfoodfacts.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+// Catálogo cloud – centralised product lookup & upload
+builder.Services.AddHttpClient<CatalogoService>(client =>
+{
+    var workerUrl = builder.Configuration["Catalogo:WorkerUrl"] ?? "http://localhost:8787";
+    client.BaseAddress = new Uri(workerUrl);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
     client.Timeout = TimeSpan.FromSeconds(10);
 });

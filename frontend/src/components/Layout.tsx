@@ -22,7 +22,7 @@ const menuGroups = [
     label: 'Gestión',
     links: [
       { to: '/productos', label: 'Productos', icon: '📦' },
-      { to: '/combos', label: 'Ofertas', icon: '🎁' },
+      { to: '/combos', label: 'Ofertas', icon: '🎁' },  
       { to: '/historial', label: 'Historial', icon: '📋' },
       { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],

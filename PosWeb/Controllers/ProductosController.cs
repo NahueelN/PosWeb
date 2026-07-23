@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using PosWeb.Application.Catalogo;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Productos;
@@ -12,11 +13,13 @@ public class ProductosController : ControllerBase
 {
     private readonly ProductoService _productoService;
     private readonly OpenFoodFactsService _openFoodFactsService;
+    private readonly CatalogoService _catalogoService;
 
-    public ProductosController(ProductoService productoService, OpenFoodFactsService openFoodFactsService)
+    public ProductosController(ProductoService productoService, OpenFoodFactsService openFoodFactsService, CatalogoService catalogoService)
     {
         _productoService = productoService;
         _openFoodFactsService = openFoodFactsService;
+        _catalogoService = catalogoService;
     }
 
     [HttpGet]
@@ -74,7 +77,7 @@ public class ProductosController : ControllerBase
     }
 
     /// <summary>
-    /// Busca un producto por código de barras: primero en la DB local, luego en Open Food Facts.
+    /// Busca un producto por código de barras: DB local → Catálogo cloud → Open Food Facts.
     /// </summary>
     [HttpGet("openfoodfacts/{codigo}")]
     public async Task<IActionResult> LookupOpenFoodFacts(string codigo)
@@ -95,7 +98,20 @@ public class ProductosController : ControllerBase
             // No existe localmente, continuar
         }
 
-        // 2. Consultar Open Food Facts
+        // 2. Consultar Catálogo cloud
+        var catalogoDatos = await _catalogoService.ConsultarAsync(codigo);
+
+        if (catalogoDatos != null)
+        {
+            return Ok(new ProductoLookupResponseDto
+            {
+                Local = false,
+                Encontrado = true,
+                Datos = catalogoDatos
+            });
+        }
+
+        // 3. Consultar Open Food Facts
         var datos = await _openFoodFactsService.ConsultarAsync(codigo);
 
         if (datos != null)
@@ -108,7 +124,7 @@ public class ProductosController : ControllerBase
             });
         }
 
-        // 3. No encontrado en ningún lado
+        // 4. No encontrado en ningún lado
         return Ok(new ProductoLookupResponseDto
         {
             Local = false,
@@ -124,9 +140,17 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPost]
-    public IActionResult Post([FromBody] ProductoUpsertDto dto)
+    public async Task<IActionResult> Post([FromBody] ProductoUpsertDto dto)
     {
-        return Ok(_productoService.Crear(dto));
+        var result = _productoService.Crear(dto);
+
+        if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
+        {
+            _ = Task.Run(() => _catalogoService.SubirProductoAsync(
+                dto.CodigoBarra, dto.Nombre, dto.Marca, dto.Contenido, null));
+        }
+
+        return Ok(result);
     }
 
     [HttpDelete("{id}")]
