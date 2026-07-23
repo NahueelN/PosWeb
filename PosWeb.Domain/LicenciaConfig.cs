@@ -26,14 +26,17 @@ public class LicenciaConfig
 
     public DateTime? GraceUntil { get; set; }
 
+    public DateTime? NextBilling { get; set; }
+
     public bool CacheValido => VerifiedUntil.HasValue && VerifiedUntil.Value > DateTime.UtcNow;
 
-    public void ActualizarEstado(string estado, DateTime? graceUntil = null)
+    public void ActualizarEstado(string estado, DateTime? graceUntil = null, DateTime? nextBilling = null)
     {
         Estado = estado;
         LastVerifiedAt = DateTime.UtcNow;
         VerifiedUntil = DateTime.UtcNow.AddHours(72);
         GraceUntil = graceUntil;
+        NextBilling = nextBilling ?? NextBilling;
     }
 }
 

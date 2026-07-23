@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
-import type { UsuarioListadoDto } from '../types'
+import type { UsuarioListadoDto, LicenciaEstado } from '../types'
 
 export default function AltaUsuarioPage() {
   const navigate = useNavigate()
@@ -16,6 +16,7 @@ export default function AltaUsuarioPage() {
   const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
+  const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
   const { notifyError, notifySuccess } = useNotification()
   const [_formError, _setFormError] = useState('')
   const [_listError, setListError] = useState('')
@@ -31,6 +32,7 @@ export default function AltaUsuarioPage() {
     }
 
     void loadUsuarios()
+    api.licencia.estado().then(setLicencia).catch(() => {})
   }, [user, navigate])
 
   async function loadUsuarios() {
@@ -234,6 +236,38 @@ export default function AltaUsuarioPage() {
             </button>
           </div>
         </form>
+
+        {licencia && (
+          <div className="bg-white rounded-xl p-6 shadow-xl mt-4">
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Licencia</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Plan</label>
+                <p className="text-sm font-semibold text-slate-700 mt-0.5">{licencia.plan}</p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Vencimiento</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.nextBilling
+                    ? new Date(licencia.nextBilling).toLocaleDateString('es-AR')
+                    : '-'}
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Sucursales</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.maxSucursales >= 2000000000 ? 'Ilimitadas' : licencia.maxSucursales}
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Usuarios</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.maxUsuarios >= 2000000000 ? 'Ilimitados' : licencia.maxUsuarios}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-xl">

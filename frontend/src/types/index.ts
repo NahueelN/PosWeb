@@ -647,8 +647,16 @@ export interface LicenciaEstado {
   estado: string
   verificadoHasta: string | null
   graceHasta: string | null
+  nextBilling: string | null
+  daysRemaining: number | null
   maxSucursales: number
   maxAdmins: number
   maxUsuarios: number
   cacheValido: boolean
+}
+
+export interface LicenciaResumen {
+  activa: boolean
+  plan: string
+  daysRemaining: number | null
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import type { SucursalDto } from '../types'
+import type { SucursalDto, LicenciaResumen } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
 import { Menu, MapPin, ChevronDown, LogOut, UserPlus } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
@@ -124,10 +125,22 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
+  const [licResumen, setLicResumen] = useState<LicenciaResumen | null>(null)
 
   useEffect(() => {
     const v = getCurrentVersion()
     if (v) setAppVersion(`v${v}`)
+  }, [])
+
+  useEffect(() => {
+    const fetchLicencia = () => {
+      api.licencia.resumen()
+        .then(setLicResumen)
+        .catch(() => {})
+    }
+    fetchLicencia()
+    const interval = setInterval(fetchLicencia, 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [])
 
   // F2 global: quick product lookup
@@ -265,6 +278,20 @@ export default function Layout() {
                 <MapPin size={12} strokeWidth={2.5} />
                 {sucursal.nombre}
               </span>
+            )}
+            {licResumen?.activa && licResumen.daysRemaining != null && licResumen.daysRemaining <= 3 && (
+              <a
+                href="https://posweb-licensing.chiacchio-eze01.workers.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg shrink-0 no-underline ${
+                  licResumen.daysRemaining <= 0
+                    ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                {licResumen.daysRemaining <= 0 ? 'Vencida — Renovar' : `Vence en ${licResumen.daysRemaining} días`}
+              </a>
             )}
           </div>
 

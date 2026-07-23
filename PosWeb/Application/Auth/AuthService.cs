@@ -45,7 +45,7 @@ public class AuthService
             throw new UsuarioInactivoException(request.Usuario);
         }
 
-        if (!await VerificarLicencia())
+        if (!await VerificarOActivarLicencia(usuario))
         {
             throw new LicenciaInvalidaException("No hay licencia configurada o la licencia no es válida");
         }
@@ -95,7 +95,7 @@ public class AuthService
             throw new UsuarioInactivoException(request.Usuario);
         }
 
-        if (!await VerificarLicencia())
+        if (!await VerificarOActivarLicencia(usuario))
         {
             throw new LicenciaInvalidaException("No hay licencia configurada o la licencia no es válida");
         }
@@ -284,9 +284,18 @@ public class AuthService
             .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
     }
 
-    private async Task<bool> VerificarLicencia()
-    {
-        var (permitido, _) = await _licenciaService.VerificarAcceso();
-        return permitido;
-    }
+  private async Task<bool> VerificarOActivarLicencia(Usuario usuario)
+  {
+    var (permitido, _) = await _licenciaService.VerificarAcceso();
+    if (permitido) return true;
+
+    var local = await _licenciaService.ObtenerEstadoLocal();
+    if (local != null) return false;
+
+    if (string.IsNullOrWhiteSpace(usuario.MAIL))
+      return false;
+
+    var (exito, _, _) = await _licenciaService.BuscarYActivarPorEmail(usuario.MAIL);
+    return exito;
+  }
 }

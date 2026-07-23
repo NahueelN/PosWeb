@@ -13,6 +13,7 @@ public class LicenciaService
     private readonly PosDbContextLocal _context;
     private readonly HttpClient _httpClient;
     private readonly string? _workerUrl;
+    private readonly string? _internalKey;
     private readonly int _offlineHours;
     private readonly IEncryptionService _encryption;
 
@@ -30,6 +31,7 @@ public class LicenciaService
         _context = context;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         _workerUrl = configuration["Licensing:WorkerUrl"];
+        _internalKey = configuration["Licensing:InternalKey"];
         _offlineHours = int.Parse(configuration["Licensing:OfflineHours"] ?? "72");
         _encryption = encryption;
     }
@@ -96,6 +98,80 @@ public class LicenciaService
         return (true, null, licencia);
     }
 
+    public async Task<(bool exito, string? mensaje, LicenciaConfig? licencia)> BuscarYActivarPorEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+            return (false, "Worker o clave interna no configurados", null);
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/license-by-email")
+            {
+                Content = JsonContent.Create(new { email }, options: JsonOptions)
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+                return (false, $"Error del Worker: {(int)response.StatusCode}", null);
+
+            var result = await response.Content.ReadFromJsonAsync<EmailLookupResponse>(JsonOptions);
+
+            if (result == null || !result.Found)
+                return (false, "No se encontró una licencia para este email", null);
+
+            var machineId = await ObtenerOCrearMachineId();
+
+            var request2 = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/activate")
+            {
+                Content = JsonContent.Create(new
+                {
+                    license_key = result.LicenseKey,
+                    machine_id = machineId
+                }, options: JsonOptions)
+            };
+
+            var response2 = await _httpClient.SendAsync(request2);
+
+            if (!response2.IsSuccessStatusCode)
+            {
+                var errorObj = await response2.Content.ReadFromJsonAsync<WorkerErrorResponse>(JsonOptions);
+                return (false, errorObj?.Error ?? $"Error al activar: {(int)response2.StatusCode}", null);
+            }
+
+            var activateResult = await response2.Content.ReadFromJsonAsync<ActivateWorkerResponse>(JsonOptions);
+            if (activateResult == null || !activateResult.Success)
+                return (false, "No se pudo activar la licencia en este dispositivo", null);
+
+            var existente = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
+            if (existente != null)
+                _context.Set<LicenciaConfig>().Remove(existente);
+
+            var nextBillingParsed = result.NextBilling != null ? DateTime.Parse(result.NextBilling) : (DateTime?)null;
+
+            var licencia = new LicenciaConfig
+            {
+                LicenseKey = _encryption.Encrypt(result.LicenseKey),
+                Plan = NormalizarPlan(result.Plan),
+                Estado = result.Status,
+                MachineId = machineId,
+                NextBilling = nextBillingParsed,
+            };
+            licencia.ActualizarEstado(result.Status, nextBilling: nextBillingParsed);
+
+            _context.Set<LicenciaConfig>().Add(licencia);
+            await SincronizarSuscripcionConLicencia(licencia);
+            await _context.SaveChangesAsync();
+
+            return (true, null, licencia);
+        }
+        catch (HttpRequestException)
+        {
+            return (false, "No se pudo conectar con el servidor de licencias", null);
+        }
+    }
+
     public async Task<(bool permitido, string? motivo)> VerificarAcceso()
     {
         if (string.IsNullOrWhiteSpace(_workerUrl))
@@ -133,7 +209,8 @@ public class LicenciaService
             }
 
             var graceUntil = result.GraceUntil != null ? DateTime.Parse(result.GraceUntil) : (DateTime?)null;
-            licencia.ActualizarEstado(result.Status, graceUntil);
+            var nextBilling = result.NextBilling != null ? DateTime.Parse(result.NextBilling) : (DateTime?)null;
+            licencia.ActualizarEstado(result.Status, graceUntil, nextBilling);
 
             if (!licencia.Activa)
             {
@@ -281,5 +358,29 @@ public class LicenciaService
     {
         [JsonPropertyName("error")]
         public string Error { get; set; } = "";
+    }
+
+    private class EmailLookupResponse
+    {
+        [JsonPropertyName("found")]
+        public bool Found { get; set; }
+
+        [JsonPropertyName("license_key")]
+        public string LicenseKey { get; set; } = "";
+
+        [JsonPropertyName("plan")]
+        public string Plan { get; set; } = "";
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "";
+
+        [JsonPropertyName("next_billing")]
+        public string? NextBilling { get; set; }
+
+        [JsonPropertyName("grace_until")]
+        public string? GraceUntil { get; set; }
+
+        [JsonPropertyName("days_remaining")]
+        public int? DaysRemaining { get; set; }
     }
 }

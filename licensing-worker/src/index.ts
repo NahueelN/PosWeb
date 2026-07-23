@@ -5,6 +5,7 @@ interface Env {
   LICENSES_DB: D1Database;
   MP_ACCESS_TOKEN: string;
   MP_WEBHOOK_SECRET?: string;
+  POSWEB_INTERNAL_KEY?: string;
 }
 
 interface License {
@@ -260,12 +261,134 @@ app.post('/status', async (c) => {
     return c.json({ valid: false, error: 'License cancelled' });
   }
 
+  if (license.status === 'pending' && license.preapproval_id) {
+    try {
+      const refParts = (license.preapproval_id || '').includes(':')
+        ? [] : [];
+      const mpCheck = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?external_reference=plan:${license.plan}:${license.email}:${license.license_key}`,
+        { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } }
+      );
+      if (mpCheck.ok) {
+        const searchData: any = await mpCheck.json();
+        const approved = searchData.results?.find((p: any) => p.status === 'approved');
+        if (approved) {
+          const nextBilling = new Date();
+          nextBilling.setDate(nextBilling.getDate() + 30);
+          await env.LICENSES_DB
+            .prepare('UPDATE licenses SET status = ?, next_billing = ?, preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
+            .bind('active', nextBilling.toISOString().split('T')[0], approved.id.toString(), license.license_key)
+            .run();
+          license.status = 'active';
+          license.next_billing = nextBilling.toISOString().split('T')[0];
+        }
+      }
+    } catch {
+      // ignore MP errors during status check, keep pending
+    }
+  }
+
+  const now = new Date();
+  const nextBillingDate = license.next_billing ? new Date(license.next_billing) : null;
+  const daysRemaining = nextBillingDate
+    ? Math.ceil((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   return c.json({
-    valid: true,
+    valid: license.status === 'active' || license.status === 'grace',
     plan: license.plan,
     status: license.status,
     next_billing: license.next_billing,
     grace_until: license.grace_until,
+    days_remaining: daysRemaining,
+  });
+});
+
+function checkInternalAuth(c: any, env: Env): boolean {
+  if (!env.POSWEB_INTERNAL_KEY) return false;
+  const auth = c.req.header('Authorization') || '';
+  return auth === `Bearer ${env.POSWEB_INTERNAL_KEY}`;
+}
+
+app.post('/grant-license', async (c) => {
+  const env = c.env;
+
+  if (!checkInternalAuth(c, env)) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = await c.req.json<{ email: string; plan: string; activate?: boolean; duration_days?: number }>();
+  const { email, plan, activate, duration_days } = body;
+
+  if (!email) {
+    return c.json({ error: 'email is required' }, 400);
+  }
+
+  const planKey = plan.toLowerCase();
+  if (!VALID_PLANS.includes(planKey)) {
+    return c.json({ error: `Invalid plan: ${plan}. Valid plans: ${VALID_PLANS.join(', ')}` }, 400);
+  }
+
+  const duration = Math.min(730, Math.max(1, duration_days ?? 30));
+  const licenseKey = generateLicenseKey();
+  const nextBilling = new Date();
+  nextBilling.setDate(nextBilling.getDate() + duration);
+  const nextBillingStr = nextBilling.toISOString().split('T')[0];
+  const status = activate ? 'active' : 'pending';
+
+  await env.LICENSES_DB
+    .prepare(
+      'INSERT INTO licenses (license_key, email, plan, status, next_billing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+    )
+    .bind(licenseKey, email.toLowerCase().trim(), planKey, status, nextBillingStr)
+    .run();
+
+  return c.json({
+    license_key: licenseKey,
+    email: email.toLowerCase().trim(),
+    plan: planKey,
+    status,
+    next_billing: nextBillingStr,
+  });
+});
+
+app.post('/license-by-email', async (c) => {
+  const env = c.env;
+
+  if (!checkInternalAuth(c, env)) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = await c.req.json<{ email: string }>();
+  const { email } = body;
+
+  if (!email) {
+    return c.json({ found: false, error: 'email is required' }, 400);
+  }
+
+  const license = await env.LICENSES_DB
+    .prepare('SELECT * FROM licenses WHERE email = ? AND status IN (\'active\', \'grace\') ORDER BY created_at DESC LIMIT 1')
+    .bind(email.toLowerCase().trim())
+    .first<License>();
+
+  if (!license) {
+    return c.json({ found: false });
+  }
+
+  const now = new Date();
+  const nextBillingDate = license.next_billing ? new Date(license.next_billing) : null;
+  const daysRemaining = nextBillingDate
+    ? Math.ceil((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  return c.json({
+    found: true,
+    license_key: license.license_key,
+    plan: license.plan,
+    status: license.status,
+    next_billing: license.next_billing,
+    grace_until: license.grace_until,
+    days_remaining: daysRemaining,
   });
 });
 
@@ -288,12 +411,15 @@ app.post('/checkout', async (c) => {
 
   const licenseKey = generateLicenseKey();
   const externalRef = `plan:${planKey}:${email}:${licenseKey}`;
+  const nextBilling = new Date();
+  nextBilling.setDate(nextBilling.getDate() + 30);
+  const nextBillingStr = nextBilling.toISOString().split('T')[0];
 
   await env.LICENSES_DB
     .prepare(
-      'INSERT INTO licenses (license_key, email, plan, status, created_at, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+      'INSERT INTO licenses (license_key, email, plan, status, next_billing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
     )
-    .bind(licenseKey, email, planKey, 'pending')
+    .bind(licenseKey, email, planKey, 'pending', nextBillingStr)
     .run();
 
   try {
