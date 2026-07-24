@@ -12,14 +12,8 @@ interface PieSlice {
 }
 
 const COLORS = [
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#3b82f6', // blue
-  '#f97316', // orange
-  '#14b8a6', // teal
+  '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
+  '#10b981', '#3b82f6', '#f97316', '#14b8a6',
 ]
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
@@ -45,14 +39,16 @@ export default function PieChartWidget({ widget }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center text-gray-300 h-full">
-        <PieChartIcon size={24} className="mb-1.5 opacity-40" />
-        <p className="text-xs">Sin datos</p>
+      <div className="p-3.5 flex flex-col items-center justify-center text-gray-300 h-full relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-violet-400 to-rose-300" />
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center mb-2 ring-1 ring-black/[0.02]">
+          <PieChartIcon size={16} className="text-violet-300" />
+        </div>
+        <p className="text-xs text-gray-400 font-medium">Sin datos</p>
       </div>
     )
   }
 
-  // Build slices
   const total = rows.reduce((sum, r) => sum + ((r['value'] as number) ?? 0), 0)
   const slices: PieSlice[] = []
   let angle = 0
@@ -97,16 +93,16 @@ export default function PieChartWidget({ widget }: Props) {
     `$${v.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
   return (
-    <div className="p-3 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold text-gray-900">{widget.title}</h3>
+    <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-violet-400 to-rose-300" />
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
         {config.showPercentages !== false && (
           <span className="text-[10px] text-gray-400">{rows.length} items</span>
         )}
       </div>
 
-      <div className="flex items-center gap-3 flex-1">
-        {/* SVG Pie */}
+      <div className="flex items-center gap-4 flex-1">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
           {slices.map((s, i) => {
             const isHovered = hovered === i
@@ -116,7 +112,7 @@ export default function PieChartWidget({ widget }: Props) {
                 <path
                   d={innerR > 0 ? describeDonutSlice(s.startAngle, s.endAngle) : describeArc(cx, cy, r, s.startAngle, s.endAngle)}
                   fill={s.color}
-                  opacity={hovered !== null && hovered !== i ? 0.5 : 1}
+                  opacity={hovered !== null && hovered !== i ? 0.4 : 1}
                   onMouseEnter={() => setHovered(i)}
                   onMouseLeave={() => setHovered(null)}
                   style={{ cursor: 'pointer', transition: 'opacity 0.15s ease' }}
@@ -131,17 +127,16 @@ export default function PieChartWidget({ widget }: Props) {
           )}
         </svg>
 
-        {/* Legend */}
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
           {slices.map((s, i) => (
             <div
               key={i}
-              className={`flex items-center gap-1.5 text-[10px] transition-opacity ${hovered !== null && hovered !== i ? 'opacity-40' : ''}`}
+              className={`flex items-center gap-1.5 text-[10px] transition-opacity ${hovered !== null && hovered !== i ? 'opacity-30' : ''}`}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-              <span className="text-gray-600 truncate">{s.label}</span>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+              <span className="text-gray-500 truncate">{s.label}</span>
               <span className="ml-auto text-gray-900 font-semibold whitespace-nowrap">
                 {config.showPercentages !== false ? `${s.pct}%` : formatCurrency(s.value)}
               </span>

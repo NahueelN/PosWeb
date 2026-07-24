@@ -15,15 +15,11 @@ export default function GaugeWidget({ widget }: Props) {
   const range = max - min
   const pct = range > 0 ? Math.max(0, Math.min(1, (value - min) / range)) : 0
 
-  // SVG gauge: semicircle from -90° to 90°
   const size = 120
   const cx = size / 2
   const cy = size / 2 + 8
   const r = 44
   const strokeWidth = 10
-  const circumference = Math.PI * r // semicircle
-
-  // Arc from left to right
   const startAngle = -180
   const endAngle = 0
   const sweepAngle = startAngle + pct * (endAngle - startAngle)
@@ -33,25 +29,18 @@ export default function GaugeWidget({ widget }: Props) {
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
   }
 
-  // Background arc
   const bgStart = polarToCartesian(cx, cy, r, startAngle)
   const bgEnd = polarToCartesian(cx, cy, r, endAngle)
-
-  // Value arc
   const valStart = polarToCartesian(cx, cy, r, startAngle)
   const valEnd = polarToCartesian(cx, cy, r, sweepAngle)
-
   const largeArc = Math.abs(sweepAngle - startAngle) > 180 ? 1 : 0
 
-  // Color based on value position
   const getColor = (p: number) => {
-    if (p < 0.3) return '#ef4444'       // red
-    if (p < 0.6) return '#f59e0b'       // amber
-    return '#10b981'                      // emerald
+    if (p < 0.3) return '#ef4444'
+    if (p < 0.6) return '#f59e0b'
+    return '#10b981'
   }
   const color = getColor(pct)
-
-  // Tick marks
   const ticks = [0, 0.25, 0.5, 0.75, 1]
 
   const formatValue = (v: number) => {
@@ -66,19 +55,19 @@ export default function GaugeWidget({ widget }: Props) {
   }
 
   return (
-    <div className="p-2 h-full group hover:bg-gray-50 transition-all duration-200">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-5 h-5 rounded-md flex items-center justify-center bg-amber-50 shrink-0">
-          <GaugeIcon size={10} className="text-amber-600" strokeWidth={2.5} />
+    <div className="p-3.5 h-full flex flex-col justify-center relative overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 to-orange-300" />
+      <div className="flex items-center gap-2.5 mb-1">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center shrink-0 ring-1 ring-black/[0.02]">
+          <GaugeIcon size={11} className="text-amber-500" strokeWidth={2.5} />
         </div>
-        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider flex-1">
+        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest flex-1 leading-none">
           {widget.title}
         </p>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center -mt-1">
         <svg width={size} height={size / 2 + 16} viewBox={`0 0 ${size} ${size / 2 + 16}`}>
-          {/* Background arc */}
           <path
             d={`M ${bgStart.x} ${bgStart.y} A ${r} ${r} 0 1 1 ${bgEnd.x} ${bgEnd.y}`}
             fill="none"
@@ -87,7 +76,6 @@ export default function GaugeWidget({ widget }: Props) {
             strokeLinecap="round"
           />
 
-          {/* Value arc */}
           {pct > 0.005 && (
             <path
               d={`M ${valStart.x} ${valStart.y} A ${r} ${r} 0 ${largeArc} 1 ${valEnd.x} ${valEnd.y}`}
@@ -99,7 +87,6 @@ export default function GaugeWidget({ widget }: Props) {
             />
           )}
 
-          {/* Tick marks */}
           {ticks.map((t) => {
             const tickAngle = startAngle + t * (endAngle - startAngle)
             const outer = polarToCartesian(cx, cy, r + strokeWidth / 2 + 4, tickAngle)
@@ -109,14 +96,13 @@ export default function GaugeWidget({ widget }: Props) {
                 key={t}
                 x1={outer.x} y1={outer.y}
                 x2={inner.x} y2={inner.y}
-                stroke="#d1d5db"
+                stroke="#e5e7eb"
                 strokeWidth={1.5}
                 strokeLinecap="round"
               />
             )
           })}
 
-          {/* Needle dot */}
           {pct > 0 && (
             <circle
               cx={valEnd.x}
@@ -129,11 +115,10 @@ export default function GaugeWidget({ widget }: Props) {
             />
           )}
 
-          {/* Center value */}
           <text x={cx} y={cy - 4} textAnchor="middle" className="fill-gray-900 font-bold" fontSize={16}>
             {formatValue(value)}
           </text>
-          <text x={cx} y={cy + 10} textAnchor="middle" className="fill-gray-400" fontSize={8}>
+          <text x={cx} y={cy + 10} textAnchor="middle" className="fill-gray-400" fontSize={7}>
             {formatValue(min)} — {formatValue(max)}
           </text>
         </svg>

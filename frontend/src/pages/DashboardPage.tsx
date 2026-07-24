@@ -267,7 +267,7 @@ export default function DashboardPage() {
           </div>
         }
       >
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
           <DashboardGridRGL
             layout={layout}
             widgets={widgets}
@@ -281,11 +281,13 @@ export default function DashboardPage() {
       </PageShell>
 
       {layout.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-          <Plus size={32} className="mb-3 text-gray-300" />
-          <p className="text-sm font-medium">Tu dashboard está vacío</p>
-          <p className="text-xs mt-1">Agregá widgets para ver la información de tu negocio</p>
-          <Button variant="primary" size="sm" className="mt-4" icon={<Plus size={13} />} onClick={() => setShowPicker(true)}>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center mb-4 shadow-sm">
+            <Plus size={22} className="text-indigo-400" strokeWidth={1.5} />
+          </div>
+          <p className="text-base font-semibold text-gray-900 tracking-tight">Tu dashboard está vacío</p>
+          <p className="text-sm text-gray-400 mt-1.5 max-w-sm">Agregá widgets para ver la información de tu negocio en un solo lugar</p>
+          <Button variant="primary" size="sm" className="mt-5" icon={<Plus size={13} />} onClick={() => setShowPicker(true)}>
             Agregar Primer Widget
           </Button>
         </div>

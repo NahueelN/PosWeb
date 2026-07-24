@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import ReactGridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
+import './grid/dashboard-grid.css'
 import type { Layout as RGLLayout, ItemCallback } from 'react-grid-layout/legacy'
 import type { LayoutInstance } from './grid/types'
 import { GRID_ROWS } from './grid/types'
@@ -28,6 +30,12 @@ export default function DashboardGridRGL({
   const [containerWidth, setContainerWidth] = useState(0)
   const onLayoutChangeRef = useRef(onLayoutChange)
   onLayoutChangeRef.current = onLayoutChange
+
+  const [exiting, setExiting] = useState<Set<string>>(new Set())
+  const exitingRef = useRef(exiting)
+  exitingRef.current = exiting
+  const firstRender = useRef(true)
+  useEffect(() => { firstRender.current = false }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -115,6 +123,11 @@ export default function DashboardGridRGL({
     onLayoutChangeRef.current?.(newInstances)
   }, [layout])
 
+  const handleRemoveLocal = useCallback((instanceId: string) => {
+    if (exitingRef.current.has(instanceId)) return
+    setExiting((prev) => new Set(prev).add(instanceId))
+  }, [])
+
   const widgetMap = useMemo(() => {
     const m = new Map<string, Widget>()
     for (const w of widgets) m.set(w.id, w)
@@ -145,11 +158,12 @@ export default function DashboardGridRGL({
         {layout.map((inst) => {
           const widget = widgetMap.get(inst.id)
           return (
-            <div key={inst.id} className="group relative rounded-xl min-h-0 min-w-0 overflow-hidden">
+            <div key={inst.id} className="group relative rounded-xl min-h-0 min-w-0">
+              {/* Drag handle — always visible so widgets feel draggable */}
               {onRemove && (
-                <div className="widget-drag-handle absolute top-1.5 left-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-                  <div className="bg-white/90 border border-gray-200 rounded-md p-0.5 shadow-sm">
-                    <GripVertical size={12} className="text-gray-400" />
+                <div className="widget-drag-handle absolute top-2 left-2 z-20 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity">
+                  <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 transition-colors">
+                    <GripVertical size={11} className="text-gray-400" />
                   </div>
                 </div>
               )}
@@ -157,35 +171,57 @@ export default function DashboardGridRGL({
               {onEdit && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit(inst.id) }}
-                  className="absolute top-1.5 right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <div className="bg-white/90 border border-gray-200 rounded-md p-0.5 shadow-sm hover:bg-indigo-50 hover:border-indigo-200 transition-colors">
-                    <Maximize2 size={11} className="text-gray-400 hover:text-indigo-500" />
+                  <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-indigo-50 transition-colors">
+                    <Maximize2 size={10} className="text-gray-300 hover:text-indigo-500" />
                   </div>
                 </button>
               )}
 
               {onRemove && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onRemove(inst.id) }}
-                  className="absolute top-1.5 right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ right: onEdit ? '28px' : undefined }}
+                  onClick={(e) => { e.stopPropagation(); handleRemoveLocal(inst.id) }}
+                  className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ right: onEdit ? '32px' : undefined }}
                 >
-                  <div className="bg-white/90 border border-gray-200 rounded-md p-0.5 shadow-sm hover:bg-red-50 hover:border-red-200 transition-colors">
-                    <Trash2 size={11} className="text-gray-400 hover:text-red-500" />
+                  <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-red-50 transition-colors">
+                    <Trash2 size={10} className="text-gray-300 hover:text-red-400" />
                   </div>
                 </button>
               )}
 
-              <div className="h-full min-h-0 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <motion.div
+                className="h-full min-h-0 min-w-0 bg-white rounded-xl border border-gray-300 shadow-card overflow-hidden"
+                initial={firstRender.current ? false : { opacity: 0, scale: 0.95, y: 8 }}
+                animate={
+                  exiting.has(inst.id)
+                    ? { opacity: 0, scale: 0.95, y: -8 }
+                    : { opacity: 1, scale: 1, y: 0 }
+                }
+                whileHover={{ y: -2, boxShadow: '0 4px 14px oklch(0 0 0 / 0.08), 0 1px 3px oklch(0 0 0 / 0.04)' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25, mass: 0.8 }}
+                onAnimationComplete={() => {
+                  if (exiting.has(inst.id)) {
+                    setTimeout(() => {
+                      setExiting((prev) => {
+                        const n = new Set(prev)
+                        n.delete(inst.id)
+                        return n
+                      })
+                      onRemove?.(inst.id)
+                    }, 50)
+                  }
+                }}
+              >
                 {widget ? (
                   <WidgetRenderer widget={widget} />
                 ) : (
                   <div className="flex items-center justify-center text-gray-300 h-full">
-                    <span className="text-xs">Cargando…</span>
+                    <span className="text-xs text-gray-400 font-medium">Cargando…</span>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
           )
         })}
