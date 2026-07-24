@@ -325,7 +325,7 @@ export default function DashboardPage() {
           onClose={() => setShowPicker(false)}
           definitions={definitions}
           onAdd={handleAddWidget}
-          existingWidgets={existingWidgets}
+          existingDefinitionIds={Object.keys(existingWidgets)}
         />
       )}
 
