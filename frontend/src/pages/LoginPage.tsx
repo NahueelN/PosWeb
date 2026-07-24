@@ -187,6 +187,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {sucursales.length > 1 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Sucursal</label>
               <select
@@ -205,6 +206,7 @@ export default function LoginPage() {
                 )}
               </select>
             </div>
+            )}
 
             <button
               type="submit"

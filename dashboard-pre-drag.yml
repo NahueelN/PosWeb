@@ -1,0 +1,170 @@
+- generic [ref=e8] [box=0,0,1920,889]:
+  - complementary [ref=e9] [box=0,0,196,889]:
+    - generic [ref=e10] [box=0,0,195,61]:
+      - generic [ref=e11] [box=16,16,28,28]: PW
+      - generic [ref=e12] [box=54,17,49,26]:
+        - generic [ref=e13] [box=54,17,49,14]: PosWeb
+        - generic [ref=e14] [box=54,34,49,10]: v0.1
+    - navigation [ref=e15] [box=0,61,195,775]:
+      - button "Principal" [ref=e17] [box=8,69,179,26]:
+        - generic [ref=e18] [box=18,75,58,14]: Principal
+        - img [ref=e19] [box=167,77,10,10]
+      - button "Operaciones" [ref=e22] [box=8,97,179,26]:
+        - generic [ref=e23] [box=18,103,76,14]: Operaciones
+        - img [ref=e24] [box=167,105,10,10]
+      - button "Gestión" [ref=e27] [box=8,126,179,26]:
+        - generic [ref=e28] [box=18,132,48,14]: Gestión
+        - img [ref=e29] [box=167,134,10,10]
+      - button "Contactos" [ref=e32] [box=8,154,179,26]:
+        - generic [ref=e33] [box=18,160,65,14]: Contactos
+        - img [ref=e34] [box=167,162,10,10]
+    - link "Alta usuario" [ref=e37] [cursor=pointer] [box=8,847,179,32]:
+      - /url: /usuarios/alta
+      - img [ref=e38] [box=18,856,14,14]
+      - text: Alta usuario
+  - main [ref=e41] [box=196,0,1724,889]:
+    - generic [ref=e42] [box=196,0,1724,48]:
+      - generic [ref=e43] [box=216,11,230,25]:
+        - heading "Punto de Venta" [level=1] [ref=e44] [box=216,13,99,22]
+        - generic [ref=e45] [box=327,11,118,25]:
+          - img [ref=e46] [box=337,18,12,12]
+          - text: Sucursal Central
+      - generic [ref=e49] [box=1632,11,268,25]:
+        - button "Cambiar sucursal" [ref=e50] [box=1632,15,85,17]
+        - generic [ref=e51] [box=1729,11,171,25]:
+          - generic [ref=e52] [box=1729,12,95,24]:
+            - generic [ref=e53] [box=1729,12,24,24]: A
+            - generic [ref=e54] [box=1761,12,63,24]:
+              - generic [ref=e55] [box=1761,12,63,12]: admin
+              - generic [ref=e56] [box=1761,26,63,10]: SuperAdmin
+          - button "Salir" [ref=e58] [box=1848,11,52,25]:
+            - img [ref=e59] [box=1854,18,12,12]
+            - generic [ref=e62] [box=1872,15,22,17]: Salir
+    - generic [ref=e65] [box=216,68,1684,801]:
+      - generic [ref=e66] [box=216,68,1684,55]:
+        - generic [ref=e67] [box=216,68,210,55]:
+          - heading "Inicio" [level=1] [ref=e68] [box=216,68,210,33]
+          - paragraph [ref=e69] [box=216,103,210,20]: Resumen de la actividad del negocio
+        - generic [ref=e71] [box=1554,68,346,32]:
+          - generic [ref=e72] [box=1554,76,112,17]: Actualizado 10:00 p. m.
+          - button "Agregar Widget" [ref=e73] [box=1675,68,124,32]:
+            - img [ref=e75] [box=1688,78,12,12]
+            - generic [ref=e76] [box=1706,76,80,17]: Agregar Widget
+          - button "Actualizar" [ref=e77] [box=1807,68,93,32]:
+            - img [ref=e79] [box=1820,78,12,12]
+            - generic [ref=e84] [box=1838,76,49,17]: Actualizar
+      - generic [ref=e88] [box=216,143,1684,727]:
+        - generic [ref=e89] [box=216,143,415,114]:
+          - img [ref=e92] [box=225,152,12,12]
+          - button [ref=e99] [box=608,149,17,17]:
+            - img [ref=e101] [box=611,152,11,11]
+          - button [ref=e106] [box=586,149,17,17]:
+            - img [ref=e108] [box=589,152,11,11]
+          - generic [ref=e113] [box=225,186,152,28]:
+            - img [ref=e115] [box=233,194,12,12]
+            - generic [ref=e117] [box=261,186,73,27]:
+              - paragraph [ref=e118] [box=261,186,73,9]: Ventas de hoy
+              - paragraph [ref=e119] [box=261,197,73,16]: $0,00
+            - generic [ref=e120] [box=342,192,35,15]:
+              - img [ref=e121] [box=342,195,9,9]
+              - text: 100%
+        - generic [ref=e125] [box=216,265,415,114]:
+          - img [ref=e128] [box=225,274,12,12]
+          - button [ref=e135] [box=608,271,17,17]:
+            - img [ref=e137] [box=611,274,11,11]
+          - button [ref=e142] [box=586,271,17,17]:
+            - img [ref=e144] [box=589,274,11,11]
+          - generic [ref=e149] [box=225,308,124,28]:
+            - img [ref=e151] [box=233,316,12,12]
+            - generic [ref=e153] [box=261,308,70,27]:
+              - paragraph [ref=e154] [box=261,308,70,9]: Caja actual
+              - paragraph [ref=e155] [box=261,319,70,16]: $5.661,00
+            - generic [ref=e156] [box=339,314,10,15]: —
+        - generic [ref=e158] [box=216,387,415,114]:
+          - img [ref=e161] [box=225,396,12,12]
+          - button [ref=e168] [box=608,393,17,17]:
+            - img [ref=e170] [box=611,396,11,11]
+          - button [ref=e175] [box=586,393,17,17]:
+            - img [ref=e177] [box=589,396,11,11]
+          - generic [ref=e182] [box=225,430,133,28]:
+            - img [ref=e184] [box=233,438,12,12]
+            - generic [ref=e186] [box=261,430,64,27]:
+              - paragraph [ref=e187] [box=261,430,64,9]: Meta del día
+              - paragraph [ref=e188] [box=261,441,64,16]: $100,00
+            - generic [ref=e189] [box=333,436,25,15]:
+              - img [ref=e190] [box=333,439,9,9]
+              - text: 0%
+        - generic [ref=e192] [box=1485,143,415,236]:
+          - img [ref=e195] [box=1494,152,12,12]
+          - button [ref=e202] [box=1877,149,17,17]:
+            - img [ref=e204] [box=1880,152,11,11]
+          - button [ref=e209] [box=1855,149,17,17]:
+            - img [ref=e211] [box=1858,152,11,11]
+          - generic [ref=e215] [box=1486,144,413,234]:
+            - generic [ref=e217] [box=1498,156,38,33]:
+              - heading "Alertas" [level=3] [ref=e218] [box=1498,156,38,16]
+              - paragraph [ref=e219] [box=1498,174,38,15]: 2 activas
+            - generic [ref=e220] [box=1498,197,389,169]:
+              - button "Stock bajo 2" [ref=e221] [box=1498,197,389,36]:
+                - img [ref=e223] [box=1512,209,12,12]
+                - generic [ref=e227] [box=1538,205,306,20]: Stock bajo
+                - generic [ref=e228] [box=1852,205,7,20]: "2"
+                - img [ref=e229] [box=1867,209,12,12]
+              - button "Caja abierta 1" [ref=e231] [box=1498,237,389,36]:
+                - img [ref=e233] [box=1512,249,12,12]
+                - generic [ref=e236] [box=1538,245,306,20]: Caja abierta
+                - generic [ref=e237] [box=1852,245,7,20]: "1"
+                - img [ref=e238] [box=1867,249,12,12]
+        - generic [ref=e241] [box=1485,387,415,236]:
+          - img [ref=e244] [box=1494,396,12,12]
+          - button [ref=e251] [box=1877,393,17,17]:
+            - img [ref=e253] [box=1880,396,11,11]
+          - button [ref=e258] [box=1855,393,17,17]:
+            - img [ref=e260] [box=1858,396,11,11]
+          - generic [ref=e264] [box=1486,388,413,234]:
+            - generic [ref=e266] [box=1498,400,94,33]:
+              - heading "Resumen del día" [level=3] [ref=e267] [box=1498,400,94,16]
+              - paragraph [ref=e268] [box=1498,418,94,15]: Últimos movimientos
+            - generic [ref=e270] [box=1498,441,389,36]:
+              - img [ref=e272] [box=1511,453,11,11]
+              - generic [box=1536,459,285,0]:
+                - paragraph [box=1536,459,285,0]
+              - generic [ref=e275] [box=1829,451,52,15]: Invalid Date
+        - generic [ref=e277] [box=1062,143,415,236]:
+          - img [ref=e280] [box=1071,152,12,12]
+          - button [ref=e287] [box=1454,149,17,17]:
+            - img [ref=e289] [box=1457,152,11,11]
+          - button [ref=e294] [box=1432,149,17,17]:
+            - img [ref=e296] [box=1435,152,11,11]
+          - generic [ref=e300] [box=1063,144,413,234]:
+            - generic [ref=e302] [box=1075,156,98,33]:
+              - heading "Actividad reciente" [level=3] [ref=e303] [box=1075,156,98,16]
+              - paragraph [ref=e304] [box=1075,174,98,15]: Últimos movimientos
+            - generic [ref=e305] [box=1075,197,389,169]:
+              - generic [ref=e306] [box=1075,197,389,36]:
+                - img [ref=e308] [box=1088,209,11,11]
+                - paragraph [ref=e312] [box=1113,206,235,18]: Apertura de caja
+                - generic [ref=e313] [box=1356,206,46,17]: $5.661,00
+                - generic [ref=e314] [box=1410,207,48,15]: 01:34 p. m.
+              - generic [ref=e315] [box=1075,235,389,36]:
+                - img [ref=e317] [box=1088,247,11,11]
+                - paragraph [ref=e321] [box=1113,244,235,18]: Cierre de caja
+                - generic [ref=e322] [box=1356,244,47,17]: $4.100,00
+                - generic [ref=e323] [box=1411,245,47,15]: 11:29 a. m.
+        - generic [ref=e325] [box=216,509,838,358]:
+          - img [ref=e328] [box=225,518,12,12]
+          - button [ref=e335] [box=1031,515,17,17]:
+            - img [ref=e337] [box=1034,518,11,11]
+          - button [ref=e342] [box=1009,515,17,17]:
+            - img [ref=e344] [box=1012,518,11,11]
+          - generic [ref=e348] [box=217,510,836,356]:
+            - generic [ref=e349] [box=229,522,812,33]:
+              - generic [ref=e350] [box=229,522,112,33]:
+                - heading "Ventas por categoría" [level=3] [ref=e351] [box=229,522,112,16]
+                - paragraph [ref=e352] [box=229,540,112,15]: Últimos 7 días
+              - generic [ref=e353] [box=969,529,72,19]:
+                - img [ref=e354] [box=977,533,11,11]
+                - generic [ref=e356] [box=994,531,39,15]: Semanal
+            - generic [ref=e358] [box=611,685,49,46]:
+              - img [ref=e359] [box=623,685,24,24]
+              - paragraph [ref=e361] [box=611,715,49,16]: Sin datos

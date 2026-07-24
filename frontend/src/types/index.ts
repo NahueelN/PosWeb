@@ -499,6 +499,71 @@ export interface ProductoEstadisticaDto {
   subtotal: number
 }
 
+// --- Dashboard types ---
+export interface DashboardDto {
+  ventasHoy: number
+  cantidadVentasHoy: number
+  ticketPromedio: number
+  cajaActual: number
+  gananciaEstimada: number
+  variacionVentas: number | null
+  variacionCantidad: number | null
+  variacionTicket: number | null
+  variacionGanancia: number | null
+  cajaEstado: string
+  cajaMontoInicial: number
+  cajaFechaApertura?: string
+  metaDiaria: number
+  metaPorcentaje: number
+  productosVendidosHoy: number
+  clientesAtendidosHoy: number
+  ventasSemana: DiaVentaDto[]
+  topProductos: TopProductoDto[]
+  alertas: AlertasDto
+  ultimasVentas: UltimaVentaDto[]
+  actividadReciente: ActividadRecienteDto[]
+  sucursalNombre: string
+  usuarioNombre: string
+}
+
+export interface DiaVentaDto {
+  fecha: string
+  total: number
+}
+
+export interface TopProductoDto {
+  productoId: number
+  nombre: string
+  cantidad: number
+  subtotal: number
+}
+
+export interface AlertasDto {
+  stockBajo: number
+  deudasProveedor: number
+  deudasCliente: number
+  pedidosPendientes: number
+  comprasPendientes: number
+  cajaAbierta: boolean
+}
+
+export interface UltimaVentaDto {
+  ventaId: number
+  fecha: string
+  total: number
+  usuario?: string
+  productoPrincipal?: string
+  cantidadItems: number
+}
+
+export interface ActividadRecienteDto {
+  tipo: string
+  descripcion: string
+  fecha: string
+  usuario?: string
+  monto?: number
+}
+
 // --- Pedido types ---
 export interface PedidoListDto {
   id: number
