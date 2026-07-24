@@ -75,7 +75,7 @@ export default function PageShell({
   children,
 }: PageShellProps) {
   return (
-    <div>
+    <div className="flex flex-col h-full min-h-0">
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-5">
         <div>
@@ -132,7 +132,7 @@ export default function PageShell({
           <span className="ml-3 text-gray-500 text-sm">{loadingMessage}</span>
         </div>
       ) : (
-        children
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       )}
     </div>
   )

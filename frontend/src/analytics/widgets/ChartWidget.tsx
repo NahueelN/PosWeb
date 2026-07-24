@@ -16,7 +16,7 @@ export default function ChartWidget({ widget }: Props) {
   const max = Math.max(...data.map((d) => d.total), 1)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex flex-col">
+    <div className="p-3 flex flex-col h-full">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-xs font-semibold text-gray-900">{widget.title}</h3>

@@ -1,5 +1,12 @@
 // Analytics Framework Types
-// These types match the backend Analytics models
+// Frontend models matching the backend Analytics API.
+
+// ── Grid Size ───────────────────────────────────────────────────
+
+export interface GridSize {
+  w: number
+  h: number
+}
 
 // ── Widget Types ─────────────────────────────────────────────────
 
@@ -52,7 +59,7 @@ export interface WidgetConfig {
   valueFormat?: 'number' | 'currency' | 'percentage'
 }
 
-// ── Widget (rendered) ────────────────────────────────────────────
+// ── Widget (rendered — returned by backend) ──────────────────────
 
 export interface Widget {
   id: string
@@ -62,7 +69,7 @@ export interface Widget {
   config?: WidgetConfig
 }
 
-// ── WidgetDefinition (data source catalog) ───────────────────────
+// ── WidgetDefinition (catalog from backend) ─────────────────────
 
 export interface WidgetDefinitionParam {
   key: string
@@ -88,21 +95,8 @@ export interface WidgetDefinition {
   category: string
   icon: string
   compatibleTypes: WidgetVisualizationType[]
-}
-
-// ── WidgetInstance (placed on dashboard) ─────────────────────────
-
-export interface WidgetInstance {
-  id: string
-  definitionId: string
-  widgetType: WidgetType
-  title?: string
-  config: Record<string, any>
-  col: number
-  row: number
-  width: number
-  height: number
-  order: number
+  supportedSizes: GridSize[]
+  defaultSize: GridSize
 }
 
 // ── Dashboard Response ───────────────────────────────────────────

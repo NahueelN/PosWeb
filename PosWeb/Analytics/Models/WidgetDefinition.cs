@@ -1,6 +1,15 @@
 namespace PosWeb.Analytics.Models;
 
 /// <summary>
+/// Tamaño en unidades de grilla (columnas × filas).
+/// </summary>
+public class GridSize
+{
+    public int W { get; set; }
+    public int H { get; set; }
+}
+
+/// <summary>
 /// Describe una fuente de datos disponible para el Dashboard Builder.
 /// Cada definición indica qué visualizaciones son compatibles con su Dataset.
 /// El Dashboard nunca conoce "Ventas" o "Productos" — solo conoce WidgetDefinitions.
@@ -24,6 +33,12 @@ public class WidgetDefinition
 
     /// <summary>Visualizaciones compatibles con el Dataset que esta fuente produce.</summary>
     public List<WidgetVisualizationType> CompatibleTypes { get; set; } = new();
+
+    /// <summary>Tamaños soportados en unidades de grilla (e.g., {w:4,h:1}, {w:6,h:3}).</summary>
+    public List<GridSize> SupportedSizes { get; set; } = new();
+
+    /// <summary>Tamaño por defecto al agregar el widget.</summary>
+    public GridSize DefaultSize { get; set; } = new() { W = 4, H = 1 };
 }
 
 /// <summary>

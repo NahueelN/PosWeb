@@ -82,7 +82,7 @@ export default function KpiWidget({ widget }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-2 group hover:shadow-md transition-all duration-200">
+    <div className="p-2 h-full flex items-center group hover:bg-gray-50 transition-all duration-200">
       <div className="flex items-center gap-2">
         <div
           className={`w-7 h-7 rounded-lg flex items-center justify-center ${colors.bg} shrink-0 transition-transform duration-200 group-hover:scale-110`}

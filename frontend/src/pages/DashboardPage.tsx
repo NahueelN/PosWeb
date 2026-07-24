@@ -1,20 +1,113 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
 import Button from '../components/ui/Button'
 import { formatTime } from '../formats'
-import WidgetRenderer from '../analytics/WidgetRenderer'
-import type { DashboardResponse, WidgetInstance, WidgetType } from '../analytics/types'
-import type { SucursalDto } from '../types'
-import WidgetPicker from '../analytics/WidgetPicker'
+import type { DashboardResponse, Widget, WidgetType } from '../analytics/types'
+import type { LayoutInstance, GridSize } from '../analytics/grid/types'
+import { columnsForWidth, GRID_COLS, GRID_ROWS } from '../analytics/grid/types'
 import {
-  loadInstances, saveInstances, addInstance, removeInstance,
-  reorderInstances, resetToDefaults,
-} from '../analytics/widgetInstances'
-import { RefreshCw, Plus, Trash2, GripVertical } from 'lucide-react'
+  GridEngine,
+  createLocalStorageRepository,
+  DEFAULT_LAYOUT,
+  resolveLayout,
+} from '../analytics/grid'
+import type { DashboardRepository } from '../analytics/grid'
+import DashboardGridRGL from '../analytics/DashboardGridRGL'
+import WidgetPicker from '../analytics/WidgetPicker'
+import WidgetEditor from '../analytics/WidgetEditor'
+import type { SucursalDto } from '../types'
+import { RefreshCw, Plus } from 'lucide-react'
 
-/* ─── DashboardPage ─────────────────────────────────────────────── */
+function useGridColumns(): number {
+  const [cols, setCols] = useState(() => columnsForWidth(window.innerWidth))
+
+  useEffect(() => {
+    const onResize = () => setCols(columnsForWidth(window.innerWidth))
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  return cols
+}
+
+const repo: DashboardRepository = createLocalStorageRepository()
+
+/* ─── Load-time helpers (RGL doesn't validate/correct initial layouts) ── */
+
+function ensurePositions(instances: LayoutInstance[], cols: number): LayoutInstance[] {
+  const needsPositioning = instances.some((i) => i.x == null || i.y == null)
+  if (!needsPositioning) return instances
+
+  const cells = GridEngine.computeLayout(instances, cols, GRID_ROWS)
+  const posMap = new Map(cells.map((c) => [c.instance.id, { x: c.x, y: c.y }]))
+
+  return instances.map((inst) => {
+    if (inst.x != null && inst.y != null) return inst
+    const pos = posMap.get(inst.id)
+    return pos ? { ...inst, x: pos.x, y: pos.y } : { ...inst, x: 1, y: 1 }
+  })
+}
+
+function hasOverlapsOrOutOfBounds(layout: LayoutInstance[], cols: number, rows: number): boolean {
+  for (let i = 0; i < layout.length; i++) {
+    const a = layout[i]
+    if (a.x < 1 || a.y < 1) return true
+    if (a.x + a.w > cols + 1) return true
+    if (a.y + a.h > rows + 1) return true
+    for (let j = i + 1; j < layout.length; j++) {
+      const b = layout[j]
+      if (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y) return true
+    }
+  }
+  return false
+}
+
+/* ─── Programmatic placement helpers (RGL has no "find free slot" or "validate resize" API) ── */
+
+function overlaps(a: LayoutInstance, b: LayoutInstance): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+
+function canPlaceItem(
+  layout: LayoutInstance[],
+  id: string,
+  x: number, y: number,
+  w: number, h: number,
+  cols: number, rows: number,
+): boolean {
+  if (x < 1 || y < 1) return false
+  if (x + w > cols + 1) return false
+  if (y + h > rows + 1) return false
+  for (const a of layout) {
+    if (a.id === id) continue
+    if (overlaps({ ...a }, { id, x, y, w, h } as LayoutInstance)) return false
+  }
+  return true
+}
+
+function findFreeSlot(
+  layout: LayoutInstance[],
+  w: number, h: number,
+  cols: number,
+): { x: number; y: number } | null {
+  for (let x = 1; x <= cols - w + 1; x++) {
+    for (let y = 1; y <= GRID_ROWS - h + 1; y++) {
+      let overlapping = false
+      for (const a of layout) {
+        if (a.x! < x + w && a.x! + a.w > x && a.y! < y + h && a.y! + a.h > y) {
+          overlapping = true
+          break
+        }
+      }
+      if (!overlapping) return { x, y }
+    }
+  }
+  return null
+}
+
+/* ─── DashboardPage ───────────────────────────────────────────── */
 
 export default function DashboardPage() {
   const { notifyError } = useNotification()
@@ -22,10 +115,21 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [layout, setLayout] = useState<LayoutInstance[]>(() => {
+    const saved = repo.load()
+    const base = saved.length > 0 ? saved : DEFAULT_LAYOUT
+    const positioned = ensurePositions(base, GRID_COLS)
+    if (hasOverlapsOrOutOfBounds(positioned, GRID_COLS, GRID_ROWS)) {
+      const cells = GridEngine.computeLayout(positioned, GRID_COLS, GRID_ROWS)
+      const fixed = cells.map(c => ({ ...c.instance, x: c.x, y: c.y }))
+      repo.save(fixed)
+      return fixed
+    }
+    return positioned
+  })
   const [showPicker, setShowPicker] = useState(false)
-  const [instances, setInstances] = useState<WidgetInstance[]>(() => loadInstances())
-  const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [editingInstance, setEditingInstance] = useState<LayoutInstance | null>(null)
+  const gridCols = useGridColumns()
 
   useEffect(() => {
     const saved = localStorage.getItem('sucursalActiva')
@@ -37,11 +141,23 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const positionedLayout = useMemo(
+    () => layout.map((i) => ({ ...i, x: i.x!, y: i.y! })),
+    [layout],
+  )
+
+  const positionedRef = useRef(positionedLayout)
+  positionedRef.current = positionedLayout
+
+  useEffect(() => {
+    console.log('[Page] layout state changed:', layout.map(i => `${i.id}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
+  }, [layout])
+
   const cargar = useCallback(async () => {
     if (!sucursalId) return
     setLoading(true)
     try {
-      const res = await api.dashboard.build(sucursalId, instances)
+      const res = await api.dashboard.build(sucursalId, positionedRef.current)
       setDashboard(res)
       setLastUpdate(new Date())
     } catch (e: any) {
@@ -49,95 +165,83 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [sucursalId, instances, notifyError])
+  }, [sucursalId, notifyError])
 
+  const didInit = useRef(false)
   useEffect(() => {
     if (!sucursalId) return
+    if (didInit.current) return
+    didInit.current = true
     cargar()
   }, [sucursalId, cargar])
 
-  // Sort instances by order
-  const sortedInstances = useMemo(
-    () => [...instances].sort((a, b) => a.order - b.order),
-    [instances]
-  )
+  useEffect(() => {
+    repo.save(layout)
+  }, [layout])
 
-  // Instance IDs for the picker
-  const instanceIds = useMemo(() => instances.map((i) => i.definitionId), [instances])
+  const widgets: Widget[] = useMemo(() => dashboard?.widgets ?? [], [dashboard])
+  const definitions = useMemo(() => dashboard?.definitions ?? [], [dashboard])
+  const existingDefIds = useMemo(() => layout.map((i) => i.definitionId), [layout])
 
-  /* ── Widget CRUD ── */
+  /* ── CRUD ── */
 
-  function handleAddWidget(definitionId: string, widgetType: WidgetType, config: Record<string, any>, title?: string) {
-    const next = addInstance(instances, definitionId, widgetType, config, title)
-    setInstances(next)
+  function handleAddWidget(definitionId: string, widgetType: WidgetType, size: GridSize, config: Record<string, any>) {
+    const slot = findFreeSlot(layout, size.w, size.h, GRID_COLS)
+    if (!slot) {
+      notifyError('No hay espacio disponible en el dashboard')
+      return
+    }
+
+    const inst: LayoutInstance = {
+      id: `w-${Date.now()}`,
+      definitionId,
+      widgetType,
+      w: size.w,
+      h: size.h,
+      x: slot.x,
+      y: slot.y,
+      config,
+    }
+    setLayout((prev) => [...prev, inst])
   }
 
   function handleRemoveWidget(instanceId: string) {
-    const next = removeInstance(instances, instanceId)
-    setInstances(next)
-    setDashboard((prev) => prev ? {
-      ...prev,
-      widgets: prev.widgets.filter((w) => w.id !== instanceId),
-    } : null)
+    setLayout((prev) => prev.filter((i) => i.id !== instanceId))
   }
 
-  /* ── Drag & Drop ── */
-
-  function handleGripDragStart(e: React.DragEvent, instanceId: string) {
-    e.dataTransfer.setData('text/plain', instanceId)
-    e.dataTransfer.effectAllowed = 'move'
-    setDraggedId(instanceId)
+  function handleEditWidget(instanceId: string) {
+    const inst = layout.find((i) => i.id === instanceId)
+    if (inst) setEditingInstance(inst)
   }
 
-  function handleWidgetDragOver(e: React.DragEvent, instanceId: string) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverId(instanceId)
+  function handleUpdateWidget(instanceId: string, size: GridSize, config: Record<string, any>) {
+    setLayout((prev) => {
+      const inst = prev.find((i) => i.id === instanceId)
+      if (!inst) return prev
+      if (!canPlaceItem(prev, instanceId, inst.x, inst.y, size.w, size.h, GRID_COLS, GRID_ROWS)) {
+        notifyError('El nuevo tamaño no cabe en el dashboard')
+        return prev
+      }
+      return prev.map((i) =>
+        i.id === instanceId ? { ...i, w: size.w, h: size.h, config } : i,
+      )
+    })
   }
 
-  function handleWidgetDrop(targetId: string) {
-    if (!draggedId || draggedId === targetId) { cleanupDrag(); return }
-    const next = reorderInstances(instances, draggedId, targetId)
-    setInstances(next)
-    cleanupDrag()
+  /* ── RGL layout change — RGL handles push-down, we fix edge cases ── */
+
+  function handleRGLLayoutChange(newLayout: LayoutInstance[]) {
+    console.log('[Page] layout change:', newLayout.map(i => `${i.id}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
+    const resolved = resolveLayout(newLayout, GRID_COLS, GRID_ROWS)
+    if (resolved) {
+      setLayout(resolved)
+    } else {
+      notifyError('No hay espacio disponible para colocar el widget aquí')
+      setLayout(layout)
+    }
   }
 
-  function cleanupDrag() {
-    setDraggedId(null)
-    setDragOverId(null)
-  }
-
-  /* ── Grip Handle ── */
-
-  function GripHandle({ instanceId }: { instanceId: string }) {
-    return (
-      <div
-        draggable
-        onDragStart={(e) => handleGripDragStart(e, instanceId)}
-        onDragEnd={cleanupDrag}
-        className="absolute top-1.5 left-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-      >
-        <div className="bg-white/90 border border-gray-200 rounded-md p-0.5 shadow-sm hover:bg-gray-50">
-          <GripVertical size={12} className="text-gray-400" />
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Remove Button ── */
-
-  function RemoveButton({ instanceId }: { instanceId: string }) {
-    return (
-      <button
-        onClick={() => handleRemoveWidget(instanceId)}
-        className="absolute top-1.5 right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <div className="bg-white/90 border border-gray-200 rounded-md p-0.5 shadow-sm hover:bg-red-50 hover:border-red-200 transition-colors">
-          <Trash2 size={11} className="text-gray-400 hover:text-red-500" />
-        </div>
-      </button>
-    )
-  }
+  /* ── Rendering ── */
 
   if (!dashboard) {
     return (
@@ -149,58 +253,34 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageShell
-      title="Inicio"
-      subtitle="Resumen de la actividad del negocio"
-      loading={loading}
-      loadingMessage="Actualizando…"
-      actions={
-        <div className="flex items-center gap-2">
-          {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setShowPicker(true)}>Agregar Widget</Button>
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={cargar} disabled={loading}>Actualizar</Button>
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <PageShell
+        title="Inicio"
+        subtitle="Resumen de la actividad del negocio"
+        loading={loading}
+        loadingMessage="Actualizando…"
+        actions={
+          <div className="flex items-center gap-2">
+            {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}
+            <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setShowPicker(true)}>Agregar Widget</Button>
+            <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={cargar} disabled={loading}>Actualizar</Button>
+          </div>
+        }
+      >
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <DashboardGridRGL
+            layout={layout}
+            widgets={widgets}
+            definitions={definitions}
+            gridCols={gridCols}
+            onRemove={handleRemoveWidget}
+            onEdit={handleEditWidget}
+            onLayoutChange={handleRGLLayoutChange}
+          />
         </div>
-      }
-    >
-      {/* ── Widget grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-        {sortedInstances.map((instance) => {
-          const widget = dashboard.widgets.find((w) => w.id === instance.id)
-          return (
-            <div
-              key={instance.id}
-              onDragOver={(e) => handleWidgetDragOver(e, instance.id)}
-              onDrop={() => handleWidgetDrop(instance.id)}
-              onDragLeave={cleanupDrag}
-              className={`relative group transition-all duration-150 ${
-                draggedId === instance.id ? 'opacity-30 scale-[0.98]' : ''
-              } ${dragOverId === instance.id && draggedId && draggedId !== instance.id ? 'ring-2 ring-indigo-400 ring-offset-1 rounded-xl' : ''}`}
-            >
-              <GripHandle instanceId={instance.id} />
-              <RemoveButton instanceId={instance.id} />
-              {widget ? (
-                <WidgetRenderer widget={widget} />
-              ) : (
-                <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-center text-gray-300 h-20">
-                  <span className="text-xs">Cargando…</span>
-                </div>
-              )}
-            </div>
-          )
-        })}
+      </PageShell>
 
-        {/* Add widget button */}
-        <button
-          onClick={() => setShowPicker(true)}
-          className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all min-h-[80px]"
-        >
-          <Plus size={18} />
-          <span className="text-[10px] font-semibold">Agregar Widget</span>
-        </button>
-      </div>
-
-      {/* Empty state */}
-      {sortedInstances.length === 0 && (
+      {layout.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <Plus size={32} className="mb-3 text-gray-300" />
           <p className="text-sm font-medium">Tu dashboard está vacío</p>
@@ -211,16 +291,26 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Widget Picker */}
       {showPicker && (
         <WidgetPicker
           open={showPicker}
           onClose={() => setShowPicker(false)}
-          definitions={dashboard.definitions}
+          definitions={definitions}
           onAdd={handleAddWidget}
-          existingInstanceIds={instanceIds}
+          existingDefinitionIds={existingDefIds}
         />
       )}
-    </PageShell>
+
+      {editingInstance && (
+        <WidgetEditor
+          open={!!editingInstance}
+          onClose={() => setEditingInstance(null)}
+          instance={editingInstance}
+          definition={definitions.find((d) => d.id === editingInstance.definitionId)}
+          widgetType={editingInstance.widgetType as WidgetType}
+          onUpdate={handleUpdateWidget}
+        />
+      )}
+    </div>
   )
 }

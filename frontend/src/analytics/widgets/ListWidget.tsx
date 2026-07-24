@@ -40,7 +40,7 @@ export default function ListWidget({ widget }: Props) {
     ]
 
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-3">
+      <div className="p-3 h-full">
         <h3 className="text-xs font-semibold text-gray-900 mb-2">{widget.title}</h3>
         <div className="space-y-2">
           {items.map((item) => (
@@ -59,7 +59,7 @@ export default function ListWidget({ widget }: Props) {
 
   // Activity feed or other list widgets
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 flex flex-col">
+    <div className="p-3 flex flex-col h-full">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-xs font-semibold text-gray-900">{widget.title}</h3>

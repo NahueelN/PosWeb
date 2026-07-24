@@ -66,7 +66,7 @@ export default function GaugeWidget({ widget }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-2 group hover:shadow-md transition-all duration-200">
+    <div className="p-2 h-full group hover:bg-gray-50 transition-all duration-200">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-5 h-5 rounded-md flex items-center justify-center bg-amber-50 shrink-0">
           <GaugeIcon size={10} className="text-amber-600" strokeWidth={2.5} />

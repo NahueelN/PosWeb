@@ -33,7 +33,7 @@ export default function WidgetRenderer({ widget }: Props) {
       return <GaugeWidget widget={widget} />
     case 'HEATMAP':
       return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col items-center justify-center text-gray-300 h-full">
+        <div className="p-4 flex flex-col items-center justify-center text-gray-300 h-full">
           <div className="text-center">
             <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-50 flex items-center justify-center">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -55,7 +55,7 @@ export default function WidgetRenderer({ widget }: Props) {
       )
     default:
       return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 text-center text-gray-400 text-sm">
+        <div className="p-4 text-center text-gray-400 text-sm h-full">
           Widget type not supported: {widget.type}
         </div>
       )

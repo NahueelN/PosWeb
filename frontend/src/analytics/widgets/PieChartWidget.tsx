@@ -45,7 +45,7 @@ export default function PieChartWidget({ widget }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col items-center justify-center text-gray-300 h-full">
+      <div className="p-4 flex flex-col items-center justify-center text-gray-300 h-full">
         <PieChartIcon size={24} className="mb-1.5 opacity-40" />
         <p className="text-xs">Sin datos</p>
       </div>
@@ -97,7 +97,7 @@ export default function PieChartWidget({ widget }: Props) {
     `$${v.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 flex flex-col">
+    <div className="p-3 flex flex-col h-full">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-gray-900">{widget.title}</h3>
         {config.showPercentages !== false && (

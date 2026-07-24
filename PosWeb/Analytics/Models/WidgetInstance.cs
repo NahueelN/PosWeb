@@ -4,10 +4,11 @@ namespace PosWeb.Analytics.Models;
 /// Representa un Widget colocado dentro del Dashboard.
 /// El Dashboard solo conoce WidgetInstances — nunca sabe qué datos hay detrás.
 /// Cada instancia referencia una WidgetDefinition (fuente de datos) y un WidgetType (visualización).
+/// El layout se persiste como: id, definitionId, x, y, w, h, config.
 /// </summary>
 public class WidgetInstance
 {
-    /// <summary>Identificador único de esta instancia (GUID o slug único).</summary>
+    /// <summary>Identificador único de esta instancia.</summary>
     public string Id { get; set; } = "";
 
     /// <summary>Referencia a la WidgetDefinition que produce los datos.</summary>
@@ -16,24 +17,18 @@ public class WidgetInstance
     /// <summary>Tipo de visualización elegida (e.g., "PIE_CHART", "BAR_CHART", "TABLE").</summary>
     public string WidgetType { get; set; } = "";
 
-    /// <summary>Título personalizado del widget. Si está vacío, usa el de la definición.</summary>
-    public string? Title { get; set; }
+    /// <summary>Columna inicial en el grid 12-col (1-based).</summary>
+    public int X { get; set; } = 1;
+
+    /// <summary>Fila inicial en el grid (1-based).</summary>
+    public int Y { get; set; } = 1;
+
+    /// <summary>Ancho en unidades de grilla (1-12).</summary>
+    public int W { get; set; } = 4;
+
+    /// <summary>Alto en unidades de grilla (1-N).</summary>
+    public int H { get; set; } = 1;
 
     /// <summary>Configuración visual del usuario (período, límite, mostrar leyenda, etc.).</summary>
     public Dictionary<string, object?> Config { get; set; } = new();
-
-    /// <summary>Posición en el grid (columna, 0-indexed).</summary>
-    public int Col { get; set; }
-
-    /// <summary>Posición en el grid (fila, 0-indexed).</summary>
-    public int Row { get; set; }
-
-    /// <summary>Ancho en unidades de grid (default 1).</summary>
-    public int Width { get; set; } = 1;
-
-    /// <summary>Alto en unidades de grid (default 1).</summary>
-    public int Height { get; set; } = 1;
-
-    /// <summary>Orden de visualización (menor = primero).</summary>
-    public int Order { get; set; }
 }

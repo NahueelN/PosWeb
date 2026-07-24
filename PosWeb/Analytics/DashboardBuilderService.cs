@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PosWeb.Analytics.Models;
 using PosWeb.Analytics.Queries;
 using PosWeb.Data;
@@ -66,8 +67,8 @@ public class DashboardBuilderService
         var dataset = await ExecuteQueryAsync(instance.DefinitionId, sucursalId, instance.Config);
         if (dataset == null) return null;
 
-        // Crear widget según el tipo de visualización elegido
-        var title = instance.Title ?? definition.Name;
+        // Title always comes from the definition
+        var title = definition.Name;
         return CreateWidgetFromInstance(instance, title, dataset);
     }
 
@@ -122,10 +123,14 @@ public class DashboardBuilderService
     {
         var p = new DashboardQueryParams();
 
-        if (config.TryGetValue("period", out var period) && period is string periodStr && int.TryParse(periodStr, out var periodDays))
-            p.ChartPeriodDays = periodDays;
+        if (config.TryGetValue("period", out var period))
+        {
+            var periodStr = period?.ToString();
+            if (int.TryParse(periodStr, out var periodDays))
+                p.ChartPeriodDays = periodDays;
+        }
 
-        if (config.TryGetValue("limit", out var limit) && limit is int limitVal)
+        if (config.TryGetValue("limit", out var limit) && TryGetInt(limit, out var limitVal))
         {
             switch (definitionId)
             {
@@ -136,6 +141,42 @@ public class DashboardBuilderService
         }
 
         return p;
+    }
+
+    /// <summary>
+    /// Helper: extract int from JSON-deserialized values (may be JsonElement, int, long, etc).
+    /// </summary>
+    private static bool TryGetInt(object? value, out int result)
+    {
+        switch (value)
+        {
+            case int i: result = i; return true;
+            case long l: result = (int)l; return true;
+            case JsonElement je:
+                if (je.ValueKind == JsonValueKind.Number && je.TryGetInt32(out var jeInt))
+                { result = jeInt; return true; }
+                result = 0; return false;
+            default:
+                if (int.TryParse(value?.ToString(), out var parsed))
+                { result = parsed; return true; }
+                result = 0; return false;
+        }
+    }
+
+    private static bool TryGetBool(object? value, out bool result)
+    {
+        switch (value)
+        {
+            case bool b: result = b; return true;
+            case JsonElement je:
+                if (je.ValueKind == JsonValueKind.True || je.ValueKind == JsonValueKind.False)
+                { result = je.GetBoolean(); return true; }
+                result = false; return false;
+            default:
+                if (bool.TryParse(value?.ToString(), out var parsed))
+                { result = parsed; return true; }
+                result = false; return false;
+        }
     }
 
     /// <summary>
@@ -156,25 +197,25 @@ public class DashboardBuilderService
         if (instance.Config.TryGetValue("period", out var period))
             widget.Config.Period = period?.ToString();
 
-        if (instance.Config.TryGetValue("showLegend", out var legend) && legend is bool legendVal)
+        if (instance.Config.TryGetValue("showLegend", out var legend) && TryGetBool(legend, out var legendVal))
             widget.Config.ShowLegend = legendVal;
 
-        if (instance.Config.TryGetValue("showPercentages", out var pct) && pct is bool pctVal)
+        if (instance.Config.TryGetValue("showPercentages", out var pct) && TryGetBool(pct, out var pctVal))
             widget.Config.ShowPercentages = pctVal;
 
-        if (instance.Config.TryGetValue("donut", out var donut) && donut is bool donutVal)
+        if (instance.Config.TryGetValue("donut", out var donut) && TryGetBool(donut, out var donutVal))
             widget.Config.Donut = donutVal;
 
-        if (instance.Config.TryGetValue("max", out var max) && max is int maxVal)
+        if (instance.Config.TryGetValue("max", out var max) && TryGetInt(max, out var maxVal))
             widget.Config.Max = maxVal;
 
-        if (instance.Config.TryGetValue("min", out var min) && min is int minVal)
+        if (instance.Config.TryGetValue("min", out var min) && TryGetInt(min, out var minVal))
             widget.Config.Min = minVal;
 
-        if (instance.Config.TryGetValue("showLabel", out var showLabel) && showLabel is bool showLabelVal)
+        if (instance.Config.TryGetValue("showLabel", out var showLabel) && TryGetBool(showLabel, out var showLabelVal))
             widget.Config.ShowLabel = showLabelVal;
 
-        if (instance.Config.TryGetValue("showDots", out var dots) && dots is bool dotsVal)
+        if (instance.Config.TryGetValue("showDots", out var dots) && TryGetBool(dots, out var dotsVal))
             widget.Config.ShowDots = dotsVal;
     }
 }

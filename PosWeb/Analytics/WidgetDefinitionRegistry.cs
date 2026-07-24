@@ -9,6 +9,9 @@ namespace PosWeb.Analytics;
 /// </summary>
 public static class WidgetDefinitionRegistry
 {
+    // Helpers para crear GridSize de forma concisa
+    private static GridSize S(int w, int h) => new() { W = w, H = h };
+
     public static List<WidgetDefinition> GetAll() => new()
     {
         // ── KPIs ──────────────────────────────────────────────────
@@ -19,6 +22,8 @@ public static class WidgetDefinitionRegistry
             Description = "Total recaudado, cantidad de ventas y ticket promedio del día",
             Category = "kpi",
             Icon = "DollarSign",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -65,6 +70,8 @@ public static class WidgetDefinitionRegistry
             Description = "Estado y monto inicial de la caja del día",
             Category = "kpi",
             Icon = "Wallet",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -92,6 +99,8 @@ public static class WidgetDefinitionRegistry
             Description = "Progreso hacia la meta diaria de ventas",
             Category = "kpi",
             Icon = "Target",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -144,6 +153,8 @@ public static class WidgetDefinitionRegistry
             Description = "Evolución de ventas de los últimos días",
             Category = "charts",
             Icon = "BarChart3",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -201,6 +212,8 @@ public static class WidgetDefinitionRegistry
             Description = "Distribución de ventas por categoría de producto",
             Category = "charts",
             Icon = "PieChart",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -233,6 +246,8 @@ public static class WidgetDefinitionRegistry
             Description = "Ranking de los productos más vendidos del día",
             Category = "rankings",
             Icon = "Package",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -271,6 +286,8 @@ public static class WidgetDefinitionRegistry
             Description = "Stock bajo, deudas, pedidos pendientes y estado de caja",
             Category = "alerts",
             Icon = "AlertTriangle",
+            SupportedSizes = new() { S(6,2), S(3,2) },
+            DefaultSize = S(3, 2),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -294,6 +311,8 @@ public static class WidgetDefinitionRegistry
             Description = "Cantidad de ventas, productos y clientes atendidos",
             Category = "lists",
             Icon = "ClipboardList",
+            SupportedSizes = new() { S(6,2), S(3,2) },
+            DefaultSize = S(3, 2),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -316,6 +335,8 @@ public static class WidgetDefinitionRegistry
             Description = "Últimos movimientos: ventas, compras, gastos y caja",
             Category = "lists",
             Icon = "Clock",
+            SupportedSizes = new() { S(6,2), S(3,2) },
+            DefaultSize = S(3, 2),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType
@@ -344,6 +365,8 @@ public static class WidgetDefinitionRegistry
             Description = "Detalle de las últimas ventas realizadas",
             Category = "lists",
             Icon = "Receipt",
+            SupportedSizes = new() { S(6,2), S(3,2) },
+            DefaultSize = S(3, 2),
             CompatibleTypes = new()
             {
                 new WidgetVisualizationType

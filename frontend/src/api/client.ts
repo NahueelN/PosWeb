@@ -459,12 +459,12 @@ export const api = {
 
   // Dashboard Builder
     dashboard: {
-      /** Build dashboard: sends user instances, returns definitions + rendered widgets */
-      build: (sucursalId: number, instances?: import('../analytics/types').WidgetInstance[]) => {
+      /** Build dashboard: sends layout instances, returns definitions + rendered widgets */
+      build: (sucursalId: number, layout?: import('../analytics/grid/types').LayoutInstance[]) => {
         const qs = new URLSearchParams({ sucursalId: String(sucursalId) })
         return request<import('../analytics/types').DashboardResponse>(`/dashboard/build?${qs}`, {
           method: 'POST',
-          body: JSON.stringify(instances ?? []),
+          body: JSON.stringify(layout ?? []),
         })
       },
       /** Get available definitions (no rendering) */

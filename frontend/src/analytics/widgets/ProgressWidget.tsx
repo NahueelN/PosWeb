@@ -37,7 +37,7 @@ export default function ProgressWidget({ widget }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-2 group hover:shadow-md transition-all duration-200">
+    <div className="p-2 h-full group hover:bg-gray-50 transition-all duration-200">
       <div className="flex items-center gap-2 mb-1.5">
         <div className={`w-5 h-5 rounded-md flex items-center justify-center ${colors.bg} shrink-0`}>
           <Target size={10} className={colors.text} strokeWidth={2.5} />
