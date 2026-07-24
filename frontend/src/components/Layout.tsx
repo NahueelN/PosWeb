@@ -11,6 +11,12 @@ import { open } from '@tauri-apps/plugin-shell'
 
 const menuGroups = [
   {
+    label: 'Principal',
+    links: [
+      { to: '/', label: 'Inicio', icon: '🏠' },
+    ],
+  },
+  {
     label: 'Operaciones',
     links: [
       { to: '/ventas', label: 'Ventas', icon: '🛒' },
@@ -27,7 +33,6 @@ const menuGroups = [
       { to: '/productos', label: 'Productos', icon: '📦' },
       { to: '/combos', label: 'Ofertas', icon: '🎁' },
       { to: '/historial', label: 'Historial', icon: '📋' },
-      { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
   },
   {
@@ -39,7 +44,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/estadisticas'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
