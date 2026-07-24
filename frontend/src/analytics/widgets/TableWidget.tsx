@@ -1,14 +1,13 @@
-import { useNavigate } from 'react-router-dom'
+
 import type { Widget } from '../types'
 import { formatCurrency } from '../../formats'
-import { Package, ChevronRight } from 'lucide-react'
+import { Package } from 'lucide-react'
 
 interface Props {
   widget: Widget
 }
 
 export default function TableWidget({ widget }: Props) {
-  const navigate = useNavigate()
   const data = widget.dataset.rows
   const maxCant = Math.max(...data.map((p) => (p['cantidad'] as number) ?? 0), 1)
 
@@ -28,12 +27,6 @@ export default function TableWidget({ widget }: Props) {
           <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
           <p className="text-[10px] text-gray-400 mt-0.5">Los más vendidos hoy</p>
         </div>
-        <button
-          onClick={() => navigate('/estadisticas')}
-          className="text-[9px] font-semibold text-teal-500 hover:text-teal-600 transition-colors flex items-center gap-0.5"
-        >
-          Ver todos <ChevronRight size={9} />
-        </button>
       </div>
 
       {data.length === 0 ? (

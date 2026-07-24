@@ -171,7 +171,7 @@ export default function DashboardGridRGL({
               {onEdit && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit(inst.id) }}
-                  className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 z-20 transition-opacity"
                 >
                   <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-indigo-50 transition-colors">
                     <Maximize2 size={10} className="text-gray-300 hover:text-indigo-500" />
@@ -182,7 +182,7 @@ export default function DashboardGridRGL({
               {onRemove && (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemoveLocal(inst.id) }}
-                  className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 z-20 transition-opacity"
                   style={{ right: onEdit ? '32px' : undefined }}
                 >
                   <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-red-50 transition-colors">

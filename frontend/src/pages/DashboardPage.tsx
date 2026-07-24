@@ -110,7 +110,7 @@ function findFreeSlot(
 /* ─── DashboardPage ───────────────────────────────────────────── */
 
 export default function DashboardPage() {
-  const { notifyError } = useNotification()
+  const { notifyError, current: currentNotification } = useNotification()
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
@@ -127,6 +127,19 @@ export default function DashboardPage() {
     }
     return positioned
   })
+  const prevLayoutRef = useRef<LayoutInstance[]>([])
+  useEffect(() => { prevLayoutRef.current = layout }, [layout])
+  const [layoutGeneration, setLayoutGeneration] = useState(0)
+  const pendingRevertRef = useRef<LayoutInstance[] | null>(null)
+  const prevNotifRef = useRef(currentNotification)
+  useEffect(() => {
+    if (prevNotifRef.current && !currentNotification && pendingRevertRef.current) {
+      setLayout(pendingRevertRef.current.map(i => ({ ...i })))
+      setLayoutGeneration(g => g + 1)
+      pendingRevertRef.current = null
+    }
+    prevNotifRef.current = currentNotification
+  }, [currentNotification])
   const [showPicker, setShowPicker] = useState(false)
   const [editingInstance, setEditingInstance] = useState<LayoutInstance | null>(null)
   const gridCols = useGridColumns()
@@ -153,11 +166,12 @@ export default function DashboardPage() {
     console.log('[Page] layout state changed:', layout.map(i => `${i.id}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
   }, [layout])
 
-  const cargar = useCallback(async () => {
+  const cargar = useCallback(async (forcedLayout?: LayoutInstance[]) => {
     if (!sucursalId) return
     setLoading(true)
     try {
-      const res = await api.dashboard.build(sucursalId, positionedRef.current)
+      const layoutToSend = forcedLayout ?? positionedRef.current
+      const res = await api.dashboard.build(sucursalId, layoutToSend)
       setDashboard(res)
       setLastUpdate(new Date())
     } catch (e: any) {
@@ -181,7 +195,15 @@ export default function DashboardPage() {
 
   const widgets: Widget[] = useMemo(() => dashboard?.widgets ?? [], [dashboard])
   const definitions = useMemo(() => dashboard?.definitions ?? [], [dashboard])
-  const existingDefIds = useMemo(() => layout.map((i) => i.definitionId), [layout])
+  const existingWidgets = useMemo(() => {
+    const map: Record<string, { w: number; h: number }> = {}
+    for (const inst of layout) {
+      if (!map[inst.definitionId]) {
+        map[inst.definitionId] = { w: inst.w, h: inst.h }
+      }
+    }
+    return map
+  }, [layout])
 
   /* ── CRUD ── */
 
@@ -202,7 +224,10 @@ export default function DashboardPage() {
       y: slot.y,
       config,
     }
-    setLayout((prev) => [...prev, inst])
+    const updatedLayout = [...layout, inst]
+    const positioned = updatedLayout.map(i => ({ ...i, x: i.x!, y: i.y! }))
+    setLayout(updatedLayout)
+    cargar(positioned)
   }
 
   function handleRemoveWidget(instanceId: string) {
@@ -237,7 +262,7 @@ export default function DashboardPage() {
       setLayout(resolved)
     } else {
       notifyError('No hay espacio disponible para colocar el widget aquí')
-      setLayout(layout)
+      pendingRevertRef.current = prevLayoutRef.current
     }
   }
 
@@ -246,7 +271,7 @@ export default function DashboardPage() {
   if (!dashboard) {
     return (
       <PageShell title="Inicio" subtitle="Resumen de la actividad del negocio" loading={loading} loadingMessage="Cargando dashboard…"
-        error={!loading ? 'No se pudieron cargar los datos del dashboard' : null} onErrorClose={cargar}>
+        error={!loading ? 'No se pudieron cargar los datos del dashboard' : null} onErrorClose={() => cargar()}>
         <div />
       </PageShell>
     )
@@ -263,12 +288,13 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}
             <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setShowPicker(true)}>Agregar Widget</Button>
-            <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={cargar} disabled={loading}>Actualizar</Button>
+            <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={() => cargar()} disabled={loading}>Actualizar</Button>
           </div>
         }
       >
         <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
           <DashboardGridRGL
+            key={layoutGeneration}
             layout={layout}
             widgets={widgets}
             definitions={definitions}
@@ -299,7 +325,7 @@ export default function DashboardPage() {
           onClose={() => setShowPicker(false)}
           definitions={definitions}
           onAdd={handleAddWidget}
-          existingDefinitionIds={existingDefIds}
+          existingWidgets={existingWidgets}
         />
       )}
 
