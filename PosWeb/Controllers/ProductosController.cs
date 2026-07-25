@@ -140,17 +140,9 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Post([FromBody] ProductoUpsertDto dto)
+    public IActionResult Post([FromBody] ProductoUpsertDto dto)
     {
-        var result = _productoService.Crear(dto);
-
-        if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
-        {
-            _ = Task.Run(() => _catalogoService.SubirProductoAsync(
-                dto.CodigoBarra, dto.Nombre, dto.Marca, dto.Contenido, null));
-        }
-
-        return Ok(result);
+        return Ok(_productoService.Crear(dto));
     }
 
     [HttpDelete("{id}")]
