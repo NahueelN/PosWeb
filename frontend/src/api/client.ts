@@ -17,6 +17,11 @@ async function getFetch(): Promise<typeof fetch> {
 
 async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const f = await getFetch()
+  const usingTauri = typeof window !== 'undefined' && (window as any).__TAURI__ && f !== window.fetch
+  try {
+    const log = localStorage.getItem('fetch_debug') || ''
+    localStorage.setItem('fetch_debug', log + `[${new Date().toISOString()}] ${usingTauri ? 'TAURI' : 'BROWSER'} ${typeof input === 'string' ? input : input.url}\n`)
+  } catch {}
   return f(input, init)
 }
 
