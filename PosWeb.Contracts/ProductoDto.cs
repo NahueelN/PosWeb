@@ -27,6 +27,10 @@ public class ProductoDto
 
     public bool EsPesable { get; set; }
 
+    public bool EsBulto { get; set; }
+
+    public int? ProductoBultoId { get; set; }
+
     /// <summary>
     /// Código interno del producto.
     /// </summary>
@@ -50,4 +54,7 @@ public class ProductoDetailDto
     public DateTime FechaUltimaMod { get; set; }
     public DateTime? FechaBaja { get; set; }
     public bool Activo { get; set; }
+    public bool EsBulto { get; set; }
+    public int? ProductoBultoId { get; set; }
+    public string? ProductoBultoNombre { get; set; }
 }

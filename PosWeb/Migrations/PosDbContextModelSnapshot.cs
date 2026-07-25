@@ -234,7 +234,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("DIAS_SEMANA");
 
-
                     b.Property<DateTime?>("FECHA_FIN")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_FIN");
@@ -773,6 +772,10 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_PRODUCTO");
 
+                    b.Property<bool>("ES_BULTO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ES_BULTO");
+
                     b.Property<bool>("ES_PESABLE")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("ES_PESABLE");
@@ -789,6 +792,10 @@ namespace PosWeb.Migrations
                     b.Property<int?>("ID_CATEGORIA")
                         .HasColumnType("int")
                         .HasColumnName("ID_CATEGORIA");
+
+                    b.Property<int?>("ID_PRODUCTO_BULTO")
+                        .HasColumnType("int")
+                        .HasColumnName("ID_PRODUCTO_BULTO");
 
                     b.Property<int?>("ID_UNIDAD_MEDIDA")
                         .HasColumnType("int")

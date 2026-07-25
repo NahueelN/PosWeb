@@ -136,7 +136,7 @@ y continúa la compra.
 ## Conocimiento generado
 
 Se identificó un patrón de Alta Cruzada que aplica a múltiples entidades.
-Referencias PKS: BUS-compra, BUS-venta. Pendiente de evaluar como PRD-* o PAT-*.
+Referencias PKS: BUS-compra, BUS-venta, PRD-alta-cruzada, PAT-alta-cruzada.
 
 ## Trabajo pendiente
 

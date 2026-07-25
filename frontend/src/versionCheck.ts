@@ -3,7 +3,12 @@ const UPDATE_LOG_KEY = 'update_history'
 
 let currentVersion = ''
 
+function isTauri(): boolean {
+  return !!(window as any).__TAURI__
+}
+
 async function getAppVersion(): Promise<string> {
+  if (!isTauri()) return ''
   try {
     const appMod = await import('@tauri-apps/api/app')
     return appMod.getVersion()

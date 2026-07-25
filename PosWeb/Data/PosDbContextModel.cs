@@ -66,6 +66,12 @@ public partial class PosDbContext
             entity.Property(p => p.ES_PESABLE)
                 .HasColumnName("ES_PESABLE");
 
+            entity.Property(p => p.ES_BULTO)
+                .HasColumnName("ES_BULTO");
+
+            entity.Property(p => p.ID_PRODUCTO_BULTO)
+                .HasColumnName("ID_PRODUCTO_BULTO");
+
             entity.HasOne<Categoria>()
                 .WithMany()
                 .HasForeignKey(p => p.ID_CATEGORIA)

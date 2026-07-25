@@ -732,6 +732,10 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("DESC_PRODUCTO");
 
+                    b.Property<bool>("ES_BULTO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ES_BULTO");
+
                     b.Property<bool>("ES_PESABLE")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ES_PESABLE");
@@ -748,6 +752,10 @@ namespace PosWeb.Migrations.Local
                     b.Property<int?>("ID_CATEGORIA")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_CATEGORIA");
+
+                    b.Property<int?>("ID_PRODUCTO_BULTO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_PRODUCTO_BULTO");
 
                     b.Property<int?>("ID_UNIDAD_MEDIDA")
                         .HasColumnType("INTEGER")

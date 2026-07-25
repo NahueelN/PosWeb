@@ -98,7 +98,7 @@ export default function ProductCardPanel({
   }
 
   return (
-    <>
+    <div className="space-y-4">
       {/* Search bar */}
       <div className="relative">
         <svg
@@ -166,11 +166,11 @@ export default function ProductCardPanel({
       {/* Grid */}
       <div
         ref={gridRef}
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
         onKeyDown={handleGridKeyDown}
       >
         {children}
       </div>
-    </>
+    </div>
   )
 }

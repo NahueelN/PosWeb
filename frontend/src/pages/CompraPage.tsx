@@ -201,18 +201,38 @@ export default function CompraPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────
   const addToCart = (p: ProductoDto) => {
-    const existing = cart.items.find(i => i.productoId === p.id)
-    markAdded(p.id, existing?.cantidad)
-    const item: CartItem = {
-      productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra,
-      cantidad: 1, costoUnitario: p.costo, subtotal: p.costo,
-      precio: p.precio, costo: p.costo,
-      categoriaId: p.categoriaId ?? undefined,
-      unidadMedidaId: p.unidadMedidaId ?? undefined,
-      contenido: p.contenido ?? undefined,
-      descAdicional: p.descAdicional ?? undefined,
-    };
-    cart.addItem(item);
+    if (p.esBulto) {
+      const unidadId = p.productoBultoId
+      const cantidad = p.contenido ?? 1
+      const unidad = unidadId ? productos.find(x => x.id === unidadId) : null
+      if (unidad) {
+        const existing = cart.items.find(i => i.productoId === unidad.id)
+        markAdded(unidad.id, existing?.cantidad)
+        const item: CartItem = {
+          productoId: unidad.id, productoNombre: unidad.nombre, codigoBarra: unidad.codigoBarra,
+          cantidad, costoUnitario: unidad.costo, subtotal: unidad.costo * cantidad,
+          precio: unidad.precio, costo: unidad.costo,
+          categoriaId: unidad.categoriaId ?? undefined,
+          unidadMedidaId: unidad.unidadMedidaId ?? undefined,
+          contenido: unidad.contenido ?? undefined,
+          descAdicional: unidad.descAdicional ?? undefined,
+        }
+        cart.addItem(item)
+      }
+    } else {
+      const existing = cart.items.find(i => i.productoId === p.id)
+      markAdded(p.id, existing?.cantidad)
+      const item: CartItem = {
+        productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra,
+        cantidad: 1, costoUnitario: p.costo, subtotal: p.costo,
+        precio: p.precio, costo: p.costo,
+        categoriaId: p.categoriaId ?? undefined,
+        unidadMedidaId: p.unidadMedidaId ?? undefined,
+        contenido: p.contenido ?? undefined,
+        descAdicional: p.descAdicional ?? undefined,
+      }
+      cart.addItem(item)
+    }
     const el = searchRef.current
     if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
     setTimeout(() => {
@@ -237,7 +257,15 @@ export default function CompraPage() {
   };
 
   const handleProductCreatedInModal = (producto: ProductoDto) => {
-    // Add the newly created product to cart with quantity 1
+    if (producto.esBulto) {
+      setShowNewModal(false)
+      searchRef.current?.focus()
+      setProductos(prev => {
+        if (prev.find(p => p.id === producto.id)) return prev
+        return [...prev, producto]
+      })
+      return
+    }
     addToCart(producto);
     setShowNewModal(false);
     searchRef.current?.focus()

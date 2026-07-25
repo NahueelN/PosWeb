@@ -173,6 +173,8 @@ Define términos oficiales utilizados dentro del proyecto. Ejemplo: Venta, Compr
 
 Estándares globales del proyecto: coding standards, naming conventions, UX guidelines, testing guidelines, accessibility guidelines, git workflow, review checklist, etc. No son Knowledge Items pero utilizan el mismo sistema de templates y metadata.
 
+Los estándares de formularios y diálogos pueden incluir heurísticas de trabajo como **Adaptive Focus**, **Progressive Completion** y **Spatial Navigation Model** cuando demuestran valor transversal en distintos popups y dominios.
+
 ---
 
 # Tipos de Knowledge Item

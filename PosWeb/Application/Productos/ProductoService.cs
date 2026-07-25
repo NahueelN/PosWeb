@@ -16,7 +16,7 @@ public class ProductoService
         _context = context;
     }
 
-    public List<ProductoDto> ObtenerActivos(int? sucursalId = null, bool? esPesable = null)
+    public List<ProductoDto> ObtenerActivos(int? sucursalId = null, bool? esPesable = null, bool? esBulto = null)
     {
         var query = _context.Producto
             .Where(p => p.ACTIVO);
@@ -24,6 +24,11 @@ public class ProductoService
         if (esPesable.HasValue)
         {
             query = query.Where(p => p.ES_PESABLE == esPesable.Value);
+        }
+
+        if (esBulto.HasValue)
+        {
+            query = query.Where(p => p.ES_BULTO == esBulto.Value);
         }
 
         var projected = query.OrderBy(p => p.DESC_PRODUCTO)
@@ -43,7 +48,9 @@ public class ProductoService
                 CodigoProducto = p.COD_PRODUCTO,
                 MargenGanancia = p.MARGEN_GANANCIA,
                 SeguirStock = p.SEGUIR_STOCK,
-                EsPesable = p.ES_PESABLE
+                EsPesable = p.ES_PESABLE,
+                EsBulto = p.ES_BULTO,
+                ProductoBultoId = p.ID_PRODUCTO_BULTO
             });
 
         if (sucursalId.HasValue)
@@ -88,7 +95,12 @@ public class ProductoService
             FechaAlta = p.FECHA_ALTA,
             FechaUltimaMod = p.FECHA_ULTIMA_MOD,
             FechaBaja = p.FECHA_BAJA,
-            Activo = p.ACTIVO
+            Activo = p.ACTIVO,
+            EsBulto = p.ES_BULTO,
+            ProductoBultoId = p.ID_PRODUCTO_BULTO,
+            ProductoBultoNombre = p.ID_PRODUCTO_BULTO.HasValue
+                ? _context.Producto.Where(u => u.ID_PRODUCTO == p.ID_PRODUCTO_BULTO.Value).Select(u => u.DESC_PRODUCTO).FirstOrDefault()
+                : null
         }).FirstOrDefault();
 
         if (result == null) return null;
@@ -126,6 +138,14 @@ public class ProductoService
             ? dto.CodigoProducto.Trim()
             : ObtenerSiguienteCodigo();
 
+        bool tieneCodigoBarras = !string.IsNullOrWhiteSpace(dto.CodigoBarra);
+        bool tieneCodigoProducto = !string.IsNullOrWhiteSpace(dto.CodigoProducto);
+
+        if (!tieneCodigoBarras && !tieneCodigoProducto && !dto.EsBulto)
+        {
+            throw new CodigoBarraInvalidoException("debe proporcionar código de barras o código personalizado");
+        }
+
         // Validar que el código interno no exista ya
         bool codigoProductoExiste = _context.Producto
             .Any(p => p.COD_PRODUCTO == codProducto && p.ACTIVO);
@@ -157,7 +177,9 @@ public class ProductoService
             dto.UnidadMedidaId,
             dto.Marca,
             margen,
-            dto.EsPesable
+            dto.EsPesable,
+            dto.EsBulto,
+            dto.EsBulto ? dto.ProductoBultoId : null
         );
 
         _context.Producto.Add(producto);
@@ -248,7 +270,9 @@ public class ProductoService
             CodigoProducto = producto.COD_PRODUCTO,
             MargenGanancia = producto.MARGEN_GANANCIA,
             SeguirStock = producto.SEGUIR_STOCK,
-            EsPesable = producto.ES_PESABLE
+            EsPesable = producto.ES_PESABLE,
+            EsBulto = producto.ES_BULTO,
+            ProductoBultoId = producto.ID_PRODUCTO_BULTO
         };
     }
 
@@ -262,6 +286,7 @@ public class ProductoService
         }
 
         producto.CambiarEsPesable(dto.EsPesable);
+        producto.CambiarEsBulto(dto.EsBulto, dto.EsBulto ? dto.ProductoBultoId : null);
         
         if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
         {
@@ -278,8 +303,8 @@ public class ProductoService
 
         producto.CambiarCodigoBarras(dto.CodigoBarra);
         producto.CambiarDescripcion(dto.Nombre);
-        producto.CambiarPrecio(dto.Precio);
-        producto.CambiarCosto(dto.Costo);
+        producto.CambiarPrecio(dto.Precio, dto.EsBulto);
+        producto.CambiarCosto(dto.Costo, dto.EsBulto);
         producto.CambiarMarca(dto.Marca);
         producto.CambiarCategoria(dto.CategoriaId);
         producto.CambiarContenido(dto.Contenido);
@@ -326,7 +351,7 @@ public class ProductoService
         string pattern = $"%{term}%";
 
         return _context.Producto
-            .Where(p => p.ACTIVO && (EF.Functions.Like(p.DESC_PRODUCTO, pattern) || EF.Functions.Like(p.CODIGO_BARRAS, pattern)))
+            .Where(p => p.ACTIVO && !p.ES_BULTO && (EF.Functions.Like(p.DESC_PRODUCTO, pattern) || EF.Functions.Like(p.CODIGO_BARRAS, pattern)))
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
             {
@@ -340,7 +365,9 @@ public class ProductoService
                         .Select(s => s.STOCK)
                         .FirstOrDefault(),
                     Activo = p.ACTIVO,
-                    EsPesable = p.ES_PESABLE
+                    EsPesable = p.ES_PESABLE,
+                    EsBulto = p.ES_BULTO,
+                    ProductoBultoId = p.ID_PRODUCTO_BULTO
             })
             .ToList();
     }

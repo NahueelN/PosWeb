@@ -16,6 +16,8 @@ export interface ProductoDto {
   margenGanancia?: number | null
   seguirStock?: boolean
   esPesable?: boolean
+  esBulto?: boolean
+  productoBultoId?: number | null
 }
 
 export interface ProductoDetailDto {
@@ -39,13 +41,34 @@ export interface ProductoDetailDto {
 
 export interface CategoriaDto {
   id: number
+  codigo: string
   descripcion: string
   margenGanancia?: number | null
+}
+
+export interface CrearCategoriaRequest {
+  codigo?: string
+  descripcion: string
+}
+
+export interface ActualizarCategoriaRequest {
+  codigo?: string
+  descripcion: string
 }
 
 export interface UnidadMedidaDto {
   id: number
   codigo: string
+  descripcion: string
+}
+
+export interface CrearUnidadMedidaRequest {
+  codigo?: string
+  descripcion: string
+}
+
+export interface ActualizarUnidadMedidaRequest {
+  codigo?: string
   descripcion: string
 }
 
@@ -64,6 +87,8 @@ export interface ProductoUpsertDto {
   margenGanancia?: number | null
   seguirStock?: boolean
   esPesable?: boolean
+  esBulto?: boolean
+  productoBultoId?: number | null
 }
 
 // --- Open Food Facts ---

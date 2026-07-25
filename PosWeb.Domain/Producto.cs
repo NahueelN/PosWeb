@@ -34,6 +34,10 @@ public class Producto
 
     public bool ES_PESABLE { get; private set; }
 
+    public bool ES_BULTO { get; private set; }
+
+    public int? ID_PRODUCTO_BULTO { get; private set; }
+
     public DateTime FECHA_ALTA { get; private set; }
 
     public DateTime FECHA_ULTIMA_MOD { get; private set; }
@@ -54,14 +58,18 @@ public class Producto
         int? idUnidadMedida = null,
         string? marca = null,
         decimal? margenGanancia = null,
-        bool esPesable = false)
+        bool esPesable = false,
+        bool esBulto = false,
+        int? idProductoBulto = null)
     {
         ES_PESABLE = esPesable;
+        ES_BULTO = esBulto;
+        ID_PRODUCTO_BULTO = idProductoBulto;
         CambiarCodigoProducto(codProducto);
         CambiarCodigoBarras(codigoBarras);
         CambiarDescripcion(descProducto);
-        CambiarPrecio(precio);
-        CambiarCosto(costo);
+        CambiarPrecio(precio, esBulto);
+        CambiarCosto(costo, esBulto);
         ID_CATEGORIA = idCategoria;
         DESC_ADICIONAL = descAdicional;
         CONTENIDO = contenido;
@@ -92,13 +100,13 @@ public class Producto
     {
         if (string.IsNullOrWhiteSpace(codigoBarras))
         {
-            if (!ES_PESABLE)
-                throw new CodigoBarraInvalidoException(codigoBarras);
-
-            codigoBarras = string.Empty;
+            if (ES_PESABLE || ES_BULTO)
+            {
+                codigoBarras = string.Empty;
+            }
         }
 
-        CODIGO_BARRAS = codigoBarras;
+        CODIGO_BARRAS = (codigoBarras ?? string.Empty).Trim();
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
@@ -113,22 +121,32 @@ public class Producto
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void CambiarPrecio(decimal precio)
+    public void CambiarPrecio(decimal precio, bool esBulto = false)
     {
-        if (precio <= 0)
+        if (!esBulto && precio <= 0)
         {
             throw new PrecioInvalidoException(precio);
+        }
+
+        if (esBulto)
+        {
+            precio = 0;
         }
 
         PRECIO = precio;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 
-    public void CambiarCosto(decimal costo)
+    public void CambiarCosto(decimal costo, bool esBulto = false)
     {
-        if (costo < 0)
+        if (!esBulto && costo < 0)
         {
             throw new CostoInvalidoException(costo);
+        }
+
+        if (esBulto)
+        {
+            costo = 0;
         }
 
         COSTO = costo;
@@ -180,6 +198,19 @@ public class Producto
     public void CambiarEsPesable(bool esPesable)
     {
         ES_PESABLE = esPesable;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarEsBulto(bool esBulto, int? idProductoBulto = null)
+    {
+        ES_BULTO = esBulto;
+        ID_PRODUCTO_BULTO = esBulto ? idProductoBulto : null;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarProductoBulto(int? idProductoBulto)
+    {
+        ID_PRODUCTO_BULTO = idProductoBulto;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 

@@ -79,6 +79,10 @@ Esto implica cambios de contexto innecesarios. En ventas, el mismo problema se r
 |---------|---------------|-------------------|--------------|
 | Cliente | ClientesPage | VentasPage | ✅ |
 | Proveedor | ProveedoresPage | CompraPage | ✅ |
+| Categoría de gasto | — | GastosPage | ✅ (inline) |
+| Producto | ProductosPage | CompraPage, PedidosPage | ✅ Compra, ❌ Pedidos |
+| Marca | ProductosPage | ProductosPage (carga masiva) | ❌ |
+| Proveedor | — | PedidosPage | ❌ |
 
 > Cuando se incorpore una nueva entidad comercial (Transportista, Vendedor, Banco, etc.), debe evaluarse qué procesos la consumen y garantizar que la regla se cumpla desde el diseño inicial.
 
@@ -120,4 +124,6 @@ Buscar entidad en el lookup
 RELATIONS:
   - type: RELATED
     target: STAND-entity-identity
+  - type: IMPLEMENTS
+    target: PAT-alta-cruzada
 ```
