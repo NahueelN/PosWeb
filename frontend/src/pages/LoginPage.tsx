@@ -187,7 +187,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {sucursales.length > 1 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Sucursal</label>
               <select
@@ -199,6 +198,8 @@ export default function LoginPage() {
               >
                 {loadingSucursales ? (
                   <option value={0}>Cargando...</option>
+                ) : sucursales.length === 0 ? (
+                  <option value={1}>Central</option>
                 ) : (
                   sucursales.map(s => (
                     <option key={s.id} value={s.id}>{s.nombre}</option>
@@ -206,7 +207,6 @@ export default function LoginPage() {
                 )}
               </select>
             </div>
-            )}
 
             <button
               type="submit"
