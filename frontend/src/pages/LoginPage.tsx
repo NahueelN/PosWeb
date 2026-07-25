@@ -33,7 +33,9 @@ export default function LoginPage() {
 
     const load = async () => {
       try {
-        const s = await api.sucursales.listar()
+        const res = await fetch('http://localhost:5196/api/sucursales')
+        if (!res.ok) throw new Error('Error del servidor')
+        const s: SucursalDto[] = await res.json()
         setSucursales(s)
         const saved = localStorage.getItem('sucursalActiva')
         if (saved) {
