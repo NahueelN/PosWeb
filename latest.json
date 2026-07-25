@@ -1,6 +1,6 @@
 {
-  "version": "0.2.28",
-  "notes": "Release v0.2.28",
+  "version": "0.0.1",
+  "notes": "Updater disabled — version pinned below all releases",
   "pub_date": "2026-07-25T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
