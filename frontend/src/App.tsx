@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
 import AuthGuard from './components/AuthGuard'
@@ -17,7 +17,8 @@ import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
 import PedidosPage from './pages/PedidosPage'
-import EstadisticasPage from './pages/EstadisticasPage'
+import DashboardPage from './pages/DashboardPage'
+import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
@@ -63,6 +64,12 @@ function LoadingScreen({ updaterStatus }: { updaterStatus: UpdaterStatus }) {
       </div>
     </div>
   )
+}
+
+function HomePage() {
+  const { user } = useAuth()
+  const isAdmin = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
+  return isAdmin ? <DashboardPage /> : <InicioPage />
 }
 
 export default function App() {
@@ -115,7 +122,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/ventas" replace />} />
+              <Route path="/" element={<HomePage />} />
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/historial" element={<HistorialVentasPage />} />
@@ -127,7 +134,7 @@ export default function App() {
               <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/combos" element={<CombosPage />} />
-              <Route path="/estadisticas" element={<EstadisticasPage />} />
+
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
             </Route>

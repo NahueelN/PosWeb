@@ -471,3 +471,9 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 | 2026-07-05 | CMD-project-sync: Principio de Relevancia validado en sync real | PASS-002 |
 | 2026-07-05 | CMD-project-sync: 8 recomendaciones para V2 (incluye Quick/Full modes) | PASS-002 Sync Learning |
 | 2026-07-05 | CMD-project-sync: Quick/Full modes incorporados a sintaxis y Assessment | PKS_PROPOSALS.md |
+| 2026-07-08 | PAT-AnalyticsFramework — Framework de Analytics como dominio independiente | `knowledge_items/PAT-AnalyticsFramework/` |
+| 2026-07-08 | MODEL-AnalyticsQuery — Fuente de datos parametrizable y reutilizable | `knowledge_items/MODEL-AnalyticsQuery/` |
+| 2026-07-08 | MODEL-Dataset — Resultado normalizado y cacheable de queries | `knowledge_items/MODEL-Dataset/` |
+| 2026-07-08 | MODEL-Insight — Conclusiones generadas a partir de datos | `knowledge_items/MODEL-Insight/` |
+| 2026-07-08 | COMP-Widget — Unidad de composición Query + Visualization + Config | `knowledge_items/COMP-Widget/` |
+| 2026-07-08 | DS-DashboardLayout — Sistema de layout para widgets | `knowledge_items/DS-DashboardLayout/` |
