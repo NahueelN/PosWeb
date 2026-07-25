@@ -27,8 +27,14 @@ import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
   const currentVersion = getCurrentVersion()
+  const [baseInfo, setBaseInfo] = useState('')
+  useEffect(() => {
+    const log = localStorage.getItem('fetch_debug') || ''
+    const lines = log.split('\n').filter(Boolean)
+    setBaseInfo(lines.length > 0 ? lines[lines.length - 1].slice(0, 80) : '')
+  }, [status])
   return (
-    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex flex-col items-center gap-1">
       <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${
         status === 'error' ? 'bg-red-500/90 text-white' :
         status === 'checking' ? 'bg-slate-700/90 text-white' :
@@ -49,6 +55,7 @@ function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
           {status === 'no-update' && `v${currentVersion || '?'} — Actualizado`}
         </span>
       </div>
+      {baseInfo && <span className="text-[9px] text-gray-400 bg-white/80 px-2 py-0.5 rounded">{baseInfo}</span>}
     </div>
   )
 }
