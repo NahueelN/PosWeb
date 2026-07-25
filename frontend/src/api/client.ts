@@ -58,8 +58,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   console.log(`[API Request] ${options?.method ?? 'GET'} ${url}`)
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
+  }
+  const method = options?.method ?? 'GET'
+  if (method !== 'GET') {
+    headers['Content-Type'] = 'application/json'
   }
 
   // Merge custom headers
