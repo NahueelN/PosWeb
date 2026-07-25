@@ -4,26 +4,10 @@
 import { useState, useMemo } from 'react'
 import Dialog from '../components/ui/Dialog'
 import Button from '../components/ui/Button'
-import type { WidgetDefinition, WidgetVisualizationType, WidgetType } from './types'
+import type { WidgetDefinition, WidgetType } from './types'
 import type { LayoutInstance, GridSize } from './grid/types'
 import { sameSize } from './grid/types'
-import {
-  Check,
-  DollarSign, Wallet, Target, BarChart3, PieChart, TrendingUp,
-  AlertTriangle, ClipboardList, Clock, Receipt, Package,
-  Table, List, Gauge,
-} from 'lucide-react'
-
-const iconMap: Record<string, React.ElementType> = {
-  DollarSign, Wallet, Target, BarChart3, PieChart, TrendingUp,
-  AlertTriangle, ClipboardList, Clock, Receipt, Package,
-  Table, List, Gauge,
-}
-
-function IconByName({ name, size = 16 }: { name: string; size?: number }) {
-  const Icon = iconMap[name] ?? Package
-  return <Icon size={size} />
-}
+import { Check } from 'lucide-react'
 
 interface Props {
   open: boolean

@@ -53,12 +53,12 @@ function ensurePositions(instances: LayoutInstance[], cols: number): LayoutInsta
 function hasOverlapsOrOutOfBounds(layout: LayoutInstance[], cols: number, rows: number): boolean {
   for (let i = 0; i < layout.length; i++) {
     const a = layout[i]
-    if (a.x < 1 || a.y < 1) return true
-    if (a.x + a.w > cols + 1) return true
-    if (a.y + a.h > rows + 1) return true
+    if (a.x! < 1 || a.y! < 1) return true
+    if (a.x! + a.w > cols + 1) return true
+    if (a.y! + a.h > rows + 1) return true
     for (let j = i + 1; j < layout.length; j++) {
       const b = layout[j]
-      if (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y) return true
+      if (a.x! < b.x! + b.w && a.x! + a.w > b.x! && a.y! < b.y! + b.h && a.y! + a.h > b.y!) return true
     }
   }
   return false
@@ -67,7 +67,7 @@ function hasOverlapsOrOutOfBounds(layout: LayoutInstance[], cols: number, rows: 
 /* ─── Programmatic placement helpers (RGL has no "find free slot" or "validate resize" API) ── */
 
 function overlaps(a: LayoutInstance, b: LayoutInstance): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+  return a.x! < b.x! + b.w && a.x! + a.w > b.x! && a.y! < b.y! + b.h && a.y! + a.h > b.y!
 }
 
 function canPlaceItem(
@@ -243,6 +243,7 @@ export default function DashboardPage() {
     setLayout((prev) => {
       const inst = prev.find((i) => i.id === instanceId)
       if (!inst) return prev
+      if (inst.x == null || inst.y == null) return prev
       if (!canPlaceItem(prev, instanceId, inst.x, inst.y, size.w, size.h, GRID_COLS, GRID_ROWS)) {
         notifyError('El nuevo tamaño no cabe en el dashboard')
         return prev

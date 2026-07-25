@@ -58,6 +58,13 @@ export default function ProductosPage() {
     if (sucursal?.id) listar()
   }, [sucursal?.id])
 
+  useEffect(() => {
+    if (tab === 'actualizacion-masiva' && marcas.length === 0) {
+      api.productos.marcas().then(setMarcas as any).catch(() => setMarcas([]))
+      api.productos.marcasSimilares().then(setGruposMarcas as any).catch(() => setGruposMarcas([]))
+    }
+  }, [tab])
+
   const fetchIdRef = useRef(0)
 
   async function listar() {

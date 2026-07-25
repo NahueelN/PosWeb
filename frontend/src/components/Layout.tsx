@@ -129,7 +129,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const { sucursal, limpiar } = useSucursalActiva()
   const { user, logout } = useAuth()
-  const { notifyError, notifySuccess } = useNotification()
+  const { notifyError } = useNotification()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
