@@ -4,7 +4,7 @@ import ReactGridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import './grid/dashboard-grid.css'
-import type { Layout as RGLLayout, ItemCallback } from 'react-grid-layout/legacy'
+import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import type { LayoutInstance } from './grid/types'
 import { GRID_ROWS } from './grid/types'
 import WidgetRenderer from './WidgetRenderer'
@@ -68,15 +68,15 @@ export default function DashboardGridRGL({
     return m
   }, [definitions])
 
-  const rglLayout: RGLLayout[] = useMemo(() => {
+  const rglLayout: LayoutItem[] = useMemo(() => {
     const result = layout.map((inst) => {
       const def = defMap.get(inst.definitionId)
       const supportedW = def?.supportedSizes?.map(s => s.w) ?? []
       const supportedH = def?.supportedSizes?.map(s => s.h) ?? []
       return {
         i: inst.id,
-        x: inst.x - 1,
-        y: inst.y - 1,
+        x: inst.x! - 1,
+        y: inst.y! - 1,
         w: inst.w,
         h: inst.h,
         minW: supportedW.length > 0 ? Math.min(...supportedW) : undefined,
@@ -87,9 +87,10 @@ export default function DashboardGridRGL({
     return result
   }, [layout, defMap])
 
-  const handleDragStop: ItemCallback = useCallback((_newLayout, _oldItem, _newItem, _placeholder, e) => {
-    console.log('[RGL] onDragStop:', _newLayout.map(i => `${i.i}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
-    const newInstances = _newLayout.map((item) => {
+  const handleDragStop: EventCallback = useCallback((_newLayout) => {
+    const newLayout = _newLayout as LayoutItem[]
+    console.log('[RGL] onDragStop:', newLayout.map(i => `${i.i}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
+    const newInstances = newLayout.map((item) => {
       const existing = layout.find((i) => i.id === item.i)
       return {
         id: item.i,
@@ -105,9 +106,10 @@ export default function DashboardGridRGL({
     onLayoutChangeRef.current?.(newInstances)
   }, [layout])
 
-  const handleResizeStop: ItemCallback = useCallback((_newLayout, _oldItem, _newItem, _placeholder, e) => {
-    console.log('[RGL] onResizeStop:', _newLayout.map(i => `${i.i}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
-    const newInstances = _newLayout.map((item) => {
+  const handleResizeStop: EventCallback = useCallback((_newLayout) => {
+    const newLayout = _newLayout as LayoutItem[]
+    console.log('[RGL] onResizeStop:', newLayout.map(i => `${i.i}(${i.x},${i.y} ${i.w}x${i.h})`).join(' '))
+    const newInstances = newLayout.map((item) => {
       const existing = layout.find((i) => i.id === item.i)
       return {
         id: item.i,

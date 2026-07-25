@@ -119,7 +119,7 @@ export function useGridAnimation(enabled = true) {
       }
 
       // Animate position
-      for (const el of moved) {
+      for (const { el } of moved) {
         el.style.transition = `transform ${ANIMATION_MS}ms ${EASE}`
         el.style.transform = ''
       }
@@ -131,7 +131,7 @@ export function useGridAnimation(enabled = true) {
           el.style.transform = ''
           el.style.transition = ''
         }
-        for (const el of moved) {
+        for (const { el } of moved) {
           el.style.transform = ''
           el.style.transition = ''
           el.style.willChange = ''

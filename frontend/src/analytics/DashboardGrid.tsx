@@ -27,7 +27,7 @@ interface Props {
 }
 
 export default function DashboardGrid({
-  layout, widgets, definitions, gridCols,
+  layout, widgets, definitions: _definitions, gridCols,
   onRemove, onEdit,
   onReorderStart, onReorderAtCell, onReorderEnd,
   isDragging = false,
