@@ -1,11 +1,11 @@
 {
-  "notes": "Release v1.2.0",
-  "version": "1.2.0",
-  "pub_date": "2026-07-25T18:57:44Z",
+  "pub_date": "2026-07-25T19:10:49Z",
+  "version": "1.2.1",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkVUUk1wcjFJaUJNL05UUWE5T1JPZHBHTUVpbWJBaFo1RTFTRVRPRUhrWUxxUXBsUTJwVWxtVzM3NWF2UzZmbnhvMDJTaCtHYVdNWDdzUU0xclRiZ0FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MDA1ODU4CWZpbGU6UG9zV2ViXzEuMi4wX3g2NC1zZXR1cC5leGUKMG5yUTdjTjlJSmN2RVExZ3h3cUZBdVQvNlNZT3U0NkpyL1VPV3FTY2NRSXUrdnJaclBGS3JqVTNXc2lCNWZjUlhaZ3RPSzQ3azVORFM2Nk8vbzR6QVE9PQo=",
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.2.0/PosWeb_1.2.0_x64-setup.exe"
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.2.1/PosWeb_1.2.1_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkNtOUxNRDRVTTN1TUZIRlp6NDBIVzBMODloU0I2emk1cFlKcTdWK0RoQWhvSkVYVzVZNFM2Q2c0SnFGeExVY3Y5ZXUyaHpHektRaFVGNnhtL01iVWc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MDA2NjM5CWZpbGU6UG9zV2ViXzEuMi4xX3g2NC1zZXR1cC5leGUKMjJqNmxubk8vaXN3bWxQQXFTTmpNWUhHTkxOTFRGYk10bisyT3VWcm9panNXd1FlRXhJMTRoSlF0bURvRG8xMnlnbkVQY0RkbzQwWGlJSVh0bDY4RFE9PQo="
     }
-  }
+  },
+  "notes": "Release v1.2.1"
 }
