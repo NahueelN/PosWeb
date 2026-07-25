@@ -28,10 +28,14 @@ import { initVersionCheck, getCurrentVersion } from './versionCheck'
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
   const currentVersion = getCurrentVersion()
   const [baseInfo, setBaseInfo] = useState('')
+  const [apiInfo, setApiInfo] = useState('')
   useEffect(() => {
     const log = localStorage.getItem('fetch_debug') || ''
     const lines = log.split('\n').filter(Boolean)
-    setBaseInfo(lines.length > 0 ? lines[lines.length - 1].slice(0, 80) : '')
+    setBaseInfo(lines.length > 0 ? lines[lines.length - 1] : '')
+    const apiLog = localStorage.getItem('api_debug') || ''
+    const apiLines = apiLog.split('\n').filter(Boolean)
+    setApiInfo(apiLines.length > 0 ? apiLines[apiLines.length - 1] : '')
   }, [status])
   return (
     <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex flex-col items-center gap-1">
@@ -55,7 +59,8 @@ function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
           {status === 'no-update' && `v${currentVersion || '?'} — Actualizado`}
         </span>
       </div>
-      {baseInfo && <span className="text-[9px] text-gray-400 bg-white/80 px-2 py-0.5 rounded">{baseInfo}</span>}
+      {baseInfo && <span className="text-[9px] text-gray-400 bg-white/80 px-2 py-0.5 rounded max-w-[400px] truncate">{baseInfo}</span>}
+      {apiInfo && <span className="text-[9px] text-red-500 bg-red-50 px-2 py-0.5 rounded max-w-[400px] truncate">{apiInfo}</span>}
     </div>
   )
 }
