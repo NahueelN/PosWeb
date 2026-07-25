@@ -1,5 +1,25 @@
 import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto } from '../types'
 
+let _fetchImpl: typeof fetch = typeof window !== 'undefined' ? window.fetch.bind(window) : null!
+let _fetchReady = false
+
+async function getFetch(): Promise<typeof fetch> {
+  if (_fetchReady) return _fetchImpl
+  try {
+    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+      const http = await import('@tauri-apps/plugin-http')
+      _fetchImpl = http.fetch
+    }
+  } catch { /* use window.fetch fallback */ }
+  _fetchReady = true
+  return _fetchImpl
+}
+
+async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const f = await getFetch()
+  return f(input, init)
+}
+
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
 if (typeof window !== 'undefined' && window.location) {
@@ -25,7 +45,7 @@ export async function esperarBackend(maxRetries = 30, delayMs = 500): Promise<vo
     const timeoutId = setTimeout(() => controller.abort(), 2000)
 
     try {
-      const res = await fetch(`${BASE}/sucursales`, { signal: controller.signal })
+      const res = await safeFetch(`${BASE}/sucursales`, { signal: controller.signal })
       if (res.ok) {
         console.log('[Startup] Successfully connected to backend')
         return
@@ -70,7 +90,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     Object.assign(headers, options.headers)
   }
 
-  const res = await fetch(`${BASE}${url}`, {
+  const res = await safeFetch(`${BASE}${url}`, {
     ...options,
     headers,
   })
