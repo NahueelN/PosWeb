@@ -30,6 +30,7 @@ jobs:
           dotnet publish PosWeb/PosWeb.csproj -c Release -r win-x64 --self-contained true -o publish
           New-Item -ItemType Directory -Force -Path frontend\src-tauri\binaries
           Copy-Item publish\PosWeb.exe frontend\src-tauri\binaries\posweb-backend-x86_64-pc-windows-msvc.exe
+          Copy-Item publish\appsettings.json frontend\src-tauri\binaries\appsettings.json
 
       - name: Install dependencies
         run: npm ci

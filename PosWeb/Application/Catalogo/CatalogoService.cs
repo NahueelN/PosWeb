@@ -21,7 +21,7 @@ public class CatalogoService
     {
         _http = http;
         _logger = logger;
-        _habilitado = configuration.GetValue<bool>("Catalogo:Habilitado");
+        _habilitado = configuration.GetValue<bool?>("Catalogo:Habilitado") ?? true;
     }
 
     public async Task<OpenFoodFactsResultDto?> ConsultarAsync(string codigoBarras)
