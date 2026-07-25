@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -11,9 +12,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716031805_AddQrFields")]
+    partial class AddQrFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -772,10 +775,6 @@ namespace PosWeb.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("DESC_PRODUCTO");
 
-                    b.Property<bool>("ES_BULTO")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ES_BULTO");
-
                     b.Property<bool>("ES_PESABLE")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("ES_PESABLE");
@@ -792,10 +791,6 @@ namespace PosWeb.Migrations
                     b.Property<int?>("ID_CATEGORIA")
                         .HasColumnType("int")
                         .HasColumnName("ID_CATEGORIA");
-
-                    b.Property<int?>("ID_PRODUCTO_BULTO")
-                        .HasColumnType("int")
-                        .HasColumnName("ID_PRODUCTO_BULTO");
 
                     b.Property<int?>("ID_UNIDAD_MEDIDA")
                         .HasColumnType("int")
@@ -1153,10 +1148,6 @@ namespace PosWeb.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
                         .HasColumnName("MP_POS_ID");
-
-                    b.Property<string>("MP_QR_DATA")
-                        .HasColumnType("longtext")
-                        .HasColumnName("MP_QR_DATA");
 
                     b.Property<string>("MP_REFRESH_TOKEN")
                         .HasColumnType("longtext")

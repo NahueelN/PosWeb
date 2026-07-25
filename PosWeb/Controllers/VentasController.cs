@@ -19,10 +19,10 @@ public class VentasController : ControllerBase
 
     [HttpPost]
     [Authorize]
-    public IActionResult Post(VentaDto dto)
+    public async Task<IActionResult> Post(VentaDto dto)
     {
         var userId = GetUserId();
-        return Ok(_ventaService.CrearVenta(dto, userId));
+        return Ok(await _ventaService.CrearVenta(dto, userId));
     }
 
     private int? GetUserId()
@@ -82,5 +82,30 @@ public class VentasController : ControllerBase
     {
         _ventaService.DeshacerVenta(id, request.ConDevolucion);
         return Ok(new { message = "Venta anulada y stock restaurado" });
+    }
+
+    [HttpPost("{id}/confirmar-transferencia")]
+    [Authorize]
+    public IActionResult ConfirmarTransferencia(int id)
+    {
+        var resultado = _ventaService.ConfirmarTransferencia(id);
+        return Ok(resultado);
+    }
+
+    [HttpGet("{id}/estado")]
+    public IActionResult ObtenerEstado(int id)
+    {
+        var estado = _ventaService.ObtenerEstadoVenta(id);
+        if (estado == null)
+            return NotFound(new { error = "Venta no encontrada" });
+        return Ok(new { estado });
+    }
+
+    [HttpPost("{id}/cancelar-pendiente")]
+    [Authorize]
+    public IActionResult CancelarPendiente(int id, [FromBody] CancelarPendienteRequest request)
+    {
+        _ventaService.CancelarVentaPendiente(id, request?.EsTimeout ?? false);
+        return Ok(new { message = "Venta pendiente cancelada y stock restaurado" });
     }
 }

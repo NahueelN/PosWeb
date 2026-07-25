@@ -1086,6 +1086,38 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID");
 
+                    b.Property<string>("MP_ACCESS_TOKEN")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_ACCESS_TOKEN");
+
+                    b.Property<DateTime?>("MP_FECHA_VINC")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_FECHA_VINC");
+
+                    b.Property<string>("MP_POS_ID")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_POS_ID");
+
+                    b.Property<string>("MP_QR_DATA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_QR_DATA");
+
+                    b.Property<string>("MP_REFRESH_TOKEN")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_REFRESH_TOKEN");
+
+                    b.Property<string>("MP_USER_ID")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_USER_ID");
+
+                    b.Property<bool>("MP_VINCULADO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("MP_VINCULADO");
+
                     b.Property<string>("NIVEL")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1254,6 +1286,14 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ANULADA");
 
+                    b.Property<string>("ESTADO")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Completada")
+                        .HasColumnName("ESTADO");
+
                     b.Property<DateTime>("FECHA_VENTA")
                         .HasColumnType("TEXT")
                         .HasColumnName("FECHA_VENTA");
@@ -1269,6 +1309,11 @@ namespace PosWeb.Migrations.Local
                     b.Property<int?>("ID_USUARIO")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_USUARIO");
+
+                    b.Property<string>("REFERENCIA_MP")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("REFERENCIA_MP");
 
                     b.Property<decimal>("TOTAL")
                         .HasColumnType("decimal(18,2)")

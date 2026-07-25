@@ -21,6 +21,42 @@ interface Props {
   onLayoutChange?: (layout: LayoutInstance[]) => void
 }
 
+function compactBidirectional(items: LayoutInstance[], cols: number, maxRows: number): LayoutInstance[] {
+  const grid = Array.from({ length: maxRows }, () => new Array(cols).fill(false))
+
+  const sorted = [...items].sort((a, b) => (b.w * b.h) - (a.w * a.h))
+
+  const compacted: LayoutInstance[] = []
+
+  for (const item of sorted) {
+    let placed = false
+    for (let y = 0; y <= maxRows - item.h && !placed; y++) {
+      for (let x = 0; x <= cols - item.w && !placed; x++) {
+        let fits = true
+        for (let dy = 0; dy < item.h && fits; dy++) {
+          for (let dx = 0; dx < item.w && fits; dx++) {
+            if (grid[y + dy][x + dx]) fits = false
+          }
+        }
+        if (fits) {
+          compacted.push({ ...item, x: x + 1, y: y + 1 })
+          for (let dy = 0; dy < item.h; dy++) {
+            for (let dx = 0; dx < item.w; dx++) {
+              grid[y + dy][x + dx] = true
+            }
+          }
+          placed = true
+        }
+      }
+    }
+    if (!placed) {
+      compacted.push(item)
+    }
+  }
+
+  return compacted
+}
+
 export default function DashboardGridRGL({
   layout, widgets, definitions, gridCols,
   onRemove, onEdit, onLayoutChange,
@@ -103,8 +139,9 @@ export default function DashboardGridRGL({
         y: item.y + 1,
       }
     })
-    onLayoutChangeRef.current?.(newInstances)
-  }, [layout])
+    const compacted = compactBidirectional(newInstances, gridCols, GRID_ROWS)
+    onLayoutChangeRef.current?.(compacted)
+  }, [layout, gridCols])
 
   const handleResizeStop: EventCallback = useCallback((_newLayout) => {
     const newLayout = _newLayout as LayoutItem[]
@@ -122,8 +159,9 @@ export default function DashboardGridRGL({
         y: item.y + 1,
       }
     })
-    onLayoutChangeRef.current?.(newInstances)
-  }, [layout])
+    const compacted = compactBidirectional(newInstances, gridCols, GRID_ROWS)
+    onLayoutChangeRef.current?.(compacted)
+  }, [layout, gridCols])
 
   const handleRemoveLocal = useCallback((instanceId: string) => {
     if (exitingRef.current.has(instanceId)) return
@@ -148,7 +186,7 @@ export default function DashboardGridRGL({
         maxRows={GRID_ROWS}
         margin={[8, 8]}
         containerPadding={[0, 0]}
-        compactType={null}
+        compactType="vertical"
         preventCollision={false}
         allowOverlap={false}
         isBounded

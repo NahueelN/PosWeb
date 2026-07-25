@@ -20,6 +20,10 @@ public class Venta
 
     public bool ANULADA { get; private set; }
 
+    public string ESTADO { get; private set; } = EstadosVenta.Completada;
+
+    public string? REFERENCIA_MP { get; private set; }
+
     private readonly List<RenglonVenta> _RENGLONES = new();
 
     public IReadOnlyCollection<RenglonVenta> RENGLONES => _RENGLONES;
@@ -101,4 +105,39 @@ public class Venta
     {
         ANULADA = true;
     }
+
+    public void MarcarPendiente()
+    {
+        ESTADO = EstadosVenta.PendientePago;
+    }
+
+    public void AsignarReferencia(string referencia)
+    {
+        REFERENCIA_MP = referencia;
+    }
+
+    public void Confirmar()
+    {
+        ESTADO = EstadosVenta.Completada;
+    }
+
+    public void Cancelar()
+    {
+        ESTADO = EstadosVenta.Anulada;
+        ANULADA = true;
+    }
+
+    public void Vencer()
+    {
+        ESTADO = EstadosVenta.Vencida;
+        ANULADA = true;
+    }
+}
+
+public static class EstadosVenta
+{
+    public const string Completada = "Completada";
+    public const string PendientePago = "PendientePago";
+    public const string Anulada = "Anulada";
+    public const string Vencida = "Vencida";
 }

@@ -49,6 +49,20 @@ public class Suscripcion
 
     public string? MERCADOPAGO_PREAPPROVAL_ID { get; private set; }
 
+    public string? MP_ACCESS_TOKEN { get; private set; }
+
+    public string? MP_REFRESH_TOKEN { get; private set; }
+
+    public string? MP_USER_ID { get; private set; }
+
+    public bool MP_VINCULADO { get; private set; }
+
+    public DateTime? MP_FECHA_VINC { get; private set; }
+
+    public string? MP_POS_ID { get; private set; }
+
+    public string? MP_QR_DATA { get; private set; }
+
     public Suscripcion(
         int usuarioTitularId,
         string nivel,
@@ -165,14 +179,42 @@ public class Suscripcion
         PROXIMO_COBRO = proximoCobro;
     }
 
-    public void VincularMercadoPago(string preapprovalId)
+    public void VincularMP(string accessToken, string? refreshToken, string mpUserId)
     {
-        if (string.IsNullOrWhiteSpace(preapprovalId))
-        {
-            throw new ArgumentException("El identificador de Mercado Pago no puede estar vacío");
-        }
+        if (string.IsNullOrWhiteSpace(accessToken))
+            throw new ArgumentException("El token de acceso no puede estar vacío");
 
-        MERCADOPAGO_PREAPPROVAL_ID = preapprovalId.Trim();
+        MP_ACCESS_TOKEN = accessToken;
+        MP_REFRESH_TOKEN = refreshToken;
+        MP_USER_ID = mpUserId;
+        MP_VINCULADO = true;
+        MP_FECHA_VINC = DateTime.UtcNow;
+    }
+
+    public void DesvincularMP()
+    {
+        MP_ACCESS_TOKEN = null;
+        MP_REFRESH_TOKEN = null;
+        MP_USER_ID = null;
+        MP_VINCULADO = false;
+        MP_FECHA_VINC = null;
+    }
+
+    public void ActualizarTokens(string accessToken, string? refreshToken)
+    {
+        MP_ACCESS_TOKEN = accessToken;
+        if (refreshToken != null)
+            MP_REFRESH_TOKEN = refreshToken;
+    }
+
+    public void AsignarPosId(string posId)
+    {
+        MP_POS_ID = posId;
+    }
+
+    public void AsignarQrData(string qrData)
+    {
+        MP_QR_DATA = qrData;
     }
 
     public bool EstaActiva()
