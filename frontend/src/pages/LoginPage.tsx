@@ -7,7 +7,7 @@ import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login, pinLogin, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   const [tab, setTab] = useState<'password' | 'pin'>('password')
   const [usuario, setUsuario] = useState('')
@@ -64,24 +64,30 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-
     try {
-      if (tab === 'password') {
-        await login({ usuario, password, sucursalId })
-      } else {
-        await pinLogin({ usuario, pin, sucursalId })
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? '' : 'http://localhost:5196'
+      const body = tab === 'password'
+        ? { usuario, password, sucursalId }
+        : { usuario, pin, sucursalId }
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { const p = JSON.parse(text); msg = p.error || msg } catch {}
+        throw new Error(msg)
       }
+      const data = await res.json()
+      localStorage.setItem('jwt_token', data.token)
+      localStorage.setItem('jwt_expires', data.expiresAt)
+      localStorage.setItem('user_info', JSON.stringify(data.usuario))
       navigate('/ventas', { replace: true })
     } catch (err: any) {
-      const msg = err.message || 'Error al iniciar sesión'
-      try {
-        const parts = msg.split(': ')
-        const jsonPart = parts[parts.length - 1]
-        const parsed = JSON.parse(jsonPart)
-        notifyError(parsed.error || msg)
-      } catch {
-        notifyError(msg)
-      }
+      notifyError(err.message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }
