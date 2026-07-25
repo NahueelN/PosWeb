@@ -102,9 +102,22 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   })
 
   const duration = Date.now() - startTime
-  
+
+  // Debug: log every request result
+  try {
+    const debugLog = localStorage.getItem('api_debug') || ''
+    const contentType = res.headers.get('content-type') || ''
+    const isHtml = contentType.includes('text/html')
+    localStorage.setItem('api_debug', (debugLog + `[${new Date().toLocaleTimeString()}] ${method} ${url} → ${res.status}${isHtml ? ' HTML!' : ''} (${duration}ms)\n`).slice(-2000))
+  } catch {}
+
   if (!res.ok) {
     const text = await res.text()
+    // Debug: log error response body
+    try {
+      const debugLog = localStorage.getItem('api_debug') || ''
+      localStorage.setItem('api_debug', (debugLog + `  ERROR BODY: ${text.slice(0, 200)}\n`).slice(-2000))
+    } catch {}
     // If 401, clear token (session expired)
     if (res.status === 401) {
       localStorage.removeItem('jwt_token')
@@ -131,7 +144,16 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   console.log(`[API Success] ${options?.method ?? 'GET'} ${url} - ${res.status} (${duration}ms)`)
   
   if (res.status === 204) return undefined as T
-  return res.json()
+  try {
+    return await res.json()
+  } catch (jsonErr: any) {
+    const text = await res.clone().text()
+    try {
+      const debugLog = localStorage.getItem('api_debug') || ''
+      localStorage.setItem('api_debug', (debugLog + `  JSON PARSE FAILED (${res.status}): ${text.slice(0, 200)}\n`).slice(-2000))
+    } catch {}
+    throw new Error(`Respuesta inválida del servidor (${res.status}): ${text.slice(0, 100)}`)
+  }
 }
 
 export const api = {
