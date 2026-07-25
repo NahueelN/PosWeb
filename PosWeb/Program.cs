@@ -124,7 +124,7 @@ builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
 // Catálogo cloud – centralised product lookup & upload
 builder.Services.AddHttpClient<CatalogoService>(client =>
 {
-    var workerUrl = builder.Configuration["Catalogo:WorkerUrl"] ?? "http://localhost:8787";
+    var workerUrl = builder.Configuration["Catalogo:WorkerUrl"] ?? "https://posweb-catalogo.chiacchio-eze01.workers.dev";
     client.BaseAddress = new Uri(workerUrl);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
     client.Timeout = TimeSpan.FromSeconds(10);
