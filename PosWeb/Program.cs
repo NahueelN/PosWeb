@@ -120,7 +120,7 @@ builder.Services.AddScoped<CategoriaGastoService>();
 
 // MercadoPago
 var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
-    ?? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("PosWeb_MP_EncryptKey_32bytes!!"));
+    ?? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("PosWeb_MP_EncryptKey_32bytes_OK!"));
 builder.Services.AddSingleton(new TokenEncryptionService(mpEncryptionKey));
 builder.Services.AddScoped<MercadoPagoService>();
 builder.Services.AddHostedService<TransferenciaPollingService>();
