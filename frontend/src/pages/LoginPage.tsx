@@ -33,7 +33,9 @@ export default function LoginPage() {
 
     const load = async () => {
       try {
-        const res = await fetch('http://localhost:5196/api/sucursales')
+        const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? '' : 'http://localhost:5196'
+        const res = await fetch(`${baseUrl}/api/sucursales`)
         if (!res.ok) throw new Error('Error del servidor')
         const s: SucursalDto[] = await res.json()
         setSucursales(s)
