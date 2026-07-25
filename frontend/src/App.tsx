@@ -26,13 +26,14 @@ import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus 
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
-  if (status === 'idle' || status === 'no-update') return null
-
+  const currentVersion = getCurrentVersion()
   return (
     <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
       <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${
         status === 'error' ? 'bg-red-500/90 text-white' :
         status === 'checking' ? 'bg-slate-700/90 text-white' :
+        status === 'idle' ? 'bg-green-600/90 text-white' :
+        status === 'no-update' ? 'bg-slate-500/90 text-white' :
         'bg-indigo-600/90 text-white'
       }`}>
         {status === 'error' && <span className="text-base">⚠</span>}
@@ -44,6 +45,8 @@ function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
           {status === 'downloading' && `Descargando v${version}…`}
           {status === 'installing' && `Instalando v${version}…`}
           {status === 'error' && (errorMsg ?? 'Error al actualizar')}
+          {status === 'idle' && `v${currentVersion || '?'}`}
+          {status === 'no-update' && `v${currentVersion || '?'} — Actualizado`}
         </span>
       </div>
     </div>
