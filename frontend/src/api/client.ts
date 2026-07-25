@@ -3,7 +3,9 @@ import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, Ve
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
 if (typeof window !== 'undefined' && window.location) {
-  if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    BASE = '/api';
+  } else if (window.location.protocol === 'http:') {
     BASE = '/api';
   } else {
     BASE = 'http://localhost:5196/api';

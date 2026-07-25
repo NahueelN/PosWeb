@@ -16,7 +16,7 @@ Level: Project
 Sources:
   - frontend/src/api/client.ts
 Created: 2026-07-04
-Updated: 2026-07-04
+Updated: 2026-07-22
 Template Version: 1.0
 Tags:
   - api
@@ -42,7 +42,10 @@ Sin este archivo cada página implementaría su propia lógica de fetch, headers
 ## Estructura
 
 ### 1. URL base (`BASE`)
-Auto-detectada: `/api` en navegador, `http://localhost:5196/api` en Tauri WebView.
+Auto-detectada:
+- `localhost` / `127.0.0.1` → `/api` (Vite proxy → `localhost:5196`)
+- Cualquier IP en `http:` → `/api` (acceso desde LAN, mismo proxy)
+- Tauri WebView (`tauri://` u otro protocolo) → `http://localhost:5196/api` (directo al sidecar)
 
 ### 2. `esperarBackend()`
 Polling (30 intentos, 500ms) contra `/sucursales`. Bloquea el arranque hasta que el backend responda.
@@ -121,5 +124,6 @@ RELATIONS:
 
 | Fecha | Cambio |
 |-------|--------|
+| 2026-07-22 | Agregado soporte para acceso desde red local (LAN). `BASE = '/api'` ahora aplica también cuando el hostname NO es localhost pero el protocolo es `http:`. |
 | 2026-07-04 | Creación |
 | 2026-07-03 | Restauración de endpoints PKS perdidos en merge |
