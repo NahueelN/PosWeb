@@ -86,8 +86,9 @@ async function initUpdater() {
         emit({ status: 'error', errorMsg: msg })
       }
     }
-  } catch {
+  } catch (e) {
     console.log('[Updater] Tauri updater plugin not available (browser mode)')
+    logError(`Updater init failed: ${e instanceof Error ? e.message : String(e)}`)
   }
 }
 

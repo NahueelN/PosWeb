@@ -83,6 +83,7 @@ export default function LoginPage() {
       }
       const data = await res.json()
       loginDirect({ token: data.token, expiresAt: data.expiresAt, usuario: data.usuario })
+      try { localStorage.setItem('sucursalActiva', JSON.stringify({ id: sucursalId, nombre: sucursales.find((s: SucursalDto) => s.id === sucursalId)?.nombre ?? 'Central' })) } catch {}
       navigate('/ventas', { replace: true })
     } catch (err: any) {
       notifyError(err.message || 'Error al iniciar sesión')
