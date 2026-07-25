@@ -7,6 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   login: (dto: LoginRequest) => Promise<void>
   pinLogin: (dto: LoginRequest) => Promise<void>
+  loginDirect: (data: { token: string; expiresAt: string; usuario: UsuarioInfo }) => void
   logout: () => void
 }
 
@@ -47,6 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleLoginResponse(res)
   }, [handleLoginResponse])
 
+  const loginDirect = useCallback((data: { token: string; expiresAt: string; usuario: UsuarioInfo }) => {
+    localStorage.setItem('jwt_token', data.token)
+    localStorage.setItem('jwt_expires', data.expiresAt)
+    localStorage.setItem('user_info', JSON.stringify(data.usuario))
+    setUser(data.usuario)
+  }, [])
+
   const logout = useCallback(() => {
     localStorage.removeItem('jwt_token')
     localStorage.removeItem('jwt_expires')
@@ -64,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, pinLogin, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, pinLogin, loginDirect, logout }}>
       {children}
     </AuthContext.Provider>
   )

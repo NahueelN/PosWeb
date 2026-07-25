@@ -7,7 +7,7 @@ import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loginDirect } = useAuth()
 
   const [tab, setTab] = useState<'password' | 'pin'>('password')
   const [usuario, setUsuario] = useState('')
@@ -82,9 +82,7 @@ export default function LoginPage() {
         throw new Error(msg)
       }
       const data = await res.json()
-      localStorage.setItem('jwt_token', data.token)
-      localStorage.setItem('jwt_expires', data.expiresAt)
-      localStorage.setItem('user_info', JSON.stringify(data.usuario))
+      loginDirect({ token: data.token, expiresAt: data.expiresAt, usuario: data.usuario })
       navigate('/ventas', { replace: true })
     } catch (err: any) {
       notifyError(err.message || 'Error al iniciar sesión')
