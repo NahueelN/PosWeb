@@ -482,9 +482,39 @@ public class MercadoPagoService
         {
             var posErr = await posRes.Content.ReadAsStringAsync();
             System.Diagnostics.Debug.WriteLine($"POS create [{posRes.StatusCode}]: {posErr}");
+            if (posRes.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                await BuscarPosExistenteYAsignarQr(client, accessToken, suscripcion);
+            }
             return;
         }
 
+        await AsignarQrDesdeResponse(client, posRes, suscripcion);
+    }
+
+    private static async Task BuscarPosExistenteYAsignarQr(HttpClient client, string accessToken, Suscripcion suscripcion)
+    {
+        try
+        {
+            var searchRes = await client.GetAsync(
+                $"https://api.mercadopago.com/pos?external_id=CAJA1", 
+                HttpCompletionOption.ResponseContentRead);
+            if (!searchRes.IsSuccessStatusCode) return;
+
+            var content = await searchRes.Content.ReadAsStringAsync();
+            var doc = JsonSerializer.Deserialize<JsonElement>(content);
+            if (doc.TryGetProperty("results", out var results) && results.GetArrayLength() > 0)
+            {
+                var pos = results[0];
+                if (pos.TryGetProperty("qr", out var qrObj) && qrObj.TryGetProperty("image", out var img))
+                    suscripcion.AsignarQrData(img.GetString());
+            }
+        }
+        catch { /* ignore — will show QR not found */ }
+    }
+
+    private static async Task AsignarQrDesdeResponse(HttpClient client, HttpResponseMessage posRes, Suscripcion suscripcion)
+    {
         var posContent = await posRes.Content.ReadAsStringAsync();
         var posDoc = JsonSerializer.Deserialize<JsonElement>(posContent);
 
