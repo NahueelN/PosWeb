@@ -1,11 +1,11 @@
 {
   "version": "1.3.3",
+  "pub_date": "2026-07-27T01:37:58Z",
+  "notes": "Release v1.3.3",
   "platforms": {
     "windows-x86_64": {
-      "signature": "",
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.3.3/PosWeb_1.3.3_x64-setup.exe"
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.3.3/PosWeb_1.3.3_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZk0zaEo5WGd1RXJGSHNKZ1E3bWRrb2VMZGlaMG1aZitqT29oOEZMZGJwOXhzdTgvRWVkaE51Tm55ck9ucFUwaVp4ZXZiSWszeFdXU3loK0tMeUFQbGdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTE2Mjc0CWZpbGU6UG9zV2ViXzEuMy4zX3g2NC1zZXR1cC5leGUKaGNVTGc2RWdIVFk3MjlaU3JOUU04Rjk0QTVQemU2NlhhTjcyTEphc3pjaktNTklmclVBNEg3c3Z0OEI1dStiUzIwRktCZGhGOWphSC9lYTlzY2NKQUE9PQo="
     }
-  },
-  "pub_date": "2026-07-27T01:20:00Z",
-  "notes": "Release v1.3.3 — Fix MercadoPago OAuth config loading"
+  }
 }
