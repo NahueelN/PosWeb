@@ -29,9 +29,20 @@ declare const __APP_VERSION__: string
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
   const currentVersion = getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '')
+  const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
+  const [debugLines, setDebugLines] = useState<string[]>([])
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const history = localStorage.getItem('update_history') || ''
+      const errors = localStorage.getItem('update_errors') || ''
+      const all = (history + errors).split('\n').filter(Boolean)
+      setDebugLines(all.slice(-8))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
   return (
-    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
-      <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${
+    <div className="fixed bottom-2 left-2 z-[100] pointer-events-none flex flex-col gap-1">
+      <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-lg flex items-center gap-2 ${
         status === 'error' ? 'bg-red-500/90 text-white' :
         status === 'checking' ? 'bg-slate-700/90 text-white' :
         status === 'idle' ? 'bg-green-600/90 text-white' :
@@ -47,10 +58,16 @@ function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
           {status === 'downloading' && `Descargando v${version}…`}
           {status === 'installing' && `Instalando v${version}…`}
           {status === 'error' && (errorMsg ?? 'Error')}
-          {status === 'idle' && `v${currentVersion || '?'}`}
+          {status === 'idle' && `v${currentVersion || '?'} idle`}
           {status === 'no-update' && `v${currentVersion || '?'}`}
         </span>
+        <span className="text-[9px] opacity-60">tauri:{isTauri ? '1' : '0'} build:{__APP_VERSION__}</span>
       </div>
+      {debugLines.length > 0 && (
+        <div className="text-[9px] font-mono text-slate-600 bg-white/85 px-2 py-1 rounded max-w-[350px] leading-tight">
+          {debugLines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
     </div>
   )
 }
