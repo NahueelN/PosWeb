@@ -25,8 +25,10 @@ import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
+declare const __APP_VERSION__: string
+
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
-  const currentVersion = getCurrentVersion()
+  const currentVersion = getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '')
   return (
     <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
       <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${

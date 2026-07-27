@@ -3,10 +3,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'fs'
+
+const tauriConf = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf-8'))
 
 export default defineConfig({
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    '__APP_VERSION__': JSON.stringify(tauriConf.version),
   },
   test: {
     environment: 'jsdom',
@@ -49,19 +53,6 @@ export default defineConfig({
       },
     }),
   ],
-  build: {
-    rollupOptions: {
-      external: [
-        '@tauri-apps/api',
-        '@tauri-apps/api/app',
-        '@tauri-apps/api/core',
-        '@tauri-apps/plugin-updater',
-        '@tauri-apps/plugin-shell',
-        '@tauri-apps/plugin-http',
-        '@tauri-apps/plugin-log',
-      ],
-    },
-  },
   server: {
     host: true,
     watch: {
