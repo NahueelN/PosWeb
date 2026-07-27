@@ -11,8 +11,10 @@ async function getAppVersion(): Promise<string> {
   if (!isTauri()) return ''
   try {
     const appMod = await import('@tauri-apps/api/app')
-    return appMod.getVersion()
-  } catch {
+    const v = await appMod.getVersion()
+    return v
+  } catch (e: any) {
+    logUpdate(`ERROR getAppVersion: ${e?.message || String(e)}`)
     return ''
   }
 }

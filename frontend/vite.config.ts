@@ -49,6 +49,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      external: [
+        '@tauri-apps/api',
+        '@tauri-apps/api/app',
+        '@tauri-apps/api/core',
+        '@tauri-apps/plugin-updater',
+        '@tauri-apps/plugin-shell',
+        '@tauri-apps/plugin-http',
+        '@tauri-apps/plugin-log',
+      ],
+    },
+  },
   server: {
     host: true,
     watch: {
