@@ -318,7 +318,7 @@ export default function Layout() {
               <Menu size={16} />
             </button>
 
-            <h1 className="text-[14.5px] font-bold text-gray-900 tracking-tight truncate">Punto de Venta</h1>
+            <h1 className="text-[14.5px] font-bold text-gray-900 tracking-tight truncate">Punto de Venta.</h1>
             {sucursal && (
               <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] px-2.5 py-1 rounded-lg shrink-0">
                 <MapPin size={12} strokeWidth={2.5} />
