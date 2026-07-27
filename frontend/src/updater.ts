@@ -45,16 +45,16 @@ function isTauri(): boolean {
 }
 
 async function initUpdater() {
-  if (!isTauri()) {
-    console.log('[Updater] Not running in Tauri (browser mode) — updater disabled')
-    return
-  }
   try {
     logUpdate('InitUpdater: importing plugins...')
     const upMod = await import('@tauri-apps/plugin-updater')
     const invokeMod = await import('@tauri-apps/api/core')
     logUpdate('InitUpdater: plugins imported successfully')
     checkUpdate = async () => {
+      if (!isTauri()) {
+        emit({ status: 'no-update' })
+        return
+      }
       logUpdate(`CheckUpdate: starting...`)
       emit({ status: 'checking' })
       try {
