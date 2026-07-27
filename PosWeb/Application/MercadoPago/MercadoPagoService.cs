@@ -496,9 +496,9 @@ public class MercadoPagoService
     {
         try
         {
-            var searchRes = await client.GetAsync(
-                $"https://api.mercadopago.com/pos?external_id=CAJA1", 
-                HttpCompletionOption.ResponseContentRead);
+            var req = new HttpRequestMessage(HttpMethod.Get, "https://api.mercadopago.com/pos?external_id=CAJA1");
+            req.Headers.Add("Authorization", $"Bearer {accessToken}");
+            var searchRes = await client.SendAsync(req, HttpCompletionOption.ResponseContentRead);
             if (!searchRes.IsSuccessStatusCode) return;
 
             var content = await searchRes.Content.ReadAsStringAsync();
