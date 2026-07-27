@@ -33,9 +33,9 @@ public class MercadoPagoService
         _encryption = encryption;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        _clientId = configuration["MercadoPago:ClientId"] ?? "";
-        _clientSecret = configuration["MercadoPago:ClientSecret"] ?? "";
-        _redirectUri = configuration["MercadoPago:RedirectUri"] ?? "http://localhost:5196/api/mercadopago/callback";
+        _clientId = configuration["MercadoPago:ClientId"] ?? "1875010169186045";
+        _clientSecret = configuration["MercadoPago:ClientSecret"] ?? "5BdGZf0MULwFUiTnLuU8omWi2Ewrz0v9";
+        _redirectUri = configuration["MercadoPago:RedirectUri"] ?? "https://eze-chiacchio.github.io/mp-redirect/";
 
         _logger.LogInformation(
             "MercadoPagoService config: ClientId={ClientId}, ClientSecret={HasSecret}, RedirectUri={RedirectUri}",
