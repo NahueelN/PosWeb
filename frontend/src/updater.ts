@@ -50,8 +50,10 @@ async function initUpdater() {
     return
   }
   try {
+    logUpdate('InitUpdater: importing plugins...')
     const upMod = await import('@tauri-apps/plugin-updater')
     const invokeMod = await import('@tauri-apps/api/core')
+    logUpdate('InitUpdater: plugins imported successfully')
     checkUpdate = async () => {
       emit({ status: 'checking' })
       try {
@@ -89,6 +91,7 @@ async function initUpdater() {
   } catch (e) {
     console.log('[Updater] Tauri updater plugin not available (browser mode)')
     logError(`Init failed: ${e instanceof Error ? e.message : String(e)}`)
+    emit({ status: 'error', errorMsg: 'Updater no disponible' })
   }
 }
 
