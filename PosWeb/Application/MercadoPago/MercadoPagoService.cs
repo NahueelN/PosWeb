@@ -36,10 +36,22 @@ public class MercadoPagoService
         _clientId = configuration["MercadoPago:ClientId"] ?? "";
         _clientSecret = configuration["MercadoPago:ClientSecret"] ?? "";
         _redirectUri = configuration["MercadoPago:RedirectUri"] ?? "http://localhost:5196/api/mercadopago/callback";
+
+        _logger.LogInformation(
+            "MercadoPagoService config: ClientId={ClientId}, ClientSecret={HasSecret}, RedirectUri={RedirectUri}",
+            _clientId,
+            !string.IsNullOrEmpty(_clientSecret),
+            _redirectUri);
     }
 
     public string GenerarAuthUrl()
     {
+        if (string.IsNullOrEmpty(_clientId))
+        {
+            _logger.LogError("MercadoPago ClientId is empty — OAuth will fail");
+            throw new InvalidOperationException("MercadoPago ClientId no configurado. Revisá appsettings.json.");
+        }
+
         _pendingState = Guid.NewGuid().ToString("N");
         _pendingCodeVerifier = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
 
@@ -53,6 +65,11 @@ public class MercadoPagoService
             $"&state={_pendingState}" +
             $"&code_challenge={codeChallenge}" +
             $"&code_challenge_method=S256";
+
+        _logger.LogInformation(
+            "MercadoPago auth URL generated: clientId={ClientId}, redirectUri={RedirectUri}",
+            _clientId,
+            _redirectUri);
         return url;
     }
 

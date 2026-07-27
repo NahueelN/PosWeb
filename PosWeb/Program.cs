@@ -31,6 +31,16 @@ using System.Security.Claims;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var embeddedJson = typeof(Program).Assembly.GetManifestResourceStream("PosWeb.appsettings.json");
+if (embeddedJson != null)
+{
+    using var ms = new MemoryStream();
+    embeddedJson.CopyTo(ms);
+    ms.Position = 0;
+    builder.Configuration.AddJsonStream(ms);
+}
+
 builder.WebHost.UseUrls("http://localhost:5196");
 
 builder.Host.UseSerilog((context, services, configuration) =>

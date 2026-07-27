@@ -36,6 +36,14 @@ if (Test-Path $sourceExe) {
     exit 1
 }
 
+# Also copy appsettings.json (needed for non-single-file or ExcludeFromSingleFile scenarios)
+$sourceConfig = Join-Path $BinariesDir "publish\appsettings.json"
+if (Test-Path $sourceConfig) {
+    $targetConfig = Join-Path $BinariesDir "appsettings.json"
+    Copy-Item -Path $sourceConfig -Destination $targetConfig -Force
+    Write-Host "OK: appsettings.json -> $targetConfig" -ForegroundColor Gray
+}
+
 # Clean up publish temp directory
 Remove-Item -Path "$BinariesDir\publish" -Recurse -Force -ErrorAction SilentlyContinue
 
