@@ -35,10 +35,9 @@ var builder = WebApplication.CreateBuilder(args);
 var embeddedJson = typeof(Program).Assembly.GetManifestResourceStream("PosWeb.appsettings.json");
 if (embeddedJson != null)
 {
-    using var ms = new MemoryStream();
-    embeddedJson.CopyTo(ms);
-    ms.Position = 0;
-    builder.Configuration.AddJsonStream(ms);
+    var buf = new byte[embeddedJson.Length];
+    embeddedJson.ReadExactly(buf);
+    builder.Configuration.AddJsonStream(new MemoryStream(buf));
 }
 
 builder.WebHost.UseUrls("http://localhost:5196");
