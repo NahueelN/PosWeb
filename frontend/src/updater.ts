@@ -47,7 +47,6 @@ async function initUpdater() {
     const invokeMod = await import('@tauri-apps/api/core')
     logUpdate('InitUpdater: plugins imported successfully')
     checkUpdate = async () => {
-      logUpdate(`CheckUpdate: starting...`)
       emit({ status: 'checking' })
       try {
         console.log('[Updater] Checking for updates...')
