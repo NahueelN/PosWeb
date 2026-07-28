@@ -40,7 +40,7 @@ function logUpdate(msg: string) {
   } catch { /* ignore */ }
 }
 
-function isTauri(): boolean {
+function _isTauri(): boolean {
   return !!(window as any).__TAURI__
 }
 
