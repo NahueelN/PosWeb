@@ -46,7 +46,14 @@ async function clearWebCaches() {
 
 export async function initVersionCheck(): Promise<void> {
   currentVersion = await getAppVersion()
-  if (!currentVersion) return
+  
+  // Always clear caches on startup — prevents stale JS from old versions
+  await clearWebCaches()
+  
+  if (!currentVersion) {
+    logUpdate(`WARN: getAppVersion returned empty — using build version`)
+    return
+  }
 
   const stored = localStorage.getItem(VERSION_KEY)
 
@@ -57,10 +64,9 @@ export async function initVersionCheck(): Promise<void> {
   }
 
   if (stored !== currentVersion) {
-    console.log(`[VersionCheck] Version changed: ${stored} → ${currentVersion}. Clearing caches...`)
-    logUpdate(`Actualización: v${stored} → v${currentVersion}`)
-    await clearWebCaches()
+    logUpdate(`Actualización: v${stored} → v${currentVersion} — recargando`)
     localStorage.setItem(VERSION_KEY, currentVersion)
+    window.location.reload()
   }
 }
 
