@@ -1,6 +1,8 @@
 const VERSION_KEY = 'app_version'
 const UPDATE_LOG_KEY = 'update_history'
 
+declare const __APP_VERSION__: string
+
 let currentVersion = ''
 
 function isTauri(): boolean {
@@ -15,7 +17,7 @@ async function getAppVersion(): Promise<string> {
     return v
   } catch (e: any) {
     logUpdate(`ERROR getAppVersion: ${e?.message || String(e)}`)
-    return ''
+    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''
   }
 }
 

@@ -28,7 +28,7 @@ import { initVersionCheck, getCurrentVersion } from './versionCheck'
 declare const __APP_VERSION__: string
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
-  const currentVersion = getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '')
+  const currentVersion = (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') || getCurrentVersion()
   const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__
   const [debugLines, setDebugLines] = useState<string[]>([])
   useEffect(() => {
