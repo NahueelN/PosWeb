@@ -40,10 +40,6 @@ function logUpdate(msg: string) {
   } catch { /* ignore */ }
 }
 
-function _isTauri(): boolean {
-  return !!(window as any).__TAURI__
-}
-
 async function initUpdater() {
   try {
     logUpdate('InitUpdater: importing plugins...')
