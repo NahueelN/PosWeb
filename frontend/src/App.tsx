@@ -28,13 +28,11 @@ import { initVersionCheck, getCurrentVersion } from './versionCheck'
 declare const __APP_VERSION__: string
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
-  const currentVersion = (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') || getCurrentVersion()
+  if (status === 'idle' || status === 'no-update' || status === 'checking') return null
   return (
     <div className="fixed bottom-2 left-2 z-[100] pointer-events-none">
       <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-lg ${
-        status === 'downloading' || status === 'installing' ? 'bg-indigo-600/90 text-white' :
-        status === 'error' ? 'bg-red-500/90 text-white' :
-        'bg-green-600/90 text-white'
+        status === 'error' ? 'bg-red-500/90 text-white' : 'bg-indigo-600/90 text-white'
       }`}>
         {(status === 'downloading' || status === 'installing') && (
           <span className="inline-block mr-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/30 border-t-white animate-spin align-middle" />
@@ -43,7 +41,6 @@ function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
           {status === 'downloading' && `Descargando v${version}…`}
           {status === 'installing' && `Instalando v${version}…`}
           {status === 'error' && (errorMsg ?? 'Error')}
-          {(status === 'idle' || status === 'no-update' || status === 'checking') && `v${currentVersion || '?'}`}
         </span>
       </div>
     </div>

@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/ventas', { replace: true })
+      navigate('/', { replace: true })
       return
     }
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
       } else {
         await pinLogin({ usuario, pin, sucursalId })
       }
-      navigate('/ventas', { replace: true })
+      navigate('/', { replace: true })
     } catch (err: any) {
       const msg = err.message || 'Error al iniciar sesión'
       try {

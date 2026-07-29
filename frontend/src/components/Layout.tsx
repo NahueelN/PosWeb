@@ -7,6 +7,8 @@ import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
 import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
+
+declare const __APP_VERSION__: string
 import { open } from '@tauri-apps/plugin-shell'
 
 const menuGroups = [
@@ -204,7 +206,9 @@ export default function Layout() {
         </div>
         <div className="flex flex-col leading-none">
           <span className="text-[13.5px] font-bold text-white tracking-tight">PosWeb</span>
-          <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">v0.1</span>
+          <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">
+            v{getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?')}
+          </span>
         </div>
       </div>
 
