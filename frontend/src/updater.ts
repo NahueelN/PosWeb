@@ -62,6 +62,7 @@ async function initUpdater() {
         try {
           console.log('[Updater] Killing posweb-backend sidecar...')
           await invokeMod.invoke('kill_sidecar')
+          await new Promise(r => setTimeout(r, 500))
         } catch {
           console.log('[Updater] Sidecar already stopped, skipping kill')
         }

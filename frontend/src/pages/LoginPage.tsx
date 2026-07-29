@@ -68,6 +68,10 @@ export default function LoginPage() {
         await pinLogin({ usuario, pin, sucursalId })
       }
       navigate('/', { replace: true })
+      try {
+        const nombre = sucursales.find((s: SucursalDto) => s.id === sucursalId)?.nombre ?? 'Central'
+        localStorage.setItem('sucursalActiva', JSON.stringify({ id: sucursalId, nombre }))
+      } catch {}
     } catch (err: any) {
       const msg = err.message || 'Error al iniciar sesión'
       try {
