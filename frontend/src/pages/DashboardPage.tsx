@@ -18,7 +18,7 @@ import DashboardGridRGL from '../analytics/DashboardGridRGL'
 import WidgetPicker from '../analytics/WidgetPicker'
 import WidgetEditor from '../analytics/WidgetEditor'
 import type { SucursalDto } from '../types'
-import { RefreshCw, Plus } from 'lucide-react'
+import { RefreshCw, Plus, RotateCcw } from 'lucide-react'
 
 function useGridColumns(): number {
   const [cols, setCols] = useState(() => columnsForWidth(window.innerWidth))
@@ -239,6 +239,15 @@ export default function DashboardPage() {
     if (inst) setEditingInstance(inst)
   }
 
+  function handleReset() {
+    if (!window.confirm('¿Restablecer el dashboard al diseño predeterminado? Se descartará el layout actual.')) return
+    repo.clear()
+    const resetLayout = ensurePositions(DEFAULT_LAYOUT, GRID_COLS)
+    setLayout(resetLayout)
+    setLayoutGeneration(g => g + 1)
+    cargar(resetLayout.map((i) => ({ ...i, x: i.x!, y: i.y! })))
+  }
+
   function handleUpdateWidget(instanceId: string, size: GridSize, config: Record<string, any>) {
     setLayout((prev) => {
       const inst = prev.find((i) => i.id === instanceId)
@@ -290,6 +299,7 @@ export default function DashboardPage() {
             {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}
             <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setShowPicker(true)}>Agregar Widget</Button>
             <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={() => cargar()} disabled={loading}>Actualizar</Button>
+            <Button variant="ghost" size="sm" icon={<RotateCcw size={12} />} onClick={handleReset}>Restablecer</Button>
           </div>
         }
       >

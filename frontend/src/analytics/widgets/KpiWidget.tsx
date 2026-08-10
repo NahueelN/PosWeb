@@ -80,25 +80,25 @@ export default function KpiWidget({ widget }: Props) {
   }
 
   return (
-    <div className="p-3.5 h-full flex flex-col justify-center relative overflow-hidden">
+    <div className="p-3.5 @lg:p-5 h-full flex flex-col justify-center relative overflow-hidden @container">
       <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.bar}`} />
       <div className="flex items-start gap-2.5">
         <div
-          className={`w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br ${accent.iconBg} shrink-0 mt-0.5 ring-1 ring-black/[0.02]`}
+          className={`w-8 h-8 @lg:w-10 @lg:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${accent.iconBg} shrink-0 mt-0.5 ring-1 ring-black/[0.02]`}
         >
           <Icon size={14} className={accent.iconText} strokeWidth={2} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest leading-none">
+            <p className="text-[10px] @lg:text-xs font-medium text-gray-400 uppercase tracking-widest leading-none">
               {widget.title}
             </p>
           </div>
-          <p className="text-xl font-bold text-gray-900 tracking-tight leading-none mt-1">
+          <p className="text-xl @lg:text-3xl font-bold text-gray-900 tracking-tight leading-none mt-1">
             {value}
           </p>
           {sub && (
-            <p className="text-[11px] text-gray-400 mt-1.5">{sub}</p>
+            <p className={`text-[11px] @lg:text-sm text-gray-400 mt-1.5`}>{sub}</p>
           )}
         </div>
         <div className="shrink-0 mt-0.5">
