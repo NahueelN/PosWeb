@@ -98,6 +98,58 @@ function findSlot(
   return null
 }
 
+// ── Responsive Fitting ──────────────────────────────────────────
+// Reflows the layout into a clean top-down arrangement for a
+// reduced column count, growing rows until every widget fits.
+
+export interface FittedLayout {
+  instances: PositionedInstance[]
+  rows: number
+}
+
+function findRowMajorSlot(
+  placed: PositionedInstance[],
+  w: number, h: number,
+  cols: number, rows: number,
+): { x: number; y: number } | null {
+  for (let y = 1; y <= rows - h + 1; y++) {
+    for (let x = 1; x <= cols - w + 1; x++) {
+      if (!hasOverlap(placed, x, y, w, h)) {
+        return { x, y }
+      }
+    }
+  }
+  return null
+}
+
+export function fitLayout(
+  instances: LayoutInstance[],
+  cols: number,
+  minRows: number = GRID_ROWS,
+): FittedLayout {
+  const clamped: LayoutInstance[] = instances.map((i) => ({ ...i, w: Math.min(i.w, cols) }))
+  // Worst case each widget gets its own row, so this always fits.
+  const maxRows = minRows + instances.length
+
+  for (let rows = minRows; rows <= maxRows; rows++) {
+    const placed: PositionedInstance[] = []
+    let failed = false
+    for (const inst of clamped) {
+      const pos = findRowMajorSlot(placed, inst.w, inst.h, cols, rows)
+      if (!pos) {
+        failed = true
+        break
+      }
+      placed.push({ ...inst, x: pos.x, y: pos.y })
+    }
+    if (!failed) {
+      return { instances: placed, rows }
+    }
+  }
+
+  return { instances: [], rows: minRows }
+}
+
 // ── Position Computation (for backend API) ──────────────────────
 
 export function computePositioned(

@@ -209,4 +209,109 @@ public class CompraService
             montoPagadoCaja: request.MontoPagadoCaja
         );
     }
+
+    /// <summary>
+    /// Returns a paged history of purchases filtered by date and sucursal.
+    /// </summary>
+    public async Task<PagedResult<CompraHistorialDto>> ObtenerHistorialAsync(CompraHistorialFiltro filtro)
+    {
+        IQueryable<Compra> query = _context.Compra
+            .OrderByDescending(c => c.FECHA_COMPRA);
+
+        if (filtro.FechaDesde.HasValue)
+            query = query.Where(c => c.FECHA_COMPRA >= filtro.FechaDesde.Value);
+
+        if (filtro.FechaHasta.HasValue)
+            query = query.Where(c => c.FECHA_COMPRA <= filtro.FechaHasta.Value);
+
+        if (filtro.SucursalId.HasValue)
+            query = query.Where(c => c.ID_SUCURSAL == filtro.SucursalId.Value);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .Skip((filtro.Page - 1) * filtro.PageSize)
+            .Take(filtro.PageSize)
+            .Select(c => new CompraHistorialDto
+            {
+                CompraId = c.ID_COMPRA,
+                NumeroComprobante = c.NUMERO_COMPROBANTE,
+                Fecha = c.FECHA_COMPRA,
+                SucursalNombre = _context.Sucursal
+                    .Where(s => s.ID_SUCURSAL == c.ID_SUCURSAL)
+                    .Select(s => s.DESC_SUCURSAL)
+                    .FirstOrDefault(),
+                ProveedorNombre = _context.Proveedor
+                    .Where(p => p.ID_PROVEEDOR == c.ID_PROVEEDOR)
+                    .Select(p => p.NOMBRE)
+                    .FirstOrDefault(),
+                UsuarioNombre = _context.Usuario
+                    .Where(u => u.ID_USUARIO == c.ID_USUARIO)
+                    .Select(u => u.NOMBRE_USUARIO)
+                    .FirstOrDefault(),
+                Total = c.TOTAL,
+                CantidadItems = _context.RenglonCompra.Count(r => r.ID_COMPRA == c.ID_COMPRA)
+            })
+            .ToListAsync();
+
+        return new PagedResult<CompraHistorialDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = filtro.Page,
+            PageSize = filtro.PageSize
+        };
+    }
+
+    /// <summary>
+    /// Returns the detail of a single purchase, including its renglones.
+    /// </summary>
+    public async Task<CompraDetalleDto?> ObtenerDetalleAsync(int compraId)
+    {
+        Compra? compra = await _context.Compra.FindAsync(compraId);
+        if (compra == null) return null;
+
+        string? sucursalNombre = await _context.Sucursal
+            .Where(s => s.ID_SUCURSAL == compra.ID_SUCURSAL)
+            .Select(s => s.DESC_SUCURSAL)
+            .FirstOrDefaultAsync();
+
+        string? proveedorNombre = await _context.Proveedor
+            .Where(p => p.ID_PROVEEDOR == compra.ID_PROVEEDOR)
+            .Select(p => p.NOMBRE)
+            .FirstOrDefaultAsync();
+
+        var items = await (
+            from r in _context.RenglonCompra
+            where r.ID_COMPRA == compraId
+            orderby r.ID_RENGLON_COMPRA
+            select new RenglonHistorialDto
+            {
+                ProductoId = r.ID_PRODUCTO,
+                ProductoNombre = _context.Producto
+                    .Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO)
+                    .Select(p => p.DESC_PRODUCTO)
+                    .FirstOrDefault() ?? "",
+                CodigoBarra = _context.Producto
+                    .Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO)
+                    .Select(p => p.CODIGO_BARRAS)
+                    .FirstOrDefault() ?? "",
+                Cantidad = r.CANTIDAD,
+                PrecioUnitario = r.PRECIO_UNITARIO,
+                Subtotal = r.SUBTOTAL
+            }
+        ).ToListAsync();
+
+        return new CompraDetalleDto
+        {
+            CompraId = compra.ID_COMPRA,
+            NumeroComprobante = compra.NUMERO_COMPROBANTE,
+            Fecha = compra.FECHA_COMPRA,
+            SucursalId = compra.ID_SUCURSAL,
+            SucursalNombre = sucursalNombre,
+            ProveedorNombre = proveedorNombre,
+            Total = compra.TOTAL,
+            Items = items
+        };
+    }
 }

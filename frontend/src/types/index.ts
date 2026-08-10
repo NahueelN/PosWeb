@@ -397,6 +397,36 @@ export interface CompraItemDto {
    items: CompraItemResultDto[]
  }
 
+ export interface CompraHistorialDto {
+   compraId: number
+   numeroComprobante: number
+   fecha: string
+   sucursalNombre: string
+   proveedorNombre?: string
+   usuarioNombre?: string
+   total: number
+   cantidadItems: number
+ }
+
+ export interface CompraDetalleDto {
+   compraId: number
+   numeroComprobante: number
+   fecha: string
+   sucursalId: number
+   sucursalNombre: string
+   proveedorNombre?: string
+   total: number
+   items: RenglonHistorialDto[]
+ }
+
+ export interface CompraHistorialParams {
+   fechaDesde?: string
+   fechaHasta?: string
+   sucursalId?: number
+   page?: number
+   pageSize?: number
+ }
+
 export interface CajaDto {
   id: number
   sucursalId: number

@@ -7,12 +7,7 @@ import { formatTime } from '../formats'
 import type { DashboardResponse, Widget, WidgetType } from '../analytics/types'
 import type { LayoutInstance, GridSize } from '../analytics/grid/types'
 import { columnsForWidth, GRID_COLS, GRID_ROWS } from '../analytics/grid/types'
-import {
-  GridEngine,
-  createLocalStorageRepository,
-  DEFAULT_LAYOUT,
-  resolveLayout,
-} from '../analytics/grid'
+import { GridEngine, createLocalStorageRepository, DEFAULT_LAYOUT, resolveLayout } from '../analytics/grid'
 import type { DashboardRepository } from '../analytics/grid'
 import DashboardGridRGL from '../analytics/DashboardGridRGL'
 import WidgetPicker from '../analytics/WidgetPicker'
@@ -158,6 +153,15 @@ export default function DashboardPage() {
     () => layout.map((i) => ({ ...i, x: i.x!, y: i.y! })),
     [layout],
   )
+
+  // On reduced columns (small window) the 12-col layout overflows.
+  // Reflow it into a clean top-down arrangement that grows rows.
+  const fitted = useMemo(
+    () => (gridCols < GRID_COLS ? GridEngine.fitLayout(layout, gridCols, GRID_ROWS) : null),
+    [layout, gridCols],
+  )
+  const renderLayout = fitted ? fitted.instances : positionedLayout
+  const gridRows = fitted ? fitted.rows : GRID_ROWS
 
   const positionedRef = useRef(positionedLayout)
   positionedRef.current = positionedLayout
@@ -306,10 +310,11 @@ export default function DashboardPage() {
         <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
           <DashboardGridRGL
             key={layoutGeneration}
-            layout={layout}
+            layout={renderLayout}
             widgets={widgets}
             definitions={definitions}
             gridCols={gridCols}
+            rows={gridRows}
             onRemove={handleRemoveWidget}
             onEdit={handleEditWidget}
             onLayoutChange={handleRGLLayoutChange}

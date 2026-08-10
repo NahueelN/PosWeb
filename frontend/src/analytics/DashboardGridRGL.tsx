@@ -16,6 +16,7 @@ interface Props {
   widgets: Widget[]
   definitions: WidgetDefinition[]
   gridCols: number
+  rows: number
   onRemove?: (instanceId: string) => void
   onEdit?: (instanceId: string) => void
   onLayoutChange?: (layout: LayoutInstance[]) => void
@@ -58,7 +59,7 @@ function compactBidirectional(items: LayoutInstance[], cols: number, maxRows: nu
 }
 
 export default function DashboardGridRGL({
-  layout, widgets, definitions, gridCols,
+  layout, widgets, definitions, gridCols, rows,
   onRemove, onEdit, onLayoutChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -115,13 +116,13 @@ export default function DashboardGridRGL({
         y: inst.y! - 1,
         w: inst.w,
         h: inst.h,
-        minW: supportedW.length > 0 ? Math.min(...supportedW) : undefined,
+        minW: supportedW.length > 0 ? Math.min(...supportedW, gridCols) : undefined,
         minH: supportedH.length > 0 ? Math.min(...supportedH) : undefined,
       }
     })
     console.log('[RGL] rglLayout computed', result.map(r => `${r.i}(${r.x},${r.y} ${r.w}x${r.h} min=${r.minW}x${r.minH})`).join(' '))
     return result
-  }, [layout, defMap])
+  }, [layout, defMap, gridCols])
 
   const handleDragStop: EventCallback = useCallback((_newLayout) => {
     const newLayout = _newLayout as LayoutItem[]
@@ -139,9 +140,9 @@ export default function DashboardGridRGL({
         y: item.y + 1,
       }
     })
-    const compacted = compactBidirectional(newInstances, gridCols, GRID_ROWS)
+    const compacted = compactBidirectional(newInstances, gridCols, rows)
     onLayoutChangeRef.current?.(compacted)
-  }, [layout, gridCols])
+  }, [layout, gridCols, rows])
 
   const handleResizeStop: EventCallback = useCallback((_newLayout) => {
     const newLayout = _newLayout as LayoutItem[]
@@ -159,9 +160,9 @@ export default function DashboardGridRGL({
         y: item.y + 1,
       }
     })
-    const compacted = compactBidirectional(newInstances, gridCols, GRID_ROWS)
+    const compacted = compactBidirectional(newInstances, gridCols, rows)
     onLayoutChangeRef.current?.(compacted)
-  }, [layout, gridCols])
+  }, [layout, gridCols, rows])
 
   const handleRemoveLocal = useCallback((instanceId: string) => {
     if (exitingRef.current.has(instanceId)) return
@@ -175,7 +176,7 @@ export default function DashboardGridRGL({
   }, [widgets])
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-0 overflow-hidden">
+    <div ref={containerRef} className={`relative w-full h-full min-h-0 ${rows > GRID_ROWS ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       <ReactGridLayout
         autoSize={false}
         style={{ height: '100%' }}
@@ -183,7 +184,7 @@ export default function DashboardGridRGL({
         width={containerWidth}
         cols={gridCols}
         rowHeight={rowHeight}
-        maxRows={GRID_ROWS}
+        maxRows={rows}
         margin={[8, 8]}
         containerPadding={[0, 0]}
         compactType="vertical"

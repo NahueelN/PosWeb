@@ -66,4 +66,41 @@ public class CompraController : ControllerBase
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
         return int.Parse(claim?.Value ?? "0");
     }
+
+    [HttpGet]
+    public async Task<ActionResult<PagedResult<CompraHistorialDto>>> ObtenerHistorial(
+        [FromQuery] DateTime? fechaDesde,
+        [FromQuery] DateTime? fechaHasta,
+        [FromQuery] int? sucursalId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (fechaDesde.HasValue && fechaHasta.HasValue && fechaDesde > fechaHasta)
+            return BadRequest(new { error = "fechaDesde no puede ser posterior a fechaHasta" });
+
+        fechaDesde ??= DateTime.Today.AddDays(-30);
+        fechaHasta = fechaHasta?.Date.AddDays(1) ?? DateTime.Today.AddDays(1);
+
+        var filtro = new CompraHistorialFiltro
+        {
+            FechaDesde = fechaDesde,
+            FechaHasta = fechaHasta,
+            SucursalId = sucursalId,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = await _compraService.ObtenerHistorialAsync(filtro);
+        return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<CompraDetalleDto>> ObtenerDetalle(int id)
+    {
+        var result = await _compraService.ObtenerDetalleAsync(id);
+        if (result == null)
+            return NotFound(new { error = "Compra no encontrada" });
+
+        return Ok(result);
+    }
 }

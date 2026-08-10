@@ -8,7 +8,7 @@ import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import ProductosPage from './pages/ProductosPage'
 import VentasPage from './pages/VentasPage'
-import HistorialVentasPage from './pages/HistorialVentasPage'
+import HistorialPage from './pages/HistorialPage'
 import ClientesPage from './pages/ClientesPage'
 import CajaPage from './pages/CajaPage'
 import AltaUsuarioPage from './pages/AltaUsuarioPage'
@@ -122,7 +122,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
-            <Route path="/historial" element={<HistorialVentasPage />} />
+            <Route path="/historial" element={<HistorialPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/compras" element={<CompraPage />} />

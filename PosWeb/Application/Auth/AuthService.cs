@@ -182,6 +182,8 @@ public class AuthService
             throw new ArgumentException("El usuario ya existe");
         }
 
+        ValidarCupoSuscripcion(rol, currentUserId);
+
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
 
         int? empresaId = request.EmpresaId;
@@ -216,9 +218,59 @@ public class AuthService
         };
     }
 
+    private void ValidarCupoSuscripcion(string rol, int? currentUserId)
+    {
+        if (!currentUserId.HasValue || (rol != Roles.Admin && rol != Roles.UsuarioComun))
+        {
+            return;
+        }
+
+        var currentUser = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == currentUserId.Value);
+        var suscripcion = currentUser != null
+            ? _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == currentUser.ID_USUARIO)
+            : null;
+
+        if (suscripcion == null)
+        {
+            return;
+        }
+
+        if (rol == Roles.Admin)
+        {
+            if (!suscripcion.MAX_ADMIN.HasValue)
+            {
+                return;
+            }
+
+            var adminsExistentes = _context.Usuario.Count(u =>
+                u.ROL == Roles.Admin && u.ACTIVO && u.ID_EMPRESA == currentUser.ID_EMPRESA);
+
+            if (adminsExistentes >= suscripcion.MAX_ADMIN.Value)
+            {
+                throw new SuscripcionSinCupoException("administradores", suscripcion.NIVEL);
+            }
+        }
+        else if (rol == Roles.UsuarioComun)
+        {
+            if (!suscripcion.MAX_USUARIOS.HasValue)
+            {
+                return;
+            }
+
+            var usuariosExistentes = _context.Usuario.Count(u =>
+                u.ROL == Roles.UsuarioComun && u.ACTIVO && u.ID_USUARIO_RESPONSABLE == currentUser.ID_USUARIO);
+
+            if (usuariosExistentes >= suscripcion.MAX_USUARIOS.Value)
+            {
+                throw new SuscripcionSinCupoException("usuarios", suscripcion.NIVEL);
+            }
+        }
+    }
+
     private bool TieneAccesoPorSuscripcion(Usuario usuario)
     {
         var titular = ObtenerTitularSuscripcion(usuario);
+
         if (titular == null)
         {
             return usuario.SUSCRIPCION_ACTIVA;
