@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
+import CloseConfirm from './components/CloseConfirm'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -114,6 +115,7 @@ export default function App() {
       <NotificationProvider>
         <AuthProvider>
           <DialogContainer />
+          <CloseConfirm />
           <UpdaterBanner {...updater} />
           <Routes>
           <Route path="/login" element={<LoginPage />} />

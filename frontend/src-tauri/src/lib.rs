@@ -1,8 +1,11 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_shell::ShellExt;
 
 struct SidecarProcess(Mutex<Option<tauri_plugin_shell::process::CommandChild>>);
+
+struct ExitConfirmed(AtomicBool);
 
 impl Drop for SidecarProcess {
     fn drop(&mut self) {
@@ -29,12 +32,21 @@ fn kill_sidecar(state: tauri::State<SidecarProcess>) {
     }
 }
 
+#[tauri::command]
+fn confirm_exit(app: tauri::AppHandle, state: tauri::State<ExitConfirmed>) {
+    log::info!("[Tauri] Exit confirmed by user, closing application");
+    state.0.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![kill_sidecar])
+        .invoke_handler(tauri::generate_handler![kill_sidecar, confirm_exit])
         .setup(|app| {
             // Log plugin only in debug
             if cfg!(debug_assertions) {
@@ -44,6 +56,9 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Confirm-exit gate state
+            app.manage(ExitConfirmed(AtomicBool::new(false)));
 
             // Kill any orphan backend from previous crashed session
             let _ = std::process::Command::new("taskkill")
@@ -82,6 +97,28 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(|window, event| {
+            // Ask for confirmation before the window closes (X button, Alt+F4)
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let confirmed = window.state::<ExitConfirmed>().0.load(Ordering::SeqCst);
+                if !confirmed {
+                    api.prevent_close();
+                    log::info!("[Tauri] Window close requested — asking user for confirmation");
+                    let _ = window.emit("app-close-requested", ());
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Safety net: also intercept a full app exit (e.g. taskkill, OS shutdown)
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let confirmed = app_handle.state::<ExitConfirmed>().0.load(Ordering::SeqCst);
+                if !confirmed {
+                    api.prevent_exit();
+                    log::info!("[Tauri] Exit requested — asking user for confirmation");
+                    let _ = app_handle.emit("app-close-requested", ());
+                }
+            }
+        });
 }
