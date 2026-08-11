@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { MercadoPagoEstadoDto } from '../../types'
 import { api } from '../../api/client'
 import Button from '../../components/ui/Button'
@@ -77,11 +78,9 @@ export default function TransferenciaEspera({
 
           {modoQr && qrData && (
             <div className="flex justify-center">
-              <img
-                src={qrData}
-                alt="QR de pago"
-                className="w-48 h-48 rounded-xl"
-              />
+              <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                <QRCodeSVG value={qrData} size={192} marginSize={0} />
+              </div>
             </div>
           )}
 
@@ -97,7 +96,7 @@ export default function TransferenciaEspera({
             )}
             <p className="text-xs text-gray-400 leading-relaxed">
               {modoQr
-                ? 'El cliente debe escanear el QR impreso en el mostrador. La venta se confirmará automáticamente cuando pague.'
+                ? 'El cliente debe escanear el QR en pantalla. La venta se confirmará automáticamente cuando pague.'
                 : 'Transferí el monto a la cuenta de MercadoPago vinculada. Podés verificar si ya llegó o confirmar manualmente.'
               }
             </p>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto } from '../types'
 import { useAuth } from '../context/AuthContext'
@@ -388,11 +389,9 @@ export default function Layout() {
             </p>
             {qrData ? (
               <div className="flex justify-center">
-                <img
-                  src={qrData}
-                  alt="QR MercadoPago"
-                  className="w-48 h-48"
-                />
+                <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                  <QRCodeSVG value={qrData} size={192} marginSize={0} />
+                </div>
               </div>
             ) : (
               <p className="text-sm text-amber-600 text-center">No se encontró el QR. Revisá la vinculación MP.</p>
