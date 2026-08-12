@@ -260,10 +260,6 @@ public class VentaService
                 venta.AsignarReferencia(referencia);
                 _context.SaveChanges();
             }
-            if (string.IsNullOrEmpty(qrData))
-            {
-                qrData = _mpService.ObtenerQrDataActivo();
-            }
             return new VentaResultadoDto
             {
                 VentaId = venta.ID_VENTA,

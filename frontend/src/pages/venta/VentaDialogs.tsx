@@ -36,11 +36,6 @@ interface VentaDialogsProps {
   onFormClienteChange: (f: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string; mail: string }) => void
   onCrearCliente: () => void
   onAbrirNuevoCliente: () => void
-
-  showConfirmTransferencia: boolean
-  transferenciaConfirmRef: React.RefObject<HTMLButtonElement | null>
-  onConfirmTransferencia: () => void
-  onCancelTransferencia: () => void
 }
 
 export default function VentaDialogs({
@@ -49,19 +44,12 @@ export default function VentaDialogs({
   onClientSearchChange, onClientSelect, clientesResultsRef, total, recibio,
   showNuevoCliente, nuevoClienteNombre, esOcasional, formCliente, onNuevoClienteClose,
   onNuevoClienteNombreChange, onEsOcasionalChange, onFormClienteChange, onCrearCliente, onAbrirNuevoCliente,
-  showConfirmTransferencia, transferenciaConfirmRef, onConfirmTransferencia, onCancelTransferencia,
 }: VentaDialogsProps) {
   useEffect(() => {
     if (showStockConfirm) {
       setTimeout(() => stockCancelarRef.current?.focus(), 50)
     }
   }, [showStockConfirm])
-
-  useEffect(() => {
-    if (showConfirmTransferencia) {
-      setTimeout(() => transferenciaConfirmRef.current?.focus(), 50)
-    }
-  }, [showConfirmTransferencia])
 
   return (
     <>
@@ -288,31 +276,6 @@ export default function VentaDialogs({
             </div>
           </div>
         )}
-      </Dialog>
-
-      <Dialog
-        open={showConfirmTransferencia}
-        onClose={onCancelTransferencia}
-        title="Transferencia recibida"
-        description="Confirmá que el cliente hizo la transferencia antes de cobrar."
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={onCancelTransferencia}>
-              Cancelar
-            </Button>
-            <Button ref={transferenciaConfirmRef} variant="primary" size="sm" onClick={onConfirmTransferencia}>
-              Confirmar transferencia
-            </Button>
-          </>
-        }
-      >
-        <div className="rounded-xl bg-sky-50 py-6 px-4 text-center">
-          <p className="text-sm text-gray-500">Monto a cobrar</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">${total.toFixed(2)}</p>
-        </div>
-        <p className="text-sm text-gray-500 mt-4">
-          Una vez confirmado, la venta se registra como cobrada por transferencia y no se podrá deshacer.
-        </p>
       </Dialog>
     </>
   )
