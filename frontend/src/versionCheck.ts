@@ -1,6 +1,8 @@
 const VERSION_KEY = 'app_version'
 const UPDATE_LOG_KEY = 'update_history'
 
+declare const __APP_VERSION__: string
+
 let currentVersion = ''
 
 function isTauri(): boolean {
@@ -11,9 +13,11 @@ async function getAppVersion(): Promise<string> {
   if (!isTauri()) return ''
   try {
     const appMod = await import('@tauri-apps/api/app')
-    return appMod.getVersion()
-  } catch {
-    return ''
+    const v = await appMod.getVersion()
+    return v
+  } catch (e: any) {
+    logUpdate(`ERROR getAppVersion: ${e?.message || String(e)}`)
+    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''
   }
 }
 
@@ -42,7 +46,14 @@ async function clearWebCaches() {
 
 export async function initVersionCheck(): Promise<void> {
   currentVersion = await getAppVersion()
-  if (!currentVersion) return
+  
+  // Always clear caches on startup — prevents stale JS from old versions
+  await clearWebCaches()
+  
+  if (!currentVersion) {
+    logUpdate(`WARN: getAppVersion returned empty — using build version`)
+    return
+  }
 
   const stored = localStorage.getItem(VERSION_KEY)
 
@@ -53,10 +64,9 @@ export async function initVersionCheck(): Promise<void> {
   }
 
   if (stored !== currentVersion) {
-    console.log(`[VersionCheck] Version changed: ${stored} → ${currentVersion}. Clearing caches...`)
-    logUpdate(`Actualización: v${stored} → v${currentVersion}`)
-    await clearWebCaches()
+    logUpdate(`Actualización: v${stored} → v${currentVersion} — recargando`)
     localStorage.setItem(VERSION_KEY, currentVersion)
+    window.location.reload()
   }
 }
 

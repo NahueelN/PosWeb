@@ -40,18 +40,12 @@ function logUpdate(msg: string) {
   } catch { /* ignore */ }
 }
 
-function isTauri(): boolean {
-  return !!(window as any).__TAURI__
-}
-
 async function initUpdater() {
-  if (!isTauri()) {
-    console.log('[Updater] Not running in Tauri (browser mode) — updater disabled')
-    return
-  }
   try {
+    logUpdate('InitUpdater: importing plugins...')
     const upMod = await import('@tauri-apps/plugin-updater')
     const invokeMod = await import('@tauri-apps/api/core')
+    logUpdate('InitUpdater: plugins imported successfully')
     checkUpdate = async () => {
       emit({ status: 'checking' })
       try {
@@ -68,6 +62,7 @@ async function initUpdater() {
         try {
           console.log('[Updater] Killing posweb-backend sidecar...')
           await invokeMod.invoke('kill_sidecar')
+          await new Promise(r => setTimeout(r, 500))
         } catch {
           console.log('[Updater] Sidecar already stopped, skipping kill')
         }
@@ -86,8 +81,10 @@ async function initUpdater() {
         emit({ status: 'error', errorMsg: msg })
       }
     }
-  } catch {
+  } catch (e) {
     console.log('[Updater] Tauri updater plugin not available (browser mode)')
+    logError(`Init failed: ${e instanceof Error ? e.message : String(e)}`)
+    emit({ status: 'error', errorMsg: 'Updater no disponible' })
   }
 }
 

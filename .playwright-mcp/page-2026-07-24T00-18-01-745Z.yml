@@ -1,0 +1,114 @@
+- generic [ref=e30]:
+  - complementary [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]: PW
+      - generic [ref=e34]:
+        - generic [ref=e35]: PosWeb
+        - generic [ref=e36]: v0.1
+    - navigation [ref=e37]:
+      - generic [ref=e38]:
+        - button "Principal" [active] [ref=e39]:
+          - generic [ref=e40]: Principal
+          - img [ref=e41]
+        - list [ref=e177]:
+          - listitem [ref=e178]:
+            - link "🏠 Inicio" [ref=e179] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e180]: 🏠
+              - text: Inicio
+      - button "Operaciones" [ref=e44]:
+        - generic [ref=e45]: Operaciones
+        - img [ref=e46]
+      - button "Gestión" [ref=e49]:
+        - generic [ref=e50]: Gestión
+        - img [ref=e51]
+      - button "Contactos" [ref=e54]:
+        - generic [ref=e55]: Contactos
+        - img [ref=e56]
+    - link "Alta usuario" [ref=e59] [cursor=pointer]:
+      - /url: /usuarios/alta
+      - img [ref=e60]
+      - text: Alta usuario
+  - main [ref=e63]:
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - heading "Punto de Venta" [level=1] [ref=e66]
+        - generic [ref=e67]:
+          - img [ref=e68]
+          - text: Sucursal Central
+      - generic [ref=e71]:
+        - button "Cambiar sucursal" [ref=e72]
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]: A
+            - generic [ref=e76]:
+              - generic [ref=e77]: admin
+              - generic [ref=e78]: SuperAdmin
+          - button "Salir" [ref=e80]:
+            - img [ref=e81]
+            - generic [ref=e84]: Salir
+    - generic [ref=e86]:
+      - generic [ref=e88]:
+        - generic [ref=e90]:
+          - heading "Ventas" [level=1] [ref=e91]
+          - paragraph [ref=e92]: Seleccioná productos para confirmar la operación
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - img
+            - textbox "Buscá producto por código de barra o nombre…" [ref=e98]
+          - generic [ref=e100]:
+            - generic [ref=e101]: ←
+            - generic [ref=e102]: ↑
+            - generic [ref=e103]: →
+            - generic [ref=e104]: ↓
+            - generic [ref=e105]: Productos
+          - generic [ref=e106]:
+            - button "ASD 123 $1.00" [ref=e107]:
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: ASD
+                - paragraph [ref=e110]: "123"
+              - generic [ref=e111]:
+                - generic [ref=e114]: $1.00
+                - img [ref=e116]
+            - button "ASD 123321 $123.00" [ref=e117]:
+              - generic [ref=e118]:
+                - paragraph [ref=e119]: ASD
+                - paragraph [ref=e120]: "123321"
+              - generic [ref=e121]:
+                - generic [ref=e124]: $123.00
+                - img [ref=e126]
+      - generic [ref=e127]:
+        - generic [ref=e129]:
+          - img [ref=e130]
+          - heading "Productos" [level=3] [ref=e134]
+        - generic [ref=e136]: Agregá productos para armar la operación
+        - generic [ref=e137]:
+          - generic [ref=e138]:
+            - generic [ref=e139]: Total
+            - generic [ref=e140]: $0,00
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e144]:
+                - generic [ref=e145]:
+                  - generic: $
+                  - textbox "0.00" [ref=e146]: 0,00
+                - button "Sin pago" [ref=e147]
+              - group "Medio de pago" [ref=e149]:
+                - button "Efectivo" [ref=e150]:
+                  - img [ref=e151]
+                  - generic [ref=e154]: Efectivo
+                - button "Transferencia" [ref=e155]:
+                  - img [ref=e156]
+                  - generic [ref=e158]: Transferencia
+                - button "Tarjeta Débito" [ref=e159]:
+                  - img [ref=e160]
+                  - generic [ref=e163]: Tarjeta Débito
+                - button "Tarjeta Crédito" [ref=e164]:
+                  - img [ref=e165]
+                  - generic [ref=e167]: Tarjeta Crédito
+                - button "QR" [ref=e168]:
+                  - img [ref=e169]
+                  - generic [ref=e175]: QR
+              - paragraph [ref=e176]: Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
+            - button "Confirmar venta" [disabled]:
+              - generic: Confirmar venta

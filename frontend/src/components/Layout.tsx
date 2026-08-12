@@ -2,12 +2,22 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { SucursalDto, LicenciaResumen } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, UserPlus } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
+declare const __APP_VERSION__: string
+import { open } from '@tauri-apps/plugin-shell'
+
 const menuGroups = [
+  {
+    label: 'Principal',
+    links: [
+      { to: '/', label: 'Inicio', icon: '🏠' },
+    ],
+  },
   {
     label: 'Operaciones',
     links: [
@@ -23,9 +33,8 @@ const menuGroups = [
     label: 'Gestión',
     links: [
       { to: '/productos', label: 'Productos', icon: '📦' },
-      { to: '/combos', label: 'Ofertas', icon: '🎁' },
+      { to: '/combos', label: 'Ofertas', icon: '🎁' },  
       { to: '/historial', label: 'Historial', icon: '📋' },
-      { to: '/estadisticas', label: 'Estadísticas', icon: '📈' },
     ],
   },
   {
@@ -37,7 +46,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/estadisticas'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
@@ -122,10 +131,14 @@ export default function Layout() {
   const navigate = useNavigate()
   const { sucursal, limpiar } = useSucursalActiva()
   const { user, logout } = useAuth()
+  const { notifyError } = useNotification()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [licResumen, setLicResumen] = useState<LicenciaResumen | null>(null)
+  const [mpVinculando, setMpVinculando] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [qrData, setQrData] = useState('')
 
   useEffect(() => {
     const v = getCurrentVersion()
@@ -163,6 +176,32 @@ export default function Layout() {
     navigate('/login', { replace: true })
   }
 
+  async function handleVincularMP() {
+    setMpVinculando(true)
+    try {
+      const res = await api.mercadopago.authUrl()
+      try {
+        await open(res.url)
+      } catch {
+        window.open(res.url, '_blank')
+      }
+    } catch (e: any) {
+      notifyError(e.message || 'Error al iniciar vinculación')
+    } finally {
+      setMpVinculando(false)
+    }
+  }
+
+  async function handleVerQr() {
+    try {
+      const res = await api.mercadopago.qr()
+      setQrData(res.qrData || '')
+      setQrModalOpen(true)
+    } catch (e: any) {
+      notifyError('No se pudo obtener el QR. ¿Ya vinculaste MP?')
+    }
+  }
+
   function closeSidebar() {
     setSidebarOpen(false)
   }
@@ -179,7 +218,9 @@ export default function Layout() {
         </div>
         <div className="flex flex-col leading-none">
           <span className="text-[13.5px] font-bold text-white tracking-tight">PosWeb</span>
-          <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">v0.1</span>
+          <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">
+            v{getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?')}
+          </span>
         </div>
       </div>
 
@@ -205,20 +246,39 @@ export default function Layout() {
       {/* Bottom actions */}
       <div className="border-t border-white/[0.08] px-2 py-2.5 space-y-px shrink-0">
         {canCreateUsers && (
-          <NavLink
-            to="/usuarios/alta"
-            onClick={closeSidebar}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
-                isActive
-                  ? 'bg-emerald-500/20 text-emerald-300'
-                  : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
-              }`
-            }
-          >
-            <UserPlus size={14} className="shrink-0" />
-            Alta usuario
-          </NavLink>
+          <>
+            <button
+              type="button"
+              onClick={handleVincularMP}
+              disabled={mpVinculando}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors disabled:opacity-40"
+            >
+              <Link2 size={14} className="shrink-0" />
+              {mpVinculando ? 'Vinculando...' : 'Vincular MP'}
+            </button>
+            <button
+              type="button"
+              onClick={handleVerQr}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors"
+            >
+              <QrCode size={14} className="shrink-0" />
+              Ver QR
+            </button>
+            <NavLink
+              to="/usuarios/alta"
+              onClick={closeSidebar}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
+                  isActive
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
+                }`
+              }
+            >
+              <UserPlus size={14} className="shrink-0" />
+              Alta usuario
+            </NavLink>
+          </>
         )}
         {/* Configuración */}
         <NavLink
@@ -338,6 +398,39 @@ export default function Layout() {
       </main>
 
       <ProductLookupModal open={lookupOpen} onClose={() => setLookupOpen(false)} />
+
+
+      {qrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setQrModalOpen(false)}>
+          <div
+            className="bg-white rounded-2xl shadow-xl w-[400px] max-w-[95vw] p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-gray-900">QR de MercadoPago</h2>
+            <p className="text-sm text-gray-500">
+              Imprimí este QR y pegalo en el mostrador. Es siempre el mismo para todos los cobros.
+            </p>
+            {qrData ? (
+              <div className="flex justify-center">
+                <img
+                  src={qrData}
+                  alt="QR MercadoPago"
+                  className="w-48 h-48"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-amber-600 text-center">No se encontró el QR. Revisá la vinculación MP.</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setQrModalOpen(false)}
+              className="w-full py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {appVersion && (
         <span className="fixed bottom-2 right-3 text-[10px] text-gray-400/60 select-none pointer-events-none z-50">

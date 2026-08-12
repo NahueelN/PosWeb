@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/ventas', { replace: true })
+      navigate('/', { replace: true })
       return
     }
 
@@ -67,7 +67,11 @@ export default function LoginPage() {
       } else {
         await pinLogin({ usuario, pin, sucursalId })
       }
-      navigate('/ventas', { replace: true })
+      navigate('/', { replace: true })
+      try {
+        const nombre = sucursales.find((s: SucursalDto) => s.id === sucursalId)?.nombre ?? 'Central'
+        localStorage.setItem('sucursalActiva', JSON.stringify({ id: sucursalId, nombre }))
+      } catch {}
     } catch (err: any) {
       const msg = err.message || 'Error al iniciar sesión'
       try {
@@ -187,6 +191,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            {sucursales.length > 1 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Sucursal</label>
               <select
@@ -205,6 +210,7 @@ export default function LoginPage() {
                 )}
               </select>
             </div>
+            )}
 
             <button
               type="submit"

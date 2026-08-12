@@ -453,4 +453,104 @@ public class CompraServiceTest
         Assert.Equal(3 * 80, deuda.MONTO_DEUDA);
         Assert.False(deuda.PAGO);
     }
+
+    [Fact]
+    public async Task ObtenerHistorialAsync_DevuelveComprasPaginadas()
+    {
+        // Arrange
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerHistorialAsync_DevuelveComprasPaginadas));
+        CompraService service = CrearService(context);
+
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
+        int proveedorId = SeedProveedor(context);
+        CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
+        Producto producto = CrearProducto(context, 1, "HIST001", "Producto Historial", 100m, 80m);
+
+        service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+            new List<CompraItemDto> { new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 2, CostoUnitario = 40 } });
+
+        // Act
+        PagedResult<CompraHistorialDto> result = await service.ObtenerHistorialAsync(
+            new CompraHistorialFiltro { Page = 1, PageSize = 20 });
+
+        // Assert
+        Assert.Equal(1, result.TotalCount);
+        CompraHistorialDto item = Assert.Single(result.Items);
+        Assert.Equal(80, item.Total);
+        Assert.Equal(1, item.CantidadItems);
+        Assert.Equal("Sucursal Test", item.SucursalNombre);
+        Assert.Equal("Proveedor Test", item.ProveedorNombre);
+        Assert.Equal("testuser", item.UsuarioNombre);
+        Assert.Equal(1, result.TotalPages);
+    }
+
+    [Fact]
+    public async Task ObtenerHistorialAsync_FiltraPorRangoDeFechas()
+    {
+        // Arrange
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerHistorialAsync_FiltraPorRangoDeFechas));
+        CompraService service = CrearService(context);
+
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
+        int proveedorId = SeedProveedor(context);
+        CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
+        Producto producto = CrearProducto(context, 1, "FEC001", "Producto Fecha", 100m, 80m);
+
+        service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+            new List<CompraItemDto> { new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 1, CostoUnitario = 50 } });
+
+        // Act — rango en el pasado (no debería incluir la compra de hoy)
+        PagedResult<CompraHistorialDto> resultado = await service.ObtenerHistorialAsync(
+            new CompraHistorialFiltro { FechaDesde = DateTime.Today.AddDays(-10), FechaHasta = DateTime.Today.AddDays(-1) });
+
+        // Assert
+        Assert.Equal(0, resultado.TotalCount);
+        Assert.Empty(resultado.Items);
+    }
+
+    [Fact]
+    public async Task ObtenerDetalleAsync_DevuelveRenglonesDeLaCompra()
+    {
+        // Arrange
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerDetalleAsync_DevuelveRenglonesDeLaCompra));
+        CompraService service = CrearService(context);
+
+        Usuario usuario = context.Usuario.First();
+        Sucursal sucursal = context.Sucursal.First();
+        int proveedorId = SeedProveedor(context);
+        CrearCajaAbierta(context, sucursal.ID_SUCURSAL, usuario.ID_USUARIO);
+        Producto producto = CrearProducto(context, 1, "DET001", "Producto Detalle", 100m, 80m);
+
+        CompraResponseDto resultado = service.CrearCompra(sucursal.ID_SUCURSAL, proveedorId, usuario.ID_USUARIO,
+            new List<CompraItemDto> { new() { ProductoId = producto.ID_PRODUCTO, Cantidad = 3, CostoUnitario = 30 } });
+
+        // Act
+        CompraDetalleDto? detalle = await service.ObtenerDetalleAsync(resultado.CompraId);
+
+        // Assert
+        Assert.NotNull(detalle);
+        Assert.Equal("Proveedor Test", detalle!.ProveedorNombre);
+        Assert.Equal(90, detalle.Total);
+        RenglonHistorialDto renglon = Assert.Single(detalle.Items);
+        Assert.Equal("Producto Detalle", renglon.ProductoNombre);
+        Assert.Equal(3, renglon.Cantidad);
+        Assert.Equal(30, renglon.PrecioUnitario);
+        Assert.Equal(90, renglon.Subtotal);
+    }
+
+    [Fact]
+    public async Task ObtenerDetalleAsync_CompraInexistente_DevuelveNull()
+    {
+        // Arrange
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerDetalleAsync_CompraInexistente_DevuelveNull));
+        CompraService service = CrearService(context);
+
+        // Act
+        CompraDetalleDto? detalle = await service.ObtenerDetalleAsync(999);
+
+        // Assert
+        Assert.Null(detalle);
+    }
 }

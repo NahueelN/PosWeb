@@ -20,6 +20,9 @@ fn kill_sidecar(state: tauri::State<SidecarProcess>) {
         if let Some(child) = guard.take() {
             log::info!("[Tauri] Killing posweb-backend sidecar before update...");
             let _ = child.kill();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "posweb-backend.exe"])
+                .output();
         } else {
             log::info!("[Tauri] Sidecar already stopped, nothing to kill");
         }

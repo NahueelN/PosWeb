@@ -75,13 +75,13 @@ export default function PageShell({
   children,
 }: PageShellProps) {
   return (
-    <div>
+    <div className="flex flex-col h-full min-h-0">
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-[20px] font-bold text-gray-900 tracking-tight">{title}</h1>
+          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">{title}</h1>
           {subtitle && (
-            <p className="text-[12.5px] text-gray-400 mt-0.5">{subtitle}</p>
+            <p className="text-[13px] text-gray-400 mt-0.5">{subtitle}</p>
           )}
         </div>
         {actions && (
@@ -132,7 +132,7 @@ export default function PageShell({
           <span className="ml-3 text-gray-500 text-sm">{loadingMessage}</span>
         </div>
       ) : (
-        children
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       )}
     </div>
   )

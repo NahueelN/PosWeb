@@ -1,0 +1,16 @@
+.react-grid-item.react-draggable-dragging {
+  scale: 1.04;
+  rotate: 0.3deg;
+  box-shadow: 0 8px 30px oklch(0 0 0 / 0.12), 0 2px 8px oklch(0 0 0 / 0.06);
+  z-index: 999;
+  cursor: grabbing;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: transparent !important;
+  opacity: 1 !important;
+  border: 2px dashed oklch(0.520 0.255 278 / 0.4);
+  border-radius: 0.75rem;
+  box-shadow: 0 0 24px oklch(0.520 0.255 278 / 0.2);
+  transition-duration: 100ms;
+}

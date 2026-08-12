@@ -16,3 +16,4 @@
 | COMP-DialogActions | Button container with arrow nav | Active | Project | Medium | `../frontend/src/components/ui/DialogActions.tsx` |
 | COMP-Card | Generic card container | Active | Project | High | `../frontend/src/components/ui/Card.tsx` |
 | COMP-Button | Button with variants and sizes | Active | Project | Critical | `../frontend/src/components/ui/Button.tsx` |
+| COMP-SelectAltaCruzada | Lookup select with cross-registration (+) | Active | Project | High | `../frontend/src/components/ui/SelectAltaCruzada.tsx` |

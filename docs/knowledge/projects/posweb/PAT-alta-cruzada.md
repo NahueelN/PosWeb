@@ -125,7 +125,7 @@ Para cada lookup en un popup, responder:
 | AC1 | ¿El usuario podría necesitar una entidad que no existe? | Implementar Alta Cruzada | Justificar |
 | AC2 | ¿Ya existe implementación similar en otro popup? | Reutilizar el mismo patrón | Evaluar si es nuevo |
 | AC3 | ¿Puede reutilizar el patrón de CompraPage (Dialog inline + refresh + auto-select + continuar)? | Usar el patrón estándar | Justificar |
-| AC4 | ¿Hay 3+ instancias del mismo lookup en el proyecto? | Extraer COMP-Lookup{Entidad} compartido | No hace falta aún |
+| AC4 | ¿Hay 3+ instancias del mismo lookup en el proyecto? | Reutilizar `COMP-SelectAltaCruzada` | Justificar |
 
 Las respuestas negativas deben justificarse explícitamente. No implementar sin pasar por esta checklist.
 
@@ -139,6 +139,8 @@ Las respuestas negativas deben justificarse explícitamente. No implementar sin 
 | 2 | Compra | Producto | `CompraPage.tsx` | 548 | `handleProductCreatedInModal()` (239-248) |
 | 3 | Venta | Cliente | `VentaDialogs.tsx` / `VentasPage.tsx` | 180-181 | `crearClienteYRevertir()` (192-219) |
 | 4 | Gasto | Categoría | `GastosPage.tsx` | 340-345 (inline dropdown) | `handleCrearCategoria()` (158-171) |
+| 5 | Producto | Categoría | `ProductFormModal.tsx` | usa `COMP-SelectAltaCruzada` | `handleCrearCategoria()` |
+| 6 | Producto | Unidad de medida | `ProductFormModal.tsx` | usa `COMP-SelectAltaCruzada` | `handleCrearUnidad()` |
 
 ### Candidatos sin implementar
 
@@ -190,6 +192,7 @@ async function crearProveedor(e: React.FormEvent) {
 ## Relations
 
 - `USES` → `COMP-Dialog` (contenedor del modal de creación)
+- `USES` → `COMP-SelectAltaCruzada` (control genérico lookup + alta cruzada)
 - `USES` → `COMP-ProductFormModal` (para creación de productos)
 - `IMPLEMENTS` → `PRD-alta-cruzada` (regla de producto que este patrón implementa)
 - `RELATED` → `STAND-pr-narrative` (narrativa de PR donde se detectó el patrón)

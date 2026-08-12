@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaRequest, LicenciaEstado, LicenciaResumen } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -205,6 +205,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ conDevolucion }),
     }),
+
+    confirmarTransferencia: (id: number) => request<VentaResultadoDto>(`/ventas/${id}/confirmar-transferencia`, {
+      method: 'POST',
+    }),
+
+    cancelarPendiente: (id: number, esTimeout: boolean = false) => request<{ message: string }>(`/ventas/${id}/cancelar-pendiente`, {
+      method: 'POST',
+      body: JSON.stringify({ esTimeout }),
+    }),
+
+    estado: (id: number) => request<{ estado: string }>(`/ventas/${id}/estado`),
   },
 
   // Stock por sucursal
@@ -303,6 +314,17 @@ export const api = {
        method: 'POST',
        body: JSON.stringify(dto),
      }),
+     historial: (params: CompraHistorialParams) => {
+       const query = new URLSearchParams()
+       if (params.fechaDesde) query.set('fechaDesde', params.fechaDesde)
+       if (params.fechaHasta) query.set('fechaHasta', params.fechaHasta)
+       if (params.sucursalId) query.set('sucursalId', params.sucursalId.toString())
+       if (params.page) query.set('page', params.page.toString())
+       if (params.pageSize) query.set('pageSize', params.pageSize.toString())
+       return request<PagedResult<CompraHistorialDto>>(`/compras?${query.toString()}`)
+     },
+     detalle: (id: number) =>
+       request<CompraDetalleDto>(`/compras/${id}`),
    },
 
 // Gastos
@@ -400,6 +422,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(dto),
       }),
+      editar: (id: number, dto: PedidoEditDto) => request<PedidoDetailDto>(`/pedidos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      }),
       recibir: (id: number, dto: RecibirPedidoRequestDto) => request<PedidoDetailDto>(`/pedidos/${id}/recibir`, {
         method: 'POST',
         body: JSON.stringify(dto),
@@ -457,6 +483,26 @@ export const api = {
         }),
     },
 
+  // Dashboard Builder
+    dashboard: {
+      /** Build dashboard: sends layout instances, returns definitions + rendered widgets */
+      build: (sucursalId: number, layout?: import('../analytics/grid/types').LayoutInstance[]) => {
+        const qs = new URLSearchParams({ sucursalId: String(sucursalId) })
+        return request<import('../analytics/types').DashboardResponse>(`/dashboard/build?${qs}`, {
+          method: 'POST',
+          body: JSON.stringify(layout ?? []),
+        })
+      },
+      /** Get available definitions (no rendering) */
+      definitions: () =>
+        request<import('../analytics/types').WidgetDefinition[]>('/dashboard/definitions'),
+      /** Legacy: get dashboard without instances */
+      obtener: (sucursalId: number) => {
+        const qs = new URLSearchParams({ sucursalId: String(sucursalId) })
+        return request<import('../analytics/types').DashboardResponse>(`/dashboard?${qs}`)
+      },
+    },
+
   // Combos
     combos: {
       listar: () => request<ComboDto[]>('/combos'),
@@ -506,5 +552,19 @@ export const api = {
       request<{ permitido: boolean; motivo: string | null }>('/licencia/verificar', {
         method: 'POST',
       }),
+  },
+
+  // MercadoPago
+  mercadopago: {
+    authUrl: () => request<{ url: string }>('/mercadopago/auth-url'),
+    estado: () => request<MercadoPagoEstadoDto>('/mercadopago/estado'),
+    desvincular: () => request<{ vinculado: boolean }>('/mercadopago/desvincular', {
+      method: 'POST',
+    }),
+    verificarPago: (monto: number) => request<{ encontrado: boolean }>('/mercadopago/verificar-pago', {
+      method: 'POST',
+      body: JSON.stringify({ monto }),
+    }),
+    qr: () => request<{ qrData?: string }>('/mercadopago/qr'),
   },
 }

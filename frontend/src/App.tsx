@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
 import AuthGuard from './components/AuthGuard'
@@ -8,7 +8,7 @@ import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import ProductosPage from './pages/ProductosPage'
 import VentasPage from './pages/VentasPage'
-import HistorialVentasPage from './pages/HistorialVentasPage'
+import HistorialPage from './pages/HistorialPage'
 import ClientesPage from './pages/ClientesPage'
 import CajaPage from './pages/CajaPage'
 import AltaUsuarioPage from './pages/AltaUsuarioPage'
@@ -17,7 +17,8 @@ import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
 import DeudaPage from './pages/DeudaPage'
 import PedidosPage from './pages/PedidosPage'
-import EstadisticasPage from './pages/EstadisticasPage'
+import DashboardPage from './pages/DashboardPage'
+import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import ActivarLicenciaPage from './pages/ActivarLicenciaPage'
@@ -25,25 +26,22 @@ import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
-function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
-  if (status === 'idle' || status === 'no-update') return null
+declare const __APP_VERSION__: string
 
+function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
+  if (status === 'idle' || status === 'no-update' || status === 'checking') return null
   return (
-    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
-      <div className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-2 ${
-        status === 'error' ? 'bg-red-500/90 text-white' :
-        status === 'checking' ? 'bg-slate-700/90 text-white' :
-        'bg-indigo-600/90 text-white'
+    <div className="fixed bottom-2 left-2 z-[100] pointer-events-none">
+      <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-lg ${
+        status === 'error' ? 'bg-red-500/90 text-white' : 'bg-indigo-600/90 text-white'
       }`}>
-        {status === 'error' && <span className="text-base">⚠</span>}
-        {(status === 'checking' || status === 'downloading' || status === 'installing') && (
-          <span className="inline-block h-3 w-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+        {(status === 'downloading' || status === 'installing') && (
+          <span className="inline-block mr-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/30 border-t-white animate-spin align-middle" />
         )}
         <span>
-          {status === 'checking' && 'Buscando actualizaciones…'}
           {status === 'downloading' && `Descargando v${version}…`}
           {status === 'installing' && `Instalando v${version}…`}
-          {status === 'error' && (errorMsg ?? 'Error al actualizar')}
+          {status === 'error' && (errorMsg ?? 'Error')}
         </span>
       </div>
     </div>
@@ -64,6 +62,12 @@ function LoadingScreen({ updaterStatus }: { updaterStatus: UpdaterStatus }) {
       </div>
     </div>
   )
+}
+
+function HomePage() {
+  const { user } = useAuth()
+  const isAdmin = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
+  return isAdmin ? <DashboardPage /> : <InicioPage />
 }
 
 export default function App() {
@@ -117,10 +121,10 @@ export default function App() {
           <Route path="/activar" element={<ActivarLicenciaPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/ventas" replace />} />
+              <Route path="/" element={<HomePage />} />
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
-            <Route path="/historial" element={<HistorialVentasPage />} />
+            <Route path="/historial" element={<HistorialPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/compras" element={<CompraPage />} />
@@ -129,7 +133,7 @@ export default function App() {
               <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/combos" element={<CombosPage />} />
-              <Route path="/estadisticas" element={<EstadisticasPage />} />
+
               <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
             </Route>

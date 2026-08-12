@@ -1,12 +1,21 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
-import { Loader2, Check, X, ChevronDown, Barcode, Hash, Tag, Folder, BadgeCheck, Ruler, Scale, Package, DollarSign, Percent, Receipt, TrendingUp, FileText, Plus } from 'lucide-react'
+import { Loader2, Check, X, Package, Plus } from 'lucide-react'
 import Dialog from './ui/Dialog'
-import DialogSection from './ui/DialogSection'
 import DialogPrimaryField from './ui/DialogPrimaryField'
 import Button from './ui/Button'
+import SelectAltaCruzada from './ui/SelectAltaCruzada'
 import { useNotification } from '../context/NotificationContext'
+
+function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">{title}</h3>
+      {children}
+    </div>
+  )
+}
 
 interface ProductFormModalProps {
   open: boolean
@@ -541,11 +550,7 @@ export default function ProductFormModal({
       highlight={nombre || (isEditing ? 'Editar producto' : 'Nuevo producto')}
       width="xl"
       footer={
-        <div className="flex items-center justify-between w-full pt-2 pb-1">
-          <p className="text-[11px] text-gray-400">
-            En configuración podés asignar y actualizar los márgenes de ganancia por categoría.
-          </p>
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3">
             <Button variant="secondary" size="md" className="min-w-[128px]" onClick={onClose}>Cancelar</Button>
             <Button variant="primary" size="md" className="min-w-[128px]" icon={loading ? undefined : <Plus size={18} />} type="submit" form="producto-form" disabled={!canSubmit || loading}>
               {loading ? (
@@ -556,7 +561,6 @@ export default function ProductFormModal({
               ) : isEditing ? 'Guardar cambios' : 'Crear producto'}
             </Button>
           </div>
-        </div>
       }
     >
       <form id="producto-form" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
@@ -564,22 +568,21 @@ export default function ProductFormModal({
         <div className="flex gap-4">
 
           {/* ══════ COLUMNA IZQUIERDA ══════ */}
-          <div className="flex-[7] min-w-0 flex flex-col gap-2">
+          <div className="flex-[7] min-w-0 flex flex-col gap-3">
 
             {/* ── 1. IDENTIFICACIÓN ── */}
-            <DialogSection icon={<Barcode size={16} />} title="IDENTIFICACIÓN">
+            <FieldSection title="Identificación">
               {/* Nombre — protagonista */}
               <DialogPrimaryField label="Nombre del producto *" data-field="nombre">
                 <input type="text" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-lg text-base outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 placeholder:text-gray-300 uppercase placeholder:normal-case"
+                  className="w-full h-10 px-3 border border-gray-300 rounded-lg text-base outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400 placeholder:text-gray-300 uppercase placeholder:normal-case"
                   placeholder="Ej: Leche La Serenísima Entera 1L" />
               </DialogPrimaryField>
 
               {/* Código de barras + Código interno */}
-              <div className="grid grid-cols-2 gap-1.5 mt-1">
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                    <Barcode size={13} className="text-gray-500 shrink-0" />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Código de barras
                   </label>
                   <div className="relative">
@@ -593,7 +596,7 @@ export default function ProductFormModal({
                       className={`w-full h-7 px-1.5 border rounded-md text-sm font-mono pr-6 outline-none transition-all duration-150 ${
                         isReadonlyCodigo
                           ? 'bg-gray-50 text-gray-500 border-gray-200'
-                          : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300'
+                          : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400'
                       }`}
                       placeholder="Código de barras"
                     />
@@ -617,8 +620,7 @@ export default function ProductFormModal({
                   )}
                 </div>
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                    <Hash size={13} className="text-gray-500 shrink-0" />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Código interno
                   </label>
                   <div className="relative">
@@ -631,16 +633,16 @@ export default function ProductFormModal({
                         setCodigoProducto(val ? 'PROD' + val : '')
                       }}
                       data-field="codigoProducto"
-                      className="w-full h-7 pl-[31px] pr-1.5 border border-gray-200 rounded-md text-sm font-mono outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300"
+                      className="w-full h-7 pl-[31px] pr-1.5 border border-gray-300 rounded-md text-sm font-mono outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
                       placeholder="Auto-generado"
                     />
                   </div>
                 </div>
               </div>
-            </DialogSection>
+            </FieldSection>
 
             {/* ── 2. CLASIFICACIÓN Y ATRIBUTOS ── */}
-            <DialogSection icon={<Tag size={16} />} title="CLASIFICACIÓN Y ATRIBUTOS">
+            <FieldSection title="Clasificación y atributos">
               {/* Se vende por peso / Es bulto — checkboxes en la misma línea */}
               <div className="flex items-center gap-4 mb-1.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none group">
@@ -652,7 +654,7 @@ export default function ProductFormModal({
                     disabled={esBulto}
                     className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
                   />
-                  <span className={`text-[15px] font-semibold transition-colors ${esBulto ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Se vende por peso</span>
+                  <span className={`text-sm font-medium transition-colors ${esBulto ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Se vende por peso</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none group">
                   <input
@@ -663,206 +665,147 @@ export default function ProductFormModal({
                     disabled={esPesable || isEditing}
                     className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
                   />
-                  <span className={`text-[15px] font-semibold transition-colors ${esPesable || isEditing ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Es bulto</span>
+                  <span className={`text-sm font-medium transition-colors ${esPesable || isEditing ? 'text-gray-300' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Es bulto</span>
                 </label>
-                {esPesable && <span className="text-[10px] text-gray-400 font-normal">— Producto por KG. Ej: Fiambres o verduras</span>}
-                {esBulto && <span className="text-[10px] text-gray-400 font-normal">— producto sin stock, costo ni precio; representa un empaque</span>}
+                {esPesable && <span className="text-[11px] text-gray-400 font-normal">— Producto por KG. Ej: Fiambres o verduras</span>}
+                {esBulto && <span className="text-[11px] text-gray-400 font-normal">— producto sin stock, costo ni precio; representa un empaque</span>}
               </div>
 
               {/* Fila 1: Marca + Categoría */}
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                    <BadgeCheck size={13} className="text-gray-500 shrink-0" />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Marca
                   </label>
                   <input type="text" value={marca} onChange={e => setMarca(e.target.value)}
                     data-field="marca"
-                    className="w-full h-7 px-1.5 border border-gray-200 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300"
+                    className="w-full h-7 px-1.5 border border-gray-300 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
                     placeholder="Marca" />
                 </div>
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                    <Folder size={13} className="text-gray-500 shrink-0" />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Categoría
                   </label>
-                  <div className="relative">
-                    <select value={categoriaId} onChange={e => setCategoriaId(e.target.value)}
-                      data-field="categoria"
-                      className="w-full h-7 px-1.5 pr-7 border border-gray-200 rounded-md text-sm bg-white outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300">
-                      <option value="">Sin categoría</option>
-                      {categorias.map(c => (
-                        <option key={c.id} value={c.id}>{c.descripcion}</option>
-                      ))}
-                    </select>
-                    <button type="button"
-                      onClick={() => setShowNuevaCategoria(true)}
-                      tabIndex={-1}
-                      className="absolute right-0 top-0 h-full w-6 flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-r-md transition-colors"
-                      title="Nueva categoría">
-                      <Plus size={13} strokeWidth={2.5} />
-                    </button>
-                  </div>
+                  <SelectAltaCruzada
+                    value={categoriaId}
+                    onChange={setCategoriaId}
+                    options={categorias.map(c => ({ value: String(c.id), label: c.descripcion }))}
+                    placeholder="Sin categoría"
+                    onCreate={() => setShowNuevaCategoria(true)}
+                    createTitle="Nueva categoría"
+                    dataField="categoria"
+                  />
                 </div>
               </div>
 
               {/* Fila 2: Unidad de medida + Contenido */}
               <div className={`grid ${esPesable ? 'grid-cols-1' : 'grid-cols-2'} gap-1.5 mt-1.5`}>
                 <div>
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-1 ${esPesable ? 'text-gray-400' : 'text-gray-800'}`}>
-                    <Scale size={13} className={`shrink-0 ${esPesable ? 'text-gray-300' : 'text-gray-500'}`} />
+                  <label className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${esPesable ? 'text-gray-400' : 'text-gray-700'}`}>
                     Unidad de medida{esPesable ? ' (KG)' : esBulto ? ' (UNIDAD)' : ''}
                   </label>
-                  <div className="relative">
-                  <select value={unidadEfectiva} onChange={e => setUnidadMedidaId(e.target.value)}
+                  <SelectAltaCruzada
+                    value={unidadEfectiva}
+                    onChange={setUnidadMedidaId}
+                    options={esPesable || esBulto
+                      ? [{ value: esPesable ? '2' : '1', label: esPesable ? 'KG - kilogramo' : 'Unidad - unidades' }]
+                      : unidades.map(u => ({ value: String(u.id), label: `${u.codigo} - ${u.descripcion}` }))}
+                    placeholder={esPesable || esBulto ? undefined : 'Sin unidad'}
                     disabled={esPesable || esBulto}
-                    data-field="unidadMedida"
-                    className={`w-full h-7 px-1.5 pr-7 border rounded-md text-sm outline-none transition-all duration-150 ${
-                      esPesable
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
-                        : esBulto
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
-                        : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300'
-                    }`}>
-                    {esPesable ? (
-                      <option value="2">KG - kilogramo</option>
-                    ) : esBulto ? (
-                      <option value="1">Unidad - unidades</option>
-                    ) : (
-                      <>
-                        <option value="">Sin unidad</option>
-                        {unidades.map(u => (
-                          <option key={u.id} value={u.id}>{u.codigo} - {u.descripcion}</option>
-                        ))}
-                      </>
-                    )}
-                  </select>
-                  {!esPesable && (
-                    <button type="button"
-                      onClick={() => setShowNuevaUnidad(true)}
-                      tabIndex={-1}
-                      className="absolute right-0 top-0 h-full w-6 flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-r-md transition-colors"
-                      title="Nueva unidad de medida">
-                      <Plus size={13} strokeWidth={2.5} />
-                    </button>
-                  )}
-                  </div>
+                    showCreate={!esPesable}
+                    onCreate={() => setShowNuevaUnidad(true)}
+                    createTitle="Nueva unidad de medida"
+                    dataField="unidadMedida"
+                  />
                 </div>
                 {!esPesable && (
                   <div>
-                    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                      <Ruler size={13} className="text-gray-500 shrink-0" />
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                       Contenido
                     </label>
                     <input type="number" step="0.01" value={contenido} onChange={e => setContenido(e.target.value)}
                       data-field="contenido"
-                      className="w-full h-7 px-1.5 border border-gray-200 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300"
+                      className="w-full h-7 px-1.5 border border-gray-300 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
                       placeholder="ej: 1750" />
                   </div>
                 )}
               </div>
-            </DialogSection>
+            </FieldSection>
 
             {/* ── 3. OBSERVACIONES — ocupa el espacio restante ── */}
-            <DialogSection icon={<FileText size={16} />} title="OBSERVACIONES" className="flex-1 flex flex-col">
+            <FieldSection title="Observaciones" className="flex-1 flex flex-col">
               <div className="flex-1 flex">
                 <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)}
                   data-field="descripcion"
-                  rows={2}
-                  className="w-full resize-none px-1.5 py-1 border border-gray-200 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 placeholder:text-gray-300"
+                  rows={3}
+                  className="w-full resize-none px-1.5 py-1 border border-gray-300 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400 placeholder:text-gray-300"
                   placeholder="Ej: lote 2024, fecha de vencimiento, observaciones (opcional)" />
               </div>
-            </DialogSection>
+            </FieldSection>
           </div>
 
           {/* ══════ COLUMNA DERECHA ══════ */}
-          <div className="flex-[3] min-w-0 flex flex-col gap-2">
+          <div className="flex-[3] min-w-0 flex flex-col gap-3">
 
             {/* ── 4. PRECIOS Y GANANCIA (o Producto unidad si es bulto) ── */}
             {esBulto ? (
-              <div className="border rounded-xl bg-white overflow-hidden" style={{ borderColor: 'var(--color-primary-ring)' }}>
-                <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary-hover)' }}>
-                  <Package size={16} className="shrink-0 text-white" />
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-white">Producto unidad del bulto</h3>
-                </div>
-                <div className="p-2.5">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 uppercase tracking-wider mb-1">
-                    <Package size={13} className="text-gray-500 shrink-0" />
-                    Seleccionar producto
-                  </label>
-                  <select value={productoBultoId} onChange={e => setProductoBultoId(e.target.value)}
-                    data-field="productoBulto"
-                    className="w-full h-10 px-2 border border-gray-200 rounded-md text-sm bg-white outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300">
-                    <option value="">Seleccionar producto...</option>
-                    {productosBulto.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre}{p.marca ? ` (${p.marca})` : ''}</option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-gray-400 mt-2">El producto unidad representa lo que contiene cada bulto (ej: 1 vino dentro de una caja de 6).</p>
-                </div>
-              </div>
+              <FieldSection title="Producto unidad del bulto">
+                <select value={productoBultoId} onChange={e => setProductoBultoId(e.target.value)}
+                  data-field="productoBulto"
+                  className="w-full h-9 px-2 border border-gray-300 rounded-md text-sm bg-white outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400">
+                  <option value="">Seleccionar producto...</option>
+                  {productosBulto.map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre}{p.marca ? ` (${p.marca})` : ''}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1.5">El producto unidad representa lo que contiene cada bulto (ej: 1 vino dentro de una caja de 6).</p>
+              </FieldSection>
             ) : (
-            <div className="border rounded-xl shadow-[var(--shadow-glow)] bg-white overflow-hidden" style={{ borderColor: 'var(--color-primary-ring)' }}>
-              <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary-hover)' }}>
-                <DollarSign size={16} className="shrink-0 text-white" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Precios y ganancia</h3>
-              </div>
-              <div className="p-2.5 flex flex-col gap-0">
-                {/* Costo */}
-                <div>
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold ${esBulto ? 'text-gray-300' : 'text-gray-500'}`}>
-                    <DollarSign size={13} className={esBulto ? 'text-gray-300' : 'text-gray-400'} />
-                    {esPesable ? 'Costo por kg' : 'Costo'}
-                  </label>
-                  <div className="relative mt-0.5">
-                    <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
-                      data-field="costo"
-                      disabled={esBulto}
-                      className="w-full h-7 px-2 pl-5 border border-gray-200 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:bg-gray-100 disabled:text-gray-400"
-                      placeholder={esBulto ? '—' : '0.00'} />
+              <FieldSection title="Precios">
+                {/* Costo + Margen */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <label className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${esBulto ? 'text-gray-400' : 'text-gray-700'}`}>
+                      {esPesable ? 'Costo por kg' : 'Costo'}
+                    </label>
+                    <div className="relative">
+                      <input type="number" step="0.01" min="0" value={costo} onChange={e => setCosto(e.target.value)}
+                        data-field="costo"
+                        disabled={esBulto}
+                        className="w-full h-7 px-2 border border-gray-300 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:bg-gray-100 disabled:text-gray-400"
+                        placeholder={esBulto ? '—' : '0.00'} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                      Margen
+                    </label>
+                    <div className="relative">
+                      <input type="number" step="0.01" min="0" value={margen} onChange={e => setMargen(e.target.value)}
+                        data-field="margen"
+                        className="w-full h-7 px-2 pr-7 border border-gray-300 rounded-md text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="Auto" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">%</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Flecha ↓ */}
-                <div className="flex justify-center py-[3px]">
-                  <ChevronDown size={13} className="text-gray-300" strokeWidth={2} />
-                </div>
-
-                {/* Margen */}
-                <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                    <Percent size={13} className="text-gray-400" />
-                    Margen
-                  </label>
-                  <div className="relative mt-0.5">
-                    <input type="number" step="0.01" min="0" value={margen} onChange={e => setMargen(e.target.value)}
-                      data-field="margen"
-                      className="w-full h-7 px-2 pr-7 border border-gray-200 rounded-lg text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      placeholder="Auto" />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">%</span>
-                  </div>
-                </div>
-
-                {/* Separador */}
-                <div className="border-t my-2" style={{ borderColor: 'var(--color-primary-ring)' }} />
-
-                {/* PRECIO DE VENTA — KPI */}
-                <div>
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${esBulto ? 'text-gray-300' : 'text-gray-400'}`}>
-                    <Receipt size={13} className={esBulto ? 'text-gray-300' : 'text-gray-300'} />
+                {/* PRECIO DE VENTA — focal */}
+                <div className="mt-2.5">
+                  <label className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${esBulto ? 'text-gray-400' : 'text-gray-700'}`}>
                     Precio de venta
                   </label>
-                  <div className="relative mt-0.5">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl text-gray-300 select-none font-light">$</span>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl text-gray-300 select-none font-light">$</span>
                     <input type="number" step="0.01" min="0" value={precio} onChange={e => setPrecio(e.target.value)}
                       data-field="precio"
                       disabled={esBulto}
-                      className={`w-full h-14 pl-11 pr-3 rounded-xl text-5xl font-bold outline-none transition-all duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none caret-[var(--color-primary)] disabled:bg-gray-100 disabled:text-gray-400 ${
+                      className={`w-full h-12 pl-9 pr-3 rounded-xl text-3xl font-bold outline-none transition-all duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none caret-[var(--color-primary)] disabled:bg-gray-100 disabled:text-gray-400 ${
                         esBulto
-                          ? 'text-gray-400 bg-gray-100'
+                          ? 'text-gray-400 bg-gray-100 border border-gray-200'
                           : precioInferiorCosto
-                            ? 'text-red-700 bg-red-50/50 focus:ring-2 focus:ring-red-500/20 focus:bg-red-50'
-                            : 'text-gray-900 bg-transparent focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:bg-white hover:bg-[var(--color-primary-light)]'
+                            ? 'text-red-700 bg-red-50/50 border border-red-300 focus:ring-2 focus:ring-red-500/20 focus:bg-red-50'
+                            : 'text-gray-900 bg-white border border-gray-300 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] focus:bg-white hover:border-gray-400'
                       }`}
                       placeholder={esBulto ? '—' : '0,00'} />
                     {precioInferiorCosto && !esBulto && (
@@ -875,60 +818,47 @@ export default function ProductFormModal({
                   </div>
                 </div>
 
-                {/* Separador */}
-                <div className="border-t my-2" style={{ borderColor: 'var(--color-primary-ring)' }} />
-
                 {/* Ganancia estimada */}
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <TrendingUp size={13} className="text-emerald-500" />
-                    <span className="text-xs font-medium text-gray-500">Ganancia estimada</span>
-                  </span>
+                <div className="flex items-center justify-between mt-2.5">
+                  <span className="text-[11px] font-medium text-gray-500">Ganancia estimada</span>
                   <span className={`text-sm font-bold ${gananciaEstimada > 0 ? 'text-emerald-600' : gananciaEstimada < 0 ? 'text-red-500' : 'text-gray-400'}`}>
                     ${gananciaEstimada > 0 ? gananciaEstimada.toFixed(2) : gananciaEstimada < 0 ? gananciaEstimada.toFixed(2) : '0.00'}
                   </span>
                 </div>
-              </div>
-            </div>
+              </FieldSection>
             )}
 
             {/* ── 5. INVENTARIO ── */}
-            <div className="border border-gray-200/60 rounded-xl bg-white shadow-[var(--shadow-card)] overflow-hidden">
-              <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary-hover)' }}>
-                <Package size={16} className="shrink-0 text-white" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Inventario</h3>
+            <FieldSection title="Inventario">
+              <div className="flex items-center gap-2">
+                <label className={`flex items-center gap-1.5 select-none group ${esBulto ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={seguirStock}
+                    onChange={e => setSeguirStock(e.target.checked)}
+                    data-field="seguirStock"
+                    disabled={esBulto}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
+                  />
+                  <span className={`text-sm font-medium transition-colors ${esBulto ? 'text-gray-400' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Controlar inventario</span>
+                </label>
+                <span className="text-[11px] text-gray-400 font-normal">— descuenta stock</span>
               </div>
-              <div className="p-2 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <label className={`flex items-center gap-1.5 select-none group ${esBulto ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                    <input
-                      type="checkbox"
-                      checked={seguirStock}
-                      onChange={e => setSeguirStock(e.target.checked)}
-                      data-field="seguirStock"
-                      disabled={esBulto}
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
-                    />
-                    <span className={`text-[15px] font-semibold transition-colors ${esBulto ? 'text-gray-400' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Controlar inventario</span>
-                  </label>
-                  <span className="text-[10px] text-gray-400 font-normal">— descuenta stock</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[15px] font-semibold whitespace-nowrap ${esBulto ? 'text-gray-400' : 'text-gray-800'}`}>
-                    {isEditing ? 'Stock' : 'Stock inicial'}{esPesable ? ' (kg)' : ''}
-                  </span>
-                  <input type="number" min="0" step="1" value={(seguirStock && !esBulto) ? stock : ''} onChange={e => setStock(e.target.value)}
-                    disabled={!seguirStock || esBulto}
-                    data-field="stock"
-                    className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none flex-1 h-7 px-1.5 border rounded-md text-sm outline-none transition-all duration-150 ${
-                      (!seguirStock || esBulto)
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                        : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-300'
-                    }`}
-                    placeholder={seguirStock ? '0' : 'Sin control'} />
-                </div>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className={`text-sm font-medium whitespace-nowrap ${esBulto ? 'text-gray-400' : 'text-gray-800'}`}>
+                  {isEditing ? 'Stock' : 'Stock inicial'}{esPesable ? ' (kg)' : ''}
+                </span>
+                <input type="number" min="0" step="1" value={(seguirStock && !esBulto) ? stock : ''} onChange={e => setStock(e.target.value)}
+                  disabled={!seguirStock || esBulto}
+                  data-field="stock"
+                  className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none flex-1 h-7 px-1.5 border rounded-md text-sm outline-none transition-all duration-150 ${
+                    (!seguirStock || esBulto)
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                      : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400'
+                  }`}
+                  placeholder={seguirStock ? '0' : 'Sin control'} />
               </div>
-            </div>
+            </FieldSection>
           </div>
         </div>
       </form>
@@ -959,7 +889,7 @@ export default function ProductFormModal({
       <input type="text" value={nuevaCategoriaDesc}
         onChange={e => setNuevaCategoriaDesc(e.target.value.toUpperCase())}
         onKeyDown={e => { if (e.key === 'Enter' && nuevaCategoriaDesc.trim()) handleCrearCategoria() }}
-        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase placeholder:normal-case"
+        className="w-full h-9 px-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase placeholder:normal-case"
         placeholder="Ej: LÁCTEOS" autoFocus />
     </Dialog>
 
@@ -989,7 +919,7 @@ export default function ProductFormModal({
           <label className="block text-xs font-semibold text-gray-700 mb-1">Código</label>
           <input type="text" value={nuevaUnidadCodigo}
             onChange={e => setNuevaUnidadCodigo(e.target.value.toUpperCase())}
-            className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase placeholder:normal-case"
+            className="w-full h-9 px-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase placeholder:normal-case"
             placeholder="Ej: L" autoFocus />
         </div>
         <div>
@@ -997,7 +927,7 @@ export default function ProductFormModal({
           <input type="text" value={nuevaUnidadDesc}
             onChange={e => setNuevaUnidadDesc(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && nuevaUnidadDesc.trim()) handleCrearUnidad() }}
-            className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            className="w-full h-9 px-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             placeholder="Ej: Litro" />
         </div>
       </div>

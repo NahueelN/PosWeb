@@ -6,3 +6,4 @@
 | ID | Name | Status | Level | Priority | Path |
 |----|------|--------|-------|----------|------|
 | STAND-pr-narrative | Preservación de Narrativa de Desarrollo | Active | Project | High | `standards/STAND-pr-narrative.md` |
+| STAND-ui-labels | Consistencia de Labels de Controles | Active | Project | Medium | `standards/STAND-ui-labels.md` |

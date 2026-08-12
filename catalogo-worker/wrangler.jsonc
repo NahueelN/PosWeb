@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "posweb-catalogo",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "CATALOGO_DB",
+      "database_name": "posweb-catalogo",
+      "database_id": "5ecce10e-bde9-409a-b030-8ce9a4665aaf",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

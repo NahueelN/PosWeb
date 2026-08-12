@@ -54,7 +54,9 @@ export default function ProductosPage() {
     )
   }, [productos, query])
 
-  useEffect(() => { listar() }, [sucursal?.id])
+  useEffect(() => {
+    if (sucursal?.id) listar()
+  }, [sucursal?.id])
 
   useEffect(() => {
     if (tab === 'actualizacion-masiva' && marcas.length === 0) {
@@ -63,13 +65,17 @@ export default function ProductosPage() {
     }
   }, [tab])
 
+  const fetchIdRef = useRef(0)
+
   async function listar() {
+    const id = ++fetchIdRef.current
     setLoading(true)
     setError('')
     try {
-      setProductos(await api.productos.listar(sucursal?.id))
-    } catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
+      const data = await api.productos.listar(sucursal?.id)
+      if (id === fetchIdRef.current) setProductos(data)
+    } catch (e: any) { if (id === fetchIdRef.current) setError(e.message) }
+    finally { if (id === fetchIdRef.current) setLoading(false) }
   }
 
   function handleProductCreated(product: ProductoDto) {

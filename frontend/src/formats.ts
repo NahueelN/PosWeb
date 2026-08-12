@@ -1,5 +1,10 @@
-export function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export function formatCurrency(n: number | undefined | null): string {
+  const val = n ?? 0
+  return '$' + val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 }
 
 export function formatDate(iso: string): string {

@@ -1,5 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.MercadoPago;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Contracts;
@@ -25,7 +29,21 @@ public class VentaServiceTest
     private static VentaService CrearService(PosDbContextLocal context)
     {
         StockSucursalService stockService = new StockSucursalService(context);
-        return new VentaService(context, stockService);
+        return new VentaService(context, stockService, CrearMercadoPagoService(context));
+    }
+
+    private static MercadoPagoService CrearMercadoPagoService(PosDbContextLocal context)
+    {
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+        TokenEncryptionService encryption = new TokenEncryptionService(Convert.ToBase64String(new byte[32]));
+        return new MercadoPagoService(context, encryption, new StubHttpClientFactory(), config, NullLogger<MercadoPagoService>.Instance);
+    }
+
+    private sealed class StubHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new();
     }
 
     private static void AgregarSucursal(
@@ -133,7 +151,7 @@ public class VentaServiceTest
     }
 
     [Fact]
-    public void CrearVenta_Valida_CreaVentaCorrectamente()
+    public async Task CrearVenta_Valida_CreaVentaCorrectamente()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -149,7 +167,7 @@ public class VentaServiceTest
             new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 200 } }
         );
 
-        VentaResultadoDto resultado = service.CrearVenta(dto);
+        VentaResultadoDto resultado = await service.CrearVenta(dto);
 
         Assert.Equal(200m, resultado.Total);
         Assert.Single(context.Venta);
@@ -157,7 +175,7 @@ public class VentaServiceTest
     }
 
     [Fact]
-    public void CrearVenta_SinItems_LanzaExcepcion()
+    public async Task CrearVenta_SinItems_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -168,14 +186,14 @@ public class VentaServiceTest
             Items = new List<VentaItemDto>()
         };
 
-        Assert.Throws<VentaSinItemsException>(() =>
+        await Assert.ThrowsAsync<VentaSinItemsException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_SucursalNoExiste_LanzaExcepcion()
+    public async Task CrearVenta_SucursalNoExiste_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -185,14 +203,14 @@ public class VentaServiceTest
             new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } }
         );
 
-        Assert.Throws<SucursalNoExisteException>(() =>
+        await Assert.ThrowsAsync<SucursalNoExisteException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_SucursalInactiva_LanzaExcepcion()
+    public async Task CrearVenta_SucursalInactiva_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -204,14 +222,14 @@ public class VentaServiceTest
             new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } }
         );
 
-        Assert.Throws<SucursalInactivaException>(() =>
+        await Assert.ThrowsAsync<SucursalInactivaException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_ProductoNoExiste_LanzaExcepcion()
+    public async Task CrearVenta_ProductoNoExiste_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -225,14 +243,14 @@ public class VentaServiceTest
             new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 100 } }
         );
 
-        Assert.Throws<ProductoNoExisteException>(() =>
+        await Assert.ThrowsAsync<ProductoNoExisteException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_ProductoInactivo_LanzaExcepcion()
+    public async Task CrearVenta_ProductoInactivo_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -247,14 +265,14 @@ public class VentaServiceTest
             new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 100 } }
         );
 
-        Assert.Throws<ProductoInactivoException>(() =>
+        await Assert.ThrowsAsync<ProductoInactivoException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_StockSucursalInsuficiente_LanzaExcepcion()
+    public async Task CrearVenta_StockSucursalInsuficiente_LanzaExcepcion()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -271,14 +289,14 @@ public class VentaServiceTest
             new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 500 } }
         );
 
-        Assert.Throws<StockSucursalInsuficienteException>(() =>
+        await Assert.ThrowsAsync<StockSucursalInsuficienteException>(() =>
         {
-            service.CrearVenta(dto);
+            return service.CrearVenta(dto);
         });
     }
 
     [Fact]
-    public void CrearVenta_DescuentaStockSucursalCorrectamente()
+    public async Task CrearVenta_DescuentaStockSucursalCorrectamente()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -294,7 +312,7 @@ public class VentaServiceTest
             new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 300 } }
         );
 
-        service.CrearVenta(dto);
+        await service.CrearVenta(dto);
 
         StockSucursal stockSuc = context.StockSucursal.First();
 

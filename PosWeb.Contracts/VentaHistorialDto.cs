@@ -9,9 +9,15 @@ public class VentaHistorialDto
     public decimal Total { get; set; }
     public int CantidadItems { get; set; }
     public bool Anulada { get; set; }
+    public string Estado { get; set; } = string.Empty;
 }
 
 public class DeshacerVentaRequest
 {
     public bool ConDevolucion { get; set; }
+}
+
+public class CancelarPendienteRequest
+{
+    public bool EsTimeout { get; set; }
 }

@@ -80,18 +80,72 @@ public class Pedido
 
     public void Cancelar()
     {
-        if (ESTADO != "Pendiente")
-            throw new InvalidOperationException("Solo se pueden cancelar pedidos pendientes");
-
+        AsegurarPendiente();
         ESTADO = "Cancelado";
     }
 
     public void Completar()
     {
-        if (ESTADO != "Pendiente")
-            throw new InvalidOperationException("Solo se pueden completar pedidos pendientes");
-
+        AsegurarPendiente();
         ESTADO = "Completado";
+    }
+
+    public void CambiarProveedor(int idProveedor)
+    {
+        if (idProveedor <= 0)
+            throw new ArgumentException("Proveedor inválido", nameof(idProveedor));
+        AsegurarPendiente();
+        ID_PROVEEDOR = idProveedor;
+    }
+
+    public void CambiarFechaEsperada(DateTime? fechaEsperada)
+    {
+        AsegurarPendiente();
+        FECHA_ESPERADA = fechaEsperada;
+    }
+
+    public void SetObservaciones(string? observaciones)
+    {
+        AsegurarPendiente();
+        OBSERVACIONES = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim();
+    }
+
+    public void ReemplazarRenglones(IEnumerable<(int productoId, decimal cantidad, decimal precioUnitarioEstimado, string? descripcion)> items)
+    {
+        AsegurarPendiente();
+        _RENGLONES.Clear();
+        foreach (var item in items)
+        {
+            AgregarRenglon(item.productoId, item.cantidad, item.precioUnitarioEstimado, item.descripcion);
+        }
+        RecalcularTotal();
+    }
+
+    public void ModificarRenglon(int idRenglonPedido, decimal cantidad, decimal precioUnitarioEstimado)
+    {
+        AsegurarPendiente();
+        RenglonPedido? renglon = _RENGLONES.FirstOrDefault(r => r.ID_RENGLON_PEDIDO == idRenglonPedido);
+        if (renglon == null)
+            throw new ArgumentException("Renglón no encontrado", nameof(idRenglonPedido));
+        renglon.Modificar(cantidad, precioUnitarioEstimado);
+        RecalcularTotal();
+    }
+
+    public void QuitarRenglon(int idRenglonPedido)
+    {
+        AsegurarPendiente();
+        RenglonPedido? renglon = _RENGLONES.FirstOrDefault(r => r.ID_RENGLON_PEDIDO == idRenglonPedido);
+        if (renglon != null)
+        {
+            _RENGLONES.Remove(renglon);
+            RecalcularTotal();
+        }
+    }
+
+    private void AsegurarPendiente()
+    {
+        if (ESTADO != "Pendiente")
+            throw new InvalidOperationException("Solo se pueden editar pedidos pendientes");
     }
 
     private void RecalcularTotal()

@@ -6,7 +6,7 @@
 
 # 
 
-# 1\. Read `docs/PROJECT\_COMPANION\_AGENT.md`.
+# 1\. Read `docs/PROJECT_KNOWLEDGE_SYSTEM.md`.
 
 # 2\. Follow its execution model.
 

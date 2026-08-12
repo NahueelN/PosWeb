@@ -9,12 +9,14 @@ using PosWeb.Application.CategoriasGasto;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
+using PosWeb.Application.Dashboard;
 using PosWeb.Application.Estadisticas;
 using PosWeb.Application.Gastos;
 using PosWeb.Application.Pedidos;
 using PosWeb.Application.Proveedores;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.OpenFoodFacts;
+using PosWeb.Application.Catalogo;
 using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
@@ -22,6 +24,7 @@ using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.MercadoPago;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -29,6 +32,15 @@ using System.Security.Claims;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var embeddedJson = typeof(Program).Assembly.GetManifestResourceStream("PosWeb.appsettings.json");
+if (embeddedJson != null)
+{
+    var buf = new byte[embeddedJson.Length];
+    embeddedJson.ReadExactly(buf);
+    builder.Configuration.AddJsonStream(new MemoryStream(buf));
+}
+
 builder.WebHost.UseUrls("http://localhost:5196");
 
 builder.Host.UseSerilog((context, services, configuration) =>
@@ -108,6 +120,9 @@ builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<DeudaService>();
 builder.Services.AddScoped<GastoService>();
 builder.Services.AddScoped<EstadisticasService>();
+builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<PosWeb.Analytics.AnalyticsDashboardService>();
+builder.Services.AddScoped<PosWeb.Analytics.DashboardBuilderService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
 builder.Services.AddScoped<OfertaService>();
@@ -122,12 +137,34 @@ builder.Services.AddSingleton<IEncryptionService>(sp =>
 });
 builder.Services.AddScoped<LicenciaService>();
 
-// Open Food Facts � optional barcode lookup
+// MercadoPago
+var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
+    ?? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("PosWeb_MP_EncryptKey_32bytes_OK!"));
+builder.Services.AddSingleton(new TokenEncryptionService(mpEncryptionKey));
+builder.Services.AddScoped<MercadoPagoService>();
+builder.Services.AddHostedService<TransferenciaPollingService>();
+
+// Open Food Facts — optional barcode lookup
 builder.Services.AddHttpClient<OpenFoodFactsService>(client =>
 {
     client.BaseAddress = new Uri("https://world.openfoodfacts.org/");
     client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
     client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+// Catálogo cloud – centralised product lookup & upload
+builder.Services.AddHttpClient<CatalogoService>(client =>
+{
+    var workerUrl = builder.Configuration["Catalogo:WorkerUrl"] ?? "https://posweb-catalogo.chiacchio-eze01.workers.dev";
+    client.BaseAddress = new Uri(workerUrl);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddHttpClient("MercadoPago", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PosWeb/1.0");
+    client.Timeout = TimeSpan.FromSeconds(15);
 });
 
 // HTTP context for user tracking

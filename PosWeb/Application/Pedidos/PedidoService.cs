@@ -57,7 +57,7 @@ public class PedidoService
 
         _context.SaveChanges();
 
-        return MapToDetail(pedido, proveedor.NOMBRE);
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
     }
 
     public PedidoDetailDto RecibirPedido(int pedidoId, RecibirPedidoRequestDto request, int userId)
@@ -209,7 +209,7 @@ public class PedidoService
         pedido.Completar();
         _context.SaveChanges();
 
-        return MapToDetail(pedido, proveedor.NOMBRE);
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
     }
 
     public List<PedidoListDto> Listar(string? proveedorSearch = null, string? estado = null)
@@ -261,7 +261,7 @@ public class PedidoService
             throw new ArgumentException("Pedido no encontrado");
 
         Proveedor? proveedor = _context.Proveedor.Find(pedido.ID_PROVEEDOR);
-        return MapToDetail(pedido, proveedor?.NOMBRE ?? "—");
+        return MapToDetail(pedido, proveedor?.NOMBRE ?? "—", proveedor?.TELEFONO);
     }
 
     public void Cancelar(int pedidoId)
@@ -274,12 +274,58 @@ public class PedidoService
         _context.SaveChanges();
     }
 
-    private PedidoDetailDto MapToDetail(Pedido pedido, string proveedorNombre)
+    public PedidoDetailDto EditarPedido(int pedidoId, PedidoEditDto request, int userId)
+    {
+        if (request.Items.Count == 0)
+            throw new ArgumentException("El pedido debe tener al menos un producto");
+
+        Pedido? pedido = _context.Pedido
+            .Include(p => p.RENGLONES)
+            .FirstOrDefault(p => p.ID_PEDIDO == pedidoId);
+
+        if (pedido == null)
+            throw new ArgumentException("Pedido no encontrado");
+
+        Proveedor? proveedor = _context.Proveedor.Find(request.ProveedorId);
+        if (proveedor == null || !proveedor.ACTIVO)
+            throw new ProveedorNoEncontradoException(request.ProveedorId);
+
+        var nuevosItems = new List<(int productoId, decimal cantidad, decimal precioUnitarioEstimado, string? descripcion)>();
+
+        foreach (var item in request.Items)
+        {
+            if (item.ProductoId == 0)
+            {
+                if (string.IsNullOrWhiteSpace(item.Descripcion))
+                    throw new ArgumentException("La descripción es obligatoria para productos sin código");
+            }
+            else
+            {
+                Producto? producto = _context.Producto.Find(item.ProductoId);
+                if (producto == null || !producto.ACTIVO)
+                    throw new ProductoNoEncontradoException(item.ProductoId);
+            }
+
+            nuevosItems.Add((item.ProductoId, item.Cantidad, item.PrecioUnitarioEstimado, item.Descripcion));
+        }
+
+        pedido.CambiarProveedor(request.ProveedorId);
+        pedido.CambiarFechaEsperada(request.FechaEsperada);
+        pedido.SetObservaciones(request.Observaciones);
+        pedido.ReemplazarRenglones(nuevosItems);
+
+        _context.SaveChanges();
+
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
+    }
+
+    private PedidoDetailDto MapToDetail(Pedido pedido, string proveedorNombre, string? proveedorTelefono = null)
     {
         return new PedidoDetailDto
         {
             Id = pedido.ID_PEDIDO,
             ProveedorNombre = proveedorNombre,
+            ProveedorTelefono = proveedorTelefono,
             Fecha = pedido.FECHA_PEDIDO,
             FechaEsperada = pedido.FECHA_ESPERADA,
             Total = pedido.TOTAL,

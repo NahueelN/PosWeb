@@ -279,6 +279,16 @@ public partial class PosDbContext
             entity.Property(v => v.ANULADA)
                 .HasColumnName("ANULADA");
 
+            entity.Property(v => v.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired()
+                .HasDefaultValue("Completada");
+
+            entity.Property(v => v.REFERENCIA_MP)
+                .HasColumnName("REFERENCIA_MP")
+                .HasMaxLength(100);
+
             entity.Navigation(v => v.RENGLONES)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
 
@@ -764,6 +774,31 @@ public partial class PosDbContext
             entity.Property(s => s.MERCADOPAGO_PREAPPROVAL_ID)
                 .HasColumnName("MERCADOPAGO_PREAPPROVAL_ID")
                 .HasMaxLength(100);
+
+            entity.Property(s => s.MP_ACCESS_TOKEN)
+                .HasColumnName("MP_ACCESS_TOKEN");
+
+            entity.Property(s => s.MP_REFRESH_TOKEN)
+                .HasColumnName("MP_REFRESH_TOKEN");
+
+            entity.Property(s => s.MP_USER_ID)
+                .HasColumnName("MP_USER_ID")
+                .HasMaxLength(50);
+
+            entity.Property(s => s.MP_VINCULADO)
+                .HasColumnName("MP_VINCULADO")
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            entity.Property(s => s.MP_FECHA_VINC)
+                .HasColumnName("MP_FECHA_VINC");
+
+            entity.Property(s => s.MP_POS_ID)
+                .HasColumnName("MP_POS_ID")
+                .HasMaxLength(50);
+
+            entity.Property(s => s.MP_QR_DATA)
+                .HasColumnName("MP_QR_DATA");
 
             entity.HasOne<Usuario>()
                 .WithMany()

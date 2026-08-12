@@ -1,0 +1,21 @@
+- generic [ref=e9]:
+  - generic [ref=e10]:
+    - generic [ref=e12]: KI
+    - heading "KIO" [level=1] [ref=e13]
+    - paragraph [ref=e14]: Iniciar sesión
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - button "Contraseña" [ref=e17]
+      - button "PIN" [ref=e18]
+    - generic [ref=e19]:
+      - generic [ref=e20]: Usuario
+      - textbox "Nombre de usuario" [ref=e21]: admin
+    - generic [ref=e22]:
+      - generic [ref=e23]: Contraseña
+      - textbox "••••••••" [ref=e24]: admin123
+    - generic [ref=e25]:
+      - generic [ref=e26]: Sucursal
+      - combobox [ref=e27]:
+        - option "Sucursal Central" [selected]
+    - button "Ingresar" [ref=e28]
+    - button "Registrarse" [ref=e29]

@@ -130,6 +130,8 @@ export interface VentaDto {
   pagos?: PagoVentaDto[]
   clienteId?: number
   allowSinStock?: boolean
+  esperarTransferencia?: boolean
+  pendienteMedioId?: number
 }
 
 export interface VentaResultadoDto {
@@ -139,6 +141,8 @@ export interface VentaResultadoDto {
   pagos: PagoVentaResultDto[]
   cambio: number
   empresaNombre?: string
+  estado?: string
+  qrData?: string | null
 }
 
 export interface StockSucursalDto {
@@ -164,6 +168,7 @@ export interface VentaHistorialDto {
   total: number
   cantidadItems: number
   anulada: boolean
+  estado?: string
 }
 
 export interface VentaDetalleDto {
@@ -392,6 +397,36 @@ export interface CompraItemDto {
    items: CompraItemResultDto[]
  }
 
+ export interface CompraHistorialDto {
+   compraId: number
+   numeroComprobante: number
+   fecha: string
+   sucursalNombre: string
+   proveedorNombre?: string
+   usuarioNombre?: string
+   total: number
+   cantidadItems: number
+ }
+
+ export interface CompraDetalleDto {
+   compraId: number
+   numeroComprobante: number
+   fecha: string
+   sucursalId: number
+   sucursalNombre: string
+   proveedorNombre?: string
+   total: number
+   items: RenglonHistorialDto[]
+ }
+
+ export interface CompraHistorialParams {
+   fechaDesde?: string
+   fechaHasta?: string
+   sucursalId?: number
+   page?: number
+   pageSize?: number
+ }
+
 export interface CajaDto {
   id: number
   sucursalId: number
@@ -499,6 +534,71 @@ export interface ProductoEstadisticaDto {
   subtotal: number
 }
 
+// --- Dashboard types ---
+export interface DashboardDto {
+  ventasHoy: number
+  cantidadVentasHoy: number
+  ticketPromedio: number
+  cajaActual: number
+  gananciaEstimada: number
+  variacionVentas: number | null
+  variacionCantidad: number | null
+  variacionTicket: number | null
+  variacionGanancia: number | null
+  cajaEstado: string
+  cajaMontoInicial: number
+  cajaFechaApertura?: string
+  metaDiaria: number
+  metaPorcentaje: number
+  productosVendidosHoy: number
+  clientesAtendidosHoy: number
+  ventasSemana: DiaVentaDto[]
+  topProductos: TopProductoDto[]
+  alertas: AlertasDto
+  ultimasVentas: UltimaVentaDto[]
+  actividadReciente: ActividadRecienteDto[]
+  sucursalNombre: string
+  usuarioNombre: string
+}
+
+export interface DiaVentaDto {
+  fecha: string
+  total: number
+}
+
+export interface TopProductoDto {
+  productoId: number
+  nombre: string
+  cantidad: number
+  subtotal: number
+}
+
+export interface AlertasDto {
+  stockBajo: number
+  deudasProveedor: number
+  deudasCliente: number
+  pedidosPendientes: number
+  comprasPendientes: number
+  cajaAbierta: boolean
+}
+
+export interface UltimaVentaDto {
+  ventaId: number
+  fecha: string
+  total: number
+  usuario?: string
+  productoPrincipal?: string
+  cantidadItems: number
+}
+
+export interface ActividadRecienteDto {
+  tipo: string
+  descripcion: string
+  fecha: string
+  usuario?: string
+  monto?: number
+}
+
 // --- Pedido types ---
 export interface PedidoListDto {
   id: number
@@ -513,6 +613,7 @@ export interface PedidoListDto {
 export interface PedidoDetailDto {
   id: number
   proveedorNombre: string
+  proveedorTelefono?: string
   fecha: string
   fechaEsperada?: string
   total: number
@@ -535,6 +636,13 @@ export interface PedidoItemDto {
 
 export interface PedidoRequestDto {
   sucursalId: number
+  proveedorId: number
+  items: PedidoItemRequestDto[]
+  fechaEsperada?: string
+  observaciones?: string
+}
+
+export interface PedidoEditDto {
   proveedorId: number
   items: PedidoItemRequestDto[]
   fechaEsperada?: string
@@ -659,4 +767,9 @@ export interface LicenciaResumen {
   activa: boolean
   plan: string
   daysRemaining: number | null
+}
+
+export interface MercadoPagoEstadoDto {
+  vinculado: boolean
+  nombreTitular?: string
 }

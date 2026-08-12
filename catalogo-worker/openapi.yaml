@@ -1,0 +1,296 @@
+openapi: 3.0.3
+info:
+  title: PosWeb - Catálogo de Productos
+  description: |
+    API cloud del catálogo compartido de productos de PosWeb.
+    Alojada en Cloudflare Workers con D1 como base de datos.
+
+    **Flujo**: cuando un cliente escanea un código de barras:
+    1. Busca en su DB local
+    2. Consulta esta API (`GET /productos/{barcode}`)
+    3. Si no existe, fallback a OpenFoodFacts
+    4. Al crear un producto nuevo, se sube automáticamente (`POST /productos`)
+  version: 1.0.0
+  contact:
+    name: PosWeb
+
+servers:
+  - url: https://posweb-catalogo.chiacchio-eze01.workers.dev
+    description: Producción
+
+paths:
+  /productos/{barcode}:
+    get:
+      summary: Buscar producto por código de barras
+      description: |
+        Busca un producto en el catálogo. Si existe, incrementa el contador de usos.
+      tags:
+        - Productos
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 48
+            pattern: '^[A-Za-z0-9]{1,48}$'
+          description: Código de barras del producto (ej. 7790895000782)
+          example: "7790895000782"
+      responses:
+        "200":
+          description: Resultado de la búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductoLookup"
+              examples:
+                encontrado:
+                  value:
+                    encontrado: true
+                    datos:
+                      codigoBarras: "7790895000782"
+                      descripcion: "Coca-Cola 500ml"
+                      marca: "Coca-Cola"
+                      contenido: 500
+                      unidad: "ML"
+                noEncontrado:
+                  value:
+                    encontrado: false
+        "400":
+          description: Formato de código de barras inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /productos:
+    get:
+      summary: Buscar productos por texto
+      description: Busca productos por nombre o marca (mínimo 2 caracteres). Máximo 20 resultados.
+      tags:
+        - Productos
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+          description: Texto de búsqueda (nombre o marca)
+          example: "coca"
+      responses:
+        "200":
+          description: Lista de productos encontrados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductoSearchResult"
+              example:
+                resultados:
+                  - codigoBarras: "7790895000782"
+                    descripcion: "Coca-Cola 500ml"
+                    marca: "Coca-Cola"
+                    contenido: 500
+                    unidad: "ML"
+
+    post:
+      summary: Agregar o actualizar producto
+      description: |
+        **Upsert**: si el código de barras ya existe, actualiza los datos.
+        Si no existe, lo crea.
+
+        Solo `codigo_barras` y `descripcion` son requeridos.
+      tags:
+        - Productos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductoInput"
+            examples:
+              completo:
+                value:
+                  codigo_barras: "7790895000782"
+                  descripcion: "Coca-Cola 500ml"
+                  marca: "Coca-Cola"
+                  contenido: 500
+                  unidad: "ML"
+              minimo:
+                value:
+                  codigo_barras: "7790895000782"
+                  descripcion: "Coca-Cola 500ml"
+      responses:
+        "201":
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductoCreado"
+        "200":
+          description: Producto actualizado (ya existía)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductoCreado"
+        "400":
+          description: Datos inválidos (falta codigo_barras, descripcion, o formato inválido)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /stats:
+    get:
+      summary: Estadísticas del catálogo
+      description: Total de productos y top 10 más usados.
+      tags:
+        - Estadísticas
+      responses:
+        "200":
+          description: Estadísticas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+              example:
+                total: 1542
+                top:
+                  - codigoBarras: "7790895000782"
+                    descripcion: "Coca-Cola 500ml"
+                    marca: "Coca-Cola"
+                    usos: 89
+                  - codigoBarras: "7794000597701"
+                    descripcion: "Fernet Branca 750ml"
+                    marca: "Fernet Branca"
+                    usos: 67
+
+  /health:
+    get:
+      summary: Health check
+      tags:
+        - Sistema
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    ProductoInput:
+      type: object
+      required:
+        - codigo_barras
+        - descripcion
+      properties:
+        codigo_barras:
+          type: string
+          maxLength: 48
+          pattern: '^[A-Za-z0-9]{1,48}$'
+          description: Código de barras del producto
+          example: "7790895000782"
+        descripcion:
+          type: string
+          description: Nombre descriptivo del producto
+          example: "Coca-Cola 500ml"
+        marca:
+          type: string
+          nullable: true
+          description: Marca del producto
+          example: "Coca-Cola"
+        contenido:
+          type: number
+          nullable: true
+          description: Cantidad (ej. 500, 1.5)
+          example: 500
+        unidad:
+          type: string
+          nullable: true
+          description: Unidad de medida (ML, GR, L, KILO, UNIDAD, PACK)
+          example: "ML"
+
+    ProductoData:
+      type: object
+      properties:
+        codigoBarras:
+          type: string
+        descripcion:
+          type: string
+        marca:
+          type: string
+          nullable: true
+        contenido:
+          type: number
+          nullable: true
+        unidad:
+          type: string
+          nullable: true
+
+    ProductoLookup:
+      type: object
+      properties:
+        encontrado:
+          type: boolean
+        datos:
+          $ref: "#/components/schemas/ProductoData"
+
+    ProductoSearchResult:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductoData"
+
+    ProductoCreado:
+      type: object
+      properties:
+        creado:
+          type: boolean
+          description: true si fue creado, false si ya existía y se actualizó
+        codigo_barras:
+          type: string
+
+    Stats:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total de productos en el catálogo
+        top:
+          type: array
+          items:
+            type: object
+            properties:
+              codigoBarras:
+                type: string
+              descripcion:
+                type: string
+              marca:
+                type: string
+                nullable: true
+              usos:
+                type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+tags:
+  - name: Productos
+    description: Alta, búsqueda y consulta de productos
+  - name: Estadísticas
+    description: Métricas del catálogo
+  - name: Sistema
+    description: Health check y estado

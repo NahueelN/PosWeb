@@ -15,6 +15,7 @@ public class PedidoDetailDto
 {
     public int Id { get; set; }
     public string ProveedorNombre { get; set; } = null!;
+    public string? ProveedorTelefono { get; set; }
     public DateTime Fecha { get; set; }
     public DateTime? FechaEsperada { get; set; }
     public decimal Total { get; set; }
@@ -39,6 +40,14 @@ public class PedidoItemDetailDto
 public class PedidoRequestDto
 {
     public int SucursalId { get; set; }
+    public int ProveedorId { get; set; }
+    public List<PedidoItemRequestDto> Items { get; set; } = new();
+    public DateTime? FechaEsperada { get; set; }
+    public string? Observaciones { get; set; }
+}
+
+public class PedidoEditDto
+{
     public int ProveedorId { get; set; }
     public List<PedidoItemRequestDto> Items { get; set; } = new();
     public DateTime? FechaEsperada { get; set; }
