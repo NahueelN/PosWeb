@@ -54,6 +54,13 @@ public class RenglonPedido
         ESTADO = "Faltante";
     }
 
+    public void Modificar(decimal cantidad, decimal precioUnitarioEstimado)
+    {
+        CANTIDAD_PEDIDA = SetCantidad(cantidad);
+        PRECIO_UNITARIO_ESTIMADO = SetPrecioUnitario(precioUnitarioEstimado);
+        SUBTOTAL = cantidad * precioUnitarioEstimado;
+    }
+
     private static int? SetProductoId(int productoId, string? descripcion)
     {
         if (productoId == 0 && !string.IsNullOrWhiteSpace(descripcion))

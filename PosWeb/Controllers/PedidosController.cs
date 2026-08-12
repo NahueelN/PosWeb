@@ -120,6 +120,33 @@ public class PedidosController : ControllerBase
         }
     }
 
+    [HttpPut("{id}")]
+    public ActionResult<PedidoDetailDto> Editar(int id, [FromBody] PedidoEditDto request)
+    {
+        try
+        {
+            int userId = GetUserId();
+            PedidoDetailDto result = _pedidoService.EditarPedido(id, request, userId);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ProveedorNoEncontradoException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ProductoNoEncontradoException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     private int GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
