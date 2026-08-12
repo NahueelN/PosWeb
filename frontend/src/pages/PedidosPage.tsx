@@ -454,10 +454,15 @@ export default function PedidosPage() {
               ))}</tbody>
             </table>
             <div className="mt-4 flex gap-2">
-              {detalleModal.proveedorTelefono && (
+              {detalleModal.proveedorTelefono ? (
                 <button onClick={() => openWhatsApp(detalleModal)}
                   className="flex-1 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors">
                   Enviar por WhatsApp
+                </button>
+              ) : (
+                <button disabled
+                  className="flex-1 py-2 bg-gray-300 text-gray-500 font-medium rounded-lg cursor-not-allowed">
+                  El proveedor no tiene número registrado
                 </button>
               )}
               <button onClick={() => setDetalleModal(null)} className="flex-1 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
