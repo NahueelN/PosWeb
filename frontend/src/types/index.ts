@@ -613,6 +613,7 @@ export interface PedidoListDto {
 export interface PedidoDetailDto {
   id: number
   proveedorNombre: string
+  proveedorTelefono?: string
   fecha: string
   fechaEsperada?: string
   total: number
@@ -635,6 +636,13 @@ export interface PedidoItemDto {
 
 export interface PedidoRequestDto {
   sucursalId: number
+  proveedorId: number
+  items: PedidoItemRequestDto[]
+  fechaEsperada?: string
+  observaciones?: string
+}
+
+export interface PedidoEditDto {
   proveedorId: number
   items: PedidoItemRequestDto[]
   fechaEsperada?: string

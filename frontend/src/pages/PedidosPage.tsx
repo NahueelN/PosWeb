@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto } from '../types';
+import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import { formatCurrency } from '../formats';
 import Dialog from '../components/ui/Dialog';
+import PageShell from '../components/shared/PageShell';
+import { openWhatsApp } from '../lib/whatsapp';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -48,6 +50,7 @@ export default function PedidosPage() {
   const [createFechaEsperada, setCreateFechaEsperada] = useState('');
   const [createObs, setCreateObs] = useState('');
   const [creating, setCreating] = useState(false);
+  const [editingPedidoId, setEditingPedidoId] = useState<number | null>(null);
 
   // Reset inline add when proveedor changes
   useEffect(() => { setInlineAdd(null); setHighlightIdx(-1); gridFocusRef.current = false; }, [createProveedorId]);
@@ -150,6 +153,32 @@ export default function PedidosPage() {
     }
   };
 
+  const openEditar = async (id: number) => {
+    try {
+      const detail = await api.pedidos.obtener(id);
+      const proveedor = proveedores.find(p => p.nombre === detail.proveedorNombre);
+      setEditingPedidoId(id);
+      setCreateProveedorId(proveedor?.id ?? 0);
+      setCreateProveedorNombre(proveedor?.nombre ?? '');
+      setCreateProveedorSearch('');
+      setCreateItems(detail.items.map(i => ({
+        productoId: i.productoId,
+        productoNombre: i.productoNombre,
+        cantidad: i.cantidadPedida,
+        precioEstimado: i.precioUnitarioEstimado,
+      })));
+      setCreateFechaEsperada(detail.fechaEsperada ? detail.fechaEsperada.split('T')[0] : '');
+      setCreateObs('');
+      setCreateSearchQuery('');
+      setShowCreateModal(true);
+      setProdLoading(true);
+      api.productos.listar().then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); });
+      setTimeout(() => provInputRef.current?.focus(), 100);
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al cargar pedido');
+    }
+  };
+
   const handleRecibir = async () => {
     if (!recepcionPedido) return;
     setReceiving(true);
@@ -233,20 +262,40 @@ export default function PedidosPage() {
     setPedidoCancelarId(null);
   };
 
-  const handleCrearPedido = async () => {
+  const cancelInline = () => {
+    setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
+    setCreateSearchQuery('');
+    highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  };
+
+  const handleGuardarPedido = async () => {
     if (createProveedorId === 0 || createItems.length === 0) return;
     setCreating(true);
     try {
-      const sucursalId = (() => { try { const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}'); return s.id ?? 1; } catch { return 1; } })();
-      await api.pedidos.crear({
-        sucursalId,
-        proveedorId: createProveedorId,
-        items: createItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitarioEstimado: i.precioEstimado, descripcion: i.productoId === 0 ? i.productoNombre : undefined })),
-        fechaEsperada: createFechaEsperada || undefined,
-        observaciones: createObs || undefined,
-      });
-      notifySuccess('Pedido creado');
+      const itemsPayload = createItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitarioEstimado: i.precioEstimado, descripcion: i.productoId === 0 ? i.productoNombre : undefined }));
+      if (editingPedidoId) {
+        const dto: PedidoEditDto = {
+          proveedorId: createProveedorId,
+          items: itemsPayload,
+          fechaEsperada: createFechaEsperada || undefined,
+          observaciones: createObs || undefined,
+        };
+        await api.pedidos.editar(editingPedidoId, dto);
+        notifySuccess('Pedido actualizado');
+      } else {
+        const sucursalId = (() => { try { const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}'); return s.id ?? 1; } catch { return 1; } })();
+        await api.pedidos.crear({
+          sucursalId,
+          proveedorId: createProveedorId,
+          items: itemsPayload,
+          fechaEsperada: createFechaEsperada || undefined,
+          observaciones: createObs || undefined,
+        });
+        notifySuccess('Pedido creado');
+      }
       setShowCreateModal(false);
+      setEditingPedidoId(null);
       setCreateProveedorId(0);
       setCreateProveedorNombre('');
       setCreateProveedorSearch('');
@@ -256,7 +305,7 @@ export default function PedidosPage() {
       setCreateSearchQuery('');
       loadPedidos();
     } catch (err: unknown) {
-      notifyError(err instanceof Error ? err.message : 'Error al crear pedido');
+      notifyError(err instanceof Error ? err.message : 'Error al guardar pedido');
     } finally {
       setCreating(false);
     }
@@ -264,16 +313,18 @@ export default function PedidosPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Pedidos a proveedores</h1>
-          <button onClick={() => { setShowCreateModal(true); setCreateSearchQuery(''); setProdLoading(true); api.productos.listar().then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
+      <PageShell
+        title="Pedidos a proveedores"
+        subtitle={`${pedidosFiltrados.length} pedidos`}
+        loading={loading}
+        loadingMessage="Cargando pedidos..."
+        actions={
+          <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setCreateSearchQuery(''); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateProveedorSearch(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar().then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
             + Nuevo pedido
           </button>
-        </div>
-
+        }
+      >
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
@@ -315,9 +366,7 @@ export default function PedidosPage() {
         </div>
 
         {/* Table */}
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Cargando pedidos...</div>
-        ) : pedidosFiltrados.length === 0 ? (
+        {pedidosFiltrados.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
             <p className="text-gray-500 text-sm">No hay pedidos</p>
           </div>
@@ -348,6 +397,10 @@ export default function PedidosPage() {
                       <div className="flex items-center gap-1 justify-end">
                         {p.estado === 'Pendiente' && (
                           <>
+                            <button onClick={() => openEditar(p.id)}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-200 transition-colors">
+                              Editar
+                            </button>
                             <button onClick={() => openRecepcion(p.id)}
                               className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors">
                               Recibir
@@ -370,7 +423,7 @@ export default function PedidosPage() {
             </table>
           </div>
         )}
-      </div>
+      </PageShell>
 
       {/* ── Detalle Modal ── */}
       {detalleModal && (
@@ -400,7 +453,20 @@ export default function PedidosPage() {
                 </tr>
               ))}</tbody>
             </table>
-            <button onClick={() => setDetalleModal(null)} className="mt-4 w-full py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
+            <div className="mt-4 flex gap-2">
+              {detalleModal.proveedorTelefono ? (
+                <button onClick={() => openWhatsApp(detalleModal)}
+                  className="flex-1 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors">
+                  Enviar por WhatsApp
+                </button>
+              ) : (
+                <button disabled
+                  className="flex-1 py-2 bg-gray-300 text-gray-500 font-medium rounded-lg cursor-not-allowed">
+                  El proveedor no tiene número registrado
+                </button>
+              )}
+              <button onClick={() => setDetalleModal(null)} className="flex-1 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
+            </div>
           </div>
         </div>
       )}
@@ -512,7 +578,7 @@ export default function PedidosPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowCreateModal(false); } }}>
             <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Nuevo pedido</h3>
+              <h3 className="text-lg font-bold text-gray-900">{editingPedidoId ? `Editar pedido #${editingPedidoId}` : 'Nuevo pedido'}</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
 
@@ -589,34 +655,6 @@ export default function PedidosPage() {
               <div className="mb-3">
                 <label className="text-xs font-semibold text-gray-700 mb-1 block">Productos</label>
 
-                {/* Inline add mini-form (appears when selecting from grid) */}
-                {inlineAdd && (
-                  <div className="flex items-center gap-2 mb-2 bg-indigo-50 border border-indigo-200 rounded-lg p-2">
-                    <span className="text-xs font-medium text-indigo-900 truncate flex-1">{inlineAdd.productoNombre}</span>
-                    <input ref={cantRef} type="number" min={1} value={inlineCant}
-                      onChange={e => setInlineCant(parseInt(e.target.value) || 1)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); precioRef.current?.focus(); precioRef.current?.select(); }
-                      }}
-                      className="w-14 px-1.5 py-1 border border-indigo-300 rounded text-xs text-center focus:ring-1 focus:ring-indigo-500 outline-none" />
-                    <input ref={precioRef} type="number" min={0} step="0.01" value={inlinePrecio}
-                      onChange={e => setInlinePrecio(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const precio = parseFloat(inlinePrecio) || inlineAdd.costo;
-                          setCreateItems([...createItems, { productoId: inlineAdd.productoId, productoNombre: inlineAdd.productoNombre, cantidad: inlineCant, precioEstimado: precio }]);
-                          setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
-                          setCreateSearchQuery('');
-                          highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                          setTimeout(() => searchInputRef.current?.focus(), 50);
-                        }
-                      }}
-                      className="w-20 px-1.5 py-1 border border-indigo-300 rounded text-xs text-right font-mono focus:ring-1 focus:ring-indigo-500 outline-none" />
-                    <button onClick={() => setInlineAdd(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
-                  </div>
-                )}
-
                 {/* Unified search bar */}
                 <div className="relative mb-2">
                   <input ref={searchInputRef} type="text" value={createSearchQuery}
@@ -664,7 +702,7 @@ export default function PedidosPage() {
                           setInlineAdd({ productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra, costo: p.costo });
                           setInlineCant(1); setInlinePrecio(String(p.costo));
                           highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                          setTimeout(() => cantRef.current?.focus(), 50);
+                          setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
                           return;
                         }
                         if (e.key === 'Escape') { highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; searchInputRef.current?.focus(); return; }
@@ -682,7 +720,7 @@ export default function PedidosPage() {
                         setInlineAdd({ productoId: 0, productoNombre: createSearchQuery.trim(), codigoBarra: '', costo: 0 });
                         setInlineCant(1); setInlinePrecio('');
                         highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                        setTimeout(() => cantRef.current?.focus(), 50);
+                        setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
                         return;
                       }
                       // Enter with empty bar → focus create button
@@ -714,7 +752,7 @@ export default function PedidosPage() {
                             setInlineAdd({ productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra, costo: p.costo });
                             setInlineCant(1); setInlinePrecio(String(p.costo));
                             highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                            setTimeout(() => cantRef.current?.focus(), 50);
+                            setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
                           }}
                           className={`text-left border rounded-lg p-2 transition-all text-xs ${
                             i === highlightIdx
@@ -732,20 +770,59 @@ export default function PedidosPage() {
 
                 {/* Items added */}
                 {createItems.length > 0 && (
-                  <div className="space-y-1.5">
-                    {createItems.map((item, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-gray-50 rounded p-2 text-xs">
-                        <span className="flex-1 font-medium">{item.productoNombre}{item.productoId === 0 ? <span className="text-indigo-500 ml-1">(libre)</span> : null}</span>
-                        <input type="number" min={1} value={item.cantidad}
-                          onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
-                          className="w-16 px-1 py-0.5 border rounded text-center" />
-                        <input type="number" min={0} step="0.01" value={item.precioEstimado}
-                          onChange={e => { const items = [...createItems]; items[i] = { ...items[i], precioEstimado: parseFloat(e.target.value) || 0 }; setCreateItems(items); }}
-                          className="w-20 px-1 py-0.5 border rounded text-right font-mono" />
-                        <button onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
-                          className="text-red-500 hover:text-red-700">✕</button>
-                      </div>
-                    ))}
+                  <div className="mb-3">
+                    <div className="grid grid-cols-12 gap-2 px-1 mb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                      <span className="col-span-6">Producto</span>
+                      <span className="col-span-2 text-center">Cantidad</span>
+                      <span className="col-span-3 text-right">Precio</span>
+                      <span className="col-span-1" />
+                    </div>
+                    <div className="space-y-1.5">
+                      {createItems.map((item, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded p-2 text-xs">
+                          <span className="col-span-6 font-medium truncate">{item.productoNombre}{item.productoId === 0 ? <span className="text-indigo-500 ml-1">(libre)</span> : null}</span>
+                          <input type="number" min={1} value={item.cantidad}
+                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
+                            className="col-span-2 w-full px-1 py-0.5 border rounded text-center" />
+                          <input type="number" min={0} step="0.01" value={item.precioEstimado}
+                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], precioEstimado: parseFloat(e.target.value) || 0 }; setCreateItems(items); }}
+                            className="col-span-3 w-full px-1 py-0.5 border rounded text-right font-mono" />
+                          <button onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
+                            className="col-span-1 text-red-500 hover:text-red-700 justify-self-center">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline add row (appears when selecting from grid, at end of list) */}
+                {inlineAdd && (
+                  <div className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded p-2 text-xs">
+                    <span className="col-span-6 font-medium truncate">{inlineAdd.productoNombre}</span>
+                    <input ref={cantRef} type="number" min={1} value={inlineCant}
+                      onChange={e => setInlineCant(parseInt(e.target.value) || 1)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); precioRef.current?.focus(); precioRef.current?.select(); }
+                        if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
+                      }}
+                      className="col-span-2 w-full px-1 py-0.5 border rounded text-center focus:ring-1 focus:ring-indigo-500" />
+                    <input ref={precioRef} type="number" min={0} step="0.01" value={inlinePrecio}
+                      onChange={e => setInlinePrecio(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const precio = parseFloat(inlinePrecio) || inlineAdd.costo;
+                          setCreateItems([...createItems, { productoId: inlineAdd.productoId, productoNombre: inlineAdd.productoNombre, cantidad: inlineCant, precioEstimado: precio }]);
+                          setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
+                          setCreateSearchQuery('');
+                          highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
+                          setTimeout(() => searchInputRef.current?.focus(), 50);
+                        }
+                        if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
+                      }}
+                      className="col-span-3 w-full px-1 py-0.5 border rounded text-right font-mono focus:ring-1 focus:ring-indigo-500" />
+                    <button onClick={cancelInline}
+                      className="col-span-1 text-red-500 hover:text-red-700 justify-self-center">✕</button>
                   </div>
                 )}
               </div>
@@ -764,15 +841,14 @@ export default function PedidosPage() {
               </div>
             </div>
 
-            <button onClick={handleCrearPedido} data-create-btn
+            <button onClick={handleGuardarPedido} data-create-btn
               disabled={creating || createProveedorId === 0 || createItems.length === 0}
               className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-              {creating ? 'Creando...' : `Crear pedido — ${formatCurrency(createItems.reduce((s, i) => s + i.cantidad * i.precioEstimado, 0))}`}
+              {creating ? 'Guardando...' : editingPedidoId ? `Guardar cambios — ${formatCurrency(createItems.reduce((s, i) => s + i.cantidad * i.precioEstimado, 0))}` : `Crear pedido — ${formatCurrency(createItems.reduce((s, i) => s + i.cantidad * i.precioEstimado, 0))}`}
             </button>
           </div>
         </div>
       )}
-    </div>
 
     <Dialog
       open={pedidoCancelarId !== null}

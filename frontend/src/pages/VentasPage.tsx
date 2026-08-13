@@ -81,7 +81,6 @@ export default function VentasPage() {
   const [showStockConfirm, setShowStockConfirm] = useState(false)
   const [stockConflictItems, setStockConflictItems] = useState<StockConflictItem[]>([])
   const [showClientPopup, setShowClientPopup] = useState(false)
-  const [showConfirmTransferencia, setShowConfirmTransferencia] = useState(false)
   const [clientesBusqueda, setClientesBusqueda] = useState('')
   const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
   const [buscandoClientes, setBuscandoClientes] = useState(false)
@@ -107,7 +106,6 @@ export default function VentasPage() {
   const recibioInputRef = useRef<HTMLInputElement>(null!)
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
-  const transferenciaConfirmRef = useRef<HTMLButtonElement>(null!)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
   const pendingAllowSinStock = useRef(false)
   const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
@@ -317,12 +315,7 @@ export default function VentasPage() {
     if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
 
-    if (selectedMedio.id === 4) {
-      setShowConfirmTransferencia(true)
-      return
-    }
-
-    if (selectedMedio.id === 5) {
+    if (selectedMedio.id === 4 || selectedMedio.id === 5) {
       await crearVentaPendiente()
       return
     }
@@ -433,11 +426,6 @@ export default function VentasPage() {
 
   function handleClientSelect(cl: ClienteDto) { setClienteSeleccionado(cl); setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]); ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, cl); pendingAllowSinStock.current = false }
   function handleAbrirNuevoCliente() { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }
-
-  function handleConfirmarTransferenciaRecibida() {
-    setShowConfirmTransferencia(false)
-    ejecutarVenta(total)
-  }
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
@@ -583,10 +571,6 @@ export default function VentasPage() {
         onFormClienteChange={setFormCliente}
         onCrearCliente={crearClienteYRevertir}
         onAbrirNuevoCliente={handleAbrirNuevoCliente}
-        showConfirmTransferencia={showConfirmTransferencia}
-        transferenciaConfirmRef={transferenciaConfirmRef}
-        onConfirmTransferencia={handleConfirmarTransferenciaRecibida}
-        onCancelTransferencia={() => setShowConfirmTransferencia(false)}
       />
     </>
   )
