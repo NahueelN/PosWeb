@@ -319,8 +319,18 @@ export default function AltaUsuarioPage() {
                     <td className="py-3 pr-4 font-medium text-slate-900">{usuarioItem.nombreUsuario}</td>
                     <td className="py-3 pr-4 text-slate-600">{usuarioItem.mail || '-'}</td>
                     <td className="py-3 pr-4">
-                      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                        {usuarioItem.rol}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                          {usuarioItem.rol}
+                        </span>
+                        {usuarioItem.esTitular && (
+                          <span
+                            className="inline-flex rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700"
+                            title="Titular de la suscripción/licencia de este install"
+                          >
+                            Titular
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className="py-3 pr-4 text-slate-600">

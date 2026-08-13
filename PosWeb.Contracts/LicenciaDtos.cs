@@ -1,12 +1,12 @@
 namespace PosWeb.Contracts;
 
 /// <summary>
-/// Request para activar una licencia mediante clave manual.
+/// Request para activar una licencia a partir del email con el que se contrató.
 /// </summary>
-public class ActivarLicenciaRequest
+public class ActivarLicenciaPorEmailRequest
 {
-    /// <summary>Clave de licencia de 32 caracteres hexadecimales.</summary>
-    public string LicenseKey { get; set; } = string.Empty;
+    /// <summary>Email asociado a la licencia comprada.</summary>
+    public string Email { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -58,6 +58,9 @@ public class LicenciaResumenDto
 
     /// <summary>Plan contratado.</summary>
     public string Plan { get; set; } = string.Empty;
+
+    /// <summary>Estado actual de la licencia (permite detectar la prueba gratuita).</summary>
+    public string Estado { get; set; } = string.Empty;
 
     /// <summary>Días restantes hasta el vencimiento.</summary>
     public int? DaysRemaining { get; set; }

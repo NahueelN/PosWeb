@@ -60,6 +60,15 @@ function generateLicenseKey(): string {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
+// Punto de partida para renovar: si todavía quedan días de la licencia actual, el próximo
+// ciclo se suma a partir de ahí (no se pierden); si ya venció, se cuenta desde hoy.
+function fechaBaseParaRenovacion(nextBillingActual: string | null): Date {
+  const hoy = new Date();
+  if (!nextBillingActual) return hoy;
+  const actual = new Date(nextBillingActual);
+  return actual > hoy ? actual : hoy;
+}
+
 async function normalizePlan(env: Env, plan: string): Promise<string> {
   const lowered = plan.toLowerCase();
   if (VALID_PLANS.includes(lowered)) return lowered;
@@ -178,7 +187,7 @@ app.post('/webhook', async (c) => {
       return c.json({ error: 'License not found for this preapproval' }, 404);
     }
 
-    const date = new Date();
+    const date = fechaBaseParaRenovacion(existing.next_billing);
     date.setMonth(date.getMonth() + 1);
     const nextBilling = date.toISOString().split('T')[0];
 
@@ -273,7 +282,7 @@ app.post('/status', async (c) => {
         const searchData: any = await mpCheck.json();
         const approved = searchData.results?.find((p: any) => p.status === 'approved');
         if (approved) {
-          const nextBilling = new Date();
+          const nextBilling = fechaBaseParaRenovacion(license.next_billing);
           nextBilling.setDate(nextBilling.getDate() + 30);
           await env.LICENSES_DB
             .prepare('UPDATE licenses SET status = ?, next_billing = ?, preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -483,7 +492,7 @@ const LANDING_JS = `const WORKER_URL=window.location.origin;let selectedPlan='';
 
 const LANDING_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PosWeb - Activá tu licencia</title><style>${LANDING_CSS}</style></head><body><header><h1>PosWeb</h1><p class="subtitle">Sistema de gestión para tu comercio</p></header><main><section class="plans" id="plans"><div class="plan-card" data-plan="basica"><h2>Plan Básico</h2><div class="price">$999<span class="period">/mes</span></div><ul><li>1 sucursal</li><li>1 administrador</li><li>1 usuario</li><li>Gestión de ventas</li><li>Control de stock</li><li>Caja diaria</li></ul><button class="btn btn-primary" onclick="openEmailModal('basica')">Contratar</button></div><div class="plan-card popular" data-plan="media"><div class="badge">Más popular</div><h2>Plan Medio</h2><div class="price">$1.999<span class="period">/mes</span></div><ul><li>Hasta 3 sucursales</li><li>1 administrador</li><li>Hasta 5 usuarios</li><li>Todo lo del plan Básico</li><li>Múltiples cajas</li><li>Reportes avanzados</li></ul><button class="btn btn-primary" onclick="openEmailModal('media')">Contratar</button></div><div class="plan-card" data-plan="maxima"><h2>Plan Máximo</h2><div class="price">$3.999<span class="period">/mes</span></div><ul><li>Sucursales ilimitadas</li><li>Admins ilimitados</li><li>Usuarios ilimitados</li><li>Todo lo del plan Medio</li><li>Soporte prioritario</li><li>Personalización</li></ul><button class="btn btn-primary" onclick="openEmailModal('maxima')">Contratar</button></div></section></main><div class="modal-overlay hidden" id="emailModal"><div class="modal"><h3>Completá tu email</h3><p>Recibirás tu clave de licencia en este correo después del pago.</p><input type="email" id="emailInput" placeholder="tu@email.com" autocomplete="email"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeEmailModal()">Cancelar</button><button class="btn btn-primary" id="checkoutBtn" onclick="startCheckout()">Ir a pagar</button></div><div class="loader hidden" id="loader">Procesando...</div><div class="error hidden" id="errorMsg"></div></div></div><script>${LANDING_JS}</script></body></html>`;
 
-const SUCCESS_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PosWeb - Licencia activada</title><style>${LANDING_CSS}</style></head><body><header><h1>PosWeb</h1></header><main><section class="result-card success"><div class="icon">&#10003;</div><h2>Pago exitoso</h2><p>Tu licencia está lista. Copiá la clave y pegala en PosWeb para activarla.</p><div class="license-key-container"><span class="license-label">Tu clave de licencia:</span><div class="license-key-box"><code id="licenseKey">Cargando...</code><button class="btn btn-secondary btn-sm" onclick="copyLicenseKey()">Copiar</button></div><span class="copied hidden" id="copiedMsg">Copiado</span></div><div class="instructions"><h3>Instrucciones</h3><ol><li>Copiá la clave de licencia</li><li>Abrí PosWeb en tu computadora</li><li>Pegá la clave en la pantalla de activación</li><li>Iniciá sesión normalmente</li></ol></div></section></main><script>var p=new URLSearchParams(window.location.search);var k=p.get('license_key');if(k)document.getElementById('licenseKey').textContent=k;else document.getElementById('licenseKey').textContent='No se encontró la clave. Revisá tu email.';function copyLicenseKey(){var key=document.getElementById('licenseKey').textContent;navigator.clipboard.writeText(key).then(function(){var m=document.getElementById('copiedMsg');m.classList.remove('hidden');setTimeout(function(){m.classList.add('hidden')},2000)})}</script></body></html>`;
+const SUCCESS_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PosWeb - Licencia activada</title><style>${LANDING_CSS}</style></head><body><header><h1>PosWeb</h1></header><main><section class="result-card success"><div class="icon">&#10003;</div><h2>Pago exitoso</h2><p>Tu licencia quedó asociada a tu email. Ahora activala en PosWeb.</p><div class="instructions"><h3>Instrucciones</h3><ol><li>Descargá e instalá PosWeb en tu computadora</li><li>Registrate con el mismo email con el que pagaste (te da una prueba de 7 días)</li><li>Si ya tenés cuenta, ingresá a Configuración y tocá "Buscar licencia"</li></ol></div></section></main></body></html>`;
 
 const ERROR_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PosWeb - Error</title><style>${LANDING_CSS}</style></head><body><header><h1>PosWeb</h1></header><main><section class="result-card error"><div class="icon">&#10007;</div><h2>Hubo un problema</h2><p>No se pudo completar el pago. Revisá tus datos e intentá nuevamente.</p><a href="/" class="btn btn-primary">Volver a intentar</a></section></main></body></html>`;
 

@@ -1226,6 +1226,7 @@ public partial class PosDbContext
                 ROL = "SuperAdmin",
                 MAIL = "admin@posweb.com",
                 SUSCRIPCION_ACTIVA = false,
+                ES_TITULAR = false,
                 PIN_HASH = (string?)null,
                 ID_USUARIO_RESP = (int?)null,
                 ACTIVO = true

@@ -9,6 +9,7 @@ public class UsuarioDto
     public int? UsuarioResponsableId { get; set; }
     public string? UsuarioResponsableNombre { get; set; }
     public int? EmpresaId { get; set; }
+    public bool EsTitular { get; set; }
     public bool Activo { get; set; }
     public bool SuscripcionActiva { get; set; }
     public bool AccesoHabilitado { get; set; }

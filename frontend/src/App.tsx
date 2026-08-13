@@ -21,7 +21,6 @@ import DashboardPage from './pages/DashboardPage'
 import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
-import ActivarLicenciaPage from './pages/ActivarLicenciaPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
@@ -118,7 +117,6 @@ export default function App() {
           <UpdaterBanner {...updater} />
           <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/activar" element={<ActivarLicenciaPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />

@@ -226,17 +226,41 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+
 // Ensure seed admin has a real BCrypt hash (migration placed a fake placeholder)
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<PosDbContextLocal>();
-    try
+
+    // EnsureCreated() no aplica migraciones sobre una base que ya existe (es un no-op),
+    // así que un catch silencioso ahí dejaba la app arrancar con un esquema desactualizado
+    // y romper recién más adelante (ej. al primer login) con un error confuso. Reintentamos
+    // un poco por si es un lock transitorio (ej. antivirus) y si no, preferimos que la app
+    // no arranque antes que arrancar con datos/esquema inconsistentes.
+    const int maxIntentosMigracion = 3;
+    for (var intento = 1; intento <= maxIntentosMigracion; intento++)
     {
-        ctx.Database.Migrate();
-    }
-    catch
-    {
-        ctx.Database.EnsureCreated();
+        try
+        {
+            ctx.Database.Migrate();
+            break;
+        }
+        catch (Exception ex) when (intento < maxIntentosMigracion)
+        {
+            startupLogger.LogWarning(ex,
+                "Intento {Intento}/{Max} de migrar la base de datos local falló, reintentando en 1s...",
+                intento, maxIntentosMigracion);
+            Thread.Sleep(1000);
+        }
+        catch (Exception ex)
+        {
+            startupLogger.LogCritical(ex,
+                "No se pudo migrar la base de datos local ({ConnectionString}) después de {Max} intentos. " +
+                "La aplicación no puede iniciar con un esquema desactualizado.",
+                ctx.Database.GetConnectionString(), maxIntentosMigracion);
+            throw;
+        }
     }
 
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");

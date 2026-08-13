@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Application.Licensing;
 using PosWeb.Contracts;
+using PosWeb.Domain;
 
 namespace PosWeb.Controllers;
 
@@ -22,43 +23,27 @@ public class LicenciaController : ControllerBase
     }
 
     /// <summary>
-    /// Activa una licencia en esta máquina usando la clave de licencia.
-    /// Endpoint público (no requiere autenticación) para el primer inicio.
+    /// Activa la licencia asociada al email con el que se contrató el plan.
+    /// Endpoint público (no requiere autenticación): usado desde el login y desde
+    /// el botón "Buscar licencia" para validar pagos recientes sin reiniciar.
     /// </summary>
-    /// <param name="request">Clave de licencia obtenida tras la compra o asignación manual.</param>
+    /// <param name="request">Email con el que se compró la licencia.</param>
     /// <returns>Estado de la licencia incluyendo plan, límites y vencimiento.</returns>
     /// <response code="200">Licencia activada correctamente.</response>
-    /// <response code="400">Clave inválida, licencia pendiente de pago o error de conexión.</response>
+    /// <response code="400">Sin licencia para ese email o error de conexión.</response>
     [AllowAnonymous]
-    [HttpPost("activar")]
-    public async Task<IActionResult> Activar([FromBody] ActivarLicenciaRequest request)
+    [HttpPost("activar-por-email")]
+    public async Task<IActionResult> ActivarPorEmail([FromBody] ActivarLicenciaPorEmailRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.LicenseKey))
-            return BadRequest(new { error = "LicenseKey es requerida" });
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { error = "Email es requerido" });
 
-        var (exito, mensaje, licencia) = await _licenciaService.Activar(request.LicenseKey);
+        var (exito, mensaje, licencia) = await _licenciaService.BuscarYActivarPorEmail(request.Email.Trim());
 
-        if (!exito)
-            return BadRequest(new { error = mensaje });
+        if (!exito || licencia == null)
+            return BadRequest(new { error = mensaje ?? "No se pudo activar la licencia" });
 
-        var limites = PosWeb.Domain.PlanLimits.Get(licencia!.Plan);
-
-        return Ok(new LicenciaEstadoDto
-        {
-            Activa = licencia.Activa,
-            Plan = licencia.Plan,
-            Estado = licencia.Estado,
-            VerificadoHasta = licencia.VerifiedUntil,
-            GraceHasta = licencia.GraceUntil,
-            NextBilling = licencia.NextBilling,
-            DaysRemaining = licencia.NextBilling.HasValue
-                ? (int)(licencia.NextBilling.Value - DateTime.UtcNow).TotalDays
-                : null,
-            MaxSucursales = limites.maxSucursales,
-            MaxAdmins = limites.maxAdmins,
-            MaxUsuarios = limites.maxUsuarios,
-            CacheValido = licencia.CacheValido,
-        });
+        return Ok(MapEstado(licencia));
     }
 
     /// <summary>
@@ -79,24 +64,10 @@ public class LicenciaController : ControllerBase
         if (local == null)
             return Ok(new { activa = false, mensaje = "No hay licencia configurada" });
 
-        var limites = _licenciaService.ObtenerLimitesPlan();
+        var licenciaEstado = MapEstado(local);
+        licenciaEstado.Activa = local.Activa && permitido;
 
-        return Ok(new LicenciaEstadoDto
-        {
-            Activa = local.Activa && permitido,
-            Plan = local.Plan,
-            Estado = local.Estado,
-            VerificadoHasta = local.VerifiedUntil,
-            GraceHasta = local.GraceUntil,
-            NextBilling = local.NextBilling,
-            DaysRemaining = local.NextBilling.HasValue
-                ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
-                : null,
-            MaxSucursales = limites.maxSucursales,
-            MaxAdmins = limites.maxAdmins,
-            MaxUsuarios = limites.maxUsuarios,
-            CacheValido = local.CacheValido,
-        });
+        return Ok(licenciaEstado);
     }
 
     /// <summary>
@@ -116,6 +87,7 @@ public class LicenciaController : ControllerBase
         {
             Activa = local?.Activa ?? false,
             Plan = local?.Plan ?? "",
+            Estado = local?.Estado ?? "",
             DaysRemaining = local?.NextBilling.HasValue == true
                 ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
                 : null,
@@ -135,5 +107,27 @@ public class LicenciaController : ControllerBase
     {
         var (permitido, motivo) = await _licenciaService.VerificarAcceso();
         return Ok(new { permitido, motivo });
+    }
+
+    private LicenciaEstadoDto MapEstado(LicenciaConfig licencia)
+    {
+        var limites = _licenciaService.ObtenerLimitesPlan();
+
+        return new LicenciaEstadoDto
+        {
+            Activa = licencia.Activa,
+            Plan = licencia.Plan,
+            Estado = licencia.Estado,
+            VerificadoHasta = licencia.VerifiedUntil,
+            GraceHasta = licencia.GraceUntil,
+            NextBilling = licencia.NextBilling,
+            DaysRemaining = licencia.NextBilling.HasValue
+                ? (int)(licencia.NextBilling.Value - DateTime.UtcNow).TotalDays
+                : null,
+            MaxSucursales = limites.maxSucursales,
+            MaxAdmins = limites.maxAdmins,
+            MaxUsuarios = limites.maxUsuarios,
+            CacheValido = licencia.CacheValido,
+        };
     }
 }

@@ -22,6 +22,8 @@ public class Usuario
 
     public bool SUSCRIPCION_ACTIVA { get; private set; }
 
+    public bool ES_TITULAR { get; private set; }
+
     public int? ID_SUCURSAL_DEFAULT { get; private set; }
 
     public int? ID_USUARIO_RESP { get; private set; }
@@ -39,8 +41,9 @@ public class Usuario
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
         int? empresaId = null,
-        bool suscripcionActiva = true)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaId, suscripcionActiva)
+        bool suscripcionActiva = true,
+        bool esTitular = false)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaId, suscripcionActiva, esTitular)
     {
         ID_USUARIO = id;
     }
@@ -53,7 +56,8 @@ public class Usuario
         int? sucursalDefault = null,
         int? usuarioResponsableId = null,
         int? empresaId = null,
-        bool suscripcionActiva = true)
+        bool suscripcionActiva = true,
+        bool esTitular = false)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
@@ -61,6 +65,7 @@ public class Usuario
         SetMail(mail);
         ACTIVO = true;
         SUSCRIPCION_ACTIVA = suscripcionActiva;
+        ES_TITULAR = esTitular;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
         ID_USUARIO_RESP = usuarioResponsableId;
         ID_USUARIO_RESPONSABLE = usuarioResponsableId;
@@ -160,5 +165,15 @@ public class Usuario
     public void SuspenderSuscripcion()
     {
         SUSCRIPCION_ACTIVA = false;
+    }
+
+    public void MarcarComoTitular()
+    {
+        ES_TITULAR = true;
+    }
+
+    public void QuitarTitularidad()
+    {
+        ES_TITULAR = false;
     }
 }

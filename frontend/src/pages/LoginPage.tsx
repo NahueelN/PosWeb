@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
@@ -24,6 +24,10 @@ export default function LoginPage() {
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
+  const [buscarLicenciaOpen, setBuscarLicenciaOpen] = useState(false)
+  const [buscarLicenciaEmail, setBuscarLicenciaEmail] = useState('')
+  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
+  const [buscarLicenciaNoEncontrada, setBuscarLicenciaNoEncontrada] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -92,14 +96,18 @@ export default function LoginPage() {
     setRegisterLoading(true)
 
     try {
-      await api.auth.register({
+      const res = await api.auth.register({
         usuario: regUsuario,
         password: regPassword,
         mail: regMail,
         rol: 'Admin',
         empresaId: regEmpresa ? parseInt(regEmpresa) : undefined,
       })
-      notifySuccess('Administrador registrado correctamente. Ya podés iniciar sesión.')
+      if (res.licenciaEstado === 'trial') {
+        notifySuccess('Prueba gratuita de 7 días activada. Ya podés iniciar sesión.')
+      } else {
+        notifySuccess('Licencia activada correctamente. Ya podés iniciar sesión.')
+      }
       setRegUsuario('')
       setRegPassword('')
       setRegMail('')
@@ -117,6 +125,38 @@ export default function LoginPage() {
       }
     } finally {
       setRegisterLoading(false)
+    }
+  }
+
+  async function handleBuscarLicencia() {
+    if (!buscarLicenciaEmail.includes('@') || !buscarLicenciaEmail.includes('.')) {
+      notifyError('Ingresá un email válido')
+      return
+    }
+    setBuscandoLicencia(true)
+    setBuscarLicenciaNoEncontrada(false)
+    try {
+      await api.licencia.activarPorEmail({ email: buscarLicenciaEmail.trim() })
+      notifySuccess('Licencia activada. Ya podés iniciar sesión.')
+      setBuscarLicenciaOpen(false)
+      setBuscarLicenciaEmail('')
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo encontrar la licencia'
+      const finalMsg = ((): string => {
+        try {
+          const parts = msg.split(': ')
+          const parsed = JSON.parse(parts[parts.length - 1])
+          return parsed.error || msg
+        } catch {
+          return msg
+        }
+      })()
+      notifyError(finalMsg)
+      if (finalMsg.includes('No se encontró')) {
+        setBuscarLicenciaNoEncontrada(true)
+      }
+    } finally {
+      setBuscandoLicencia(false)
     }
   }
 
@@ -231,9 +271,59 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <Link to="/activar" className="text-xs text-indigo-500 hover:underline">
-                Activar licencia
-              </Link>
+              {buscarLicenciaOpen ? (
+                <div className="space-y-2 text-left">
+                  <p className="text-xs text-slate-500">
+                    ¿Pagaste recientemente? Ingresá tu email para validar la licencia.
+                  </p>
+                  <input
+                    type="email"
+                    value={buscarLicenciaEmail}
+                    onChange={e => setBuscarLicenciaEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="tu@email.com"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBuscarLicencia}
+                      disabled={buscandoLicencia}
+                      className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                    >
+                      {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setBuscarLicenciaOpen(false); setBuscarLicenciaEmail(''); setBuscarLicenciaNoEncontrada(false) }}
+                      className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  {buscarLicenciaNoEncontrada && (
+                    <p className="text-xs text-slate-500">
+                      No encontramos una licencia para ese email.{' '}
+                      <a
+                        href="https://posweb-licensing.chiacchio-eze01.workers.dev"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline font-medium"
+                      >
+                        Ver planes y contratar
+                      </a>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setBuscarLicenciaOpen(true); setBuscarLicenciaNoEncontrada(false) }}
+                  className="text-xs text-indigo-500 hover:underline"
+                >
+                  Buscar licencia
+                </button>
+              )}
             </div>
           </form>
         )}

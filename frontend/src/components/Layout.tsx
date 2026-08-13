@@ -350,7 +350,11 @@ export default function Layout() {
                     : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                 }`}
               >
-                {licResumen.daysRemaining <= 0 ? 'Vencida — Renovar' : `Vence en ${licResumen.daysRemaining} días`}
+                {licResumen.daysRemaining <= 0
+                  ? 'Vencida — Renovar'
+                  : licResumen.estado === 'trial'
+                    ? `Prueba — vence en ${licResumen.daysRemaining} días`
+                    : `Vence en ${licResumen.daysRemaining} días`}
               </a>
             )}
           </div>

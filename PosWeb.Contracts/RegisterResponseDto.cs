@@ -8,4 +8,6 @@ public class RegisterResponseDto
     public string Rol { get; set; } = string.Empty;
     public int? UsuarioResponsableId { get; set; }
     public int? EmpresaId { get; set; }
+    public bool EsTitular { get; set; }
+    public string? LicenciaEstado { get; set; }
 }

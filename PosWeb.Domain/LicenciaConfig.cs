@@ -2,6 +2,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace PosWeb.Domain;
 
+public static class EstadosLicencia
+{
+    public const string Activa = "active";
+    public const string Gracia = "grace";
+    public const string Pausada = "paused";
+    public const string Cancelada = "cancelled";
+    public const string Pendiente = "pending";
+    public const string Prueba = "trial";
+    public const string PruebaExpirada = "trial-expired";
+}
+
 public class LicenciaConfig
 {
     [Key]
@@ -16,7 +27,12 @@ public class LicenciaConfig
     [Required]
     public string Estado { get; set; } = "pending";
 
-    public bool Activa => Estado is "active" or "grace";
+    public bool EsTrial => Estado == EstadosLicencia.Prueba;
+
+    public bool PruebaExpirada => EsTrial && NextBilling.HasValue && NextBilling.Value < DateTime.UtcNow;
+
+    public bool Activa => Estado is EstadosLicencia.Activa or EstadosLicencia.Gracia
+        || (EsTrial && !PruebaExpirada);
 
     public string MachineId { get; set; } = string.Empty;
 
@@ -37,6 +53,24 @@ public class LicenciaConfig
         VerifiedUntil = DateTime.UtcNow.AddHours(72);
         GraceUntil = graceUntil;
         NextBilling = nextBilling ?? NextBilling;
+    }
+
+    public void IniciarPruebaGratuita(string machineId, TimeSpan? duracion = null)
+    {
+        Plan = NivelesSuscripcion.Maxima;
+        Estado = EstadosLicencia.Prueba;
+        MachineId = machineId;
+        LastVerifiedAt = DateTime.UtcNow;
+        VerifiedUntil = DateTime.UtcNow.AddHours(72);
+        NextBilling = DateTime.UtcNow.Add(duracion ?? TimeSpan.FromDays(7));
+        GraceUntil = null;
+    }
+
+    public void MarcarPruebaExpirada()
+    {
+        Estado = EstadosLicencia.PruebaExpirada;
+        Plan = NivelesSuscripcion.Basica;
+        LastVerifiedAt = DateTime.UtcNow;
     }
 }
 

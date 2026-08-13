@@ -4,14 +4,17 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
-import type { UsuarioListadoDto } from '../types'
+import type { UsuarioListadoDto, LicenciaEstado } from '../types'
 
 export default function ConfiguracionPage() {
   const { user } = useAuth()
-  const { notifyError } = useNotification()
+  const { notifyError, notifySuccess } = useNotification()
   const [tab, setTab] = useState<'perfil' | 'margenes' | 'stock'>('perfil')
   const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [loading, setLoading] = useState(true)
+  const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
+  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
+  const [licenciaNoEncontrada, setLicenciaNoEncontrada] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -19,7 +22,34 @@ export default function ConfiguracionPage() {
       .then(setPerfil)
       .catch(() => notifyError('Error al cargar perfil'))
       .finally(() => setLoading(false))
+    api.licencia.estado()
+      .then(setLicencia)
+      .catch(() => {})
   }, [])
+
+  const handleBuscarLicencia = async () => {
+    const email = perfil?.mail
+    if (!email) {
+      notifyError('No tenés un mail configurado en tu cuenta')
+      return
+    }
+    setBuscandoLicencia(true)
+    setLicenciaNoEncontrada(false)
+    try {
+      await api.licencia.activarPorEmail({ email })
+      notifySuccess('Licencia activada')
+      const estado = await api.licencia.estado()
+      setLicencia(estado)
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo activar la licencia'
+      notifyError(msg)
+      if (msg.includes('No se encontró')) {
+        setLicenciaNoEncontrada(true)
+      }
+    } finally {
+      setBuscandoLicencia(false)
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -126,6 +156,66 @@ export default function ConfiguracionPage() {
         <MargenesTab notifyError={notifyError} />
       ) : (
         <StockTab notifyError={notifyError} />
+      )}
+
+      {tab === 'perfil' && (
+        <div className="bg-white rounded-xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-slate-900">Licencia</h2>
+            <button
+              onClick={handleBuscarLicencia}
+              disabled={buscandoLicencia}
+              className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+            >
+              {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
+            </button>
+          </div>
+
+          {licenciaNoEncontrada && (
+            <p className="text-xs text-slate-500 mb-3">
+              No encontramos una licencia para <strong>{perfil?.mail}</strong>.{' '}
+              <a
+                href="https://posweb-licensing.chiacchio-eze01.workers.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:underline font-medium"
+              >
+                Ver planes y contratar
+              </a>
+            </p>
+          )}
+
+          {!licencia ? (
+            <p className="text-sm text-slate-500">Sin licencia configurada.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Plan</label>
+                <p className="text-sm font-semibold text-slate-700 mt-0.5">{licencia.plan || '-'}</p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Estado</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.estado === 'trial' ? 'Prueba gratuita' : licencia.estado || '-'}
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Vencimiento</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.nextBilling
+                    ? new Date(licencia.nextBilling).toLocaleDateString('es-AR')
+                    : '-'}
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Usuarios</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.maxUsuarios >= 2000000000 ? 'Ilimitados' : licencia.maxUsuarios}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

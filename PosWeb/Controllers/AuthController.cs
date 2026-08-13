@@ -43,14 +43,14 @@ public class AuthController : ControllerBase
 
     [HttpPost("register")]
     [Microsoft.AspNetCore.Authorization.AllowAnonymous]
-    public IActionResult Register([FromBody] RegisterRequestDto request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? currentUserId = int.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : null;
 
         try
         {
-            var result = _authService.Register(request, currentUserId);
+            var result = await _authService.Register(request, currentUserId);
             return Ok(result);
         }
         catch (ArgumentException ex)

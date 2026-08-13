@@ -15,6 +15,7 @@ public class LicenciaService
     private readonly string? _workerUrl;
     private readonly string? _internalKey;
     private readonly int _offlineHours;
+    private readonly TimeSpan _pruebaGratuitaDuracion;
     private readonly IEncryptionService _encryption;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -33,69 +34,13 @@ public class LicenciaService
         _workerUrl = configuration["Licensing:WorkerUrl"];
         _internalKey = configuration["Licensing:InternalKey"];
         _offlineHours = int.Parse(configuration["Licensing:OfflineHours"] ?? "72");
+        // Duración de la prueba gratuita, en minutos. Config-driven para poder acortarla en dev
+        // (ej. "Licensing:PruebaGratuitaMinutos": "5") sin recompilar; 7 días si no está seteado.
+        var pruebaGratuitaMinutos = configuration["Licensing:PruebaGratuitaMinutos"];
+        _pruebaGratuitaDuracion = pruebaGratuitaMinutos != null
+            ? TimeSpan.FromMinutes(double.Parse(pruebaGratuitaMinutos))
+            : TimeSpan.FromDays(7);
         _encryption = encryption;
-    }
-
-    public async Task<(bool exito, string? mensaje, LicenciaConfig? licencia)> Activar(string licenseKey)
-    {
-        if (string.IsNullOrWhiteSpace(_workerUrl))
-            return (false, "Worker de licencias no configurado", null);
-
-        var machineId = await ObtenerOCrearMachineId();
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _httpClient.PostAsJsonAsync($"{_workerUrl}/activate", new
-            {
-                license_key = licenseKey,
-                machine_id = machineId
-            });
-        }
-        catch (HttpRequestException)
-        {
-            return (false, "No se pudo conectar con el servidor de licencias", null);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            string errorMsg;
-            try
-            {
-                var errorObj = await response.Content.ReadFromJsonAsync<WorkerErrorResponse>(JsonOptions);
-                errorMsg = errorObj?.Error ?? $"HTTP {(int)response.StatusCode}";
-            }
-            catch
-            {
-                errorMsg = $"HTTP {(int)response.StatusCode}";
-            }
-            return (false, $"Error al activar: {errorMsg}", null);
-        }
-
-        var result = await response.Content.ReadFromJsonAsync<ActivateWorkerResponse>(JsonOptions);
-        if (result == null || !result.Success)
-            return (false, "Licencia inválida o ya activada en otro dispositivo", null);
-
-        var existente = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
-        if (existente != null)
-            _context.Set<LicenciaConfig>().Remove(existente);
-
-        var licencia = new LicenciaConfig
-        {
-            LicenseKey = _encryption.Encrypt(licenseKey),
-            Plan = NormalizarPlan(result.Plan),
-            Estado = result.Status,
-            MachineId = machineId,
-        };
-        licencia.ActualizarEstado(result.Status);
-
-        _context.Set<LicenciaConfig>().Add(licencia);
-
-        await SincronizarSuscripcionConLicencia(licencia);
-
-        await _context.SaveChangesAsync();
-
-        return (true, null, licencia);
     }
 
     public async Task<(bool exito, string? mensaje, LicenciaConfig? licencia)> BuscarYActivarPorEmail(string email)
@@ -172,6 +117,40 @@ public class LicenciaService
         }
     }
 
+    /// <summary>
+    /// Registro: intenta activar por email; si no hay licencia paga, inicia la prueba gratuita.
+    /// Retorna <c>esTrial = true</c> cuando se inició la prueba gratuita.
+    /// </summary>
+    public async Task<(bool esTrial, LicenciaConfig? licencia)> ActivarPorEmailOPrueba(string email)
+    {
+        var (exito, _, licencia) = await BuscarYActivarPorEmail(email);
+        if (exito && licencia != null)
+            return (false, licencia);
+
+        var machineId = await ObtenerOCrearMachineId();
+        var trial = await IniciarPruebaGratuita(machineId);
+        return (true, trial);
+    }
+
+    public async Task<LicenciaConfig?> IniciarPruebaGratuita(string machineId, TimeSpan? duracion = null)
+    {
+        // Idempotente a propósito: si esta instalación ya tiene una LicenciaConfig (trial, paga,
+        // vencida, lo que sea), no se le regala otra prueba gratuita nueva. Antes esto borraba y
+        // recreaba la fila incondicionalmente, lo que permitía reiniciar el trial indefinidamente.
+        var existente = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
+        if (existente != null)
+            return null;
+
+        var licencia = new LicenciaConfig();
+        licencia.IniciarPruebaGratuita(machineId, duracion ?? _pruebaGratuitaDuracion);
+
+        _context.Set<LicenciaConfig>().Add(licencia);
+        await SincronizarSuscripcionConLicencia(licencia);
+        await _context.SaveChangesAsync();
+
+        return licencia;
+    }
+
     public async Task<(bool permitido, string? motivo)> VerificarAcceso()
     {
         if (string.IsNullOrWhiteSpace(_workerUrl))
@@ -180,6 +159,28 @@ public class LicenciaService
         var licencia = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
         if (licencia == null)
             return (false, "No hay licencia activa. Active su licencia para continuar.");
+
+        // Prueba gratuita: manejo local (sin verificación remota), tanto mientras corre como
+        // una vez que ya quedó marcada vencida. Una prueba nunca tuvo una LicenseKey real, así
+        // que dejarla caer al chequeo contra el Worker (más abajo) siempre falla ahí, y ese
+        // fallo se interpreta como "sin conexión" — la gracia offline se calcula contra
+        // VerifiedUntil, que para una prueba sigue apuntando a 72h después de que arrancó (no
+        // de cuando venció), da una resta negativa, y "negativo <= horas de gracia" es siempre
+        // verdadero: el acceso se reabría solo en el siguiente request después de bloquear una vez.
+        if (licencia.EsTrial || licencia.Estado == EstadosLicencia.PruebaExpirada)
+        {
+            if (licencia.EsTrial && !licencia.PruebaExpirada)
+                return (true, null);
+
+            if (licencia.EsTrial)
+            {
+                DegradarSuscripcionABasica();
+                licencia.MarcarPruebaExpirada();
+                await _context.SaveChangesAsync();
+            }
+
+            return (false, "Tu prueba gratuita venció. Contratá un plan para continuar.");
+        }
 
         if (licencia.CacheValido && licencia.Activa)
             return (true, null);
@@ -257,12 +258,10 @@ public class LicenciaService
         if (licencia == null)
             return (0, 0, 0);
 
-        var suscripcion = _context.Suscripcion.FirstOrDefault(s =>
-            s.ID_USUARIO_TITULAR == _context.Usuario
-                .Where(u => u.ROL == Roles.Admin)
-                .OrderBy(u => u.ID_USUARIO)
-                .Select(u => u.ID_USUARIO)
-                .FirstOrDefault());
+        var admin = ObtenerAdminTitular();
+        var suscripcion = admin != null
+            ? _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO)
+            : null;
 
         if (suscripcion != null)
             return (suscripcion.MAX_SUCURSALES ?? int.MaxValue,
@@ -286,12 +285,41 @@ public class LicenciaService
         return Guid.NewGuid().ToString("N")[..16];
     }
 
+    /// <summary>
+    /// Admin dueño de la Suscripcion/LicenciaConfig de esta instalación: el marcado ES_TITULAR,
+    /// o (dato legado sin backfill) el de menor ID como antes.
+    /// </summary>
+    private Usuario? ObtenerAdminTitular()
+    {
+        return _context.Usuario.FirstOrDefault(u => u.ROL == Roles.Admin && u.ES_TITULAR)
+            ?? _context.Usuario.Where(u => u.ROL == Roles.Admin).OrderBy(u => u.ID_USUARIO).FirstOrDefault();
+    }
+
+    private async Task<Usuario?> ObtenerAdminTitularAsync()
+    {
+        return await _context.Usuario.FirstOrDefaultAsync(u => u.ROL == Roles.Admin && u.ES_TITULAR)
+            ?? await _context.Usuario.Where(u => u.ROL == Roles.Admin).OrderBy(u => u.ID_USUARIO).FirstOrDefaultAsync();
+    }
+
+    private void DegradarSuscripcionABasica()
+    {
+        var admin = ObtenerAdminTitular();
+
+        if (admin == null)
+            return;
+
+        var suscripcion = _context.Suscripcion
+            .FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+
+        if (suscripcion == null)
+            return;
+
+        suscripcion.CambiarNivel(NivelesSuscripcion.Basica, 0m, 1, 1, 1);
+    }
+
     private async Task SincronizarSuscripcionConLicencia(LicenciaConfig licencia)
     {
-        var admin = await _context.Usuario
-            .Where(u => u.ROL == Roles.Admin)
-            .OrderBy(u => u.ID_USUARIO)
-            .FirstOrDefaultAsync();
+        var admin = await ObtenerAdminTitularAsync();
 
         if (admin == null)
             return;

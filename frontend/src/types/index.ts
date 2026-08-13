@@ -234,6 +234,7 @@ export interface RegisterResponse {
   rol: string
   usuarioResponsableId?: number | null
   empresaId?: number | null
+  licenciaEstado?: string | null
 }
 
 export interface UsuarioInfo {
@@ -250,6 +251,7 @@ export interface UsuarioListadoDto {
   usuarioResponsableId?: number | null
   usuarioResponsableNombre?: string | null
   empresaId?: number | null
+  esTitular: boolean
   activo: boolean
   suscripcionActiva: boolean
   accesoHabilitado: boolean
@@ -745,8 +747,8 @@ export interface MovimientoCuentaDto {
   pagoId?: number
 }
 
-export interface ActivarLicenciaRequest {
-  licenseKey: string
+export interface ActivarLicenciaPorEmailRequest {
+  email: string
 }
 
 export interface LicenciaEstado {
@@ -766,6 +768,7 @@ export interface LicenciaEstado {
 export interface LicenciaResumen {
   activa: boolean
   plan: string
+  estado: string
   daysRemaining: number | null
 }
 

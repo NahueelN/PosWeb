@@ -153,12 +153,13 @@ public class AuthService
             Rol = usuario.ROL,
             UsuarioResponsableId = usuario.ID_USUARIO_RESP,
             UsuarioResponsableNombre = responsableNombre,
+            EsTitular = usuario.ES_TITULAR,
             Activo = usuario.ACTIVO,
             PinConfigurado = !string.IsNullOrEmpty(usuario.PIN_HASH),
         };
     }
 
-    public RegisterResponseDto Register(RegisterRequestDto request, int? currentUserId = null)
+    public async Task<RegisterResponseDto> Register(RegisterRequestDto request, int? currentUserId = null)
     {
         if (string.IsNullOrWhiteSpace(request.Usuario))
         {
@@ -184,6 +185,15 @@ public class AuthService
             throw new ArgumentException("Mail inválido");
         }
 
+        Usuario? currentUser = currentUserId.HasValue
+            ? _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == currentUserId.Value)
+            : null;
+
+        if (currentUserId.HasValue && (currentUser == null || (currentUser.ROL != Roles.Admin && currentUser.ROL != Roles.SuperAdmin)))
+        {
+            throw new ArgumentException("Solo un Admin o SuperAdmin puede crear usuarios");
+        }
+
         var nombreUsuario = request.Usuario.Trim();
         var mail = request.Mail.Trim();
         var rol = currentUserId == null
@@ -207,7 +217,32 @@ public class AuthService
 
         ValidarCupoSuscripcion(rol, currentUserId);
 
-        int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
+        // Solo el alta anónima (primer admin de la instalación) crea un titular nuevo;
+        // un Admin/SuperAdmin ya logueado siempre está creando un usuario bajo su propio titular.
+        var esTitular = currentUserId == null;
+
+        // El registro anónimo es para el primer admin de una instalación nueva. Si ya hay un
+        // titular, registrarse de nuevo sin sesión crearía otro titular independiente sobre la
+        // misma base de datos (mismos productos/ventas/etc.) y reiniciaría la prueba gratuita
+        // de licencia una y otra vez sin costo. Una vez que existe un titular, hay que loguearse.
+        if (esTitular && _context.Usuario.Any(u => u.ES_TITULAR))
+        {
+            throw new ArgumentException("Ya existe un administrador registrado en esta instalación. Iniciá sesión o pedile a un Admin que te cree una cuenta.");
+        }
+
+        int? usuarioResponsableId;
+        if (rol == Roles.UsuarioComun)
+        {
+            usuarioResponsableId = currentUserId;
+        }
+        else if (rol == Roles.Admin && currentUser != null)
+        {
+            usuarioResponsableId = ResolverTitular(currentUser).ID_USUARIO;
+        }
+        else
+        {
+            usuarioResponsableId = null;
+        }
 
         int? empresaId = request.EmpresaId;
 
@@ -219,16 +254,34 @@ public class AuthService
             rol,
             mail,
             usuarioResponsableId: usuarioResponsableId,
-            empresaId: empresaId);
+            empresaId: empresaId,
+            esTitular: esTitular);
 
         _context.Usuario.Add(nuevoUsuario);
         _context.SaveChanges();
 
-        if (rol == Roles.Admin)
+        // Un admin secundario comparte la Suscripcion y la LicenciaConfig del titular:
+        // no se le crea una propia ni se vuelve a activar/otorgar licencia por su cuenta.
+        if (rol == Roles.Admin && esTitular)
         {
             var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
             _context.Suscripcion.Add(suscripcion);
             _context.SaveChanges();
+        }
+
+        string? licenciaEstado = null;
+        if (rol == Roles.Admin)
+        {
+            if (esTitular)
+            {
+                var (_, licencia) = await _licenciaService.ActivarPorEmailOPrueba(mail);
+                licenciaEstado = licencia?.Estado;
+            }
+            else
+            {
+                var licenciaCompartida = await _licenciaService.ObtenerEstadoLocal();
+                licenciaEstado = licenciaCompartida?.Estado;
+            }
         }
 
         return new RegisterResponseDto
@@ -237,7 +290,9 @@ public class AuthService
             Usuario = nuevoUsuario.NOMBRE_USUARIO,
             Mail = mail,
             Rol = nuevoUsuario.ROL,
-            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP
+            UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP,
+            EsTitular = nuevoUsuario.ES_TITULAR,
+            LicenciaEstado = licenciaEstado
         };
     }
 
@@ -249,9 +304,15 @@ public class AuthService
         }
 
         var currentUser = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == currentUserId.Value);
-        var suscripcion = currentUser != null
-            ? _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == currentUser.ID_USUARIO)
-            : null;
+        if (currentUser == null)
+        {
+            return;
+        }
+
+        // El cupo del plan es del titular: se poolea entre el titular y todos los admins
+        // secundarios que comparten su Suscripcion, no por empresa ni por creador directo.
+        var titular = ResolverTitular(currentUser);
+        var suscripcion = _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
 
         if (suscripcion == null)
         {
@@ -266,7 +327,8 @@ public class AuthService
             }
 
             var adminsExistentes = _context.Usuario.Count(u =>
-                u.ROL == Roles.Admin && u.ACTIVO && u.ID_EMPRESA == currentUser.ID_EMPRESA);
+                u.ROL == Roles.Admin && u.ACTIVO &&
+                (u.ID_USUARIO == titular.ID_USUARIO || u.ID_USUARIO_RESPONSABLE == titular.ID_USUARIO));
 
             if (adminsExistentes >= suscripcion.MAX_ADMIN.Value)
             {
@@ -280,8 +342,16 @@ public class AuthService
                 return;
             }
 
+            var adminIdsBajoTitular = _context.Usuario
+                .Where(u => u.ROL == Roles.Admin &&
+                    (u.ID_USUARIO == titular.ID_USUARIO || u.ID_USUARIO_RESPONSABLE == titular.ID_USUARIO))
+                .Select(u => u.ID_USUARIO)
+                .ToList();
+
             var usuariosExistentes = _context.Usuario.Count(u =>
-                u.ROL == Roles.UsuarioComun && u.ACTIVO && u.ID_USUARIO_RESPONSABLE == currentUser.ID_USUARIO);
+                u.ROL == Roles.UsuarioComun && u.ACTIVO &&
+                u.ID_USUARIO_RESPONSABLE.HasValue &&
+                adminIdsBajoTitular.Contains(u.ID_USUARIO_RESPONSABLE.Value));
 
             if (usuariosExistentes >= suscripcion.MAX_USUARIOS.Value)
             {
@@ -290,14 +360,24 @@ public class AuthService
         }
     }
 
+    /// <summary>
+    /// Resuelve el titular de la suscripción/licencia para un Admin o SuperAdmin: el titular
+    /// explícito (ES_TITULAR) si es él mismo, o el usuario al que apunta ID_USUARIO_RESPONSABLE
+    /// (nunca más de un salto: los admins secundarios siempre se enlazan directo al titular).
+    /// </summary>
+    private Usuario ResolverTitular(Usuario usuario)
+    {
+        if (usuario.ES_TITULAR || !usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        {
+            return usuario;
+        }
+
+        return _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value) ?? usuario;
+    }
+
     private bool TieneAccesoPorSuscripcion(Usuario usuario)
     {
-        var titular = ObtenerTitularSuscripcion(usuario);
-
-        if (titular == null)
-        {
-            return usuario.SUSCRIPCION_ACTIVA;
-        }
+        var titular = ResolverTitular(usuario);
 
         var suscripcion = _context.Suscripcion
             .FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
@@ -310,24 +390,10 @@ public class AuthService
         return suscripcion.EstaActiva();
     }
 
-    private Usuario? ObtenerTitularSuscripcion(Usuario usuario)
-    {
-        if (!usuario.ID_USUARIO_RESPONSABLE.HasValue)
-        {
-            return usuario;
-        }
-
-        return _context.Usuario
-            .FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value);
-    }
-
   private async Task<bool> VerificarOActivarLicencia(Usuario usuario)
   {
     var (permitido, _) = await _licenciaService.VerificarAcceso();
     if (permitido) return true;
-
-    var local = await _licenciaService.ObtenerEstadoLocal();
-    if (local != null) return false;
 
     if (string.IsNullOrWhiteSpace(usuario.MAIL))
       return false;

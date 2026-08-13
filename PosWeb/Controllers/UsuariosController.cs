@@ -44,6 +44,7 @@ public class UsuariosController : ControllerBase
                 UsuarioResponsableNombre = u.ID_USUARIO_RESP.HasValue && responsables.TryGetValue(u.ID_USUARIO_RESP.Value, out var nombreResponsable)
                     ? nombreResponsable
                     : null,
+                EsTitular = u.ES_TITULAR,
                 Activo = u.ACTIVO,
                 EmpresaId = u.ID_EMPRESA,
                 SuscripcionActiva = TieneSuscripcionActiva(u, usuariosPorId, suscripcionesPorTitular),
@@ -75,21 +76,27 @@ public class UsuariosController : ControllerBase
             return BadRequest("La suscripción solo se gestiona sobre usuarios admin");
         }
 
-        var suscripcion = _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == usuario.ID_USUARIO);
+        // Un admin secundario no tiene Suscripcion propia: se gestiona la del titular
+        // que comparte, para no crear una huérfana.
+        var titular = ResolverTitularSuscripcion(usuario);
+
+        var suscripcion = _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO);
         if (suscripcion == null)
         {
-            suscripcion = Suscripcion.CrearBasica(usuario.ID_USUARIO);
+            suscripcion = Suscripcion.CrearBasica(titular.ID_USUARIO);
             _context.Suscripcion.Add(suscripcion);
         }
 
         if (request.Activa)
         {
             suscripcion.Activar();
+            titular.ActivarSuscripcion();
             usuario.ActivarSuscripcion();
         }
         else
         {
             suscripcion.Suspender();
+            titular.SuspenderSuscripcion();
             usuario.SuspenderSuscripcion();
         }
 
@@ -101,6 +108,16 @@ public class UsuariosController : ControllerBase
             suscripcionActiva = suscripcion.EstaActiva(),
             nivel = suscripcion.NIVEL
         });
+    }
+
+    private Usuario ResolverTitularSuscripcion(Usuario usuario)
+    {
+        if (usuario.ES_TITULAR || !usuario.ID_USUARIO_RESPONSABLE.HasValue)
+        {
+            return usuario;
+        }
+
+        return _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value) ?? usuario;
     }
 
     [HttpDelete("{id:int}")]
