@@ -91,6 +91,7 @@ public class LicenciaController : ControllerBase
             DaysRemaining = local?.NextBilling.HasValue == true
                 ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
                 : null,
+            GraceHasta = local?.GraceHastaEfectivo,
         });
     }
 
@@ -119,7 +120,7 @@ public class LicenciaController : ControllerBase
             Plan = licencia.Plan,
             Estado = licencia.Estado,
             VerificadoHasta = licencia.VerifiedUntil,
-            GraceHasta = licencia.GraceUntil,
+            GraceHasta = licencia.GraceHastaEfectivo,
             NextBilling = licencia.NextBilling,
             DaysRemaining = licencia.NextBilling.HasValue
                 ? (int)(licencia.NextBilling.Value - DateTime.UtcNow).TotalDays

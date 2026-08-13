@@ -340,6 +340,61 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
+    public async Task VerificarAcceso_TrasVencerGracia_BloqueaOfflineEnLlamadasPosteriores()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_TrasVencerGracia_BloqueaOfflineEnLlamadasPosteriores));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        // Licencia paga vencida hace 72h (ya pasó la gracia de 48h) pero con cache local todavía
+        // vigente y sin poder contactar al Worker (offline): debe bloquear y seguir bloqueando.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "encrypted-key",
+            Plan = NivelesSuscripcion.Basica,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "maquina",
+            NextBilling = DateTime.UtcNow.AddHours(-72),
+            LastVerifiedAt = DateTime.UtcNow,
+            VerifiedUntil = DateTime.UtcNow.AddHours(72),
+        });
+        await context.SaveChangesAsync();
+
+        var (permitidoPrimeraVez, _) = await licenciaService.VerificarAcceso();
+        Assert.False(permitidoPrimeraVez);
+
+        // Antes del fix, esta segunda llamada reabría el acceso: al persistir 'expired' se
+        // refrescaba VerifiedUntil (now+72h) y la gracia offline devolvía true (resta negativa).
+        var (permitidoSegundaVez, _) = await licenciaService.VerificarAcceso();
+        Assert.False(permitidoSegundaVez);
+
+        var licenciaFinal = await licenciaService.ObtenerEstadoLocal();
+        Assert.Equal(EstadosLicencia.Expirada, licenciaFinal!.Estado);
+    }
+
+    [Fact]
+    public async Task VerificarAcceso_DuranteGracia_SiguePermitiendoOffline()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_DuranteGracia_SiguePermitiendoOffline));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        // Vencida hace 24h (dentro de la gracia de 48h): debe seguir permitiendo el acceso.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "encrypted-key",
+            Plan = NivelesSuscripcion.Media,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "maquina",
+            NextBilling = DateTime.UtcNow.AddHours(-24),
+            LastVerifiedAt = DateTime.UtcNow,
+            VerifiedUntil = DateTime.UtcNow.AddHours(72),
+        });
+        await context.SaveChangesAsync();
+
+        var (permitido, _) = await licenciaService.VerificarAcceso();
+        Assert.True(permitido);
+    }
+
+    [Fact]
     public async Task Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita()
     {
         var context = CrearContexto(nameof(Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita));

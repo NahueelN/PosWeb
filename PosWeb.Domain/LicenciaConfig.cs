@@ -8,6 +8,7 @@ public static class EstadosLicencia
     public const string Gracia = "grace";
     public const string Pausada = "paused";
     public const string Cancelada = "cancelled";
+    public const string Expirada = "expired";
     public const string Pendiente = "pending";
     public const string Prueba = "trial";
     public const string PruebaExpirada = "trial-expired";
@@ -45,6 +46,17 @@ public class LicenciaConfig
     public DateTime? NextBilling { get; set; }
 
     public bool CacheValido => VerifiedUntil.HasValue && VerifiedUntil.Value > DateTime.UtcNow;
+
+    /// <summary>Horas de gracia tras el vencimiento antes de revocar el acceso.</summary>
+    public const double GraceHoras = 48;
+
+    /// <summary>
+    /// Fecha límite de la gracia: la reportada por el Worker, o (si aún no se re-verificó)
+    /// el vencimiento + 48h. Sirve para calcular el tiempo restante sin depender del cache.
+    /// </summary>
+    public DateTime? GraceHastaEfectivo => NextBilling.HasValue
+        ? GraceUntil ?? NextBilling.Value.AddHours(GraceHoras)
+        : GraceUntil;
 
     public void ActualizarEstado(string estado, DateTime? graceUntil = null, DateTime? nextBilling = null)
     {

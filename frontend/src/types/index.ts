@@ -770,6 +770,7 @@ export interface LicenciaResumen {
   plan: string
   estado: string
   daysRemaining: number | null
+  graceHasta: string | null
 }
 
 export interface MercadoPagoEstadoDto {

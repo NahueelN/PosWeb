@@ -64,4 +64,7 @@ public class LicenciaResumenDto
 
     /// <summary>Días restantes hasta el vencimiento.</summary>
     public int? DaysRemaining { get; set; }
+
+    /// <summary>Fecha límite del período de gracia (UTC). Null si no aplica.</summary>
+    public DateTime? GraceHasta { get; set; }
 }

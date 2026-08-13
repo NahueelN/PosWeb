@@ -168,6 +168,25 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const licBadge = (() => {
+    if (!licResumen?.activa || licResumen.daysRemaining == null || licResumen.daysRemaining > 3) return null
+    if (licResumen.daysRemaining <= 0) {
+      const hours = licResumen.graceHasta
+        ? Math.max(0, Math.ceil((new Date(licResumen.graceHasta).getTime() - Date.now()) / 3600000))
+        : 0
+      return {
+        text: `Tu licencia está vencida, renovala o tu acceso será revocado en ${hours} horas`,
+        tone: 'expired' as const,
+      }
+    }
+    return {
+      text: licResumen.estado === 'trial'
+        ? `Prueba — vence en ${licResumen.daysRemaining} días`
+        : `Vence en ${licResumen.daysRemaining} días`,
+      tone: 'warn' as const,
+    }
+  })()
+
   const canCreateUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
 
   function handleLogout() {
@@ -339,22 +358,18 @@ export default function Layout() {
                 {sucursal.nombre}
               </span>
             )}
-            {licResumen?.activa && licResumen.daysRemaining != null && licResumen.daysRemaining <= 3 && (
+            {licBadge && (
               <a
                 href="https://posweb-licensing.chiacchio-eze01.workers.dev"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg shrink-0 no-underline ${
-                  licResumen.daysRemaining <= 0
+                  licBadge.tone === 'expired'
                     ? 'bg-red-50 text-red-700 hover:bg-red-100'
                     : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                 }`}
               >
-                {licResumen.daysRemaining <= 0
-                  ? 'Vencida — Renovar'
-                  : licResumen.estado === 'trial'
-                    ? `Prueba — vence en ${licResumen.daysRemaining} días`
-                    : `Vence en ${licResumen.daysRemaining} días`}
+                {licBadge.text}
               </a>
             )}
           </div>

@@ -69,6 +69,52 @@ function fechaBaseParaRenovacion(nextBillingActual: string | null): Date {
   return actual > hoy ? actual : hoy;
 }
 
+// Renovación manual mensual: se suman 30 días desde el vencimiento vigente si todavía
+// quedaban días (se respeta el original), o desde hoy si la licencia ya estaba vencida.
+function calcularNuevoVencimiento(nextBillingActual: string | null): string {
+  const base = fechaBaseParaRenovacion(nextBillingActual);
+  base.setDate(base.getDate() + 30);
+  return base.toISOString().split('T')[0];
+}
+
+const GRACE_HOURS = 48;
+const GRACE_MS = GRACE_HOURS * 60 * 60 * 1000;
+
+// Evalúa el estado efectivo de una licencia a partir de su next_billing:
+// - active: vencimiento en el futuro.
+// - grace: venció, pero está dentro de las 48h de gracia (sigue permitida).
+// - expired: pasó la gracia (acceso revocado).
+function evaluarVigencia(l: License): { status: string; valid: boolean; graceUntil: string | null } {
+  if (l.status === 'cancelled' || l.status === 'paused') {
+    return { status: l.status, valid: false, graceUntil: null };
+  }
+  if (l.status === 'pending') {
+    return { status: 'pending', valid: false, graceUntil: null };
+  }
+  if (!l.next_billing) {
+    return { status: 'active', valid: true, graceUntil: null };
+  }
+  const next = new Date(l.next_billing);
+  const now = new Date();
+  if (next > now) {
+    return { status: 'active', valid: true, graceUntil: null };
+  }
+  const graceUntil = new Date(next.getTime() + GRACE_MS);
+  if (now <= graceUntil) {
+    return { status: 'grace', valid: true, graceUntil: graceUntil.toISOString() };
+  }
+  return { status: 'expired', valid: false, graceUntil: null };
+}
+
+async function persistirVigencia(env: Env, l: License, v: { status: string; graceUntil: string | null }) {
+  if (v.status !== l.status || (v.graceUntil ?? null) !== (l.grace_until ?? null)) {
+    await env.LICENSES_DB
+      .prepare('UPDATE licenses SET status = ?, grace_until = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
+      .bind(v.status, v.graceUntil, l.license_key)
+      .run();
+  }
+}
+
 async function normalizePlan(env: Env, plan: string): Promise<string> {
   const lowered = plan.toLowerCase();
   if (VALID_PLANS.includes(lowered)) return lowered;
@@ -126,17 +172,26 @@ app.post('/webhook', async (c) => {
         return c.json({ error: 'License not found' }, 404);
       }
 
+      if (paymentStatus === 'approved') {
+        const nextBilling = calcularNuevoVencimiento(existing.next_billing);
+        await env.LICENSES_DB
+          .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
+          .bind('active', nextBilling, licenseKey)
+          .run();
+        return c.json({ success: true, license_key: licenseKey, status: 'active', next_billing: nextBilling });
+      }
+
       const terminalStatuses = ['refunded', 'cancelled', 'rejected', 'charged_back'];
-      const newStatus = paymentStatus === 'approved' ? 'active'
-        : terminalStatuses.includes(paymentStatus) ? 'cancelled'
-        : 'pending';
+      if (terminalStatuses.includes(paymentStatus)) {
+        await env.LICENSES_DB
+          .prepare('UPDATE licenses SET status = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
+          .bind('cancelled', licenseKey)
+          .run();
+        return c.json({ success: true, license_key: licenseKey, status: 'cancelled' });
+      }
 
-      await env.LICENSES_DB
-        .prepare('UPDATE licenses SET preapproval_id = ?, status = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
-        .bind(resourceId, newStatus, licenseKey)
-        .run();
-
-      return c.json({ success: true, license_key: licenseKey, status: newStatus });
+      // pending (u otro estado no terminal): no se toca la licencia, conserva su estado actual.
+      return c.json({ success: true, license_key: licenseKey, status: existing.status });
     } catch (e: any) {
       return c.json({ error: `Failed to process webhook: ${e.message}` }, 500);
     }
@@ -187,9 +242,7 @@ app.post('/webhook', async (c) => {
       return c.json({ error: 'License not found for this preapproval' }, 404);
     }
 
-    const date = fechaBaseParaRenovacion(existing.next_billing);
-    date.setMonth(date.getMonth() + 1);
-    const nextBilling = date.toISOString().split('T')[0];
+    const nextBilling = calcularNuevoVencimiento(existing.next_billing);
 
     await env.LICENSES_DB
       .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -224,10 +277,15 @@ app.post('/activate', async (c) => {
     return c.json({ success: false, error: 'License already activated on another device' }, 409);
   }
 
-  if (license.status !== 'active' && license.status !== 'grace') {
-    const msg = license.status === 'pending'
+  const vigencia = evaluarVigencia(license);
+  await persistirVigencia(env, license, vigencia);
+
+  if (!vigencia.valid) {
+    const msg = vigencia.status === 'pending'
       ? 'El pago aún se está procesando. Esperá unos minutos y volvé a intentar.'
-      : `La licencia está en estado "${license.status}". Contactá al soporte.`;
+      : vigencia.status === 'expired'
+        ? 'Tu licencia está vencida. Renovala para continuar.'
+        : `La licencia está en estado "${vigencia.status}". Contactá al soporte.`;
     return c.json({ success: false, error: msg }, 403);
   }
 
@@ -239,7 +297,7 @@ app.post('/activate', async (c) => {
   return c.json({
     success: true,
     plan: license.plan,
-    status: license.status,
+    status: vigencia.status,
     next_billing: license.next_billing,
   });
 });
@@ -282,14 +340,13 @@ app.post('/status', async (c) => {
         const searchData: any = await mpCheck.json();
         const approved = searchData.results?.find((p: any) => p.status === 'approved');
         if (approved) {
-          const nextBilling = fechaBaseParaRenovacion(license.next_billing);
-          nextBilling.setDate(nextBilling.getDate() + 30);
+          const nextBilling = calcularNuevoVencimiento(license.next_billing);
           await env.LICENSES_DB
             .prepare('UPDATE licenses SET status = ?, next_billing = ?, preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
-            .bind('active', nextBilling.toISOString().split('T')[0], approved.id.toString(), license.license_key)
+            .bind('active', nextBilling, approved.id.toString(), license.license_key)
             .run();
           license.status = 'active';
-          license.next_billing = nextBilling.toISOString().split('T')[0];
+          license.next_billing = nextBilling;
         }
       }
     } catch {
@@ -303,12 +360,15 @@ app.post('/status', async (c) => {
     ? Math.ceil((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
+  const vigencia = evaluarVigencia(license);
+  await persistirVigencia(env, license, vigencia);
+
   return c.json({
-    valid: license.status === 'active' || license.status === 'grace',
+    valid: vigencia.valid,
     plan: license.plan,
-    status: license.status,
+    status: vigencia.status,
     next_billing: license.next_billing,
-    grace_until: license.grace_until,
+    grace_until: vigencia.graceUntil,
     days_remaining: daysRemaining,
   });
 });
@@ -376,7 +436,7 @@ app.post('/license-by-email', async (c) => {
   }
 
   const license = await env.LICENSES_DB
-    .prepare('SELECT * FROM licenses WHERE email = ? AND status IN (\'active\', \'grace\') ORDER BY created_at DESC LIMIT 1')
+    .prepare('SELECT * FROM licenses WHERE email = ? ORDER BY created_at DESC LIMIT 1')
     .bind(email.toLowerCase().trim())
     .first<License>();
 
@@ -384,19 +444,24 @@ app.post('/license-by-email', async (c) => {
     return c.json({ found: false });
   }
 
+  const vigencia = evaluarVigencia(license);
+  await persistirVigencia(env, license, vigencia);
+
   const now = new Date();
   const nextBillingDate = license.next_billing ? new Date(license.next_billing) : null;
   const daysRemaining = nextBillingDate
     ? Math.ceil((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
+  // Se devuelve found:true para cualquier licencia existente (incluso vencida/cancelada),
+  // con su estado efectivo: así el backend puede mostrar el motivo real al intentar activarla.
   return c.json({
     found: true,
     license_key: license.license_key,
     plan: license.plan,
-    status: license.status,
+    status: vigencia.status,
     next_billing: license.next_billing,
-    grace_until: license.grace_until,
+    grace_until: vigencia.graceUntil,
     days_remaining: daysRemaining,
   });
 });
@@ -418,18 +483,29 @@ app.post('/checkout', async (c) => {
 
   const workerBase = `${new URL(c.req.url).protocol}//${new URL(c.req.url).hostname}`;
 
-  const licenseKey = generateLicenseKey();
-  const externalRef = `plan:${planKey}:${email}:${licenseKey}`;
-  const nextBilling = new Date();
-  nextBilling.setDate(nextBilling.getDate() + 30);
-  const nextBillingStr = nextBilling.toISOString().split('T')[0];
+  const emailLower = email.toLowerCase().trim();
 
-  await env.LICENSES_DB
-    .prepare(
-      'INSERT INTO licenses (license_key, email, plan, status, next_billing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
-    )
-    .bind(licenseKey, email, planKey, 'pending', nextBillingStr)
-    .run();
+  // Renovación: si ya existe una licencia para este email, se reutiliza (misma license_key,
+  // misma máquina y se conserva el vencimiento actual, que el pago extenderá). Si no, se crea.
+  const existing = await env.LICENSES_DB
+    .prepare('SELECT * FROM licenses WHERE email = ? ORDER BY created_at DESC LIMIT 1')
+    .bind(emailLower)
+    .first<License>();
+
+  const licenseKey = existing?.license_key ?? generateLicenseKey();
+  const externalRef = `plan:${planKey}:${emailLower}:${licenseKey}`;
+
+  if (existing) {
+    await env.LICENSES_DB
+      .prepare('UPDATE licenses SET plan = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
+      .bind(planKey, licenseKey)
+      .run();
+  } else {
+    await env.LICENSES_DB
+      .prepare('INSERT INTO licenses (license_key, email, plan, status, next_billing, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, datetime(\'now\'), datetime(\'now\'))')
+      .bind(licenseKey, emailLower, planKey, 'pending')
+      .run();
+  }
 
   try {
     const preferenceResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
@@ -449,7 +525,7 @@ app.post('/checkout', async (c) => {
             unit_price: price,
           },
         ],
-        payer: { email },
+        payer: { email: emailLower },
         back_urls: {
           success: `${workerBase}/success.html?license_key=${licenseKey}`,
           failure: `${workerBase}/error.html`,
@@ -465,19 +541,24 @@ app.post('/checkout', async (c) => {
     const data: any = await preferenceResponse.json();
 
     if (!preferenceResponse.ok) {
-      await env.LICENSES_DB
-        .prepare('DELETE FROM licenses WHERE license_key = ?')
-        .bind(licenseKey)
-        .run();
+      // Solo se borra si la acabamos de crear; una renovación no debe eliminar la existente.
+      if (!existing) {
+        await env.LICENSES_DB
+          .prepare('DELETE FROM licenses WHERE license_key = ?')
+          .bind(licenseKey)
+          .run();
+      }
       return c.json({ error: data.message || 'Failed to create preference' }, 500);
     }
 
     return c.json({ checkout_url: data.init_point, preference_id: data.id });
   } catch (e: any) {
-    await env.LICENSES_DB
-      .prepare('DELETE FROM licenses WHERE license_key = ?')
-      .bind(licenseKey)
-      .run();
+    if (!existing) {
+      await env.LICENSES_DB
+        .prepare('DELETE FROM licenses WHERE license_key = ?')
+        .bind(licenseKey)
+        .run();
+    }
     return c.json({ error: `Failed to create checkout: ${e.message}` }, 500);
   }
 });

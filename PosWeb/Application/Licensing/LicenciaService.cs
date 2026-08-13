@@ -94,6 +94,7 @@ public class LicenciaService
                 _context.Set<LicenciaConfig>().Remove(existente);
 
             var nextBillingParsed = result.NextBilling != null ? DateTime.Parse(result.NextBilling) : (DateTime?)null;
+            var graceHastaParsed = result.GraceUntil != null ? DateTime.Parse(result.GraceUntil) : (DateTime?)null;
 
             var licencia = new LicenciaConfig
             {
@@ -103,7 +104,7 @@ public class LicenciaService
                 MachineId = machineId,
                 NextBilling = nextBillingParsed,
             };
-            licencia.ActualizarEstado(result.Status, nextBilling: nextBillingParsed);
+            licencia.ActualizarEstado(result.Status, graceUntil: graceHastaParsed, nextBilling: nextBillingParsed);
 
             _context.Set<LicenciaConfig>().Add(licencia);
             await SincronizarSuscripcionConLicencia(licencia);
@@ -182,6 +183,27 @@ public class LicenciaService
             return (false, "Tu prueba gratuita venció. Contratá un plan para continuar.");
         }
 
+        // Vencimiento + gracia evaluado localmente, sin depender del cache de 72h ni del Worker:
+        // el vencimiento queda persistido en la base local, así que el bloqueo se respeta incluso
+        // estando offline. Se retorna false SIEMPRE que ya pasó la gracia, sin importar el estado
+        // ya guardado (si no, la gracia offline del cache reabriría el acceso en el siguiente request).
+        if (licencia.NextBilling.HasValue)
+        {
+            var graceHasta = licencia.GraceUntil ?? licencia.NextBilling.Value.AddHours(LicenciaConfig.GraceHoras);
+            if (DateTime.UtcNow > graceHasta)
+            {
+                if (licencia.Estado != EstadosLicencia.Expirada
+                    && licencia.Estado != EstadosLicencia.Cancelada
+                    && licencia.Estado != EstadosLicencia.Pausada)
+                {
+                    licencia.ActualizarEstado(EstadosLicencia.Expirada);
+                    await _context.SaveChangesAsync();
+                }
+
+                return (false, "Tu licencia está vencida. Renovala para continuar.");
+            }
+        }
+
         if (licencia.CacheValido && licencia.Activa)
             return (true, null);
 
@@ -204,9 +226,11 @@ public class LicenciaService
 
             if (!result.Valid)
             {
-                licencia.ActualizarEstado("cancelled");
+                licencia.ActualizarEstado(string.IsNullOrWhiteSpace(result.Status)
+                    ? EstadosLicencia.Cancelada
+                    : result.Status);
                 await _context.SaveChangesAsync();
-                return (false, "Licencia inválida o cancelada.");
+                return (false, $"Licencia en estado \"{result.Status}\". Renovala para continuar.");
             }
 
             var graceUntil = result.GraceUntil != null ? DateTime.Parse(result.GraceUntil) : (DateTime?)null;
