@@ -1,11 +1,11 @@
 {
   "pub_date": "2026-08-10T20:17:39Z",
-  "notes": "Release v1.1.4",
-  "version": "1.1.4",
+  "notes": "Release v1.1.5",
+  "version": "1.1.5",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkRDdmJBUldwY3IzZFdnZHIvNmpQQUdpTDNSZVVlSkYwdlgrYmZnaUtodmpVNG9LOTRrTVFFQWppM1JVL1JZR0JIVGtZNDZveS9lTnZDZ3JVblRJeWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzkzMDQ5CWZpbGU6UG9zV2ViXzEuMS4zX3g2NC1zZXR1cC5leGUKWll4bkVGL05VQkk1Mm9CZlp2Zk82NWxqaGNiVXdCVVJsWlQrYjBZbEpWbVFTKzQ2OGVZc01IY05QYnNpNk9reVpDb3NkYzF0Mk5IL0oxb3BDdjZOQ2c9PQo=",
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.1.4/PosWeb_1.1.4_x64-setup.exe"
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.1.5/PosWeb_1.1.5_x64-setup.exe"
     }
   }
 }
