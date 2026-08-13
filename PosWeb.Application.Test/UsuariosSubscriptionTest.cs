@@ -395,6 +395,57 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
+    public async Task VerificarAcceso_ConRelojAtrasado_Bloquea()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_ConRelojAtrasado_Bloquea));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        // La marca máxima vista es "mañana": un reloj atrasado (hoy) dispara el bloqueo.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "encrypted-key",
+            Plan = NivelesSuscripcion.Maxima,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "maquina",
+            NextBilling = DateTime.UtcNow.AddDays(30),
+            LastVerifiedAt = DateTime.UtcNow,
+            VerifiedUntil = DateTime.UtcNow.AddHours(72),
+            LastSeenUtc = DateTime.UtcNow.AddDays(1),
+        });
+        await context.SaveChangesAsync();
+
+        var (permitido, motivo) = await licenciaService.VerificarAcceso();
+        Assert.False(permitido);
+        Assert.Contains("cambio de hora", motivo);
+    }
+
+    [Fact]
+    public async Task VerificarAcceso_AvanzaLaMarcaDeReloj()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_AvanzaLaMarcaDeReloj));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        // Sin marca previa: tras una verificación normal, LastSeenUtc queda persistido y no bloquea.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "encrypted-key",
+            Plan = NivelesSuscripcion.Maxima,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "maquina",
+            NextBilling = DateTime.UtcNow.AddDays(30),
+            LastVerifiedAt = DateTime.UtcNow,
+            VerifiedUntil = DateTime.UtcNow.AddHours(72),
+        });
+        await context.SaveChangesAsync();
+
+        var (permitido, _) = await licenciaService.VerificarAcceso();
+        Assert.True(permitido);
+
+        var licenciaFinal = await licenciaService.ObtenerEstadoLocal();
+        Assert.NotNull(licenciaFinal!.LastSeenUtc);
+    }
+
+    [Fact]
     public async Task Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita()
     {
         var context = CrearContexto(nameof(Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita));

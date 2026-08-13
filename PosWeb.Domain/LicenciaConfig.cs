@@ -45,6 +45,9 @@ public class LicenciaConfig
 
     public DateTime? NextBilling { get; set; }
 
+    /// <summary>Marca de reloj (UTC) más alta vista localmente. Solo avanza; sirve para detectar retrocesos de la hora del sistema.</summary>
+    public DateTime? LastSeenUtc { get; set; }
+
     public bool CacheValido => VerifiedUntil.HasValue && VerifiedUntil.Value > DateTime.UtcNow;
 
     /// <summary>Horas de gracia tras el vencimiento antes de revocar el acceso.</summary>

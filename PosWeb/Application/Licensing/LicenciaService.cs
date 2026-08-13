@@ -18,6 +18,11 @@ public class LicenciaService
     private readonly TimeSpan _pruebaGratuitaDuracion;
     private readonly IEncryptionService _encryption;
 
+    // Retroceso del reloj del sistema: tolerancia en minutos antes de considerarlo manipulación
+    // (NTP o correcciones menores), y frecuencia mínima (minutos) con la que se persiste la marca.
+    private const int RollbackToleranciaMinutos = 5;
+    private const int PersistenciaMinutos = 1;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -160,6 +165,22 @@ public class LicenciaService
         var licencia = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
         if (licencia == null)
             return (false, "No hay licencia activa. Active su licencia para continuar.");
+
+        // Detección de retroceso del reloj: si la hora del sistema es anterior a la marca máxima
+        // vista (persistida localmente), alguien atrasó el reloj para extender la licencia.
+        var ahora = DateTime.UtcNow;
+        if (licencia.LastSeenUtc.HasValue
+            && ahora < licencia.LastSeenUtc.Value.AddMinutes(-RollbackToleranciaMinutos))
+        {
+            return (false, "Se detectó un cambio de hora. Verificar fecha y hora.");
+        }
+
+        if (!licencia.LastSeenUtc.HasValue
+            || (ahora - licencia.LastSeenUtc.Value).TotalMinutes >= PersistenciaMinutos)
+        {
+            licencia.LastSeenUtc = ahora;
+            await _context.SaveChangesAsync();
+        }
 
         // Prueba gratuita: manejo local (sin verificación remota), tanto mientras corre como
         // una vez que ya quedó marcada vencida. Una prueba nunca tuvo una LicenseKey real, así
