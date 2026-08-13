@@ -146,7 +146,8 @@ public class ProductoService
             throw new CodigoBarraInvalidoException("debe proporcionar código de barras o código personalizado");
         }
 
-        // Validar que el código interno no exista ya
+        // Validar que el código interno no exista ya entre los activos (el índice único
+        // de COD_PRODUCTO está filtrado por ACTIVO, así que un inactivo no bloquea reuso)
         bool codigoProductoExiste = _context.Producto
             .Any(p => p.COD_PRODUCTO == codProducto && p.ACTIVO);
 

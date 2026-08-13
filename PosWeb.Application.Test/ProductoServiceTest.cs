@@ -143,6 +143,41 @@ public class ProductoServiceTest
     }
 
     [Fact]
+    public void ObtenerSiguienteCodigo_ReusaCodigoDeProductoInactivo()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(ObtenerSiguienteCodigo_ReusaCodigoDeProductoInactivo));
+        CrearProducto(context, 1, "PROD1", "Activo");
+        CrearProducto(context, 2, "PROD2", "Inactivo", false);
+
+        ProductoService service = CrearService(context);
+
+        Assert.Equal("PROD2", service.ObtenerSiguienteCodigo());
+    }
+
+    [Fact]
+    public void Crear_ReusaCodigoDeProductoInactivo_NoLanzaExcepcion()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(Crear_ReusaCodigoDeProductoInactivo_NoLanzaExcepcion));
+        CrearProducto(context, 1, "PROD1", "Inactivo", false);
+
+        ProductoService service = CrearService(context);
+
+        ProductoUpsertDto dto = new ProductoUpsertDto
+        {
+            CodigoProducto = "PROD1",
+            CodigoBarra = "999",
+            Nombre = "Nuevo",
+            Precio = 100m,
+            Costo = 80m
+        };
+
+        ProductoDto resultado = service.Crear(dto);
+
+        Assert.Equal("PROD1", resultado.CodigoProducto);
+        Assert.True(resultado.Activo);
+    }
+
+    [Fact]
     public void ObtenerPorCodigoBarra_Vacio_LanzaExcepcion()
     {
         PosDbContextLocal context = CrearContexto(nameof(ObtenerPorCodigoBarra_Vacio_LanzaExcepcion));

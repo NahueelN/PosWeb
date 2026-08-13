@@ -42,6 +42,16 @@ public class PosDbContextLocal : DbContext
 
         PosDbContext.ConfigureEntities(modelBuilder);
 
+        // Índices únicos filtrados por ACTIVO (SQLite soporta índices parciales),
+        // para que un registro inactivo no bloquee el reuso de su código.
+        modelBuilder.Entity<Producto>().HasIndex(p => p.COD_PRODUCTO).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<Sucursal>().HasIndex(s => s.COD_SUCURSAL).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<Usuario>().HasIndex(u => u.NOMBRE_USUARIO).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<Cliente>().HasIndex(c => c.COD_CLIENTE).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<Combo>().HasIndex(c => c.COD_COMBO).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<MedioPago>().HasIndex(m => m.COD_MEDIO_PAGO).HasFilter("ACTIVO = 1");
+        modelBuilder.Entity<Proveedor>().HasIndex(p => p.COD_PROVEEDOR).HasFilter("ACTIVO = 1");
+
         PosDbContext.SeedLocalData(modelBuilder);
     }
 }
