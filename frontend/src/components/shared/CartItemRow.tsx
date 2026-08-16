@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect, useRef } from 'react'
+import { type ReactNode } from 'react'
 import { Plus, Minus, Trash2, AlertTriangle } from 'lucide-react'
 
 // ── Shared cart item row props ──────────────────────────────────────
@@ -67,29 +67,12 @@ export default function CartItemRow({
   onRemove,
   removeButton,
 }: CartItemRowProps) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const localInput = useRef(false)
-
-  useEffect(() => {
-    if (!localInput.current) setDraft(null)
-  }, [cantidad])
-
   function commit(valor: string) {
-    const raw = valor.replace(',', '.')
-    const v = parseFloat(raw)
-    const rounded = isNaN(v) ? min : Math.round(v * Math.pow(10, decimales)) / Math.pow(10, decimales)
-    localInput.current = false
-    setDraft(null)
-    onCantidadChange(rounded)
+    const v = parseFloat(valor)
+    if (isNaN(v)) { onCantidadChange(min); return }
+    const rounded = Math.round(v * Math.pow(10, decimales)) / Math.pow(10, decimales)
+    onCantidadChange(Math.max(min, rounded))
   }
-
-  const display = draft !== null
-    ? draft
-    : decimales > 0 && cantidad !== 0
-      ? cantidad.toFixed(decimales)
-      : cantidad === 0
-        ? '0'
-        : String(cantidad)
 
   return (
     <div>
@@ -129,52 +112,26 @@ export default function CartItemRow({
             <Minus size={10} strokeWidth={3} />
           </button>
 
-          <input type="text" inputMode="decimal" min={min} step={step} data-cart-qty
+          <input type="number" min={min} step={step} data-cart-qty
             ref={inputRef}
-            onFocus={(_e) => {
-              localInput.current = true
-              onFocusQty?.()
-            }}
-            onBlur={() => { if (draft !== null) commit(draft) }}
-            className={`${decimales > 0 ? 'w-16' : 'w-10'} text-center border border-gray-200 rounded px-0.5 py-0.5 text-[12px] font-bold tabular-nums text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]`}
-            value={display}
-            onChange={(e) => { setDraft(e.target.value) }}
+            onFocus={() => onFocusQty?.()}
+            value={cantidad}
+            onChange={(e) => commit(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowUp') {
-                e.preventDefault()
-                localInput.current = false
-                const next = Math.round((cantidad + step) * Math.pow(10, decimales)) / Math.pow(10, decimales)
-                onCantidadChange(next)
-                return
-              }
-              if (e.key === 'ArrowDown') {
-                e.preventDefault()
-                localInput.current = false
-                if (cantidad <= step) { onCantidadChange(0); return }
-                const next = Math.round((cantidad - step) * Math.pow(10, decimales)) / Math.pow(10, decimales)
-                onCantidadChange(next)
-                return
-              }
               if (e.key === 'Enter') {
                 e.preventDefault()
-                if (draft !== null) {
-                  commit(draft)
-                  onEnter?.()
-                  return
-                }
-                if (cantidad === 0 || cantidad <= min) { onRemove(); onEnter?.(); return }
                 onEnter?.()
+                return
               }
               if (e.key === 'Escape') {
                 e.preventDefault()
                 e.stopPropagation()
-                localInput.current = false
-                setDraft(null)
                 ;(onEscape || onRemove)()
                 onEnter?.()
                 return
               }
             }}
+            className={`${decimales > 0 ? 'w-16' : 'w-10'} text-center border border-gray-200 rounded px-0.5 py-0.5 text-[12px] font-bold tabular-nums text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]`}
           />
 
           <button type="button"

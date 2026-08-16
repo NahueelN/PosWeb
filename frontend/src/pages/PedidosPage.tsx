@@ -738,7 +738,7 @@ export default function PedidosPage() {
 
                 {/* Product grid */}
                 {!prodLoading && (
-                  <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto mb-2 border border-gray-100 rounded-lg p-2 bg-gray-50">
+                  <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-32 overflow-y-auto mb-2 border border-gray-100 rounded-lg p-2 bg-gray-50">
                     {productosFilt.length === 0 ? (
                       <p className="col-span-full text-center text-xs text-gray-400 py-2">Sin resultados — Enter para agregar como libre</p>
                     ) : (
@@ -766,7 +766,7 @@ export default function PedidosPage() {
 
                 {/* Items agregados — header + filas */}
                 <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                  <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                     <span className="flex-1">Producto</span>
                     <span className="shrink-0 w-[88px] text-center">Cantidad</span>
                     <span className="shrink-0 w-[24px]" />
@@ -774,7 +774,7 @@ export default function PedidosPage() {
                   {createItems.length > 0 && (
                     <div className="divide-y divide-gray-200">
                       {createItems.map((item, i) => (
-                        <div key={i} className="flex items-center px-3 py-2 hover:bg-gray-50/60">
+                        <div key={i} className="flex items-center px-3 py-1.5 hover:bg-gray-50/60">
                           <div className="flex-1 min-w-0">
                             <p className="text-[14px] font-semibold text-gray-900 leading-snug truncate">
                               {item.productoNombre}

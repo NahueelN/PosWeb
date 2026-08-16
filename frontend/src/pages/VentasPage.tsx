@@ -63,7 +63,6 @@ export default function VentasPage() {
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
   const [recibio, setRecibio] = useState('')
-  const recibioManuallyEdited = useRef(false)
 
   // Productos / Combos / Ofertas
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -119,7 +118,11 @@ export default function VentasPage() {
   const filteredCombos = useMemo(() => { if (!searchQuery.trim()) return combosVigentes; const q = searchQuery.toLowerCase(); return combosVigentes.filter(c => c.descCombo.toLowerCase().includes(q) || c.codCombo.toLowerCase().includes(q)) }, [combosVigentes, searchQuery])
 
   // Effects
-  useEffect(() => { if (!recibioManuallyEdited.current) setRecibio(total.toFixed(2)) }, [total])
+  const [prevTotal, setPrevTotal] = useState(total)
+  if (total !== prevTotal) {
+    setPrevTotal(total)
+    setRecibio(total.toFixed(2))
+  }
   useEffect(() => { if (step === 'venta') { const id = setTimeout(() => searchInputRef.current?.focus(), 150); return () => clearTimeout(id) } }, [step])
   const [sucursalActiva, setSucursalActiva] = useState<SucursalDto | null>(null)
 
@@ -273,7 +276,7 @@ export default function VentasPage() {
 
   // ===== Actions =====
   function seleccionarSucursal(s: SucursalDto) { localStorage.setItem('sucursalActiva', JSON.stringify(s)); setStep('venta'); window.location.reload() }
-  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); recibioManuallyEdited.current = false; setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
+  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
 
   function agregarProducto(producto: ProductoDto) {
     const oferta = ofertasMap.get(producto.id)
@@ -321,7 +324,7 @@ export default function VentasPage() {
     }
 
     const r = parseFloat(recibio) || 0
-    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
+    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
     await ejecutarVenta(r, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
@@ -461,9 +464,11 @@ export default function VentasPage() {
         cartRef={cartListRef}
         pageShell={{ title: 'Ventas', subtitle: 'Seleccioná productos para confirmar la operación', caja: { loading: cajaLoading, activa: cajaActiva, closedMessage: 'Andá a la sección Caja para abrir una.' } }}
         montoValue={recibio}
-        onMontoChange={v => { setRecibio(v); setClienteSeleccionado(null); recibioManuallyEdited.current = true }}
+        onMontoChange={v => { setRecibio(v); setClienteSeleccionado(null) }}
         montoInputRef={recibioInputRef}
-        onMontoButtonClick={() => { setRecibio('0'); recibioManuallyEdited.current = false }}
+        onMontoButtonClick={() => setRecibio('0')}
+        montoWarning={parseFloat(recibio || '0') < total - 0.005 && total > 0}
+        montoHint="Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas."
         searchInputRef={searchInputRef}
         confirmOverride={!cajaActiva ? (<div className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl text-sm text-center">Sin caja abierta</div>) : undefined}
         headerExtra={clienteSeleccionado ? (
@@ -472,7 +477,7 @@ export default function VentasPage() {
             <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
           </div>
         ) : undefined}
-        paymentSlot={<VentaPaymentSlot mediosPago={mediosPago} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} total={total} recibio={recibio} />}
+        paymentSlot={<VentaPaymentSlot mediosPago={mediosPago} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} />}
         getItemProps={(i: any) => {
           const itemId = i.comboId ?? i.producto.id
           const tieneOferta = i.ofertaId && i.precioOriginal
@@ -493,7 +498,7 @@ export default function VentasPage() {
             onFocusQty: () => onFocusQty(itemId, i.cantidad),
             onEscape: () => onEscape(itemId, i.cantidad, (qty) => handleCambiarCantidad(itemId, qty), () => cart.removeItem(itemId)),
             inputRef: (el: HTMLInputElement | null) => { if (el) cantidadRefs.current.set(itemId, el); else cantidadRefs.current.delete(itemId) },
-            stockWarning: i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
+            stockWarning: i.producto.seguirStock !== false && i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
             badge: (
               <>
                 {i.comboId && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span>}

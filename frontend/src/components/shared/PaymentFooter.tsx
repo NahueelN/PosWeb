@@ -52,21 +52,21 @@ export default function PaymentFooter({
     <div className="shrink-0 border-t border-gray-200 flex flex-col">
       {/* Total strip */}
       <div
-        className="flex items-center justify-between px-4 py-3"
+        className="flex items-center justify-between px-4 py-2"
         style={{ background: 'oklch(0.15 0.016 262)' }}
       >
         <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 leading-none">
           Total
         </span>
-        <span className="text-[28px] font-bold text-white tabular-nums leading-none tracking-tight">
+        <span className="text-[22px] font-bold text-white tabular-nums leading-none tracking-tight">
           ${total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
 
-      <div className="px-4 pt-3 pb-3.5 flex flex-col gap-2.5">
+      <div className="px-4 pt-2 pb-2.5 flex flex-col gap-2">
 
         {/* Payment card */}
-        <div className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+        <div className="bg-gray-50 rounded-xl p-2.5 space-y-2">
           {children}
         </div>
 
@@ -76,7 +76,7 @@ export default function PaymentFooter({
         {/* Verify checkbox */}
         {showVerify && onVerifiedChange && (
           <label
-            className="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[12px] font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all duration-150 cursor-pointer"
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
@@ -102,7 +102,7 @@ export default function PaymentFooter({
           <Button
             ref={confirmRef as React.RefObject<HTMLButtonElement>}
             variant="confirm"
-            size="lg"
+            size="md"
             fullWidth
             onClick={onConfirm}
             disabled={confirmDisabled}
