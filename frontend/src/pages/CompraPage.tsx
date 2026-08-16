@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CrearProveedorRequestDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
+import PrecioStockEditor, { type PrecioStockData } from '../components/shared/PrecioStockEditor';
 import { useNotification } from '../context/NotificationContext';
 import { useCart } from '../hooks/useCart';
 import { useItemSnapshot } from '../hooks/useItemSnapshot';
@@ -10,7 +11,7 @@ import CartHost from '../components/hosts/CartHost';
 import KeyboardHints from '../components/shared/KeyboardHints';
 import ProductCard, { formatCodigoBarra } from '../components/shared/ProductCard';
 import Dialog from '../components/ui/Dialog';
-import { Search, X, Plus, Trash2 } from 'lucide-react';
+import { Search, X, Plus } from 'lucide-react';
 import Button from '../components/ui/Button';
 import './CompraPage.css';
 
@@ -47,7 +48,7 @@ export default function CompraPage() {
     try { const s = localStorage.getItem(COMPRA_PROV_KEY); return s ? JSON.parse(s).nombre ?? '' : '' } catch { return '' }
   });
   const [success, setSuccess] = useState<CompraResponseDto | null>(null);
-  const [verified, setVerified] = useState(false);
+  const [showConfirmCompra, setShowConfirmCompra] = useState(false);
 
   const cart = useCart<CartItem>({
     storageKey: COMPRA_CART_KEY,
@@ -65,7 +66,6 @@ export default function CompraPage() {
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot();
   const montoPagoRef = useRef<HTMLInputElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
-  const verifyRef = useRef<HTMLInputElement>(null);
   const fuenteRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Data
@@ -89,9 +89,6 @@ export default function CompraPage() {
 
   // Editing
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [edPrecio, setEdPrecio] = useState(0);
-  const [edCosto, setEdCosto] = useState('');
-  const [edCant, setEdCant] = useState(1);
 
   // New product modal
   const [showNewModal, setShowNewModal] = useState(false);
@@ -173,9 +170,9 @@ export default function CompraPage() {
     return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q));
   }, [productos, searchQuery]);
 
-  const proveedoresFilt = proveedorSearch.trim()
+  const proveedoresFilt = (proveedorSearch.trim()
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(proveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(proveedorSearch.toLowerCase()))
-    : proveedores;
+    : proveedores).filter(p => p.nombre !== 'Proveedor ocasional');
 
   const unidadesMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -242,16 +239,12 @@ export default function CompraPage() {
   };
 
   const startEdit = (idx: number) => {
-    const i = cart.items[idx];
     setEditingIdx(idx);
-    setEdPrecio(i.precio ?? 0);
-    setEdCosto(String(i.costoUnitario));
-    setEdCant(i.cantidad);
   };
-  const saveEdit = (idx: number) => {
-    const newCosto = parseFloat(edCosto) || 0;
+  const handleConfirmPrecio = (data: PrecioStockData) => {
+    if (editingIdx === null) return;
     cart.setItems(prev => prev.map((i, i2) =>
-      i2 === idx ? { ...i, cantidad: edCant, costoUnitario: newCosto, subtotal: edCant * newCosto, precio: edPrecio } : i
+      i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo } : i
     ));
     setEditingIdx(null);
   };
@@ -371,7 +364,7 @@ export default function CompraPage() {
     } finally { setIsConfirming(false); }
   };
 
-  const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setVerified(false); setDeudaGenerada(0); setTimeout(() => provInputRef.current?.focus(), 100); };
+  const handleNuevaCompra = () => { setStep('scan'); cart.clearCart(); setProveedorId(0); setProveedorNombre(''); setSuccess(null); setDeudaGenerada(0); setTimeout(() => provInputRef.current?.focus(), 100); };
 
   // ── Render: SCAN step (two-column layout) ────────────────────────
   return (
@@ -379,15 +372,11 @@ export default function CompraPage() {
     <CartHost
       cart={cart as any}
       confirmLabel={isConfirming ? 'Confirmando...' : 'Confirmar compra'}
-      onConfirm={handleConfirm}
-      confirmDisabled={!verified || isConfirming || cart.items.length === 0 || !proveedorOk}
+      onConfirm={() => setShowConfirmCompra(true)}
+      confirmDisabled={isConfirming || cart.items.length === 0 || !proveedorOk}
       cartRef={cartListRef}
       confirmRef={confirmBtnRef}
       pageShell={{ title: 'Compras', subtitle: 'Registrar ingreso de mercadería' }}
-      showVerify
-      verified={verified}
-      onVerifiedChange={(checked: boolean) => setVerified(checked)}
-      verifyLabel="Verifiqué cantidades y costos"
       headerExtra={proveedorNombre ? (
         <span className="text-xs text-gray-500">{proveedorNombre}</span>
       ) : undefined}
@@ -432,82 +421,37 @@ export default function CompraPage() {
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-gray-400 leading-tight text-center">Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.</p>
-          {(() => {
-            const pagado = fuentePago === 'dividir' ? (montoCaja + montoAhorro) : (parseFloat(montoPago) || 0);
-            if (pagado < cartTotal && cartTotal > 0) return <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de {formatCurrency(cartTotal - pagado)}</p>;
-            if (pagado >= cartTotal && cartTotal > 0) return <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>;
-            return null;
-          })()}
+          <p className="text-[10px] text-gray-400 leading-none text-center">Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.</p>
         </>
       }
       montoValue={fuentePago !== 'dividir' ? montoPago : undefined}
       onMontoChange={fuentePago !== 'dividir' ? v => setMontoPago(v) : undefined}
       montoInputRef={montoPagoRef}
       onMontoButtonClick={() => setMontoPago('')}
-      verifyRef={verifyRef}
+      montoWarning={fuentePago !== 'dividir' && (parseFloat(montoPago) || 0) < cartTotal - 0.005 && cartTotal > 0}
       searchInputRef={searchRef}
       emptyState={<div className="text-center py-12 text-gray-400"><p className="text-sm">Agregá productos desde la grilla</p></div>}
-      getItemProps={(item: any, i: number) =>
-        editingIdx === i ? {
-          nombre: item.productoNombre || '(nuevo)',
-          codigo: item.codigoBarra,
-          precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
-          subtotal: formatCurrency(item.costoUnitario * item.cantidad),
-          cantidad: item.cantidad,
-          min: 0,
-          onCantidadChange: () => {},
-          onRemove: () => setEditingIdx(null),
-          removeButton: <button onClick={() => setEditingIdx(null)} className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90"><Trash2 size={11}/></button>,
-          details: (
-            <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Precio</label>
-                  <input type="number" step="0.01" value={edPrecio} onChange={e => setEdPrecio(parseFloat(e.target.value)||0)}
-                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Costo</label>
-                  <input type="number" step="0.01" value={edCosto} onChange={e => setEdCosto(e.target.value)} autoFocus
-                    onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)}
-                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-medium text-gray-500 mb-0.5 block">Cant</label>
-                  <input type="number" min={1} value={edCant} onChange={e => setEdCant(Math.max(1,parseInt(e.target.value)||1))}
-                    onKeyDown={e => e.key === 'Enter' && saveEdit(editingIdx)}
-                    className="w-full h-8 px-2 border border-gray-200 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]" />
-                </div>
-              </div>
-              <button onClick={() => saveEdit(editingIdx)}
-                className="w-full h-8 bg-[oklch(0.595_0.172_152)] text-white text-[12px] font-semibold rounded-lg hover:bg-[oklch(0.52_0.182_152)] transition-colors">
-                Guardar
-              </button>
-            </div>
-          ),
-        } : {
-          nombre: item.productoNombre || '(nuevo)',
-          codigo: formatCodigoBarra(item as any, unidadesMap),
-          precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
-          subtotal: formatCurrency(item.costoUnitario * item.cantidad),
-          cantidad: item.cantidad,
-          min: 1,
-          onCantidadChange: (c) => cart.updateQuantity(item.productoId, Math.max(0, c)),
-          onEnter: () => searchRef.current?.focus(),
-          onFocusQty: () => onFocusQty(item.productoId, item.cantidad),
-          onEscape: () => onEscape(
-            item.productoId,
-            item.cantidad,
-            (qty) => cart.updateQuantity(item.productoId, qty),
-            () => cart.removeItem(item.productoId)
-          ),
-          inputRef: (el) => { if (el) cantidadRefs.current.set(item.productoId, el) },
-          onRemove: () => cart.removeItem(item.productoId),
-          onClickName: () => startEdit(i),
-          badge: item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined,
-        }
-      }
+      getItemProps={(item: any, i: number) => ({
+        nombre: item.productoNombre || '(nuevo)',
+        codigo: formatCodigoBarra(item as any, unidadesMap),
+        precioUnitario: `${formatCurrency(item.costoUnitario)} c/u`,
+        subtotal: formatCurrency(item.costoUnitario * item.cantidad),
+        cantidad: item.cantidad,
+        min: 1,
+        onCantidadChange: (c) => cart.updateQuantity(item.productoId, Math.max(0, c)),
+        onEnter: () => searchRef.current?.focus(),
+        onFocusQty: () => onFocusQty(item.productoId, item.cantidad),
+        onEscape: () => onEscape(
+          item.productoId,
+          item.cantidad,
+          (qty) => cart.updateQuantity(item.productoId, qty),
+          () => cart.removeItem(item.productoId)
+        ),
+        inputRef: (el) => { if (el) cantidadRefs.current.set(item.productoId, el) },
+        onRemove: () => cart.removeItem(item.productoId),
+        onClickName: () => startEdit(i),
+        badge: item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined,
+      })}
       getItemKey={(_item, i) => i}
       topContent={
         <div className="space-y-2.5">
@@ -636,6 +580,38 @@ export default function CompraPage() {
         </div>
       </div>
     </CartHost>
+
+    {/* Editar precio renglón */}
+    <Dialog
+      open={editingIdx !== null}
+      onClose={() => setEditingIdx(null)}
+      title={editingIdx !== null ? cart.items[editingIdx].productoNombre : 'Editar precios'}
+      width="sm"
+    >
+      {editingIdx !== null && (
+        <PrecioStockEditor
+          initialCosto={cart.items[editingIdx].costoUnitario}
+          initialPrecio={cart.items[editingIdx].precio ?? 0}
+          onConfirm={handleConfirmPrecio}
+          onCancel={() => setEditingIdx(null)}
+        />
+      )}
+    </Dialog>
+
+    {/* Confirmar compra */}
+    <Dialog
+      open={showConfirmCompra}
+      onClose={() => setShowConfirmCompra(false)}
+      title="Confirmar compra"
+      description="¿Desea terminar con la compra?"
+      width="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="md" onClick={() => setShowConfirmCompra(false)}>Cancelar</Button>
+          <Button variant="primary" size="md" onClick={() => { setShowConfirmCompra(false); handleConfirm(); }}>Confirmar</Button>
+        </>
+      }
+    />
 
     {/* New Product Modal */}
     <ProductFormModal open={showNewModal} prefillData={offPrefillData} initialCodigo={initialCodigo || undefined}
