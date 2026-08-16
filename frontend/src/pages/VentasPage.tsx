@@ -430,6 +430,30 @@ export default function VentasPage() {
   function handleClientSelect(cl: ClienteDto) { setClienteSeleccionado(cl); setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]); ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, cl); pendingAllowSinStock.current = false }
   function handleAbrirNuevoCliente() { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }
 
+  async function handleClienteOcasional() {
+    setBuscandoClientes(true)
+    try {
+      const res = await api.clientes.listar('ocasional')
+      let cliente = (res.items ?? []).find(c => c.nombre.toLowerCase() === 'cliente ocasional')
+      if (!cliente) {
+        cliente = await api.clientes.crear({
+          nombre: 'Cliente ocasional',
+          tipoDocumento: 'ConsumidorFinal',
+          numeroDocumento: '',
+          ivaCondicion: 'ConsumidorFinal',
+          telefono: '',
+          mail: '',
+          domicilio: '',
+        })
+      }
+      handleClientSelect(cliente)
+    } catch (e: any) {
+      notifyError(e.message || 'Error')
+    } finally {
+      setBuscandoClientes(false)
+    }
+  }
+
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
   if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
@@ -576,6 +600,7 @@ export default function VentasPage() {
         onFormClienteChange={setFormCliente}
         onCrearCliente={crearClienteYRevertir}
         onAbrirNuevoCliente={handleAbrirNuevoCliente}
+        onClienteOcasional={handleClienteOcasional}
       />
     </>
   )
