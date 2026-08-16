@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Plus, Minus, Trash2 } from 'lucide-react';
 import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
@@ -76,7 +77,6 @@ export default function PedidosPage() {
   const [inlineCant, setInlineCant] = useState(1);
   const [inlinePrecio, setInlinePrecio] = useState('');
   const cantRef = useRef<HTMLInputElement>(null);
-  const precioRef = useRef<HTMLInputElement>(null);
 
   const productosFilt = useMemo(() => {
     if (createProveedorId === 0) return [];
@@ -122,8 +122,6 @@ export default function PedidosPage() {
     }
     return result;
   }, [pedidos, fechaDesde, fechaHasta]);
-
-  const totalPedidosFiltrado = pedidosFiltrados.reduce((s, p) => s + p.total, 0);
 
   const openDetalle = async (id: number) => {
     try {
@@ -269,6 +267,16 @@ export default function PedidosPage() {
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
 
+  const confirmInlineAdd = () => {
+    if (!inlineAdd) return;
+    const precio = parseFloat(inlinePrecio) || inlineAdd.costo;
+    setCreateItems([...createItems, { productoId: inlineAdd.productoId, productoNombre: inlineAdd.productoNombre, cantidad: inlineCant, precioEstimado: precio }]);
+    setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
+    setCreateSearchQuery('');
+    highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  };
+
   const handleGuardarPedido = async () => {
     if (createProveedorId === 0 || createItems.length === 0) return;
     setCreating(true);
@@ -356,12 +364,6 @@ export default function PedidosPage() {
               <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36" />
             </div>
-            <div className="pt-5 ml-auto">
-              <span className="text-sm font-medium text-gray-700">
-                Total:{' '}
-                <span className="text-lg font-bold text-indigo-700">{formatCurrency(totalPedidosFiltrado)}</span>
-              </span>
-            </div>
           </div>
         </div>
 
@@ -376,7 +378,6 @@ export default function PedidosPage() {
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                   <th className="px-4 py-3">Proveedor</th>
-                  <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3 text-right">Acción</th>
@@ -386,7 +387,6 @@ export default function PedidosPage() {
                 {pedidosFiltrados.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{p.proveedorNombre}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(p.total)}</td>
                     <td className="px-4 py-3 text-gray-500">{formatDate(p.fecha)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${estadoBadge(p.estado)}`}>
@@ -436,19 +436,16 @@ export default function PedidosPage() {
             <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
               <div><span className="text-gray-500">Proveedor:</span> <span className="font-medium">{detalleModal.proveedorNombre}</span></div>
               <div><span className="text-gray-500">Fecha:</span> <span className="font-medium">{formatDate(detalleModal.fecha)}</span></div>
-              <div><span className="text-gray-500">Total:</span> <span className="font-medium">{formatCurrency(detalleModal.total)}</span></div>
               <div><span className="text-gray-500">Estado:</span> <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${estadoBadge(detalleModal.estado)}`}>{detalleModal.estado}</span></div>
               {detalleModal.fechaEsperada && <div><span className="text-gray-500">Esperado:</span> <span className="font-medium">{formatDate(detalleModal.fechaEsperada)}</span></div>}
               {detalleModal.idPedidoOrigen && <div className="col-span-2"><span className="text-gray-500">Origen:</span> <span className="font-medium">Pedido #{detalleModal.idPedidoOrigen}</span></div>}
             </div>
             <table className="w-full text-xs border-collapse">
-              <thead><tr className="border-b border-gray-200"><th className="text-left pb-2">Producto</th><th className="text-right pb-2">Cant</th><th className="text-right pb-2">Precio est.</th><th className="text-right pb-2">Subtotal</th><th className="text-right pb-2">Estado</th></tr></thead>
+              <thead><tr className="border-b border-gray-200"><th className="text-left pb-2">Producto</th><th className="text-right pb-2">Cant</th><th className="text-right pb-2">Estado</th></tr></thead>
               <tbody>{detalleModal.items.map(item => (
                 <tr key={item.id} className="border-b border-gray-50">
                   <td className="py-1.5 pr-2">{item.productoNombre}<br /><span className="text-gray-400 font-mono">{item.codigoBarra}</span></td>
                   <td className="text-right py-1.5">{item.cantidadPedida}</td>
-                  <td className="text-right py-1.5">{formatCurrency(item.precioUnitarioEstimado)}</td>
-                  <td className="text-right py-1.5">{formatCurrency(item.subtotal)}</td>
                   <td className="text-right py-1.5"><span className={`px-1.5 py-0.5 rounded text-xs ${estadoBadge(item.estado)}`}>{item.estado}</span></td>
                 </tr>
               ))}</tbody>
@@ -479,7 +476,7 @@ export default function PedidosPage() {
               <h3 className="text-lg font-bold text-gray-900">Recibir Pedido #{recepcionPedido.id}</h3>
               <button onClick={() => { setRecepcionPedido(null); setFaltantesResult(null); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
-            <p className="text-sm text-gray-600 mb-4">{recepcionPedido.proveedorNombre} — Total pedido: {formatCurrency(recepcionPedido.total)}</p>
+            <p className="text-sm text-gray-600 mb-4">{recepcionPedido.proveedorNombre}</p>
 
             {faltantesResult ? (
               <div>
@@ -490,9 +487,9 @@ export default function PedidosPage() {
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
                   <p className="text-amber-800 font-semibold text-sm mb-2">Faltantes — {faltantesResult.reduce((s, f) => s + f.cantidadFaltante, 0)} unidades</p>
                   <table className="w-full text-xs">
-                    <thead><tr className="text-amber-600"><th className="text-left pb-1">Producto</th><th className="text-right pb-1">Cantidad</th><th className="text-right pb-1">Precio est.</th></tr></thead>
+                    <thead><tr className="text-amber-600"><th className="text-left pb-1">Producto</th><th className="text-right pb-1">Cantidad</th></tr></thead>
                     <tbody>{faltantesResult.map((f, i) => (
-                      <tr key={i}><td className="py-0.5">{f.productoNombre}</td><td className="text-right">{f.cantidadFaltante}</td><td className="text-right">{formatCurrency(f.precioEstimado)}</td></tr>
+                      <tr key={i}><td className="py-0.5">{f.productoNombre}</td><td className="text-right">{f.cantidadFaltante}</td></tr>
                     ))}</tbody>
                   </table>
                 </div>
@@ -532,7 +529,6 @@ export default function PedidosPage() {
                         <div className="sm:col-span-2 text-center">
                           <span className="sm:hidden text-xs text-gray-500 mr-1">Pedido:</span>
                           <span className="text-sm font-mono">{item.cantidadPedida}</span>
-                          <span className="text-xs text-gray-400 ml-1">× {formatCurrency(item.precioUnitarioEstimado)}</span>
                         </div>
                         {/* Recibido */}
                         <div className="sm:col-span-2 flex items-center justify-center">
@@ -741,7 +737,7 @@ export default function PedidosPage() {
                 </div>
 
                 {/* Product grid */}
-                {createSearchQuery && !prodLoading && (
+                {!prodLoading && (
                   <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto mb-2 border border-gray-100 rounded-lg p-2 bg-gray-50">
                     {productosFilt.length === 0 ? (
                       <p className="col-span-full text-center text-xs text-gray-400 py-2">Sin resultados — Enter para agregar como libre</p>
@@ -768,61 +764,81 @@ export default function PedidosPage() {
                   </div>
                 )}
 
-                {/* Items added */}
-                {createItems.length > 0 && (
-                  <div className="mb-3">
-                    <div className="grid grid-cols-12 gap-2 px-1 mb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                      <span className="col-span-6">Producto</span>
-                      <span className="col-span-2 text-center">Cantidad</span>
-                      <span className="col-span-3 text-right">Precio</span>
-                      <span className="col-span-1" />
-                    </div>
-                    <div className="space-y-1.5">
+                {/* Items agregados — header + filas */}
+                <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    <span className="flex-1">Producto</span>
+                    <span className="shrink-0 w-[88px] text-center">Cantidad</span>
+                    <span className="shrink-0 w-[24px]" />
+                  </div>
+                  {createItems.length > 0 && (
+                    <div className="divide-y divide-gray-200">
                       {createItems.map((item, i) => (
-                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded p-2 text-xs">
-                          <span className="col-span-6 font-medium truncate">{item.productoNombre}{item.productoId === 0 ? <span className="text-indigo-500 ml-1">(libre)</span> : null}</span>
-                          <input type="number" min={1} value={item.cantidad}
-                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
-                            className="col-span-2 w-full px-1 py-0.5 border rounded text-center" />
-                          <input type="number" min={0} step="0.01" value={item.precioEstimado}
-                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], precioEstimado: parseFloat(e.target.value) || 0 }; setCreateItems(items); }}
-                            className="col-span-3 w-full px-1 py-0.5 border rounded text-right font-mono" />
-                          <button onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
-                            className="col-span-1 text-red-500 hover:text-red-700 justify-self-center">✕</button>
+                        <div key={i} className="flex items-center px-3 py-2 hover:bg-gray-50/60">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-semibold text-gray-900 leading-snug truncate">
+                              {item.productoNombre}
+                              {item.productoId === 0 && <span className="ml-1 text-[12px] text-indigo-500 font-medium">(libre)</span>}
+                            </p>
+                          </div>
+                          <div className="shrink-0 w-[88px] flex items-center justify-center gap-0.5">
+                            <button type="button"
+                              onClick={() => {
+                                const items = [...createItems];
+                                if (item.cantidad <= 1) setCreateItems(items.filter((_, j) => j !== i));
+                                else { items[i] = { ...items[i], cantidad: item.cantidad - 1 }; setCreateItems(items); }
+                              }}
+                              className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
+                              aria-label={`Reducir cantidad de ${item.productoNombre}`}>
+                              <Minus size={10} strokeWidth={3} />
+                            </button>
+                            <input type="number" min={1}
+                              value={item.cantidad}
+                              onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
+                              className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
+                            />
+                            <button type="button"
+                              onClick={() => { const items = [...createItems]; items[i] = { ...items[i], cantidad: item.cantidad + 1 }; setCreateItems(items); }}
+                              className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
+                              aria-label={`Aumentar cantidad de ${item.productoNombre}`}>
+                              <Plus size={10} strokeWidth={3} />
+                            </button>
+                          </div>
+                          <div className="shrink-0 w-[24px] flex items-center justify-center">
+                            <button type="button"
+                              onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
+                              className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all duration-100"
+                              aria-label={`Quitar ${item.productoNombre}`}>
+                              <Trash2 size={11} strokeWidth={2} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Inline add row (appears when selecting from grid, at end of list) */}
+                {/* Inline add — confirmar selección */}
                 {inlineAdd && (
-                  <div className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded p-2 text-xs">
-                    <span className="col-span-6 font-medium truncate">{inlineAdd.productoNombre}</span>
-                    <input ref={cantRef} type="number" min={1} value={inlineCant}
-                      onChange={e => setInlineCant(parseInt(e.target.value) || 1)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); precioRef.current?.focus(); precioRef.current?.select(); }
-                        if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
-                      }}
-                      className="col-span-2 w-full px-1 py-0.5 border rounded text-center focus:ring-1 focus:ring-indigo-500" />
-                    <input ref={precioRef} type="number" min={0} step="0.01" value={inlinePrecio}
-                      onChange={e => setInlinePrecio(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const precio = parseFloat(inlinePrecio) || inlineAdd.costo;
-                          setCreateItems([...createItems, { productoId: inlineAdd.productoId, productoNombre: inlineAdd.productoNombre, cantidad: inlineCant, precioEstimado: precio }]);
-                          setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
-                          setCreateSearchQuery('');
-                          highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                          setTimeout(() => searchInputRef.current?.focus(), 50);
-                        }
-                        if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
-                      }}
-                      className="col-span-3 w-full px-1 py-0.5 border rounded text-right font-mono focus:ring-1 focus:ring-indigo-500" />
-                    <button onClick={cancelInline}
-                      className="col-span-1 text-red-500 hover:text-red-700 justify-self-center">✕</button>
+                  <div className="flex items-center px-3 py-2 bg-indigo-50/60 border border-indigo-100 rounded-lg mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-gray-900 leading-snug truncate">{inlineAdd.productoNombre}</p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      <input ref={cantRef} type="number" min={1} value={inlineCant}
+                        onChange={e => setInlineCant(parseInt(e.target.value) || 1)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); confirmInlineAdd(); }
+                          if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
+                        }}
+                        className="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
+                      />
+                      <button type="button" onClick={cancelInline}
+                        className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all duration-100"
+                        aria-label="Cancelar">
+                        <Trash2 size={11} strokeWidth={2} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -844,7 +860,7 @@ export default function PedidosPage() {
             <button onClick={handleGuardarPedido} data-create-btn
               disabled={creating || createProveedorId === 0 || createItems.length === 0}
               className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-              {creating ? 'Guardando...' : editingPedidoId ? `Guardar cambios — ${formatCurrency(createItems.reduce((s, i) => s + i.cantidad * i.precioEstimado, 0))}` : `Crear pedido — ${formatCurrency(createItems.reduce((s, i) => s + i.cantidad * i.precioEstimado, 0))}`}
+              {creating ? 'Guardando...' : editingPedidoId ? 'Guardar cambios' : 'Crear pedido'}
             </button>
           </div>
         </div>
