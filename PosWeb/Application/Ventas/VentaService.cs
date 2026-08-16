@@ -370,9 +370,12 @@ public class VentaService
 
         venta.Confirmar();
 
+        // QR sales are identified by REFERENCIA_MP (assigned only when creating the QR order)
+        int medioPagoId = venta.REFERENCIA_MP != null ? MedioPagoIdQr : MedioPagoIdTransferencia;
+
         var pago = new Pago(
             venta.ID_VENTA,
-            MedioPagoIdTransferencia,
+            medioPagoId,
             venta.TOTAL,
             venta.ID_USUARIO ?? 0,
             cajaActiva.ID_CAJA
@@ -488,6 +491,7 @@ public class VentaService
     }
 
     private const int MedioPagoIdTransferencia = 4;
+    private const int MedioPagoIdQr = 5;
 
     public async Task<bool> ExisteSucursalAsync(int sucursalId)
     {

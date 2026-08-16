@@ -71,7 +71,7 @@ public class CajaService
             .ToList();
 
         List<decimal> montosVentas = _context.Venta
-            .Where(v => ventaIdsParaCaja.Contains(v.ID_VENTA))
+            .Where(v => ventaIdsParaCaja.Contains(v.ID_VENTA) && !v.ANULADA)
             .Select(v => v.TOTAL)
             .ToList();
 
@@ -108,9 +108,15 @@ public class CajaService
 
         if (ventaIds.Count == 0) return new();
 
+        // Exclude annulled sales from the breakdown
+        var ventaIdsValidos = _context.Venta
+            .Where(v => ventaIds.Contains(v.ID_VENTA) && !v.ANULADA)
+            .Select(v => v.ID_VENTA)
+            .ToList();
+
         // Materialize raw payment data, then group/sum client-side (SQLite can't SUM(decimal))
         var pagosRaw = _context.Pago
-            .Where(p => ventaIds.Contains(p.ID_VENTA))
+            .Where(p => ventaIdsValidos.Contains(p.ID_VENTA))
             .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO })
             .ToList();
 
@@ -147,7 +153,7 @@ public class CajaService
             .ToList();
 
         List<decimal> montosVentas = _context.Venta
-            .Where(v => ventaIdsPreview.Contains(v.ID_VENTA))
+            .Where(v => ventaIdsPreview.Contains(v.ID_VENTA) && !v.ANULADA)
             .Select(v => v.TOTAL)
             .ToList();
 
@@ -200,8 +206,19 @@ public class CajaService
         }
 
         // Materialize first — SQLite can't SUM(decimal) server-side
-        var pagosRaw = _context.Pago
+        var idsCaja = _context.Pago
             .Where(p => p.ID_CAJA == caja.ID_CAJA)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
+            .ToList();
+
+        var idsValidos = _context.Venta
+            .Where(v => idsCaja.Contains(v.ID_VENTA) && !v.ANULADA)
+            .Select(v => v.ID_VENTA)
+            .ToList();
+
+        var pagosRaw = _context.Pago
+            .Where(p => idsValidos.Contains(p.ID_VENTA))
             .Select(p => new { p.ID_MEDIO_PAGO, p.MONTO })
             .ToList();
 
@@ -230,7 +247,7 @@ public class CajaService
             .ToList();
 
         List<decimal> montosVentas = _context.Venta
-            .Where(v => ventaIds.Contains(v.ID_VENTA))
+            .Where(v => ventaIds.Contains(v.ID_VENTA) && !v.ANULADA)
             .Select(v => v.TOTAL)
             .ToList();
         decimal totalVentas = montosVentas.Sum();

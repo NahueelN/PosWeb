@@ -603,7 +603,7 @@ export default function CompraPage() {
       open={showConfirmCompra}
       onClose={() => setShowConfirmCompra(false)}
       title="Confirmar compra"
-      description="¿Desea terminar con la compra?"
+      description="¿Confirmás la compra y querés finalizarla?"
       width="sm"
       footer={
         <>

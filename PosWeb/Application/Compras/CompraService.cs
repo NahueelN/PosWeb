@@ -169,6 +169,11 @@ public class CompraService
                 gastoId = gasto.ID_GASTO;
                 fechaCompraFinal = gasto.FECHA_GASTO;
             }
+            else if (esAhorro)
+            {
+                // Ahorro: no hay caja ni gasto, pero hay que generar el ID de la compra antes de crear la deuda
+                _context.SaveChanges();
+            }
 
             // Create Deuda for the proveedor (with optional partial payment)
             _deudaService.CrearDeuda(proveedorId, compra.ID_COMPRA, totalGasto, montoPagado);
