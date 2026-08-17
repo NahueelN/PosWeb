@@ -152,10 +152,10 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ marca, porcentaje }),
       }),
-    seguirStockGlobal: (seguirStock: boolean) =>
+    seguirStockGlobal: (seguirStock: boolean, ids?: number[]) =>
       request<{ afectados: number }>('/productos/seguir-stock', {
         method: 'PUT',
-        body: JSON.stringify({ seguirStock }),
+        body: JSON.stringify({ seguirStock, ids }),
       }),
     seguirStockIndividual: (id: number, seguirStock: boolean) =>
       request<ProductoDto>(`/productos/${id}/seguir-stock`, {

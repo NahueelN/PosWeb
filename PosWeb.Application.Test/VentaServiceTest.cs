@@ -137,6 +137,14 @@ public class VentaServiceTest
         context.SaveChanges();
     }
 
+    private static void AgregarCliente(PosDbContextLocal context, int id)
+    {
+        Cliente cliente = new Cliente($"Cliente {id}", "ConsumidorFinal", "0");
+        TestHelpers.SetId(cliente, id, "ID_CLIENTE");
+        context.Cliente.Add(cliente);
+        context.SaveChanges();
+    }
+
     private static VentaDto CrearVentaDto(
         int sucursalId,
         VentaItemDto[] items,
@@ -317,5 +325,33 @@ public class VentaServiceTest
         StockSucursal stockSuc = context.StockSucursal.First();
 
         Assert.Equal(7, stockSuc.STOCK);
+    }
+
+    [Fact]
+    public async Task CrearVenta_PagoParcial_CreaDeudaConSaldoPendienteCorrecto()
+    {
+        using PosDbContextLocal context = CrearContexto();
+        VentaService service = CrearService(context);
+
+        AgregarSucursal(context, 1, 1);
+        AgregarProducto(context, 1, 10);
+        AgregarStockSucursal(context, 1, 1, 1, 10);
+        AgregarCajaActiva(context, 1);
+        AgregarCliente(context, 1);
+
+        VentaDto dto = CrearVentaDto(
+            1,
+            new[] { new VentaItemDto { ProductoId = 1, Cantidad = 2 } }, // total: 200
+            new List<PagoVentaDto> { new PagoVentaDto { MedioPagoId = 1, Monto = 50 } }
+        );
+        dto.ClienteId = 1;
+
+        VentaResultadoDto resultado = await service.CrearVenta(dto);
+
+        Deuda deuda = context.Deuda.Single();
+        Assert.Equal(200m, deuda.MONTO_DEUDA);
+        Assert.Equal(50m, deuda.MONTO_PAGADO);
+        Assert.False(deuda.PAGO);
+        Assert.Equal(150m, resultado.DeudaMonto);
     }
 }

@@ -472,12 +472,16 @@ public class ProductoService
         return MapToDto(producto);
     }
 
-    public int SeguirStockGlobal(bool seguir)
+    public int SeguirStockGlobal(bool seguir, List<int>? idsAReactivar = null)
     {
-        var productos = _context.Producto
-            .Where(p => p.ACTIVO)
-            .ToList();
+        IQueryable<Producto> query = _context.Producto.Where(p => p.ACTIVO);
 
+        if (seguir && idsAReactivar != null)
+        {
+            query = query.Where(p => idsAReactivar.Contains(p.ID_PRODUCTO));
+        }
+
+        var productos = query.ToList();
         foreach (var p in productos)
         {
             p.CambiarSeguirStock(seguir);

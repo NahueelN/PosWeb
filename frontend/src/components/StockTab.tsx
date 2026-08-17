@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto } from '../types'
 import { Package, ChevronRight } from 'lucide-react'
@@ -14,6 +14,7 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
   const [nuevoValor, setNuevoValor] = useState(true)
   const [resultado, setResultado] = useState<{ afectados: number } | null>(null)
   const [expandido, setExpandido] = useState(false)
+  const idsActivosAntes = useRef<number[]>([])
 
   useEffect(() => {
     api.productos.listar()
@@ -39,9 +40,18 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
     setSaving(true)
     setConfirmOpen(false)
     try {
-      const res = await api.productos.seguirStockGlobal(nuevoValor)
+      let ids: number[] | undefined
+      if (!nuevoValor) {
+        // Desactivar todo: recordar cuáles estaban activos para reactivarlos después
+        idsActivosAntes.current = productos.filter(p => p.seguirStock !== false).map(p => p.id)
+      } else if (idsActivosAntes.current.length > 0) {
+        // Reactivar solo los que estaban activos antes del "desactivar todo"
+        ids = idsActivosAntes.current
+      }
+      const res = await api.productos.seguirStockGlobal(nuevoValor, ids)
       setResultado(res)
-      setProductos(prev => prev.map(p => ({ ...p, seguirStock: nuevoValor })))
+      const prods = await api.productos.listar()
+      setProductos(prods)
     } catch (err: any) {
       notifyError(err.message || 'Error al actualizar')
     } finally {
