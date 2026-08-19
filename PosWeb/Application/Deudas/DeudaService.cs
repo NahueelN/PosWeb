@@ -334,6 +334,7 @@ public class DeudaService
                     Monto = d.MONTO_DEUDA,
                     Descripcion = d.ID_VENTA != null ? $"Venta #{d.ID_VENTA}" : "Deuda registrada",
                 });
+                decimal pagadoRegistrado = 0;
                 if (d.MONTO_PAGADO > 0)
                 {
                     var pagos = await _context.PagoDeuda
@@ -352,7 +353,17 @@ public class DeudaService
                                 ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
                                 : null,
                         });
+                        pagadoRegistrado += p.MONTO;
                     }
+                }
+                if (d.MONTO_PAGADO - pagadoRegistrado > 0)
+                {
+                    movimientos.Add(new MovimientoCuentaDto
+                    {
+                        Tipo = "pago",
+                        Fecha = d.FECHA_DEUDA,
+                        Monto = d.MONTO_PAGADO - pagadoRegistrado,
+                    });
                 }
             }
             saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
@@ -373,6 +384,7 @@ public class DeudaService
                     Monto = d.MONTO_DEUDA,
                     Descripcion = d.ID_COMPRA != null ? $"Compra #{d.ID_COMPRA}" : "Deuda registrada",
                 });
+                decimal pagadoRegistrado = 0;
                 if (d.MONTO_PAGADO > 0)
                 {
                     var pagos = await _context.PagoDeuda
@@ -391,7 +403,17 @@ public class DeudaService
                                 ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
                                 : null,
                         });
+                        pagadoRegistrado += p.MONTO;
                     }
+                }
+                if (d.MONTO_PAGADO - pagadoRegistrado > 0)
+                {
+                    movimientos.Add(new MovimientoCuentaDto
+                    {
+                        Tipo = "pago",
+                        Fecha = d.FECHA_DEUDA,
+                        Monto = d.MONTO_PAGADO - pagadoRegistrado,
+                    });
                 }
             }
             saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);

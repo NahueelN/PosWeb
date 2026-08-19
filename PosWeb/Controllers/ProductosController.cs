@@ -181,7 +181,7 @@ public class ProductosController : ControllerBase
     [HttpPut("seguir-stock")]
     public IActionResult SeguirStockGlobal([FromBody] SeguirStockRequest request)
     {
-        var afectados = _productoService.SeguirStockGlobal(request.SeguirStock);
+        var afectados = _productoService.SeguirStockGlobal(request.SeguirStock, request.Ids);
         return Ok(new { afectados });
     }
 
@@ -209,6 +209,7 @@ public class ProductosController : ControllerBase
 public class SeguirStockRequest
 {
     public bool SeguirStock { get; set; }
+    public List<int>? Ids { get; set; }
 }
 
 public class AjusteMarcaRequest

@@ -146,7 +146,8 @@ public class ProductoService
             throw new CodigoBarraInvalidoException("debe proporcionar código de barras o código personalizado");
         }
 
-        // Validar que el código interno no exista ya
+        // Validar que el código interno no exista ya entre los activos (el índice único
+        // de COD_PRODUCTO está filtrado por ACTIVO, así que un inactivo no bloquea reuso)
         bool codigoProductoExiste = _context.Producto
             .Any(p => p.COD_PRODUCTO == codProducto && p.ACTIVO);
 
@@ -471,12 +472,16 @@ public class ProductoService
         return MapToDto(producto);
     }
 
-    public int SeguirStockGlobal(bool seguir)
+    public int SeguirStockGlobal(bool seguir, List<int>? idsAReactivar = null)
     {
-        var productos = _context.Producto
-            .Where(p => p.ACTIVO)
-            .ToList();
+        IQueryable<Producto> query = _context.Producto.Where(p => p.ACTIVO);
 
+        if (seguir && idsAReactivar != null)
+        {
+            query = query.Where(p => idsAReactivar.Contains(p.ID_PRODUCTO));
+        }
+
+        var productos = query.ToList();
         foreach (var p in productos)
         {
             p.CambiarSeguirStock(seguir);

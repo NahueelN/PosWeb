@@ -162,7 +162,7 @@ export default function GastosPage() {
       const cat = await api.categoriasGasto.crear(nombre.trim())
       setCategorias(prev => [...prev, cat])
       setDetalle(cat.descripcion)
-      setCatSearch('')
+      setCatSearch(cat.descripcion)
       setShowCatDropdown(false)
     } catch (err: any) {
       setFormError(err.message || 'Error al crear categoría')

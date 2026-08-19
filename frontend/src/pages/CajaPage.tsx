@@ -180,7 +180,10 @@ export default function CajaPage() {
   const tj = parseFloat(montoTarjetas) || 0
   const totalGastos = preview?.totalGastos ?? 0
   const efectivoVentas = preview?.desglosePagos.find(p => p.medioPago.toLowerCase().includes('efectivo'))?.monto ?? 0
-  const tarjetasVentas = (preview?.totalVentas ?? 0) - efectivoVentas
+  const tarjetasVentas = (preview?.desglosePagos ?? []).filter(p => {
+    const n = p.medioPago.toLowerCase()
+    return n.includes('tarjeta') || n.includes('débito') || n.includes('debito') || n.includes('crédito') || n.includes('credito')
+  }).reduce((s, p) => s + p.monto, 0)
   const efectivoEsperado = preview ? preview.montoInicial + efectivoVentas - totalGastos : 0
   const tarjetasEsperado = preview ? tarjetasVentas : 0
   const diffEfectivo = ef - efectivoEsperado

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -10,9 +11,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations.Local
 {
     [DbContext(typeof(PosDbContextLocal))]
-    partial class PosDbContextLocalModelSnapshot : ModelSnapshot
+    [Migration("20260813205738_FilteredUniqueIndexes")]
+    partial class FilteredUniqueIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.13");
@@ -446,48 +449,6 @@ namespace PosWeb.Migrations.Local
                     b.HasIndex("ID_CAJA");
 
                     b.ToTable("GASTO", (string)null);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.LicenciaConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Estado")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("GraceUntil")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastSeenUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastVerifiedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LicenseKey")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MachineId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("NextBilling")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Plan")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("VerifiedUntil")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LicenciaConfig");
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
@@ -1253,9 +1214,6 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ACTIVO");
 
-                    b.Property<bool>("ES_TITULAR")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int?>("ID_EMPRESA")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_EMPRESA");
@@ -1319,7 +1277,6 @@ namespace PosWeb.Migrations.Local
                         {
                             ID_USUARIO = 1,
                             ACTIVO = true,
-                            ES_TITULAR = false,
                             MAIL = "admin@posweb.com",
                             NOMBRE_USUARIO = "admin",
                             PASSWORD_HASH = "$2a$11$K4YfGqJ1e4YHIpRMTfoxYO0R9i0RDxG.h1X0As95JXQOYGMjs4eIy",

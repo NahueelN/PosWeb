@@ -55,6 +55,10 @@ export interface CartHostProps<T extends CartItemBase> {
   montoButtonLabel?: string
   onMontoButtonClick?: () => void
   onMontoKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  /** Highlight monto input in red (warning) */
+  montoWarning?: boolean
+  /** Hint text shown below the monto input */
+  montoHint?: string
   /** Search input ref — used by global Escape handler to return focus */
   searchInputRef?: RefObject<HTMLInputElement | null>
   /** Ref for the verify checkbox — keyboard focus target after monto Enter */
@@ -97,6 +101,8 @@ export default function CartHost<T extends CartItemBase>({
   montoButtonLabel = 'Sin pago',
   onMontoButtonClick,
   onMontoKeyDown,
+  montoWarning = false,
+  montoHint,
   searchInputRef,
   verifyRef,
   confirmOverride,
@@ -194,6 +200,8 @@ export default function CartHost<T extends CartItemBase>({
                 buttonLabel={montoButtonLabel}
                 onButtonClick={handleMontoButtonClick}
                 onKeyDown={handleMontoKeyDown}
+                warning={montoWarning}
+                hint={montoHint}
               />
             )}
             {paymentSlot}

@@ -7,6 +7,7 @@ import Dialog from '../components/ui/Dialog'
 import PageShell from '../components/shared/PageShell'
 import EntityToolbar from '../components/shared/EntityToolbar'
 import EntityEmptyState from '../components/shared/EntityEmptyState'
+import EntidadContactoForm from '../components/shared/EntidadContactoForm'
 import { useEntityList } from '../hooks/useEntityList'
 import { useEntitySearch } from '../hooks/useEntitySearch'
 import { useEntityForm } from '../hooks/useEntityForm'
@@ -61,6 +62,18 @@ export default function ProveedoresPage() {
     }
   }, [form, list, search.debouncedSearch, notifyError])
 
+  const handleEdit = useCallback((p: ProveedorDto) => {
+    form.openEdit(p, item => ({
+      nombre: item.nombre,
+      tipoDocumento: item.tipoDocumento || '',
+      nroDocumento: item.nroDocumento || '',
+      telefono: item.telefono || '',
+      domicilio: item.domicilio || '',
+      mail: item.mail || '',
+      ivaCondicion: item.ivaCondicion,
+    }))
+  }, [form])
+
   const totalDeuda = list.data.reduce((s, p) => s + p.deudaPendiente, 0)
 
   // ── Render ────────────────────────────────────────────────────────
@@ -106,11 +119,11 @@ export default function ProveedoresPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {list.data.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50">
+                <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(p)}>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.codigo}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{p.nombre}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
-                    {p.tipoDocumento && p.nroDocumento ? `${p.tipoDocumento} ${p.nroDocumento}` : '—'}
+                    {p.tipoDocumento && p.nroDocumento ? `${p.tipoDocumento} ${p.nroDocumento}` : ''}
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{p.ivaCondicion || '—'}</td>
                   <td className="px-4 py-3 text-gray-500">{p.telefono || '—'}</td>
@@ -123,19 +136,14 @@ export default function ProveedoresPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right space-x-1">
-                    <Button variant="ghost" size="sm" onClick={() => form.openEdit(p, item => ({
-                      nombre: item.nombre,
-                      tipoDocumento: item.tipoDocumento || '',
-                      nroDocumento: item.nroDocumento || '',
-                      telefono: item.telefono || '',
-                      domicilio: item.domicilio || '',
-                      mail: item.mail || '',
-                      ivaCondicion: item.ivaCondicion,
-                    }))}>Editar</Button>
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(p) }}>Editar</Button>
                     {p.activo && (
-                      <Button variant="ghost" size="sm" onClick={async () => {
-                        try { await api.proveedores.desactivar(p.id); list.load(search.debouncedSearch || undefined) }
-                        catch (err: unknown) { notifyError(err instanceof Error ? err.message : 'Error') }
+                      <Button variant="ghost" size="sm" onClick={(e) => {
+                        e.stopPropagation()
+                        ;(async () => {
+                          try { await api.proveedores.desactivar(p.id); list.load(search.debouncedSearch || undefined) }
+                          catch (err: unknown) { notifyError(err instanceof Error ? err.message : 'Error') }
+                        })()
                       }}>Desactivar</Button>
                     )}
                   </td>
@@ -160,50 +168,21 @@ export default function ProveedoresPage() {
           </>
         }
       >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-gray-700">Nombre *</label>
-            <input type="text" value={form.form.nombre} onChange={e => form.setForm({ ...form.form, nombre: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Tipo documento</label>
-            <select value={form.form.tipoDocumento} onChange={e => form.setForm({ ...form.form, tipoDocumento: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
-              <option value="">—</option>
-              <option value="CUIL">CUIL</option>
-              <option value="CUIT">CUIT</option>
-              <option value="DNI">DNI</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Nro. documento</label>
-            <input type="text" value={form.form.nroDocumento} onChange={e => form.setForm({ ...form.form, nroDocumento: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">IVA</label>
-            <select value={form.form.ivaCondicion} onChange={e => form.setForm({ ...form.form, ivaCondicion: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
-              {IVA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Teléfono</label>
-            <input type="text" value={form.form.telefono} onChange={e => form.setForm({ ...form.form, telefono: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Mail</label>
-            <input type="email" value={form.form.mail} onChange={e => form.setForm({ ...form.form, mail: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-gray-700">Domicilio</label>
-            <input type="text" value={form.form.domicilio} onChange={e => form.setForm({ ...form.form, domicilio: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-        </div>
+        <EntidadContactoForm
+          nombre={form.form.nombre}
+          tipoDocumento={form.form.tipoDocumento || ''}
+          documento={form.form.nroDocumento || ''}
+          ivaCondicion={form.form.ivaCondicion || ''}
+          telefono={form.form.telefono || ''}
+          mail={form.form.mail || ''}
+          domicilio={form.form.domicilio || ''}
+          onChange={(campo, valor) => {
+            const campoReal = campo === 'documento' ? 'nroDocumento' : campo
+            form.setForm({ ...form.form, [campoReal]: valor })
+          }}
+          tiposDocumento={['', 'CUIL', 'CUIT', 'DNI']}
+          ivaCondiciones={IVA_OPTIONS.map(o => o.value)}
+        />
       </Dialog>
     </PageShell>
   )

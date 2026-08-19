@@ -36,6 +36,7 @@ interface VentaDialogsProps {
   onFormClienteChange: (f: { tipoDocumento: string; numeroDocumento: string; ivaCondicion: string; telefono: string; domicilio: string; mail: string }) => void
   onCrearCliente: () => void
   onAbrirNuevoCliente: () => void
+  onClienteOcasional: () => void
 }
 
 export default function VentaDialogs({
@@ -44,6 +45,7 @@ export default function VentaDialogs({
   onClientSearchChange, onClientSelect, clientesResultsRef, total, recibio,
   showNuevoCliente, nuevoClienteNombre, esOcasional, formCliente, onNuevoClienteClose,
   onNuevoClienteNombreChange, onEsOcasionalChange, onFormClienteChange, onCrearCliente, onAbrirNuevoCliente,
+  onClienteOcasional,
 }: VentaDialogsProps) {
   useEffect(() => {
     if (showStockConfirm) {
@@ -179,6 +181,9 @@ export default function VentaDialogs({
 
         <button onClick={onAbrirNuevoCliente} className="mt-3 w-full py-2 text-sm font-semibold text-[oklch(0.52_0.255_278)] border border-dashed border-[oklch(0.52_0.255_278_/_0.30)] rounded-lg hover:bg-[oklch(0.52_0.255_278_/_0.05)] transition-colors">
           + Nuevo cliente
+        </button>
+        <button onClick={onClienteOcasional} className="mt-2 w-full py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          Cliente ocasional
         </button>
       </Dialog>
 

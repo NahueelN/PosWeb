@@ -277,31 +277,7 @@ export default function ProductosPage() {
                     )}
                   </div>
                   <div className="text-[11px] text-gray-400 font-mono truncate mt-1">{p.codigoBarra}</div>
-                  <div className="flex items-end justify-between mt-2 gap-1.5">
-                    <p className="text-xl font-bold text-indigo-600">${p.precio.toFixed(2)}</p>
-                    {p.seguirStock === false ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />sin control
-                      </span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 ${
-                        p.stock === 0
-                          ? 'bg-red-50 text-red-600'
-                          : p.stock <= 5
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-emerald-50 text-emerald-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`} />
-                        {p.stock === 0
-                          ? 'sin stock'
-                          : p.esPesable
-                            ? `${Number(p.stock.toFixed(3))} kg`
-                            : `${p.stock}`}
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-xl font-bold text-indigo-600 mt-2">${p.precio.toFixed(2)}</p>
                   <div className="flex justify-end gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
                     <span role="button" tabIndex={0}

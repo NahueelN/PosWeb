@@ -9,13 +9,11 @@ interface VentaPaymentSlotProps {
   medioRefs: RefObject<(HTMLButtonElement | null)[]>
   confirmBtnRef: RefObject<HTMLButtonElement | null>
   searchInputRef: RefObject<HTMLInputElement | null>
-  total: number
-  recibio: string
 }
 
 export default function VentaPaymentSlot({
   mediosPago, selectedMedio, onSelectMedio, medioRefs,
-  confirmBtnRef, searchInputRef, total, recibio,
+  confirmBtnRef, searchInputRef,
 }: VentaPaymentSlotProps) {
   function handleMedioKeyDown(e: React.KeyboardEvent, idx: number) {
     if (e.key === 'ArrowLeft') {
@@ -75,15 +73,6 @@ export default function VentaPaymentSlot({
           })}
         </div>
       </div>
-      <p className="text-[10px] text-gray-400 leading-tight text-center">
-        Pagos inferiores al total o vacíos generan deuda. Podés revisarla en la pestaña Deudas.
-      </p>
-      {(() => {
-        const r = parseFloat(recibio || '0')
-        if (r < total && total > 0) return <p className="text-xs text-amber-600 text-center font-medium">↗ Queda una deuda de ${(total - r).toFixed(2)}</p>
-        if (r >= total && total > 0) return <p className="text-xs text-green-600 text-center font-medium">✓ Deuda saldada</p>
-        return null
-      })()}
     </>
   )
 }

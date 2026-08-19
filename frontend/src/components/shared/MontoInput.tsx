@@ -1,17 +1,4 @@
-import { useState, useCallback, type RefObject, type KeyboardEvent, type FocusEvent } from 'react'
-
-function formatDisplay(raw: string): string {
-  if (!raw) return ''
-  const n = parseFloat(raw)
-  if (isNaN(n)) return raw
-  if (n === 0) return '0,00'
-  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function parseRaw(formatted: string): string {
-  // "1.234,50" → "1234.50"
-  return formatted.replace(/\./g, '').replace(',', '.')
-}
+import { type RefObject, type KeyboardEvent, type FocusEvent } from 'react'
 
 interface MontoInputProps {
   /** Label above the input (e.g., "Recibió", "Monto") */
@@ -27,12 +14,15 @@ interface MontoInputProps {
   buttonLabel?: string
   onButtonClick?: () => void
   placeholder?: string
+  /** Highlight the input in red (warning state, e.g. partial payment) */
+  warning?: boolean
+  /** Hint text shown right below the input */
+  hint?: string
 }
 
 /**
  * Shared amount input used by Ventas (Recibió) and Compras (Monto).
- * Displays formatted numbers (1.234,50) while storing raw values.
- * Renders a $ prefixed input with an optional side button (e.g., "Sin pago", "No pagar").
+ * Numeric-only input ($ prefixed) with an optional side button (e.g., "Sin pago", "No pagar").
  */
 export default function MontoInput({
   label,
@@ -44,25 +34,9 @@ export default function MontoInput({
   buttonLabel,
   onButtonClick,
   placeholder = '0.00',
+  warning = false,
+  hint,
 }: MontoInputProps) {
-  const [focused, setFocused] = useState(false)
-
-  const displayValue = focused ? value : formatDisplay(value)
-
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = parseRaw(e.target.value)
-    onChange(raw)
-  }, [onChange])
-
-  const handleFocus = useCallback((e: FocusEvent<HTMLInputElement>) => {
-    setFocused(true)
-    onFocus?.(e)
-  }, [onFocus])
-
-  const handleBlur = useCallback(() => {
-    setFocused(false)
-  }, [])
-
   return (
     <div>
       {label && (
@@ -73,14 +47,14 @@ export default function MontoInput({
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-gray-400/60 pointer-events-none select-none">$</span>
           <input
             ref={inputRef as RefObject<HTMLInputElement>}
-            type="text"
-            inputMode="decimal"
-            value={displayValue}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
+            type="number"
+            step="0.01"
+            min={0}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={onFocus}
             onKeyDown={onKeyDown}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-8 pr-4 text-right text-[15px] font-bold text-gray-900 placeholder:text-gray-300 placeholder:text-[13px] placeholder:font-normal shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] transition-all duration-150 tabular-nums focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]"
+            className={`h-10 w-full rounded-xl border bg-white pl-8 pr-4 text-right text-[15px] font-bold placeholder:text-gray-300 placeholder:text-[13px] placeholder:font-normal shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] transition-all duration-150 tabular-nums focus:outline-none focus:ring-2 ${warning ? 'border-red-300 text-red-600 focus:ring-red-300 focus:border-red-400' : 'border-gray-200 text-gray-900 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]'}`}
             placeholder={placeholder}
           />
         </div>
@@ -93,6 +67,9 @@ export default function MontoInput({
           </button>
         )}
       </div>
+      {hint && (
+        <p className="mt-1 text-[10px] text-gray-400 leading-tight">{hint}</p>
+      )}
     </div>
   )
 }
