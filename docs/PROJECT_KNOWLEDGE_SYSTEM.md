@@ -282,6 +282,7 @@ Nuevos tags solo se incorporan con aprobación humana.
 | `Cliente` | Relacionado con clientes |
 | `Proveedor` | Relacionado con proveedores |
 | `Auth` | Autenticación y autorización |
+| `Suscripcion` | Licencias, planes y pagos de suscripción |
 | `Offline` | Funcionalidad sin conexión |
 | `Combo` | Productos combinados |
 

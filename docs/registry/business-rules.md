@@ -9,3 +9,4 @@
 | BUS-venta | Sales-Specific Business Rules | Active | Project | Critical | `knowledge/projects/posweb/BUS-venta.md` |
 | BUS-compra | Purchase-Specific Business Rules | Active | Project | Critical | `knowledge/projects/posweb/BUS-compra.md` |
 | BUS-pesables | Weight-Based Product Rules | Active | Project | High | `knowledge/projects/posweb/BUS-pesables.md` |
+| BUS-vencimiento-licencia | Reglas de vencimiento, gracia y renovación de licencias | Active | Project | Critical | `knowledge/projects/posweb/BUS-vencimiento-licencia.md` |

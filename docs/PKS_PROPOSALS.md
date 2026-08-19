@@ -420,6 +420,30 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 
 ---
 
+### Divergencia de estructura: `docs/knowledge/` vs `docs/knowledge_items/`
+
+**Estado**: Architectural Gap
+
+**Qué describe**: Conviven dos convenciones de organización del conocimiento en paralelo.
+
+- `docs/knowledge/{core,domains,projects}/` sigue la estructura oficial del manifiesto (Knowledge Items planos + `docs/registry/` + `docs/templates/`).
+- `docs/knowledge_items/{PREFIJO-Nombre}/knowledge.md` (Dashboard/Analytics: `COMP-Widget`, `PAT-DashboardBuilder`, `MODEL-AnalyticsQuery`, etc.) usa un layout distinto (una carpeta por item con `knowledge.md`), fuera del registry y de los templates oficiales.
+
+**Evidencia**:
+
+| Aspecto | Estado |
+|---|---|
+| Ubicación | ❌ Dos raíces distintas para Knowledge Items |
+| Formato | ❌ `knowledge/` usa archivos planos; `knowledge_items/` usa `carpeta/knowledge.md` |
+| Registry | ❌ Los items de `knowledge_items/` no están en `docs/registry/` |
+| Templates | ❌ `knowledge_items/` no sigue los templates oficiales |
+
+**Beneficios de resolverlo**: Un único lugar de consulta para cualquier IA, sin ambigüedad sobre dónde vive cada Knowledge Item ni qué formato debe tener.
+
+**Criterios de promoción / resolución**: Decidir una única convención (la del manifiesto), migrar los items de `knowledge_items/` a `knowledge/projects/posweb/`, actualizar el registry y deprecar la carpeta alternativa.
+
+---
+
 ## Decisiones de descarte
 
 ### Mantener proveedor entre compras

@@ -7,3 +7,4 @@
 |----|------|--------|-------|----------|------|
 | SERVICE-api-client | API Client | Active | Project | Critical | `docs/knowledge/projects/posweb/SERVICE-api-client.md` |
 | SERVICE-catalogo | CatalogoService — Shared Product Catalog Proxy | Active | Project | High | `docs/knowledge/projects/posweb/SERVICE-catalogo.md` |
+| SERVICE-licensing-worker | LicensingWorker — License subscription & payment service | Active | Project | Critical | `docs/knowledge/projects/posweb/SERVICE-licensing-worker.md` |
