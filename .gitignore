@@ -384,3 +384,4 @@ mysql-data/
 # Excel files (import data)
 *.xls
 *.xlsx
+.wrangler/cache/wrangler-account.json
