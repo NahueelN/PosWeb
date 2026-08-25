@@ -3,6 +3,7 @@ import { Printer } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import type { VentaResultadoDto, UsuarioInfo } from '../../types'
 import { buildTicketLines, type TicketWidth } from '../../lib/ticket'
+import './TicketResultado.css'
 
 interface ItemEmitido {
   producto: { id: number; nombre: string; precio: number }
@@ -19,6 +20,7 @@ interface TicketResultadoProps {
 export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
+  const receiptRef = useRef<HTMLDivElement>(null)
   const [ancho, setAncho] = useState<TicketWidth>(80)
 
   const lines = buildTicketLines({
@@ -32,7 +34,35 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     cambio: resultado.cambio,
   }, ancho)
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if ('__TAURI_INTERNALS__' in window) {
+      localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, lines }))
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+      new WebviewWindow(`ticket-print-${Date.now()}`, {
+        url: 'ticket-print.html',
+        title: 'Imprimir ticket',
+        width: 1200,
+        height: 700,
+        resizable: false,
+        center: true,
+      })
+      return
+    }
+
+    const ticketWindow = window.open('', 'posweb-ticket', `width=${ancho === 58 ? 360 : 460},height=700`)
+    const ticketHtml = receiptRef.current?.outerHTML
+
+    if (ticketWindow && ticketHtml) {
+      ticketWindow.document.write(`<!doctype html>
+<html><head><title>Ticket</title><style>
+@page { size: ${ancho}mm auto; margin: 0; }
+html, body { margin: 0; padding: 0; width: ${ancho}mm; }
+.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #111; }
+</style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+      ticketWindow.document.close()
+      return
+    }
+
     const styleId = 'ticket-print-size'
     const old = document.getElementById(styleId)
     if (old) old.remove()
@@ -53,7 +83,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
         </div>
       </div>
 
-      <div className="receipt bg-white py-6 px-4 mx-auto font-mono leading-[1.45] text-gray-900"
+      <div ref={receiptRef} className="receipt bg-white py-6 px-4 mx-auto font-mono leading-[1.45] text-gray-900"
         style={{ fontFamily: "'Courier New', Courier, monospace", width: `${ancho}mm` }}>
         {lines.map((l, i) => {
           const sizeCls =

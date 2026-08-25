@@ -193,20 +193,7 @@ public class ProductoService
     /// Devuelve el próximo código interno disponible (PROD + numérico secuencial, o "PROD1" si no hay).
     /// </summary>
     public string ObtenerSiguienteCodigo()
-    {
-        var todos = _context.Producto
-            .Where(p => p.ACTIVO && p.COD_PRODUCTO.StartsWith("PROD"))
-            .Select(p => p.COD_PRODUCTO)
-            .ToList();
-
-        var numericos = todos
-            .Select(c => c.Length > 4 && int.TryParse(c.Substring(4), out var n) ? n : (int?)null)
-            .Where(n => n.HasValue)
-            .Select(n => n.Value);
-
-        int max = numericos.Any() ? numericos.Max() : 0;
-        return $"PROD{max + 1}";
-    }
+        => $"PROD{ObtenerSiguienteCodigoNumero() + 1}";
 
     public ProductoDto ObtenerPorCodigoBarra(string codigoBarras)
     {
@@ -371,6 +358,244 @@ public class ProductoService
                     ProductoBultoId = p.ID_PRODUCTO_BULTO
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Importa productos desde un Excel (formato articulos.xls). CREATE-ONLY:
+    /// saltea filas con código de barras vacío/no numérico, duplicados en DB,
+    /// duplicados en el propio archivo, y reporta todos los saltos.
+    /// </summary>
+    public ProductoImportResponseDto ImportarProductos(List<ProductoImportFila> filas, int? sucursalId, bool importarSinCodigo = false)
+    {
+        var response = new ProductoImportResponseDto { Total = filas.Count };
+
+        const int maxErrores = 200;
+
+        // Categorías nuevas creadas en el pre-pase; tras SaveChanges se les lee su ID real.
+        var pendientesCategorias = new List<(string Rubro, string CodCat, Categoria Entidad)>();
+
+        // Códigos de barras ya existentes en DB (activos), case-insensitive.
+        var existentes = _context.Producto
+            .Where(p => p.ACTIVO)
+            .Select(p => p.CODIGO_BARRAS)
+            .AsEnumerable()
+            .Select(c => (c ?? "").Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Categorías: indexar por DESC_CATEGORIA (trim, case-insensitive) y por COD_CATEGORIA (uppercase).
+        var cats = _context.Categoria.ToList();
+        var catPorDesc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var catPorCodigo = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in cats)
+        {
+            catPorDesc[c.DESC_CATEGORIA.Trim()] = c.ID_CATEGORIA;
+            catPorCodigo[c.COD_CATEGORIA.Trim().ToUpperInvariant()] = c.ID_CATEGORIA;
+        }
+
+        // Pre-pase: resolver/crear TODAS las categorías nuevas en una sola pasada.
+        // Se persisten con un único SaveChanges para que tengan IDs reales antes de crear productos
+        // (los productos referencian ID_CATEGORIA, que debe existir como FK válida).
+        var rubrosUnicos = filas
+            .Select(f => f.Rubro)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        bool creoCategorias = false;
+        foreach (var rubro in rubrosUnicos)
+        {
+            if (catPorDesc.ContainsKey(rubro)) continue;
+            string codCat = new string(rubro.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+            if (catPorCodigo.ContainsKey(codCat)) continue;
+
+            var nueva = new Categoria(codCat, rubro);
+            _context.Categoria.Add(nueva);
+            // No SaveChanges por categoría: esperamos a tenerlas todas y persistimos una vez.
+            // Guardamos temporalmente la entidad; tras SaveChanges obtendrá su ID real.
+            catPorDesc[rubro] = 0; // marcador; se reemplaza tras SaveChanges
+            // Guardamos la entidad para poder leer su ID generado después.
+            pendientesCategorias.Add((rubro, codCat, nueva));
+            creoCategorias = true;
+        }
+        if (creoCategorias)
+        {
+            _context.SaveChanges();
+            foreach (var (rubro, codCat, nueva) in pendientesCategorias)
+            {
+                catPorDesc[rubro] = nueva.ID_CATEGORIA;
+                catPorCodigo[codCat] = nueva.ID_CATEGORIA;
+            }
+        }
+
+        // Próximo COD_PRODUCTO secuencial (PROD{n}) — base max actual + 1 + contador en memoria.
+        int nextCod = ObtenerSiguienteCodigoNumero() + 1;
+
+        var vistosEnImport = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Productos creados + su stock pendiente (se persiste tras el SaveChanges de productos,
+        // porque StockSucursal necesita el ID_PRODUCTO generado por EF).
+        var creadosConStock = new List<(Producto Producto, decimal Stock)>();
+
+        for (int i = 0; i < filas.Count; i++)
+        {
+            var fila = filas[i];
+            int numeroFila = i + 2; // fila 1 = header en el Excel
+
+            string codigoBarras = (fila.CodigoBarras ?? "").Trim();
+            string descripcion = (fila.Descripcion ?? "").Trim();
+
+            // Código de barras: si está vacío o tiene caracteres no numéricos.
+            bool codigoValido = !string.IsNullOrWhiteSpace(codigoBarras) && codigoBarras.All(char.IsDigit);
+            if (!codigoValido)
+            {
+                if (importarSinCodigo)
+                {
+                    // Importar SIN código de barras (se autogenera el código interno PROD{n}).
+                    codigoBarras = "";
+                }
+                else
+                {
+                    AddError(response, numeroFila, "Código de barras vacío o no numérico", maxErrores, fila);
+                    continue;
+                }
+            }
+            else
+            {
+                // Duplicado en DB.
+                if (existentes.Contains(codigoBarras))
+                {
+                    AddError(response, numeroFila, "Código de barras ya existente", maxErrores, fila);
+                    continue;
+                }
+
+                // Duplicado en el propio archivo.
+                if (!vistosEnImport.Add(codigoBarras))
+                {
+                    AddError(response, numeroFila, "Código de barras duplicado en el archivo", maxErrores, fila);
+                    continue;
+                }
+            }
+
+            // Descripción requerida.
+            if (string.IsNullOrWhiteSpace(descripcion))
+            {
+                AddError(response, numeroFila, "Descripción requerida", maxErrores, fila);
+                continue;
+            }
+
+            // Precio: debe ser > 0 (el constructor de Producto lanza si precio <= 0 y no es bulto).
+            if (!fila.Precio.HasValue || fila.Precio.Value <= 0)
+            {
+                AddError(response, numeroFila, "Precio inválido", maxErrores, fila);
+                continue;
+            }
+
+            // Costo: default 0; negativos se clampean a 0 (producto no admite negativos).
+            decimal costo = fila.Costo.HasValue ? Math.Max(0, fila.Costo.Value) : 0m;
+
+            // Rubro -> Categoria: ya todas resueltas en el pre-pase (IDs reales).
+            int? categoriaId = null;
+            if (!string.IsNullOrWhiteSpace(fila.Rubro))
+            {
+                string rubro = fila.Rubro!.Trim();
+                catPorDesc.TryGetValue(rubro, out var idDesc);
+                if (idDesc > 0)
+                {
+                    categoriaId = idDesc;
+                }
+                else
+                {
+                    string codCat = new string(rubro.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+                    catPorCodigo.TryGetValue(codCat, out var idCod);
+                    if (idCod > 0) categoriaId = idCod;
+                }
+            }
+
+            string? marca = string.IsNullOrWhiteSpace(fila.Marca) ? null : fila.Marca.Trim();
+
+            string codProducto = $"PROD{nextCod++}";
+
+            var producto = new Producto(
+                codProducto,
+                codigoBarras,
+                descripcion,
+                fila.Precio.Value,
+                costo,
+                categoriaId,
+                null,
+                null,
+                null,
+                marca,
+                null,
+                false,
+                false,
+                null);
+
+            _context.Producto.Add(producto);
+
+            if (fila.SeguirStock.HasValue)
+            {
+                producto.CambiarSeguirStock(fila.SeguirStock.Value);
+            }
+
+            // Si el producto no controla stock, no se le crea fila de StockSucursal.
+            bool controlaStock = !fila.SeguirStock.HasValue || fila.SeguirStock.Value;
+            if (sucursalId.HasValue && controlaStock)
+            {
+                creadosConStock.Add((producto, fila.Stock ?? 0m));
+            }
+
+            response.Creados++;
+        }
+
+        // Fase 1: persistir productos -> EF genera los ID_PRODUCTO.
+        _context.SaveChanges();
+
+        // Fase 2: crear StockSucursal por sucursal usando los IDs ya generados.
+        // Se crea una fila por cada producto creado (incluso con stock 0) para que
+        // quede "inicializado" para la sucursal (StockSucursalService marca inicializado
+        // según exista la fila). Los negativos se clampean a 0 (el dominio no admite <0).
+        if (sucursalId.HasValue && creadosConStock.Count > 0)
+        {
+            foreach (var (prod, stock) in creadosConStock)
+            {
+                decimal stockFinal = Math.Max(0, stock);
+                var ss = new StockSucursal(prod.ID_PRODUCTO, sucursalId.Value, stockFinal);
+                _context.StockSucursal.Add(ss);
+            }
+            _context.SaveChanges();
+        }
+
+        response.Saltados = response.Total - response.Creados;
+        return response;
+    }
+
+    private static void AddError(ProductoImportResponseDto response, int fila, string motivo, int maxErrores, ProductoImportFila datos)
+    {
+        if (response.Errores.Count < maxErrores)
+        {
+            response.Errores.Add(new ProductoImportErrorDto { Fila = fila, Motivo = motivo, Datos = datos });
+        }
+    }
+
+    /// <summary>
+    /// Devuelve el número máximo actual de COD_PRODUCTO (PROD{n}) entre productos activos.
+    /// Usado por ImportarProductos para evitar llamar a ObtenerSiguienteCodigo() por fila.
+    /// </summary>
+    private int ObtenerSiguienteCodigoNumero()
+    {
+        var todos = _context.Producto
+            .Where(p => p.ACTIVO && p.COD_PRODUCTO.StartsWith("PROD"))
+            .Select(p => p.COD_PRODUCTO)
+            .ToList();
+
+        var numericos = todos
+            .Select(c => c.Length > 4 && int.TryParse(c.Substring(4), out var n) ? n : (int?)null)
+            .Where(n => n.HasValue)
+            .Select(n => n.Value);
+
+        return numericos.Any() ? numericos.Max() : 0;
     }
 
     public List<GrupoMarcasDto> ObtenerMarcasSimilares()

@@ -503,10 +503,17 @@ export interface DeudaDto {
   saldoPendiente: number
   proveedorId?: number
   clienteId?: number
+  anulada: boolean
 }
 
 export interface PagarDeudaRequestDto {
   monto?: number
+}
+
+export interface CrearDeudaRequestDto {
+  clienteId?: number
+  proveedorId?: number
+  monto: number
 }
 
 export interface ProximoCodigoResponse {
@@ -724,6 +731,7 @@ export interface PagoDeudaDto {
   deudaId: number
   monto: number
   fecha: string
+  anulado?: boolean
 }
 
 // --- CuentaCorriente types ---
@@ -741,11 +749,45 @@ export interface MovimientoCuentaDto {
   tipo: string
   monto: number
   descripcion?: string
-  usuario?: string
   pagoId?: number
+  deudaId?: number
+  usuario?: string
+  anulado?: boolean
 }
 
 export interface MercadoPagoEstadoDto {
   vinculado: boolean
   nombreTitular?: string
+}
+
+// --- Importación de productos desde Excel ---
+export interface ProductoImportFilaDto {
+  codigoBarras: string
+  descripcion: string
+  marca?: string | null
+  rubro?: string | null
+  stock?: number | null
+  costo?: number | null
+  precio?: number | null
+  seguirStock?: boolean | null
+}
+
+export interface ProductoImportErrorDto {
+  fila: number
+  motivo: string
+  datos: ProductoImportFilaDto
+}
+
+export interface ProductoImportResponseDto {
+  total: number
+  creados: number
+  saltados: number
+  errores: ProductoImportErrorDto[]
+}
+
+// --- Empresa ---
+export interface EmpresaDto {
+  id: number
+  nombre: string
+  documento: string
 }

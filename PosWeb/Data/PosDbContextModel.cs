@@ -1024,6 +1024,9 @@ public partial class PosDbContext
             entity.Property(d => d.PAGO)
                 .HasColumnName("PAGO");
 
+            entity.Property(d => d.ANULADA)
+                .HasColumnName("ANULADA");
+
             entity.Property(d => d.ID_VENTA)
                 .HasColumnName("ID_VENTA");
 
@@ -1073,6 +1076,9 @@ public partial class PosDbContext
 
             entity.Property(p => p.ID_USUARIO)
                 .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.ANULADO)
+                .HasColumnName("ANULADO");
 
             entity.HasOne(p => p.Deuda)
                 .WithMany()

@@ -3,7 +3,9 @@ import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
+import { ProductRow, ProductGridRows, ProductGridHeader } from '../components/shared'
 import ProductFormModal from '../components/ProductFormModal'
+import ImportarProductosModal from '../components/ImportarProductosModal'
 import ConfiguracionProductosTab from '../components/ConfiguracionProductosTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
 import Dialog from '../components/ui/Dialog'
@@ -27,6 +29,7 @@ export default function ProductosPage() {
   const [modalCodigo, setModalCodigo] = useState('')
   const [editingProduct, setEditingProduct] = useState<ProductoDto | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   const [ajusteMarca, setAjusteMarca] = useState('')
@@ -105,7 +108,7 @@ export default function ProductosPage() {
     try {
       const prod = await api.productos.obtenerPorBarra(codigo)
       if (prod) {
-        setQuery('')
+        setQuery(codigo)
         focusCard(prod.id)
         return
       }
@@ -114,7 +117,7 @@ export default function ProductosPage() {
       p => p.codigoBarra.toLowerCase() === codigo.toLowerCase()
     )
     if (localMatch) {
-      setQuery('')
+      setQuery(codigo)
       focusCard(localMatch.id)
       return
     }
@@ -202,9 +205,14 @@ export default function ProductosPage() {
     <><PageShell
       title="Productos"
       actions={tab === 'productos' ? (
-        <Button onClick={handleOpenForm} variant="primary" size="sm">
-          Nuevo producto
-        </Button>
+        <>
+          <Button onClick={() => setImportOpen(true)} variant="secondary" size="sm">
+            Importar
+          </Button>
+          <Button onClick={handleOpenForm} variant="primary" size="sm">
+            Nuevo producto
+          </Button>
+        </>
       ) : undefined}
       tabs={
         <div className="flex border-b border-slate-200">
@@ -241,6 +249,11 @@ export default function ProductosPage() {
         sucursalId={sucursal?.id}
         defaultEsPesable={false}
         onCreated={handleProductCreated}
+        onDelete={(producto) => {
+          setModalOpen(false)
+          setEditingProduct(null)
+          setConfirmDeleteId(producto.id)
+        }}
         onClose={handleCloseModal}
       />
 
@@ -262,31 +275,35 @@ export default function ProductosPage() {
               </div>
               <p className="text-gray-500 font-medium text-sm">No hay productos</p>
             </div>
-          ) : filteredProductos.map((p) => (
-                <button key={p.id} type="button" data-card data-card-id={p.id}
-                  onClick={() => handleEditProduct(p)}
-                  className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:border-indigo-300 hover:shadow-sm transition-all active:scale-[0.98] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none group"
-                  title={p.nombre}>
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-bold text-gray-900 text-base leading-tight truncate">{p.nombre}</p>
-                    {p.esPesable && (
-                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">por kg</span>
-                    )}
-                    {p.tamano && (
-                      <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.tamano}</span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-gray-400 font-mono truncate mt-1">{p.codigoBarra}</div>
-                  <p className="text-xl font-bold text-indigo-600 mt-2">${p.precio.toFixed(2)}</p>
-                  <div className="flex justify-end gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-medium text-gray-400 cursor-default">{p.costo > 0 ? `Costo $${p.costo.toFixed(2)}` : ''}</span>
-                    <span role="button" tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setConfirmDeleteId(p.id) } }}
-                      className="text-[10px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer">Eliminar</span>
-                  </div>
-                </button>
-              ))}
+          ) : (
+            <div className="col-span-full">
+              <ProductGridRows searchInputRef={searchRef} header={<ProductGridHeader />}>
+                {filteredProductos.map((p) => (
+                  <ProductRow
+                    key={p.id}
+                    id={p.id}
+                    codigo={p.codigoBarra}
+                    nombre={p.nombre}
+                    stock={p.stock}
+                    precio={<span>${p.precio.toFixed(2)}</span>}
+                    onClick={() => handleEditProduct(p)}
+                    badge={p.esPesable ? (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0">por kg</span>
+                    ) : undefined}
+                    action={
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setConfirmDeleteId(p.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setConfirmDeleteId(p.id) }}
+                        className="text-[11px] font-medium text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                      >Eliminar</span>
+                    }
+                  />
+                ))}
+              </ProductGridRows>
+            </div>
+          )}
         </ProductCardPanel>
         </Card>
       ) : tab === 'configuracion' ? (
@@ -393,6 +410,13 @@ export default function ProductosPage() {
           <Button variant="primary" size="sm" onClick={confirmarEliminar}>Continuar</Button>
         </>
       }
+    />
+
+    <ImportarProductosModal
+      open={importOpen}
+      sucursalId={sucursal?.id}
+      onClose={() => setImportOpen(false)}
+      onImported={listar}
     />
     </>
   )

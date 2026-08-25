@@ -234,6 +234,10 @@ using (var scope = app.Services.CreateScope())
             ctx.Empresa.Add(empresa);
             ctx.SaveChanges();
 
+            // Asignar empresa al admin
+            admin.AsignarEmpresa(empresa.ID_EMPRESA);
+            ctx.SaveChanges();
+
             var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);
             ctx.Sucursal.Add(sucursal);
             ctx.SaveChanges();

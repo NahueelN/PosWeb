@@ -25,7 +25,7 @@ public class DeudaService
             query = query.Where(d => d.ID_PROVEEDOR == proveedorId.Value);
 
         if (soloPendientes)
-            query = query.Where(d => !d.PAGO);
+            query = query.Where(d => !d.PAGO && !d.ANULADA);
 
         var deudas = await query
             .OrderByDescending(d => d.FECHA_DEUDA)
@@ -54,7 +54,7 @@ public class DeudaService
             query = query.Where(d => d.ID_CLIENTE == clienteId.Value);
 
         if (soloPendientes)
-            query = query.Where(d => !d.PAGO);
+            query = query.Where(d => !d.PAGO && !d.ANULADA);
 
         var deudas = await query
             .OrderByDescending(d => d.FECHA_DEUDA)
@@ -81,6 +81,19 @@ public class DeudaService
 
         var cliente = await _context.Cliente.FindAsync(clienteId);
         return MapToDto(deuda, clienteNombre: cliente?.NOMBRE ?? "");
+    }
+
+    public async Task<DeudaDto> CrearDeudaDirectoAsync(int? clienteId, int? proveedorId, decimal monto)
+    {
+        if (clienteId.HasValue && proveedorId.HasValue)
+            throw new ArgumentException("Especificá solo un cliente o un proveedor, no ambos");
+        if (!clienteId.HasValue && !proveedorId.HasValue)
+            throw new ArgumentException("Debe especificar un cliente o un proveedor");
+
+        var deuda = new Deuda(monto, idCliente: clienteId, idProveedor: proveedorId);
+        _context.Deuda.Add(deuda);
+        await _context.SaveChangesAsync();
+        return await ObtenerPorIdAsync(deuda.ID_DEUDA);
     }
 
     // ── Común ──
@@ -119,6 +132,8 @@ public class DeudaService
 
         if (deuda.PAGO)
             throw new DeudaYaPagadaException(id);
+        if (deuda.ANULADA)
+            throw new InvalidOperationException("La deuda está anulada");
 
         decimal montoPagado;
         if (monto.HasValue)
@@ -167,7 +182,7 @@ public class DeudaService
             throw new ArgumentException("El monto debe ser mayor a cero");
 
         var pendientesProveedor = await _context.Deuda
-            .Where(d => d.ID_PROVEEDOR == proveedorId && d.MONTO_DEUDA > d.MONTO_PAGADO)
+            .Where(d => d.ID_PROVEEDOR == proveedorId && !d.ANULADA && d.MONTO_DEUDA > d.MONTO_PAGADO)
             .OrderBy(d => d.FECHA_DEUDA)
             .ToListAsync();
 
@@ -200,7 +215,7 @@ public class DeudaService
             throw new ArgumentException("El monto debe ser mayor a cero");
 
         var pendientes = await _context.Deuda
-            .Where(d => d.ID_CLIENTE == clienteId && d.MONTO_DEUDA > d.MONTO_PAGADO)
+            .Where(d => d.ID_CLIENTE == clienteId && !d.ANULADA && d.MONTO_DEUDA > d.MONTO_PAGADO)
             .OrderBy(d => d.FECHA_DEUDA)
             .ToListAsync();
 
@@ -265,6 +280,7 @@ public class DeudaService
                 ClienteNombre = p.Deuda.ID_CLIENTE != null ? _context.Cliente.Where(c => c.ID_CLIENTE == p.Deuda.ID_CLIENTE).Select(c => c.NOMBRE).FirstOrDefault() : null,
                 ProveedorNombre = p.Deuda.ID_PROVEEDOR != null ? _context.Proveedor.Where(pr => pr.ID_PROVEEDOR == p.Deuda.ID_PROVEEDOR).Select(pr => pr.NOMBRE).FirstOrDefault() : null,
                 UsuarioNombre = p.ID_USUARIO != null ? _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefault() : null,
+                Anulado = p.ANULADO || p.Deuda.ANULADA,
             })
             .ToListAsync();
 
@@ -279,11 +295,26 @@ public class DeudaService
 
         if (pago == null)
             throw new DeudaNoEncontradaException(pagoDeudaId);
+        if (pago.ANULADO)
+            throw new InvalidOperationException("El pago ya fue anulado");
 
         var deuda = pago.Deuda;
         deuda.DeshacerPago(pago.MONTO);
 
-        _context.PagoDeuda.Remove(pago);
+        pago.Anular();
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AnularDeudaAsync(int deudaId)
+    {
+        var deuda = await _context.Deuda.FindAsync(deudaId);
+
+        if (deuda == null)
+            throw new DeudaNoEncontradaException(deudaId);
+        if (deuda.ANULADA)
+            throw new InvalidOperationException("La deuda ya fue anulada");
+
+        deuda.Anular();
         await _context.SaveChangesAsync();
     }
 
@@ -308,7 +339,8 @@ public class DeudaService
             ProveedorId: d.ID_PROVEEDOR,
             ClienteId: d.ID_CLIENTE,
             MontoPagado: d.MONTO_PAGADO,
-            SaldoPendiente: d.MONTO_DEUDA - d.MONTO_PAGADO
+            SaldoPendiente: d.ANULADA ? 0 : d.MONTO_DEUDA - d.MONTO_PAGADO,
+            Anulada: d.ANULADA
         );
     }
 
@@ -332,31 +364,32 @@ public class DeudaService
                     Tipo = "deuda",
                     Fecha = d.FECHA_DEUDA,
                     Monto = d.MONTO_DEUDA,
+                    DeudaId = d.ID_DEUDA,
+                    Anulado = d.ANULADA,
                     Descripcion = d.ID_VENTA != null ? $"Venta #{d.ID_VENTA}" : "Deuda registrada",
                 });
                 decimal pagadoRegistrado = 0;
-                if (d.MONTO_PAGADO > 0)
+                var pagos = await _context.PagoDeuda
+                    .Where(p => p.ID_DEUDA == d.ID_DEUDA)
+                    .OrderBy(p => p.FECHA)
+                    .ToListAsync();
+                foreach (var p in pagos)
                 {
-                    var pagos = await _context.PagoDeuda
-                        .Where(p => p.ID_DEUDA == d.ID_DEUDA)
-                        .OrderBy(p => p.FECHA)
-                        .ToListAsync();
-                    foreach (var p in pagos)
+                    movimientos.Add(new MovimientoCuentaDto
                     {
-                        movimientos.Add(new MovimientoCuentaDto
-                        {
-                            Tipo = "pago",
-                            Fecha = p.FECHA,
-                            Monto = p.MONTO,
-                            PagoId = p.ID_PAGO_DEUDA,
-                            Usuario = p.ID_USUARIO != null
-                                ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
-                                : null,
-                        });
+                        Tipo = "pago",
+                        Fecha = p.FECHA,
+                        Monto = p.MONTO,
+                        PagoId = p.ID_PAGO_DEUDA,
+                        Anulado = p.ANULADO || d.ANULADA,
+                        Usuario = p.ID_USUARIO != null
+                            ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
+                            : null,
+                    });
+                    if (!p.ANULADO && !d.ANULADA)
                         pagadoRegistrado += p.MONTO;
-                    }
                 }
-                if (d.MONTO_PAGADO - pagadoRegistrado > 0)
+                if (!d.ANULADA && d.MONTO_PAGADO - pagadoRegistrado > 0)
                 {
                     movimientos.Add(new MovimientoCuentaDto
                     {
@@ -366,7 +399,7 @@ public class DeudaService
                     });
                 }
             }
-            saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
+            saldoActual = deudas.Where(d => !d.ANULADA).Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
         }
         else if (proveedorId.HasValue)
         {
@@ -382,31 +415,32 @@ public class DeudaService
                     Tipo = "deuda",
                     Fecha = d.FECHA_DEUDA,
                     Monto = d.MONTO_DEUDA,
+                    DeudaId = d.ID_DEUDA,
+                    Anulado = d.ANULADA,
                     Descripcion = d.ID_COMPRA != null ? $"Compra #{d.ID_COMPRA}" : "Deuda registrada",
                 });
                 decimal pagadoRegistrado = 0;
-                if (d.MONTO_PAGADO > 0)
+                var pagos = await _context.PagoDeuda
+                    .Where(p => p.ID_DEUDA == d.ID_DEUDA)
+                    .OrderBy(p => p.FECHA)
+                    .ToListAsync();
+                foreach (var p in pagos)
                 {
-                    var pagos = await _context.PagoDeuda
-                        .Where(p => p.ID_DEUDA == d.ID_DEUDA)
-                        .OrderBy(p => p.FECHA)
-                        .ToListAsync();
-                    foreach (var p in pagos)
+                    movimientos.Add(new MovimientoCuentaDto
                     {
-                        movimientos.Add(new MovimientoCuentaDto
-                        {
-                            Tipo = "pago",
-                            Fecha = p.FECHA,
-                            Monto = p.MONTO,
-                            PagoId = p.ID_PAGO_DEUDA,
-                            Usuario = p.ID_USUARIO != null
-                                ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
-                                : null,
-                        });
+                        Tipo = "pago",
+                        Fecha = p.FECHA,
+                        Monto = p.MONTO,
+                        PagoId = p.ID_PAGO_DEUDA,
+                        Anulado = p.ANULADO || d.ANULADA,
+                        Usuario = p.ID_USUARIO != null
+                            ? await _context.Usuario.Where(u => u.ID_USUARIO == p.ID_USUARIO).Select(u => u.NOMBRE_USUARIO).FirstOrDefaultAsync()
+                            : null,
+                    });
+                    if (!p.ANULADO && !d.ANULADA)
                         pagadoRegistrado += p.MONTO;
-                    }
                 }
-                if (d.MONTO_PAGADO - pagadoRegistrado > 0)
+                if (!d.ANULADA && d.MONTO_PAGADO - pagadoRegistrado > 0)
                 {
                     movimientos.Add(new MovimientoCuentaDto
                     {
@@ -416,7 +450,7 @@ public class DeudaService
                     });
                 }
             }
-            saldoActual = deudas.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
+            saldoActual = deudas.Where(d => !d.ANULADA).Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
         }
         else
         {

@@ -380,3 +380,7 @@ mysql-data/
 
 # App settings with local passwords
 **/appsettings.Development.json
+
+# Excel files (import data)
+*.xls
+*.xlsx

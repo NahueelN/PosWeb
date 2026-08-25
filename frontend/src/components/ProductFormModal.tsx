@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
-import { Loader2, Check, X, Package, Plus } from 'lucide-react'
+import { Loader2, Check, X, Package, Plus, Trash2 } from 'lucide-react'
 import Dialog from './ui/Dialog'
 import DialogPrimaryField from './ui/DialogPrimaryField'
 import Button from './ui/Button'
@@ -26,6 +26,7 @@ interface ProductFormModalProps {
   sucursalId?: number
   defaultEsPesable?: boolean
   onCreated: (producto: ProductoDto) => void
+  onDelete?: (producto: ProductoDto) => void
   onClose: () => void
 }
 
@@ -38,6 +39,7 @@ export default function ProductFormModal({
   sucursalId,
   defaultEsPesable,
   onCreated,
+  onDelete,
   onClose,
 }: ProductFormModalProps) {
   const context = openContext ?? (editingProduct ? 'edit' : prefillData ? 'off' : initialCodigo ? 'scanner' : 'manual')
@@ -243,9 +245,7 @@ export default function ProductFormModal({
     const currentKey = target.closest('[data-field]')?.getAttribute('data-field') as FieldKey | null
     if (!currentKey) return
 
-    if (target.tagName === 'TEXTAREA') {
-      if (e.key !== 'Tab') return
-    }
+    if (target.tagName === 'TEXTAREA' && e.key !== 'Tab' && e.key !== 'Enter') return
 
     if (e.key === 'Tab') {
       e.preventDefault()
@@ -253,7 +253,7 @@ export default function ProductFormModal({
       return
     }
 
-    if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+    if (e.key === 'Enter') {
       e.preventDefault()
       const order = getFlowOrder().filter(key => isFieldVisible(key) && !isFieldDisabled(key))
       const idx = order.indexOf(currentKey)
@@ -300,8 +300,8 @@ export default function ProductFormModal({
         setNombre(prefillData?.descripcion || '')
         setMarca(prefillData?.marca || '')
         setContenido(prefillData?.contenido?.toString() || '')
-        setPrecio('')
-        setCosto('')
+        setPrecio(context === 'off' ? '0' : '')
+        setCosto(context === 'off' ? '0' : '')
         setCategoriaId('')
         setUnidadMedidaId('')
         setDescripcion('')
@@ -383,7 +383,9 @@ export default function ProductFormModal({
   useEffect(() => {
     if (!open || focusAppliedRef.current) return
     const timer = setTimeout(() => {
-      const first = getFirstPendingField() ?? getFlowOrder().find(key => isFieldVisible(key) && !isFieldDisabled(key)) ?? null
+      const first = context === 'off'
+        ? 'costo'
+        : getFirstPendingField() ?? getFlowOrder().find(key => isFieldVisible(key) && !isFieldDisabled(key)) ?? null
       if (first) {
         focusField(first)
         focusAppliedRef.current = true
@@ -550,7 +552,15 @@ export default function ProductFormModal({
       highlight={nombre || (isEditing ? 'Editar producto' : 'Nuevo producto')}
       width="xl"
       footer={
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            {editingProduct && onDelete && (
+              <Button variant="destructive" size="md" icon={<Trash2 size={16} />} type="button" onClick={() => onDelete(editingProduct)}>
+                Eliminar
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
             <Button variant="secondary" size="md" className="min-w-[128px]" onClick={onClose}>Cancelar</Button>
             <Button variant="primary" size="md" className="min-w-[128px]" icon={loading ? undefined : <Plus size={18} />} type="submit" form="producto-form" disabled={!canSubmit || loading}>
               {loading ? (
@@ -561,6 +571,7 @@ export default function ProductFormModal({
               ) : isEditing ? 'Guardar cambios' : 'Crear producto'}
             </Button>
           </div>
+        </div>
       }
     >
       <form id="producto-form" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>

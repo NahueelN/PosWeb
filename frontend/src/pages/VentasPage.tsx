@@ -62,7 +62,9 @@ export default function VentasPage() {
   // Payments
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
-  const [recibio, setRecibio] = useState('')
+  const [recibio, setRecibio] = useState<string>(() => {
+    try { return sessionStorage.getItem('venta-recibio') ?? '' } catch { return '' }
+  })
 
   // Productos / Combos / Ofertas
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -98,7 +100,6 @@ export default function VentasPage() {
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null!)
-  const productGridRef = useRef<HTMLDivElement>(null!)
   const cartListRef = useRef<HTMLDivElement>(null!)
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -124,6 +125,12 @@ export default function VentasPage() {
     setRecibio(total.toFixed(2))
   }
   useEffect(() => { if (step === 'venta') { const id = setTimeout(() => searchInputRef.current?.focus(), 150); return () => clearTimeout(id) } }, [step])
+  useEffect(() => {
+    try {
+      if (recibio) sessionStorage.setItem('venta-recibio', recibio)
+      else sessionStorage.removeItem('venta-recibio')
+    } catch { /* ignore */ }
+  }, [recibio])
   const [sucursalActiva, setSucursalActiva] = useState<SucursalDto | null>(null)
 
   // Derivar sucursal: contexto > auto-cargada > null
@@ -152,7 +159,7 @@ export default function VentasPage() {
     if (step !== 'venta' || !sucursalEfectiva) return
     setCajaLoading(true)
     api.cajas.activa(sucursalEfectiva.id).then(res => setCajaActiva(res.activa)).catch(() => setCajaActiva(false)).finally(() => setCajaLoading(false))
-    api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp) }).catch(() => {})
+    api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp); const efectivo = mp.find(m => m.id === 1); if (efectivo) setSelectedMedio(efectivo) }).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
     setProductosLoading(true)
     api.productos.listar(sucursalEfectiva.id).then(ps => setProductos(ps.filter(p => !p.esBulto))).catch(() => {}).finally(() => setProductosLoading(false))
@@ -561,16 +568,16 @@ export default function VentasPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchInputRef={searchInputRef}
-          productGridRef={productGridRef}
           filteredProductos={filteredProductos}
           filteredCombos={filteredCombos}
-          unidadesMap={unidadesMap}
           ofertasMap={ofertasMap}
           onAgregarProducto={agregarProducto}
           onAgregarCombo={agregarCombo}
           combos={combos}
           medioRefs={medioRefs}
           cartItemsLength={cart.items.length}
+          confirmBtnRef={confirmBtnRef}
+          pagoExacto={recibio !== '' && Math.abs(parseFloat(recibio) - total) < 0.005}
         />
       </CartHost>
 

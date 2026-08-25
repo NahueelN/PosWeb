@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import Dialog from '../../components/ui/Dialog'
 import Button from '../../components/ui/Button'
 import type { ClienteDto } from '../../types'
@@ -47,9 +47,10 @@ export default function VentaDialogs({
   onNuevoClienteNombreChange, onEsOcasionalChange, onFormClienteChange, onCrearCliente, onAbrirNuevoCliente,
   onClienteOcasional,
 }: VentaDialogsProps) {
+  const stockContinuarRef = useRef<HTMLButtonElement>(null!)
   useEffect(() => {
     if (showStockConfirm) {
-      setTimeout(() => stockCancelarRef.current?.focus(), 50)
+      setTimeout(() => stockContinuarRef.current?.focus(), 50)
     }
   }, [showStockConfirm])
 
@@ -67,7 +68,7 @@ export default function VentaDialogs({
             <Button ref={stockCancelarRef} variant="secondary" size="sm" onClick={() => onStockCancel(stockConflictItems[0] ?? null)}>
               Cancelar
             </Button>
-            <Button variant="primary" size="sm" onClick={onStockContinue}>
+            <Button ref={stockContinuarRef} variant="primary" size="sm" onClick={onStockContinue}>
               Continuar
             </Button>
           </>

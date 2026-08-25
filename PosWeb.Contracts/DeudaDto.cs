@@ -13,5 +13,6 @@ public record DeudaDto(
     int? ProveedorId = null,
     int? ClienteId = null,
     decimal MontoPagado = 0,
-    decimal SaldoPendiente = 0
+    decimal SaldoPendiente = 0,
+    bool Anulada = false
 );

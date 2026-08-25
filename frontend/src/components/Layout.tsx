@@ -268,8 +268,6 @@ export default function Layout() {
             </NavLink>
           </>
         )}
-        {/* Configuración — oculto por ahora */}
-        {false && (
         <NavLink
           to="/configuracion"
           onClick={closeSidebar}
@@ -284,7 +282,6 @@ export default function Layout() {
           <span className="text-sm w-5 text-center shrink-0">⚙️</span>
           Configuración
         </NavLink>
-        )}
       </div>
     </>
   )

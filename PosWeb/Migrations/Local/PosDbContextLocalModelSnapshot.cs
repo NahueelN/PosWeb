@@ -329,6 +329,10 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_DEUDA");
 
+                    b.Property<bool>("ANULADA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ANULADA");
+
                     b.Property<DateTime>("FECHA_DEUDA")
                         .HasColumnType("TEXT")
                         .HasColumnName("FECHA_DEUDA");
@@ -612,6 +616,10 @@ namespace PosWeb.Migrations.Local
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_PAGO_DEUDA");
+
+                    b.Property<bool>("ANULADO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ANULADO");
 
                     b.Property<DateTime>("FECHA")
                         .HasColumnType("TEXT")

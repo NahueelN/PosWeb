@@ -21,6 +21,8 @@ public class Deuda
 
     public bool PAGO { get; private set; }
 
+    public bool ANULADA { get; private set; }
+
     public int? ID_VENTA { get; private set; }
 
     public int? ID_COMPRA { get; private set; }
@@ -48,6 +50,7 @@ public class Deuda
         ID_COMPRA = idCompra;
         FECHA_DEUDA = DateTime.UtcNow;
         PAGO = MONTO_PAGADO >= MONTO_DEUDA;
+        ANULADA = false;
         if (PAGO) FECHA_PAGO = DateTime.UtcNow;
     }
 
@@ -74,5 +77,10 @@ public class Deuda
         MONTO_PAGADO -= monto;
         PAGO = false;
         FECHA_PAGO = null;
+    }
+
+    public void Anular()
+    {
+        ANULADA = true;
     }
 }

@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -121,6 +121,13 @@ export const api = {
     me: () => request<UsuarioListadoDto>('/auth/me'),
   },
 
+  // Empresa
+  empresas: {
+    obtener: () => request<EmpresaDto>('/empresa'),
+    actualizar: (dto: { nombre?: string; documento?: string }) =>
+      request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
+  },
+
   // Productos
   productos: {
     listar: (sucursalId?: number, esPesable?: boolean) => {
@@ -168,6 +175,31 @@ export const api = {
     }),
     lookupOpenFoodFacts: (codigo: string) =>
       request<ProductoLookupResponseDto>(`/productos/openfoodfacts/${encodeURIComponent(codigo)}`),
+    // Multipart: NO usa el helper request<T> (que fija Content-Type: application/json).
+    // Usa fetch directo reutilizando BASE + getAuthHeaders (el browser setea el boundary).
+    importar: async (archivo: File, sucursalId?: number, importarSinCodigo?: boolean): Promise<ProductoImportResponseDto> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      if (sucursalId) form.append('sucursalId', String(sucursalId))
+      if (importarSinCodigo) form.append('importarSinCodigo', 'true')
+      const res = await fetch(`${BASE}/productos/importar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: form,
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg)
+      }
+      return res.json()
+    },
+    importarFilas: (filas: ProductoImportFilaDto[], sucursalId?: number, importarSinCodigo?: boolean) =>
+      request<ProductoImportResponseDto>('/productos/importar-filas', {
+        method: 'POST',
+        body: JSON.stringify({ filas, sucursalId, importarSinCodigo }),
+      }),
   },
 
   // Sucursales
@@ -375,6 +407,11 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ clienteId, ventaId, monto, montoPagado }),
         }),
+      crear: (dto: CrearDeudaRequestDto) =>
+        request<DeudaDto>('/deudas/crear', {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        }),
       obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
       pagar: (id: number, monto?: number) => {
         const body: PagarDeudaRequestDto = monto !== undefined ? { monto } : {};
@@ -406,6 +443,7 @@ export const api = {
         return request<CuentaCorrienteDto>(`/deudas/cuenta-corriente?${q}`);
       },
       deshacerPago: (pagoId: number) => request<{ success: boolean }>(`/deudas/pagos/${pagoId}`, { method: 'DELETE' }),
+      anular: (deudaId: number) => request<{ success: boolean }>(`/deudas/${deudaId}`, { method: 'DELETE' }),
     },
 
   // Pedidos

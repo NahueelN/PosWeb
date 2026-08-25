@@ -50,6 +50,20 @@ public class DeudaController : ControllerBase
         }
     }
 
+    [HttpPost("crear")]
+    public async Task<ActionResult<DeudaDto>> CrearDeuda([FromBody] CrearDeudaRequestDto request)
+    {
+        try
+        {
+            var deuda = await _deudaService.CrearDeudaDirectoAsync(request.ClienteId, request.ProveedorId, request.Monto);
+            return Ok(deuda);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DeudaDto>> ObtenerPorId(int id)
     {
@@ -153,6 +167,28 @@ public class DeudaController : ControllerBase
         catch (DeudaNoEncontradaException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> AnularDeuda(int id)
+    {
+        try
+        {
+            await _deudaService.AnularDeudaAsync(id);
+            return Ok(new { success = true });
+        }
+        catch (DeudaNoEncontradaException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
         }
     }
 

@@ -14,6 +14,7 @@ Sources:
   - frontend/src/pages/VentasPage.tsx
   - frontend/src/pages/venta/VentaDialogs.tsx
   - frontend/src/pages/GastosPage.tsx
+  - frontend/src/pages/DeudaPage.tsx
   - frontend/src/components/ProductFormModal.tsx
   - frontend/src/components/ui/Dialog.tsx
 Template: pattern-v1
@@ -26,6 +27,7 @@ Tags:
   - Cliente
   - Keyboard
   - Compras
+  - Deuda
 ```
 
 ---
@@ -141,6 +143,7 @@ Las respuestas negativas deben justificarse explícitamente. No implementar sin 
 | 4 | Gasto | Categoría | `GastosPage.tsx` | 340-345 (inline dropdown) | `handleCrearCategoria()` (158-171) |
 | 5 | Producto | Categoría | `ProductFormModal.tsx` | usa `COMP-SelectAltaCruzada` | `handleCrearCategoria()` |
 | 6 | Producto | Unidad de medida | `ProductFormModal.tsx` | usa `COMP-SelectAltaCruzada` | `handleCrearUnidad()` |
+| 7 | Deuda | Cliente / Proveedor | `DeudaPage.tsx` | lookup de Nueva deuda | `handleCrearEntidad()` |
 
 ### Candidatos sin implementar
 

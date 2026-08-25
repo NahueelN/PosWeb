@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Imprimir ticket</title>
+  <style>
+    @page { margin: 0; }
+    html, body { margin: 0; padding: 0; background: white; }
+    #ticket { box-sizing: border-box; padding: 2mm; font-family: "Courier New", monospace; color: #111; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .space { margin-top: 2mm; margin-bottom: 1mm; }
+  </style>
+</head>
+<body>
+  <main id="ticket"></main>
+  <script>
+    const data = JSON.parse(localStorage.getItem('posweb-ticket-print') || 'null')
+    if (!data) window.close()
+    else {
+      document.getElementById('ticket').style.width = `${data.ancho}mm`
+      data.lines.forEach(line => {
+        const row = document.createElement('div')
+        row.textContent = line.text
+        row.className = `${line.center ? 'center' : ''} ${line.bold ? 'bold' : ''} ${line.space ? 'space' : ''}`
+        row.style.fontSize = line.size === 'lg' ? (data.ancho === 58 ? '13px' : '15px') : line.size === 'md' ? (data.ancho === 58 ? '11px' : '13px') : line.size === 'sm' ? '9px' : (data.ancho === 58 ? '10px' : '11px')
+        document.getElementById('ticket').appendChild(row)
+      })
+      setTimeout(() => { window.focus(); window.print() }, 100)
+      window.onafterprint = () => window.close()
+    }
+  </script>
+</body>
+</html>
