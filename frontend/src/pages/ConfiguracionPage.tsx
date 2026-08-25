@@ -6,7 +6,7 @@ import type { EmpresaDto } from '../types'
 export default function ConfiguracionPage() {
   const { notifyError, notifySuccess } = useNotification()
 
-  const [empresa, setEmpresa] = useState<EmpresaDto | null>(null)
+  const [, setEmpresa] = useState<EmpresaDto | null>(null)
   const [empresaNombre, setEmpresaNombre] = useState('')
   const [empresaDoc, setEmpresaDoc] = useState('')
   const [loading, setLoading] = useState(false)
