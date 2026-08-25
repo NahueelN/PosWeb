@@ -380,3 +380,10 @@ mysql-data/
 
 # App settings with local passwords
 **/appsettings.Development.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

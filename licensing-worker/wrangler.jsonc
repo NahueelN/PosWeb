@@ -6,6 +6,9 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "LICENSE_DURATION_HOURS": "720"
+  },
   "d1_databases": [
     {
       "binding": "LICENSES_DB",
