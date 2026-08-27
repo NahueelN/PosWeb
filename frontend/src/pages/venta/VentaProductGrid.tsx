@@ -1,6 +1,6 @@
 import { type RefObject } from 'react'
 import { Search, X, PackageSearch, Sparkles } from 'lucide-react'
-import { ProductRow, ProductGridRows, ProductGridHeader } from '../../components/shared'
+import { ProductRow, ProductGridRows, ProductGridHeader, PRODUCT_ROW_GRID } from '../../components/shared'
 import KeyboardHints from '../../components/shared/KeyboardHints'
 import type { ProductoDto, ComboDto } from '../../types'
 
@@ -70,12 +70,16 @@ export default function VentaProductGrid({
               <span className="ml-3 text-gray-500 text-sm">Cargando productos…</span>
             </div>
           ) : filteredProductos.length === 0 && filteredCombos.length === 0 && searchQuery.trim() ? (
-            <div className="text-center py-16">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                <PackageSearch size={24} strokeWidth={1.5} className="text-gray-400" />
+            <ProductGridRows searchInputRef={searchInputRef} header={<ProductGridHeader />}>
+              <div
+                className={[
+                  PRODUCT_ROW_GRID,
+                  'w-full text-left px-3 py-2 rounded-lg border border-gray-100 bg-gray-50',
+                ].join(' ')}
+              >
+                <span className="font-mono text-[12px] text-gray-600 truncate">{searchQuery.trim()}</span>
               </div>
-              <p className="text-gray-500 font-medium text-sm">Sin resultados para esta búsqueda</p>
-            </div>
+            </ProductGridRows>
           ) : filteredProductos.length === 0 && filteredCombos.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">

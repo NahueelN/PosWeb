@@ -6,9 +6,10 @@
   <style>
     @page { margin: 0; }
     html, body { margin: 0; padding: 0; background: white; }
-    #ticket { box-sizing: border-box; padding: 2mm; font-family: "Courier New", monospace; color: #111; }
+    #ticket { box-sizing: border-box; padding: 2mm; font-family: "Courier New", monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #ticket div { font-weight: 900; }
     .center { text-align: center; }
-    .bold { font-weight: bold; }
+    .bold { font-weight: 900; }
     .space { margin-top: 2mm; margin-bottom: 1mm; }
   </style>
 </head>
@@ -23,7 +24,7 @@
         const row = document.createElement('div')
         row.textContent = line.text
         row.className = `${line.center ? 'center' : ''} ${line.bold ? 'bold' : ''} ${line.space ? 'space' : ''}`
-        row.style.fontSize = line.size === 'lg' ? (data.ancho === 58 ? '13px' : '15px') : line.size === 'md' ? (data.ancho === 58 ? '11px' : '13px') : line.size === 'sm' ? '9px' : (data.ancho === 58 ? '10px' : '11px')
+        row.style.fontSize = line.size === 'lg' ? (data.ancho === 58 ? '14px' : '16px') : line.size === 'md' ? (data.ancho === 58 ? '12px' : '14px') : line.size === 'sm' ? '10px' : (data.ancho === 58 ? '11px' : '12px')
         document.getElementById('ticket').appendChild(row)
       })
       setTimeout(() => { window.focus(); window.print() }, 100)

@@ -57,7 +57,9 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
 <html><head><title>Ticket</title><style>
 @page { size: ${ancho}mm auto; margin: 0; }
 html, body { margin: 0; padding: 0; width: ${ancho}mm; }
-.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #111; }
+.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.receipt div { font-weight: 900; }
+.text-[10px]{font-size:10px}.text-[11px]{font-size:11px}.text-[12px]{font-size:12px}.text-[13px]{font-size:13px}.text-[14px]{font-size:14px}.text-[15px]{font-size:15px}.text-[16px]{font-size:16px}
 </style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
       ticketWindow.document.close()
       return
@@ -73,7 +75,7 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
-  const fontSize = ancho === 58 ? 'text-[10px]' : 'text-[11px]'
+  const fontSize = ancho === 58 ? 'text-[11px]' : 'text-[12px]'
 
   return (
     <div className="max-w-3xl mx-auto mt-8 px-4">
@@ -87,9 +89,9 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
         style={{ fontFamily: "'Courier New', Courier, monospace", width: `${ancho}mm` }}>
         {lines.map((l, i) => {
           const sizeCls =
-            l.size === 'lg' ? (ancho === 58 ? 'text-[13px]' : 'text-[15px]')
-            : l.size === 'md' ? (ancho === 58 ? 'text-[11px]' : 'text-[13px]')
-            : l.size === 'sm' ? 'text-[9px]'
+            l.size === 'lg' ? (ancho === 58 ? 'text-[14px]' : 'text-[16px]')
+            : l.size === 'md' ? (ancho === 58 ? 'text-[12px]' : 'text-[14px]')
+            : l.size === 'sm' ? 'text-[10px]'
             : fontSize
           return (
             <div

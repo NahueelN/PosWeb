@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, isSessionExpiredError } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
 import type { CajaDto, SucursalDto, CierrePreviewDto, MedioPagoDto } from '../types'
@@ -95,6 +95,7 @@ export default function CajaPage() {
       loadHistorial()
       api.mediosPago.listar().then(setMediosPago).catch(() => {})
     } catch (err: any) {
+      if (isSessionExpiredError(err)) return
       notifyError(err.message || 'Error al cargar caja')
     } finally {
       setLoading(false)
@@ -146,6 +147,7 @@ export default function CajaPage() {
       loadHistorial()
       notifySuccess('Caja abierta correctamente')
     } catch (err: any) {
+      if (isSessionExpiredError(err)) return
       notifyError(err.message || 'Error al abrir caja')
     } finally {
       setLoading(false)
@@ -170,6 +172,7 @@ export default function CajaPage() {
       setMontoTarjetas('')
       loadHistorial()
     } catch (err: any) {
+      if (isSessionExpiredError(err)) return
       notifyError(err.message || 'Error al cerrar caja')
     } finally {
       setLoading(false)
