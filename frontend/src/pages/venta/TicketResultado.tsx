@@ -136,7 +136,13 @@ ${pxCss}
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
           <button
-            onClick={() => setAncho(58)}
+            onClick={() => {
+              setAncho(58)
+              if (letra === 'grande') {
+                setLetra('chica')
+                localStorage.setItem('posweb-ticket-letra', 'chica')
+              }
+            }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             58 mm
@@ -150,18 +156,28 @@ ${pxCss}
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Letra</span>
-          {LETRAS.map(l => (
-            <button
-              key={l.id}
-              onClick={() => {
-                setLetra(l.id)
-                localStorage.setItem('posweb-ticket-letra', l.id)
-              }}
-              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${letra === l.id ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
-              {l.label}
-            </button>
-          ))}
+          {LETRAS.map(l => {
+            const disabled = ancho === 58 && l.id === 'grande'
+            return (
+              <button
+                key={l.id}
+                disabled={disabled}
+                onClick={() => {
+                  setLetra(l.id)
+                  localStorage.setItem('posweb-ticket-letra', l.id)
+                }}
+                className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${
+                  disabled
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : letra === l.id
+                      ? 'bg-[oklch(0.52_0.255_278)] text-white'
+                      : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {l.label}
+              </button>
+            )
+          })}
         </div>
         <Button
           ref={imprimirBtnRef}
@@ -202,7 +218,7 @@ ${pxCss}
           return (
             <div
               key={i}
-              className={`${sizeCls} ${l.bold ? 'font-bold' : ''} ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
+              className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
               style={l.center ? { textAlign: 'center' } : undefined}
             >
               {l.text}
