@@ -167,7 +167,7 @@ export default function VentasPage() {
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
 
-  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match) }, [searchQuery, productos])
+  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match, true) }, [searchQuery, productos])
 
   useEffect(() => {
     if (step !== 'esperando_transferencia') return
@@ -285,7 +285,7 @@ export default function VentasPage() {
   function seleccionarSucursal(s: SucursalDto) { localStorage.setItem('sucursalActiva', JSON.stringify(s)); setStep('venta'); window.location.reload() }
   function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
 
-  function agregarProducto(producto: ProductoDto) {
+  function agregarProducto(producto: ProductoDto, mantenerFoco = false) {
     const oferta = ofertasMap.get(producto.id)
     markAdded(producto.id, cart.items.find(i => !i.comboId && i.producto.id === producto.id)?.cantidad)
     const cantidadInicial = producto.esPesable ? 0 : 1
@@ -296,7 +296,9 @@ export default function VentasPage() {
     setSearchQuery('')
     const el = searchInputRef.current; if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
     setCantidadDrafts(prev => { const next = { ...prev }; delete next[producto.id]; return next })
-    setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    if (!mantenerFoco) {
+      setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    }
   }
 
   function agregarCombo(combo: ComboDto) {
@@ -308,6 +310,14 @@ export default function VentasPage() {
 
   function selectMedio(mp: MedioPagoDto) { setSelectedMedio(mp); setTimeout(() => recibioInputRef.current?.focus(), 0) }
   function handleCambiarCantidad(id: number, c: number) { cart.updateQuantity(id, Math.max(0, c)) }
+
+  function enfocarPrimeraCantidad() {
+    const firstItem = cart.items[0]
+    if (!firstItem) return
+    const id = firstItem.comboId ?? firstItem.producto.id
+    const input = cantidadRefs.current.get(id)
+    if (input) { input.focus(); input.select() }
+  }
 
   async function deshacerCombo(comboId: number) {
     const combo = combos.find(c => c.id === comboId); if (!combo) return
@@ -576,6 +586,7 @@ export default function VentasPage() {
           onAgregarCombo={agregarCombo}
           combos={combos}
           medioRefs={medioRefs}
+          onTabFromSearch={enfocarPrimeraCantidad}
           cartItemsLength={cart.items.length}
           confirmBtnRef={confirmBtnRef}
           pagoExacto={recibio !== '' && Math.abs(parseFloat(recibio) - total) < 0.005}

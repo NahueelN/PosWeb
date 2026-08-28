@@ -16,6 +16,7 @@ interface VentaProductGridProps {
   onAgregarCombo: (c: ComboDto) => void
   combos: ComboDto[]
   medioRefs: RefObject<(HTMLButtonElement | null)[]>
+  onTabFromSearch?: () => void
   cartItemsLength: number
   confirmBtnRef?: RefObject<HTMLButtonElement | null>
   pagoExacto?: boolean
@@ -24,7 +25,7 @@ interface VentaProductGridProps {
 export default function VentaProductGrid({
   productosLoading, searchQuery, onSearchChange, searchInputRef,
   filteredProductos, filteredCombos, ofertasMap,
-  onAgregarProducto, onAgregarCombo, combos, medioRefs, cartItemsLength,
+  onAgregarProducto, onAgregarCombo, combos, medioRefs, onTabFromSearch, cartItemsLength,
   confirmBtnRef, pagoExacto,
 }: VentaProductGridProps) {
   return (
@@ -40,7 +41,7 @@ export default function VentaProductGrid({
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={async (e) => {
                 if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); onSearchChange(''); searchInputRef.current?.focus() } return }
-                if (e.key === 'Tab' && !e.shiftKey && cartItemsLength > 0) { e.preventDefault(); medioRefs.current[0]?.focus() }
+                if (e.key === 'Tab' && !e.shiftKey && cartItemsLength > 0) { e.preventDefault(); onTabFromSearch?.() }
                 if (e.key === 'ArrowDown' || e.key === 'Enter') {
                   e.preventDefault()
                   const q = searchQuery.trim().toUpperCase()
