@@ -1,7 +1,8 @@
 import { type RefObject } from 'react'
 import { Search, X, PackageSearch, Sparkles } from 'lucide-react'
-import { ProductRow, ProductGridRows, ProductGridHeader, PRODUCT_ROW_GRID } from '../../components/shared'
+import { ProductRow, ProductGridRows, ProductGridHeader, PRODUCT_ROW_GRID_NO_ACTION } from '../../components/shared'
 import KeyboardHints from '../../components/shared/KeyboardHints'
+import { normalizarCodigoBarra } from '../../lib/codigoBarra'
 import type { ProductoDto, ComboDto } from '../../types'
 
 interface VentaProductGridProps {
@@ -13,6 +14,7 @@ interface VentaProductGridProps {
   filteredCombos: ComboDto[]
   ofertasMap: Map<number, { descuento: number }>
   onAgregarProducto: (p: ProductoDto) => void
+  onAgregarPorCodigo?: (p: ProductoDto) => void
   onAgregarCombo: (c: ComboDto) => void
   combos: ComboDto[]
   medioRefs: RefObject<(HTMLButtonElement | null)[]>
@@ -26,7 +28,7 @@ interface VentaProductGridProps {
 export default function VentaProductGrid({
   productosLoading, searchQuery, onSearchChange, searchInputRef,
   filteredProductos, filteredCombos, ofertasMap,
-  onAgregarProducto, onAgregarCombo, combos, medioRefs, onTabFromSearch, consumeScanEnter, cartItemsLength,
+  onAgregarProducto, onAgregarPorCodigo, onAgregarCombo, combos, medioRefs, onTabFromSearch, consumeScanEnter, cartItemsLength,
   confirmBtnRef, pagoExacto,
 }: VentaProductGridProps) {
   return (
@@ -43,18 +45,28 @@ export default function VentaProductGrid({
               onKeyDown={async (e) => {
                 if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); onSearchChange(''); searchInputRef.current?.focus() } return }
                 if (e.key === 'Tab' && !e.shiftKey && cartItemsLength > 0) { e.preventDefault(); onTabFromSearch?.() }
-                if (e.key === 'Enter' && consumeScanEnter?.()) { e.preventDefault(); return }
-                if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                if (e.key === 'ArrowDown') {
                   e.preventDefault()
-                  const q = searchQuery.trim().toUpperCase()
-                  if (e.key === 'Enter' && q) { const combo = combos.find(c => c.codCombo === q); if (combo) { onAgregarCombo(combo); onSearchChange(''); return } }
-                  if (e.key === 'Enter' && !q && cartItemsLength > 0) {
-                    if (pagoExacto) { confirmBtnRef?.current?.focus() }
-                    else { medioRefs.current[0]?.focus() }
-                    return
-                  }
                   setTimeout(() => { document.querySelector<HTMLElement>('[data-product-row]')?.focus() }, 0)
+                  return
                 }
+                if (e.key !== 'Enter') return
+                if (consumeScanEnter?.()) { e.preventDefault(); return }
+                const q = searchQuery.trim()
+                if (q) {
+                  const combo = combos.find(c => c.codCombo === q.toUpperCase())
+                  if (combo) { e.preventDefault(); onAgregarCombo(combo); onSearchChange(''); return }
+                  const exact = filteredProductos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase())
+                  if (exact) { e.preventDefault(); (onAgregarPorCodigo ?? onAgregarProducto)(exact); return }
+                  if (/^\d+$/.test(q) && q.length >= 8) { e.preventDefault(); return }
+                } else if (cartItemsLength > 0) {
+                  e.preventDefault()
+                  if (pagoExacto) { confirmBtnRef?.current?.focus() }
+                  else { medioRefs.current[0]?.focus() }
+                  return
+                }
+                e.preventDefault()
+                setTimeout(() => { document.querySelector<HTMLElement>('[data-product-row]')?.focus() }, 0)
               }}
               autoFocus />
             {searchQuery && (
@@ -73,10 +85,10 @@ export default function VentaProductGrid({
               <span className="ml-3 text-gray-500 text-sm">Cargando productos…</span>
             </div>
           ) : filteredProductos.length === 0 && filteredCombos.length === 0 && searchQuery.trim() ? (
-            <ProductGridRows searchInputRef={searchInputRef} header={<ProductGridHeader />}>
+            <ProductGridRows searchInputRef={searchInputRef} header={<ProductGridHeader hasAction={false} />}>
               <div
                 className={[
-                  PRODUCT_ROW_GRID,
+                  PRODUCT_ROW_GRID_NO_ACTION,
                   'w-full text-left px-3 py-2 rounded-lg border border-gray-100 bg-gray-50',
                 ].join(' ')}
               >
@@ -91,7 +103,7 @@ export default function VentaProductGrid({
               <p className="text-gray-500 font-medium text-sm">No hay productos disponibles</p>
             </div>
           ) : (
-            <ProductGridRows searchInputRef={searchInputRef} header={<ProductGridHeader />}>
+            <ProductGridRows searchInputRef={searchInputRef} header={<ProductGridHeader hasAction={false} />}>
               {filteredProductos.map((p) => {
                 const oferta = ofertasMap.get(p.id)
                 const precioOferta = oferta ? p.precio * (1 - oferta.descuento / 100) : null

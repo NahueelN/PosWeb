@@ -31,6 +31,11 @@ interface Item {
 
 type Step = 'sucursal' | 'venta' | 'esperando_transferencia' | 'resultado'
 
+// Espera a que el código asentado deje de escribirse antes de auto-agregar por
+// match exacto. Sin este delay, cada tecla del escáner disparaba el match sobre
+// fragmentos parciales y agregaba productos equivocados a mitad de escaneo.
+const SCAN_DEBOUNCE_MS = 220
+
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [step, setStep] = useState<Step>('venta')
@@ -169,7 +174,15 @@ export default function VentasPage() {
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
 
-  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase()); if (match) agregarProducto(match, true) }, [searchQuery, productos])
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) return
+    const timer = setTimeout(() => {
+      const match = productos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase())
+      if (match) agregarProducto(match, true)
+    }, SCAN_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [searchQuery, productos])
 
   useEffect(() => {
     if (step !== 'esperando_transferencia') return
@@ -310,6 +323,13 @@ export default function VentasPage() {
     cart.addItem({ producto: { id: 0, codigoBarra: combo.codCombo, nombre: combo.descCombo, precio: combo.precio, costo: 0, stock: 999, activo: true }, cantidad: 1, comboId: combo.id, comboNombre: combo.descCombo, comboPrecio: combo.precio } as Item)
     setSearchQuery('')
     setTimeout(() => { const input = cantidadRefs.current.get(combo.id); if (input) { input.focus(); input.select() } }, 0)
+  }
+
+  // Agrego por código exacto desde el Enter del buscador: mantiene el foco ahí.
+  // El Enter ya fue consumido por VentaProductGrid, así que no marcamos scanEnterRef.
+  function agregarProductoPorCodigo(producto: ProductoDto) {
+    agregarProducto(producto, true)
+    scanEnterRef.current = false
   }
 
   function selectMedio(mp: MedioPagoDto) { setSelectedMedio(mp); setTimeout(() => recibioInputRef.current?.focus(), 0) }
@@ -595,6 +615,7 @@ export default function VentasPage() {
           filteredCombos={filteredCombos}
           ofertasMap={ofertasMap}
           onAgregarProducto={agregarProducto}
+          onAgregarPorCodigo={agregarProductoPorCodigo}
           onAgregarCombo={agregarCombo}
           combos={combos}
           medioRefs={medioRefs}

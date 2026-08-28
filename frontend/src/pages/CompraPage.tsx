@@ -552,7 +552,7 @@ export default function CompraPage() {
             : prodLoading ? <div className="flex items-center justify-center py-16"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /><span className="ml-3 text-gray-500 text-sm">Cargando...</span></div>
             : filteredProducts.length === 0 ? <div className="text-center py-16"><p className="text-gray-500 font-medium text-sm">{searchQuery ? 'Sin resultados' : 'No hay productos'}</p></div>
             : (
-              <ProductGridRows searchInputRef={searchRef} header={<ProductGridHeader />}>
+              <ProductGridRows searchInputRef={searchRef} header={<ProductGridHeader hasAction={false} />}>
                 {filteredProducts.map(p => (
                   <ProductRow
                     key={p.id}
