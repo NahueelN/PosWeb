@@ -7,6 +7,7 @@ import { useCart } from '../hooks/useCart'
 import { useItemSnapshot } from '../hooks/useItemSnapshot'
 import CartHost from '../components/hosts/CartHost'
 import { formatCodigoBarra } from '../components/shared/ProductCard'
+import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import { Undo2 } from 'lucide-react'
 import { estaVigenteHoy } from '../lib/recurrencia'
 import SucursalSelector from './venta/SucursalSelector'
@@ -168,7 +169,7 @@ export default function VentasPage() {
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
 
-  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match, true) }, [searchQuery, productos])
+  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase()); if (match) agregarProducto(match, true) }, [searchQuery, productos])
 
   useEffect(() => {
     if (step !== 'esperando_transferencia') return
