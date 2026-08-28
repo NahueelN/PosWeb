@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, Minus, Trash2 } from 'lucide-react';
+import { Plus, Minus, Trash2, X, Mail, Share2, MessageCircle, Globe } from 'lucide-react';
 import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
-import { formatCurrency } from '../formats';
 import Dialog from '../components/ui/Dialog';
 import PageShell from '../components/shared/PageShell';
 import { openWhatsApp } from '../lib/whatsapp';
+import { openEmail, getMailPref, setMailPref } from '../lib/mail';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -20,6 +20,15 @@ function estadoBadge(estado: string) {
     Cancelado: 'bg-gray-100 text-gray-500',
   };
   return map[estado] ?? 'bg-gray-100 text-gray-500';
+}
+
+function getSucursalActivaId(): number {
+  try {
+    const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}');
+    return s.id ?? 1;
+  } catch {
+    return 1;
+  }
 }
 
 export default function PedidosPage() {
@@ -37,6 +46,10 @@ export default function PedidosPage() {
 
   // Modal state
   const [detalleModal, setDetalleModal] = useState<PedidoDetailDto | null>(null);
+  const [showShare, setShowShare] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
+  const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [mailRecordar, setMailRecordar] = useState(false);
   const [recepcionPedido, setRecepcionPedido] = useState<PedidoDetailDto | null>(null);
   const [recepcionItems, setRecepcionItems] = useState<Record<number, { cantidad: number; faltante: boolean; precioReal: number }>>({});
   const [receiving, setReceiving] = useState(false);
@@ -53,8 +66,25 @@ export default function PedidosPage() {
   const [creating, setCreating] = useState(false);
   const [editingPedidoId, setEditingPedidoId] = useState<number | null>(null);
 
-  // Reset inline add when proveedor changes
-  useEffect(() => { setInlineAdd(null); setHighlightIdx(-1); gridFocusRef.current = false; }, [createProveedorId]);
+  // Product search state (create/edit modal)
+  const [prodSearch, setProdSearch] = useState('');
+  const [cantidad, setCantidad] = useState('1');
+  const [showProdDropdown, setShowProdDropdown] = useState(false);
+  const [prodHighIdx, setProdHighIdx] = useState(-1);
+  const [selectedProductId, setSelectedProductId] = useState(0);
+  const prodInputRef = useRef<HTMLInputElement>(null);
+  const cantInputRef = useRef<HTMLInputElement>(null);
+  const [pedidoTab, setPedidoTab] = useState<'productos' | 'alertas'>('productos');
+
+  // Reset product selection when proveedor changes
+  useEffect(() => {
+    setProdSearch('');
+    setCantidad('1');
+    setSelectedProductId(0);
+    setShowProdDropdown(false);
+    setProdHighIdx(-1);
+    setPedidoTab('productos');
+  }, [createProveedorId]);
 
   const [showProvDropdown, setShowProvDropdown] = useState(false);
   const [provHighIdx, setProvHighIdx] = useState(-1);
@@ -65,25 +95,32 @@ export default function PedidosPage() {
     ? proveedores.filter(p => p.nombre.toLowerCase().includes(createProveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(createProveedorSearch.toLowerCase()))
     : proveedores;
 
-  const [createSearchQuery, setCreateSearchQuery] = useState('');
-  const [highlightIdx, setHighlightIdx] = useState(-1);
-  const highlightIdxRef = useRef(-1);
-  const gridFocusRef = useRef(false);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Inline add state (when selecting from grid)
-  const [inlineAdd, setInlineAdd] = useState<{ productoId: number; productoNombre: string; codigoBarra: string; costo: number } | null>(null);
-  const [inlineCant, setInlineCant] = useState(1);
-  const [inlinePrecio, setInlinePrecio] = useState('');
-  const cantRef = useRef<HTMLInputElement>(null);
-
   const productosFilt = useMemo(() => {
     if (createProveedorId === 0) return [];
-    if (!createSearchQuery.trim()) return productos;
-    const q = createSearchQuery.toLowerCase();
+    if (!prodSearch.trim()) return productos;
+    const q = prodSearch.toLowerCase();
     return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q));
-  }, [productos, createProveedorId, createSearchQuery]);
+  }, [productos, createProveedorId, prodSearch]);
+
+  const sugerirCantidad = (prod: ProductoDto): number => {
+    if (prod.seguirStock === false) return 1;
+    const ideal = prod.cantidadIdeal ?? 0;
+    const stock = prod.stock ?? 0;
+    if (ideal > 0 && stock < ideal) {
+      const diff = Math.ceil(ideal - stock);
+      return diff > 0 ? diff : 1;
+    }
+    return 1;
+  };
+
+  const alertas = useMemo(() => {
+    return productos.filter(p => {
+      if (p.seguirStock === false) return false;
+      const ideal = p.cantidadIdeal ?? 0;
+      const stock = p.stock ?? 0;
+      return ideal > 0 && stock < ideal * 0.2;
+    });
+  }, [productos]);
 
   useEffect(() => {
     api.proveedores.listar().then(setProveedores).catch(() => {});
@@ -123,14 +160,63 @@ export default function PedidosPage() {
     return result;
   }, [pedidos, fechaDesde, fechaHasta]);
 
+  const closeDetalle = () => {
+    setDetalleModal(null);
+    setShowShare(false);
+  };
+
   const openDetalle = async (id: number) => {
     try {
       const detail = await api.pedidos.obtener(id);
+      setShowShare(false);
       setDetalleModal(detail);
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al cargar detalle');
     }
   };
+
+  const openMail = () => {
+    setShowShare(false);
+    const pref = getMailPref();
+    if (pref && detalleModal) {
+      openEmail(detalleModal, pref);
+      return;
+    }
+    setMailRecordar(false);
+    setMailModalOpen(true);
+  };
+
+  const elegirMail = (method: 'mailto' | 'gmail') => {
+    setMailPref(mailRecordar ? method : null);
+    setMailModalOpen(false);
+    if (detalleModal) openEmail(detalleModal, method);
+  };
+
+  useEffect(() => {
+    if (!detalleModal && !mailModalOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (mailModalOpen) {
+        setMailModalOpen(false);
+      } else {
+        setDetalleModal(null);
+        setShowShare(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [detalleModal, mailModalOpen]);
+
+  useEffect(() => {
+    if (!showShare) return;
+    const handler = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShowShare(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showShare]);
 
   const openRecepcion = async (id: number) => {
     try {
@@ -167,10 +253,10 @@ export default function PedidosPage() {
       })));
       setCreateFechaEsperada(detail.fechaEsperada ? detail.fechaEsperada.split('T')[0] : '');
       setCreateObs('');
-      setCreateSearchQuery('');
+      setProdSearch('');
       setShowCreateModal(true);
       setProdLoading(true);
-      api.productos.listar().then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); });
+      api.productos.listar(getSucursalActivaId()).then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); });
       setTimeout(() => provInputRef.current?.focus(), 100);
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al cargar pedido');
@@ -260,21 +346,64 @@ export default function PedidosPage() {
     setPedidoCancelarId(null);
   };
 
-  const cancelInline = () => {
-    setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
-    setCreateSearchQuery('');
-    highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-    setTimeout(() => searchInputRef.current?.focus(), 50);
+  const seleccionarDelDropdown = (id: number) => {
+    const prod = productos.find(p => p.id === id);
+    if (!prod) return;
+    setProdSearch(prod.nombre);
+    setSelectedProductId(id);
+    setCantidad(String(sugerirCantidad(prod)));
+    setShowProdDropdown(false);
+    setProdHighIdx(-1);
+    setTimeout(() => cantInputRef.current?.focus(), 50);
   };
 
-  const confirmInlineAdd = () => {
-    if (!inlineAdd) return;
-    const precio = parseFloat(inlinePrecio) || inlineAdd.costo;
-    setCreateItems([...createItems, { productoId: inlineAdd.productoId, productoNombre: inlineAdd.productoNombre, cantidad: inlineCant, precioEstimado: precio }]);
-    setInlineAdd(null); setInlineCant(1); setInlinePrecio('');
-    setCreateSearchQuery('');
-    highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-    setTimeout(() => searchInputRef.current?.focus(), 50);
+  const agregarDesdeAlerta = (prod: ProductoDto) => {
+    const cant = sugerirCantidad(prod);
+    setCreateItems(prev => [...prev, { productoId: prod.id, productoNombre: prod.nombre, cantidad: cant, precioEstimado: prod.costo }]);
+  };
+
+  const agregarProductoSeleccionado = () => {
+    const cant = parseFloat(cantidad);
+    if (isNaN(cant) || cant <= 0) {
+      notifyError('Cantidad inválida');
+      return;
+    }
+
+    let productoId = selectedProductId;
+    let productoNombre = '';
+    let precioEstimado = 0;
+
+    if (productoId > 0) {
+      const prod = productos.find(p => p.id === productoId);
+      if (!prod) return;
+      productoNombre = prod.nombre;
+      precioEstimado = prod.costo;
+    } else if (prodSearch.trim()) {
+      const match = productos.find(p =>
+        p.nombre.toLowerCase() === prodSearch.trim().toLowerCase() ||
+        p.codigoBarra === prodSearch.trim()
+      );
+      if (match) {
+        productoId = match.id;
+        productoNombre = match.nombre;
+        precioEstimado = match.costo;
+      } else {
+        productoId = 0;
+        productoNombre = prodSearch.trim();
+        precioEstimado = 0;
+      }
+    } else {
+      notifyError('Seleccioná un producto o escribí uno libre');
+      return;
+    }
+
+    setCreateItems(prev => [...prev, { productoId, productoNombre, cantidad: cant, precioEstimado }]);
+    setProdSearch('');
+    setCantidad('1');
+    setSelectedProductId(0);
+    setShowProdDropdown(false);
+    setProdHighIdx(-1);
+    prodInputRef.current?.focus();
   };
 
   const handleGuardarPedido = async () => {
@@ -282,6 +411,7 @@ export default function PedidosPage() {
     setCreating(true);
     try {
       const itemsPayload = createItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, precioUnitarioEstimado: i.precioEstimado, descripcion: i.productoId === 0 ? i.productoNombre : undefined }));
+      let detalleCreado: PedidoDetailDto | null = null;
       if (editingPedidoId) {
         const dto: PedidoEditDto = {
           proveedorId: createProveedorId,
@@ -293,14 +423,13 @@ export default function PedidosPage() {
         notifySuccess('Pedido actualizado');
       } else {
         const sucursalId = (() => { try { const s = JSON.parse(localStorage.getItem('sucursalActiva') ?? '{}'); return s.id ?? 1; } catch { return 1; } })();
-        await api.pedidos.crear({
+        detalleCreado = await api.pedidos.crear({
           sucursalId,
           proveedorId: createProveedorId,
           items: itemsPayload,
           fechaEsperada: createFechaEsperada || undefined,
           observaciones: createObs || undefined,
         });
-        notifySuccess('Pedido creado');
       }
       setShowCreateModal(false);
       setEditingPedidoId(null);
@@ -310,7 +439,10 @@ export default function PedidosPage() {
       setCreateItems([]);
       setCreateFechaEsperada('');
       setCreateObs('');
-      setCreateSearchQuery('');
+      setProdSearch('');
+      if (detalleCreado) {
+        setDetalleModal(detalleCreado);
+      }
       loadPedidos();
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al guardar pedido');
@@ -327,7 +459,7 @@ export default function PedidosPage() {
         loading={loading}
         loadingMessage="Cargando pedidos..."
         actions={
-          <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setCreateSearchQuery(''); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateProveedorSearch(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar().then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
+          <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setProdSearch(''); setCantidad('1'); setSelectedProductId(0); setPedidoTab('productos'); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateProveedorSearch(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar(getSucursalActivaId()).then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
             + Nuevo pedido
           </button>
@@ -427,11 +559,11 @@ export default function PedidosPage() {
 
       {/* ── Detalle Modal ── */}
       {detalleModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setDetalleModal(null)}>
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={closeDetalle}>
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900">Pedido #{detalleModal.id}</h3>
-              <button onClick={() => setDetalleModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeDetalle} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
               <div><span className="text-gray-500">Proveedor:</span> <span className="font-medium">{detalleModal.proveedorNombre}</span></div>
@@ -451,19 +583,65 @@ export default function PedidosPage() {
               ))}</tbody>
             </table>
             <div className="mt-4 flex gap-2">
-              {detalleModal.proveedorTelefono ? (
-                <button onClick={() => openWhatsApp(detalleModal)}
-                  className="flex-1 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors">
-                  Enviar por WhatsApp
+              <div ref={shareRef} className="relative flex-1">
+                <button onClick={() => setShowShare(v => !v)}
+                  className="w-full py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                  <Share2 size={16} />
+                  Compartir
                 </button>
-              ) : (
-                <button disabled
-                  className="flex-1 py-2 bg-gray-300 text-gray-500 font-medium rounded-lg cursor-not-allowed">
-                  El proveedor no tiene número registrado
-                </button>
-              )}
-              <button onClick={() => setDetalleModal(null)} className="flex-1 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
+                {showShare && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-10">
+                    <button onClick={openMail} disabled={!detalleModal.proveedorMail}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Mail size={16} className="text-gray-400" />
+                      Enviar por mail
+                    </button>
+                    <button onClick={() => { setShowShare(false); openWhatsApp(detalleModal); }} disabled={!detalleModal.proveedorTelefono}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100">
+                      <MessageCircle size={16} className="text-gray-400" />
+                      Compartir por WhatsApp
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button onClick={closeDetalle} className="flex-1 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mail Method Modal ── */}
+      {mailModalOpen && (
+        <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={() => setMailModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between mb-1">
+              <h3 className="text-lg font-bold text-gray-900">Compartir por mail</h3>
+              <button onClick={() => setMailModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">¿Cómo querés abrir el correo?</p>
+            <div className="space-y-2">
+              <button onClick={() => elegirMail('mailto')}
+                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
+                <Mail size={18} className="text-indigo-600 shrink-0" />
+                <span className="flex-1 text-left">
+                  <span className="block font-medium text-gray-900 text-sm">Outlook</span>
+                  <span className="block text-xs text-gray-400">Abre con mailto</span>
+                </span>
+              </button>
+              <button onClick={() => elegirMail('gmail')}
+                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
+                <Globe size={18} className="text-indigo-600 shrink-0" />
+                <span className="flex-1 text-left">
+                  <span className="block font-medium text-gray-900 text-sm">Navegador (Gmail)</span>
+                  <span className="block text-xs text-gray-400">Abre en Gmail web</span>
+                </span>
+              </button>
+            </div>
+            <label className="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer select-none">
+              <input type="checkbox" checked={mailRecordar} onChange={e => setMailRecordar(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              Guardar como opción predeterminada
+            </label>
           </div>
         </div>
       )}
@@ -572,29 +750,33 @@ export default function PedidosPage() {
       {/* ── Crear Pedido Modal ── */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowCreateModal(false); } }}>
-            <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">{editingPedidoId ? `Editar pedido #${editingPedidoId}` : 'Nuevo pedido'}</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          <form onSubmit={e => { e.preventDefault(); handleGuardarPedido(); }} onClick={e => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">
+                {editingPedidoId ? `Editar pedido #${editingPedidoId}` : 'Nuevo pedido'}
+              </h3>
+              <button type="button" onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                <X size={16} />
+              </button>
             </div>
 
             {/* Proveedor search */}
-            <div className="mb-3">
-              <label className="text-xs font-semibold text-gray-700">Proveedor *</label>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor *</label>
               <div className="relative">
                 <input ref={provInputRef} type="text"
                   value={createProveedorId > 0 ? createProveedorNombre : createProveedorSearch}
-                  onChange={e => { setCreateProveedorSearch(e.target.value); if (createProveedorId > 0) { setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateSearchQuery(''); } setShowProvDropdown(true); setProvHighIdx(-1); provFocusRef.current = false; }}
+                  onChange={e => { setCreateProveedorSearch(e.target.value); if (createProveedorId > 0) { setCreateProveedorId(0); setCreateProveedorNombre(''); } setShowProvDropdown(true); setProvHighIdx(-1); provFocusRef.current = false; }}
                   onFocus={() => setShowProvDropdown(true)}
                   onBlur={() => setTimeout(() => { setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; }, 200)}
                   onKeyDown={e => {
                     if (!showProvDropdown || createProveedoresFilt.length === 0) {
-                      // Auto-select single result on Enter
                       if (e.key === 'Enter' && createProveedoresFilt.length === 1) {
                         e.preventDefault();
                         const p = createProveedoresFilt[0];
                         setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
-                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                        setTimeout(() => prodInputRef.current?.focus(), 100);
                       }
                       return;
                     }
@@ -620,25 +802,26 @@ export default function PedidosPage() {
                         const p = createProveedoresFilt[provHighIdx];
                         setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
                         setProvHighIdx(-1); provFocusRef.current = false;
-                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                        setTimeout(() => prodInputRef.current?.focus(), 100);
                       } else if (total === 1) {
                         const p = createProveedoresFilt[0];
                         setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
-                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                        setTimeout(() => prodInputRef.current?.focus(), 100);
                       }
                       return;
                     }
                     if (e.key === 'Escape') { setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; }
                   }}
                   placeholder="Buscar proveedor..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
                 {showProvDropdown && createProveedoresFilt.length > 0 && (
-                  <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto text-xs">
+                  <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
                     {createProveedoresFilt.map((p, i) => (
-                      <li key={p.id} onMouseDown={() => { setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; setTimeout(() => searchInputRef.current?.focus(), 100); }}
+                      <li key={p.id} onMouseDown={() => { setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; setTimeout(() => prodInputRef.current?.focus(), 100); }}
                         onMouseEnter={() => { setProvHighIdx(i); provFocusRef.current = true; }}
-                        className={`px-3 py-1.5 cursor-pointer flex justify-between ${i === provHighIdx && provFocusRef.current ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'}`}>
-                        <span>{p.nombre}</span><span className="text-gray-400">{p.codigo}</span>
+                        className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === provHighIdx && provFocusRef.current ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
+                        <span className="truncate">{p.nombre}</span>
+                        <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigo}</span>
                       </li>
                     ))}
                   </ul>
@@ -646,223 +829,171 @@ export default function PedidosPage() {
               </div>
             </div>
 
-            {/* Productos — unified bar + grid */}
+            {/* Productos */}
             {createProveedorId > 0 && (
-              <div className="mb-3">
-                <label className="text-xs font-semibold text-gray-700 mb-1 block">Productos</label>
-
-                {/* Unified search bar */}
-                <div className="relative mb-2">
-                  <input ref={searchInputRef} type="text" value={createSearchQuery}
-                    onChange={e => { setCreateSearchQuery(e.target.value); highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; }}
-                    onKeyDown={e => {
-                      const gf = gridFocusRef.current;
-                      const idx = highlightIdxRef.current;
-                      const total = productosFilt.length;
-                      const cols = window.innerWidth >= 640 ? 3 : 2;
-                      // Grid navigation (active when in grid)
-                      if (gf) {
-                        if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          const next = idx + cols;
-                          highlightIdxRef.current = next < total ? next : idx; setHighlightIdx(highlightIdxRef.current);
-                          return;
-                        }
-                        if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          if (idx < cols) { highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; searchInputRef.current?.focus(); }
-                          else { const prev = idx - cols; highlightIdxRef.current = prev; setHighlightIdx(prev); }
-                          return;
-                        }
-                        if (e.key === 'ArrowRight') {
-                          e.preventDefault();
-                          const next = idx + 1;
-                          if (next < total && Math.floor(next / cols) === Math.floor(idx / cols)) { highlightIdxRef.current = next; setHighlightIdx(next); }
-                          return;
-                        }
-                        if (e.key === 'ArrowLeft') {
-                          e.preventDefault();
-                          const prev = idx - 1;
-                          if (prev >= 0 && Math.floor(prev / cols) === Math.floor(idx / cols)) { highlightIdxRef.current = prev; setHighlightIdx(prev); }
-                          return;
-                        }
-                        if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          if (idx <= 0) { highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; searchInputRef.current?.focus(); }
-                          else { const prev = idx - 1; highlightIdxRef.current = prev; setHighlightIdx(prev); }
-                          return;
-                        }
-                        if (e.key === 'Enter' && idx >= 0) {
-                          e.preventDefault();
-                          const p = productosFilt[idx];
-                          setInlineAdd({ productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra, costo: p.costo });
-                          setInlineCant(1); setInlinePrecio(String(p.costo));
-                          highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                          setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
-                          return;
-                        }
-                        if (e.key === 'Escape') { highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; searchInputRef.current?.focus(); return; }
-                        return;
-                      }
-                      // Arrow down → enter grid from search bar
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        if (productosFilt.length > 0) { highlightIdxRef.current = 0; setHighlightIdx(0); gridFocusRef.current = true; }
-                        return;
-                      }
-                      // Enter with text → libre product, show inline add
-                      if (e.key === 'Enter' && createSearchQuery.trim()) {
-                        e.preventDefault();
-                        setInlineAdd({ productoId: 0, productoNombre: createSearchQuery.trim(), codigoBarra: '', costo: 0 });
-                        setInlineCant(1); setInlinePrecio('');
-                        highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                        setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
-                        return;
-                      }
-                      // Enter with empty bar → focus create button
-                      if (e.key === 'Enter' && !createSearchQuery.trim() && createItems.length > 0) {
-                        e.preventDefault();
-                        // Focus the "Crear pedido" button
-                        const btn = document.querySelector('[data-create-btn]') as HTMLButtonElement | null;
-                        btn?.focus();
-                      }
-                    }}
-                    placeholder={prodLoading ? 'Cargando...' : 'Buscar producto o escribir uno libre...'}
-                    disabled={prodLoading}
-                    className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50" />
-                  {createSearchQuery && (
-                    <button onClick={() => { setCreateSearchQuery(''); highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false; }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
-                  )}
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Productos del pedido</h4>
+                <div className="flex gap-1 mb-3">
+                  <button type="button" onClick={() => setPedidoTab('productos')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${pedidoTab === 'productos' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    Agregar
+                  </button>
+                  <button type="button" onClick={() => setPedidoTab('alertas')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${pedidoTab === 'alertas' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    Alertas{alertas.length > 0 ? ` (${alertas.length})` : ''}
+                  </button>
                 </div>
+                {pedidoTab === 'productos' && (
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 relative">
+                    <label className="block text-xs text-gray-500 mb-1">Producto</label>
+                    <input ref={prodInputRef} type="text" value={prodSearch}
+                      onChange={e => { setProdSearch(e.target.value); setShowProdDropdown(true); setProdHighIdx(-1); setSelectedProductId(0); }}
+                      onFocus={() => { if (prodSearch) setShowProdDropdown(true); }}
+                      onBlur={() => setTimeout(() => setShowProdDropdown(false), 200)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          if (showProdDropdown && productosFilt.length > 0 && prodHighIdx >= 0) {
+                            e.preventDefault();
+                            seleccionarDelDropdown(productosFilt[prodHighIdx].id);
+                            return;
+                          }
+                          if (prodSearch.trim()) {
+                            e.preventDefault();
+                            agregarProductoSeleccionado();
+                          }
+                          return;
+                        }
+                        if (!showProdDropdown || productosFilt.length === 0) return;
+                        if (e.key === 'ArrowDown') { e.preventDefault(); setProdHighIdx(Math.min(prodHighIdx + 1, productosFilt.length - 1)); }
+                        else if (e.key === 'ArrowUp') { e.preventDefault(); setProdHighIdx(Math.max(prodHighIdx - 1, 0)); }
+                      }}
+                      placeholder={prodLoading ? 'Cargando...' : 'Buscar producto o escribir uno libre...'}
+                      disabled={prodLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50" />
+                    {showProdDropdown && productosFilt.length > 0 && (
+                      <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
+                        {productosFilt.map((p, i) => (
+                          <li key={p.id}
+                            onMouseDown={() => seleccionarDelDropdown(p.id)}
+                            onMouseEnter={() => setProdHighIdx(i)}
+                            className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === prodHighIdx ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
+                            <span className="truncate">{p.nombre}</span>
+                            <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
+                    <input ref={cantInputRef} type="number" min="1" step="1" value={cantidad}
+                      onChange={e => setCantidad(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarProductoSeleccionado(); } }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                  </div>
+                  <button type="button" onClick={agregarProductoSeleccionado}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+                    + Agregar
+                  </button>
+                </div>
+                )}
 
-                {/* Product grid */}
-                {!prodLoading && (
-                  <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-32 overflow-y-auto mb-2 border border-gray-100 rounded-lg p-2 bg-gray-50">
-                    {productosFilt.length === 0 ? (
-                      <p className="col-span-full text-center text-xs text-gray-400 py-2">Sin resultados — Enter para agregar como libre</p>
+                {pedidoTab === 'alertas' && (
+                  <div className="mt-1">
+                    {alertas.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-3">No hay productos por debajo del 20% de su cantidad ideal.</p>
                     ) : (
-                      productosFilt.map((p, i) => (
-                        <button key={p.id}
-                          onClick={() => {
-                            setInlineAdd({ productoId: p.id, productoNombre: p.nombre, codigoBarra: p.codigoBarra, costo: p.costo });
-                            setInlineCant(1); setInlinePrecio(String(p.costo));
-                            highlightIdxRef.current = -1; setHighlightIdx(-1); gridFocusRef.current = false;
-                            setTimeout(() => { cantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); cantRef.current?.focus(); }, 50);
-                          }}
-                          className={`text-left border rounded-lg p-2 transition-all text-xs ${
-                            i === highlightIdx
-                              ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
-                              : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                          }`}>
-                          <p className="font-medium truncate">{p.nombre}</p>
-                          <p className="text-gray-400 font-mono truncate text-[10px]">{p.codigoBarra}</p>
-                          <p className="text-gray-500 mt-0.5">Costo: {formatCurrency(p.costo)}</p>
-                        </button>
-                      ))
+                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                        {alertas.map(p => {
+                          const ideal = p.cantidadIdeal ?? 0;
+                          const stock = p.stock ?? 0;
+                          return (
+                            <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-gray-800 truncate">{p.nombre}</p>
+                                <p className="text-xs text-gray-400">Stock: {stock} / Ideal: {ideal}</p>
+                              </div>
+                              <button type="button" onClick={() => agregarDesdeAlerta(p)}
+                                className="shrink-0 px-2.5 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-200 transition-colors">
+                                + Agregar {sugerirCantidad(p)}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* Items agregados — header + filas */}
-                <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                    <span className="flex-1">Producto</span>
-                    <span className="shrink-0 w-[88px] text-center">Cantidad</span>
-                    <span className="shrink-0 w-[24px]" />
-                  </div>
-                  {createItems.length > 0 && (
-                    <div className="divide-y divide-gray-200">
-                      {createItems.map((item, i) => (
-                        <div key={i} className="flex items-center px-3 py-1.5 hover:bg-gray-50/60">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold text-gray-900 leading-snug truncate">
-                              {item.productoNombre}
-                              {item.productoId === 0 && <span className="ml-1 text-[12px] text-indigo-500 font-medium">(libre)</span>}
-                            </p>
-                          </div>
-                          <div className="shrink-0 w-[88px] flex items-center justify-center gap-0.5">
-                            <button type="button"
-                              onClick={() => {
-                                const items = [...createItems];
-                                if (item.cantidad <= 1) setCreateItems(items.filter((_, j) => j !== i));
-                                else { items[i] = { ...items[i], cantidad: item.cantidad - 1 }; setCreateItems(items); }
-                              }}
-                              className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
-                              aria-label={`Reducir cantidad de ${item.productoNombre}`}>
-                              <Minus size={10} strokeWidth={3} />
-                            </button>
-                            <input type="number" min={1}
-                              value={item.cantidad}
-                              onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
-                              className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
-                            />
-                            <button type="button"
-                              onClick={() => { const items = [...createItems]; items[i] = { ...items[i], cantidad: item.cantidad + 1 }; setCreateItems(items); }}
-                              className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
-                              aria-label={`Aumentar cantidad de ${item.productoNombre}`}>
-                              <Plus size={10} strokeWidth={3} />
-                            </button>
-                          </div>
-                          <div className="shrink-0 w-[24px] flex items-center justify-center">
-                            <button type="button"
-                              onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
-                              className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all duration-100"
-                              aria-label={`Quitar ${item.productoNombre}`}>
-                              <Trash2 size={11} strokeWidth={2} />
-                            </button>
-                          </div>
+                {createItems.length > 0 && (
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr_88px_24px] gap-1.5 px-2 mb-1">
+                      <span className="text-[11px] text-gray-400 font-medium">Producto</span>
+                      <span className="text-[11px] text-gray-400 font-medium text-center">Cantidad</span>
+                      <span />
+                    </div>
+                    {createItems.map((item, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_88px_24px] gap-1.5 items-center bg-gray-50 rounded-lg px-2 py-1.5 text-sm mb-1">
+                        <span className="truncate font-medium">
+                          {item.productoNombre}
+                          {item.productoId === 0 && <span className="ml-1 text-[12px] text-indigo-500 font-medium">(libre)</span>}
+                        </span>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button type="button"
+                            onClick={() => {
+                              const items = [...createItems];
+                              if (item.cantidad <= 1) setCreateItems(items.filter((_, j) => j !== i));
+                              else { items[i] = { ...items[i], cantidad: item.cantidad - 1 }; setCreateItems(items); }
+                            }}
+                            className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
+                            aria-label={`Reducir cantidad de ${item.productoNombre}`}>
+                            <Minus size={10} strokeWidth={3} />
+                          </button>
+                          <input type="number" min={1}
+                            value={item.cantidad}
+                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
+                            className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
+                          />
+                          <button type="button"
+                            onClick={() => { const items = [...createItems]; items[i] = { ...items[i], cantidad: item.cantidad + 1 }; setCreateItems(items); }}
+                            className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
+                            aria-label={`Aumentar cantidad de ${item.productoNombre}`}>
+                            <Plus size={10} strokeWidth={3} />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Inline add — confirmar selección */}
-                {inlineAdd && (
-                  <div className="flex items-center px-3 py-2 bg-indigo-50/60 border border-indigo-100 rounded-lg mb-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-gray-900 leading-snug truncate">{inlineAdd.productoNombre}</p>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      <input ref={cantRef} type="number" min={1} value={inlineCant}
-                        onChange={e => setInlineCant(parseInt(e.target.value) || 1)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { e.preventDefault(); confirmInlineAdd(); }
-                          if (e.key === 'Escape') { e.stopPropagation(); cancelInline(); }
-                        }}
-                        className="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
-                      />
-                      <button type="button" onClick={cancelInline}
-                        className="flex h-[20px] w-[20px] items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all duration-100"
-                        aria-label="Cancelar">
-                        <Trash2 size={11} strokeWidth={2} />
-                      </button>
-                    </div>
+                        <button type="button"
+                          onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
+                          className="flex justify-center text-red-400 hover:text-red-600"
+                          aria-label={`Quitar ${item.productoNombre}`}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-700">Fecha esperada</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha esperada</label>
                 <input type="date" value={createFechaEsperada} onChange={e => setCreateFechaEsperada(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-700">Observaciones</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observaciones</label>
                 <input type="text" value={createObs} onChange={e => setCreateObs(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
               </div>
             </div>
 
-            <button onClick={handleGuardarPedido} data-create-btn
+            <button type="submit"
               disabled={creating || createProveedorId === 0 || createItems.length === 0}
-              className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
+              className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
               {creating ? 'Guardando...' : editingPedidoId ? 'Guardar cambios' : 'Crear pedido'}
             </button>
-          </div>
+          </form>
         </div>
       )}
 

@@ -23,6 +23,9 @@ export interface TicketData {
   total: number
   pagos: { nombre: string }[]
   cambio: number
+  titulo?: string
+  numeroLabel?: string
+  contraparteLabel?: string
 }
 
 export const TICKET_COLS: Record<TicketWidth, number> = { 80: 40, 58: 32 }
@@ -61,11 +64,11 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
     entries.push({ text, bold: opts.bold ?? false, center: opts.center ?? false, size: opts.size, space: opts.space })
 
   push(data.empresaNombre ?? 'PosWeb', { bold: true, center: true, size: 'md' })
-  push('TICKET DE COMPRA', { bold: true, center: true })
+  push(data.titulo ?? 'TICKET DE COMPRA', { bold: true, center: true })
   push('')
   push(`Fecha: ${fmtFecha(data.fecha)}`)
-  push(`Ticket #: ${String(data.ventaId).padStart(6, '0')}`)
-  push(`Vendedor: ${data.vendedor ?? '—'}`)
+  push(`${data.numeroLabel ?? 'Ticket #'}: ${String(data.ventaId).padStart(6, '0')}`)
+  push(`${data.contraparteLabel ?? 'Vendedor'}: ${data.vendedor ?? '—'}`)
   push(line)
 
   data.items.forEach(item => {

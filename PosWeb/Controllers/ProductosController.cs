@@ -337,6 +337,12 @@ public class ProductosController : ControllerBase
         return Ok(_productoService.SeguirStockIndividual(id, request.SeguirStock));
     }
 
+    [HttpPut("{id}/cantidad-ideal")]
+    public IActionResult ActualizarCantidadIdeal(int id, [FromBody] CantidadIdealRequest request)
+    {
+        return Ok(_productoService.ActualizarCantidadIdeal(id, request.CantidadIdeal));
+    }
+
     [HttpPut("ajuste-marca")]
     public IActionResult AjustarPorMarca([FromBody] AjusteMarcaRequest request)
     {
@@ -356,6 +362,11 @@ public class SeguirStockRequest
 {
     public bool SeguirStock { get; set; }
     public List<int>? Ids { get; set; }
+}
+
+public class CantidadIdealRequest
+{
+    public decimal? CantidadIdeal { get; set; }
 }
 
 public class AjusteMarcaRequest

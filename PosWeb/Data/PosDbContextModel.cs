@@ -63,6 +63,10 @@ public partial class PosDbContext
             entity.Property(p => p.SEGUIR_STOCK)
                 .HasColumnName("SEGUIR_STOCK");
 
+            entity.Property(p => p.CANTIDAD_IDEAL)
+                .HasColumnName("CANTIDAD_IDEAL")
+                .HasColumnType("decimal(18,2)");
+
             entity.Property(p => p.ES_PESABLE)
                 .HasColumnName("ES_PESABLE");
 

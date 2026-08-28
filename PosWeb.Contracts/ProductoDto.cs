@@ -23,6 +23,8 @@ public class ProductoDto
 
     public decimal? MargenGanancia { get; set; }
 
+    public decimal? CantidadIdeal { get; set; }
+
     public bool SeguirStock { get; set; } = true;
 
     public bool EsPesable { get; set; }

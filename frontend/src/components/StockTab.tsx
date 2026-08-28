@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto } from '../types'
-import { Package, ChevronRight } from 'lucide-react'
+import { Package, ChevronRight, Search } from 'lucide-react'
 import Card from './ui/Card'
 import Button from './ui/Button'
 
@@ -15,6 +15,10 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
   const [resultado, setResultado] = useState<{ afectados: number } | null>(null)
   const [expandido, setExpandido] = useState(false)
   const idsActivosAntes = useRef<number[]>([])
+
+  const [search, setSearch] = useState('')
+  const [idealDraft, setIdealDraft] = useState<Record<number, string>>({})
+  const [savingIdealId, setSavingIdealId] = useState<number | null>(null)
 
   useEffect(() => {
     api.productos.listar()
@@ -30,6 +34,40 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
   const conStock = productos.filter(p => p.seguirStock !== false).length
   const sinStock = productos.filter(p => p.seguirStock === false).length
   const todosActivos = productos.length > 0 && conStock === productos.length
+
+  const productosFiltrados = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return productos
+    return productos.filter(p =>
+      p.nombre.toLowerCase().includes(q) ||
+      p.codigoBarra.toLowerCase().includes(q)
+    )
+  }, [productos, search])
+
+  async function guardarCantidadIdeal(id: number, value: string) {
+    const trimmed = value.trim()
+    let cantidadIdeal: number | null = null
+    if (trimmed !== '') {
+      const parsed = parseFloat(trimmed)
+      if (isNaN(parsed) || parsed < 0) {
+        notifyError('Cantidad ideal inválida')
+        setIdealDraft(prev => { const next = { ...prev }; delete next[id]; return next })
+        return
+      }
+      cantidadIdeal = parsed
+    }
+    setSavingIdealId(id)
+    try {
+      const updated = await api.productos.actualizarCantidadIdeal(id, cantidadIdeal)
+      setProductos(prev => prev.map(p => p.id === id ? updated : p))
+      setIdealDraft(prev => { const next = { ...prev }; delete next[id]; return next })
+    } catch (err: any) {
+      notifyError(err.message || 'Error al actualizar cantidad ideal')
+      setIdealDraft(prev => { const next = { ...prev }; delete next[id]; return next })
+    } finally {
+      setSavingIdealId(null)
+    }
+  }
 
   function abrirConfirmacion(seguir: boolean) {
     setNuevoValor(seguir)
@@ -139,35 +177,64 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
             Control individual por producto ({productos.length})
           </button>
           {expandido && (
-            <div className="mt-3 border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-96 overflow-y-auto">
-              {productos.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-6">No hay productos cargados.</p>
-              ) : (
-                productos.map(p => (
-                  <div key={p.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors">
-                    <div className="min-w-0 flex-1 mr-3">
-                      <p className="text-sm text-slate-700 truncate">{p.nombre}</p>
-                      <p className="text-xs text-slate-400 truncate">{p.codigoBarra}</p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={p.seguirStock !== false}
-                      disabled={savingProducto === p.id}
-                      onClick={() => toggleProducto(p.id, p.seguirStock === false)}
-                      className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        p.seguirStock !== false ? 'bg-emerald-500' : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                          p.seguirStock !== false ? 'translate-x-[18px]' : 'translate-x-[3px]'
+            <div className="mt-3">
+              <div className="relative mb-2">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar producto..."
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                {productosFiltrados.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-6">
+                    {search.trim() ? 'Sin resultados' : 'No hay productos cargados.'}
+                  </p>
+                ) : (
+                  productosFiltrados.map(p => (
+                    <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                      <div className="min-w-0 flex-1 mr-3">
+                        <p className="text-sm text-slate-700 truncate">{p.nombre}</p>
+                        <p className="text-xs text-slate-400 truncate">{p.codigoBarra}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <label className="text-xs text-slate-500 font-medium">Ideal</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="1"
+                          value={idealDraft[p.id] ?? (p.cantidadIdeal != null ? p.cantidadIdeal : '')}
+                          onChange={e => setIdealDraft(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          onBlur={e => guardarCantidadIdeal(p.id, e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                          disabled={savingIdealId === p.id}
+                          placeholder="—"
+                          className="w-16 px-2 py-1 border border-slate-300 rounded-lg text-sm text-center font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none disabled:opacity-50"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={p.seguirStock !== false}
+                        disabled={savingProducto === p.id}
+                        onClick={() => toggleProducto(p.id, p.seguirStock === false)}
+                        className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          p.seguirStock !== false ? 'bg-emerald-500' : 'bg-slate-300'
                         }`}
-                      />
-                    </button>
-                  </div>
-                ))
-              )}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                            p.seguirStock !== false ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

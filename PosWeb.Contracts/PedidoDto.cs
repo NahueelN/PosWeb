@@ -16,6 +16,7 @@ public class PedidoDetailDto
     public int Id { get; set; }
     public string ProveedorNombre { get; set; } = null!;
     public string? ProveedorTelefono { get; set; }
+    public string? ProveedorMail { get; set; }
     public DateTime Fecha { get; set; }
     public DateTime? FechaEsperada { get; set; }
     public decimal Total { get; set; }
