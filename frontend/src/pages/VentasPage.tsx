@@ -108,6 +108,7 @@ export default function VentasPage() {
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
   const pendingAllowSinStock = useRef(false)
+  const scanEnterRef = useRef(false)
   const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
 
@@ -298,6 +299,8 @@ export default function VentasPage() {
     setCantidadDrafts(prev => { const next = { ...prev }; delete next[producto.id]; return next })
     if (!mantenerFoco) {
       setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    } else {
+      scanEnterRef.current = true
     }
   }
 
@@ -317,6 +320,14 @@ export default function VentasPage() {
     const id = firstItem.comboId ?? firstItem.producto.id
     const input = cantidadRefs.current.get(id)
     if (input) { input.focus(); input.select() }
+  }
+
+  function consumeScanEnter(): boolean {
+    if (scanEnterRef.current) {
+      scanEnterRef.current = false
+      return true
+    }
+    return false
   }
 
   async function deshacerCombo(comboId: number) {
@@ -587,6 +598,7 @@ export default function VentasPage() {
           combos={combos}
           medioRefs={medioRefs}
           onTabFromSearch={enfocarPrimeraCantidad}
+          consumeScanEnter={consumeScanEnter}
           cartItemsLength={cart.items.length}
           confirmBtnRef={confirmBtnRef}
           pagoExacto={recibio !== '' && Math.abs(parseFloat(recibio) - total) < 0.005}
