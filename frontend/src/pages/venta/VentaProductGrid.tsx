@@ -44,7 +44,7 @@ export default function VentaProductGrid({
                 if (e.key === 'ArrowDown' || e.key === 'Enter') {
                   e.preventDefault()
                   const q = searchQuery.trim().toUpperCase()
-                  if (e.key === 'Enter' && q) { const combo = combos.find(c => c.codCombo === q); if (combo) { onAgregarCombo(combo); onSearchChange(''); return }; onSearchChange('') }
+                  if (e.key === 'Enter' && q) { const combo = combos.find(c => c.codCombo === q); if (combo) { onAgregarCombo(combo); onSearchChange(''); return } }
                   if (e.key === 'Enter' && !q && cartItemsLength > 0) {
                     if (pagoExacto) { confirmBtnRef?.current?.focus() }
                     else { medioRefs.current[0]?.focus() }

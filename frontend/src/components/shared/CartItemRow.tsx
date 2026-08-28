@@ -1,5 +1,12 @@
-import { type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { Plus, Minus, Trash2, AlertTriangle } from 'lucide-react'
+
+// Scanner detection: barcode readers emit a long digit burst ending in Enter/Tab.
+// A quantity long enough to be a barcode (>= 8 digits) is always a scan; shorter
+// bursts only count when every digit arrives faster than human typing.
+const SCAN_GAP_MS = 100
+const MIN_SCAN_LEN = 5
+const UNCONDITIONAL_SCAN_LEN = 8
 
 // ── Shared cart item row props ──────────────────────────────────────
 
@@ -24,6 +31,8 @@ export interface CartItemRowProps {
   onCantidadChange: (cantidad: number) => void
   /** Called on Enter after quantity input — focus next element */
   onEnter?: () => void
+  /** Called when a barcode scan is detected while typing in the quantity input */
+  onScan?: (code: string) => void
   /** Called on Escape — parent decides revert vs remove. Defaults to onRemove. */
   onEscape?: () => void
   /** Called when quantity input receives focus — for snapshotting current value */
@@ -57,6 +66,7 @@ export default function CartItemRow({
   decimales = 0,
   onCantidadChange,
   onEnter,
+  onScan,
   onEscape,
   onFocusQty,
   inputRef,
@@ -73,6 +83,11 @@ export default function CartItemRow({
     const rounded = Math.round(v * Math.pow(10, decimales)) / Math.pow(10, decimales)
     onCantidadChange(Math.max(min, rounded))
   }
+
+  const burstRef = useRef('')
+  const lastKeyTimeRef = useRef(0)
+  const fastRunRef = useRef(0)
+  const focusValueRef = useRef(cantidad)
 
   return (
     <div>
@@ -114,21 +129,43 @@ export default function CartItemRow({
 
           <input type="number" min={min} step={step} data-cart-qty
             ref={inputRef}
-            onFocus={() => onFocusQty?.()}
+            onFocus={() => { focusValueRef.current = cantidad; burstRef.current = ''; fastRunRef.current = 0; lastKeyTimeRef.current = 0; onFocusQty?.() }}
+            onBlur={() => { burstRef.current = ''; fastRunRef.current = 0 }}
             value={cantidad}
             onChange={(e) => commit(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onEnter?.()
+              const now = performance.now()
+              if (e.key >= '0' && e.key <= '9') {
+                burstRef.current += e.key
+                fastRunRef.current = now - lastKeyTimeRef.current <= SCAN_GAP_MS ? fastRunRef.current + 1 : 1
+                lastKeyTimeRef.current = now
                 return
               }
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                const seq = burstRef.current
+                const allFast = fastRunRef.current === seq.length && seq.length > 0
+                burstRef.current = ''
+                fastRunRef.current = 0
+                lastKeyTimeRef.current = 0
+                if (seq.length >= UNCONDITIONAL_SCAN_LEN || (seq.length >= MIN_SCAN_LEN && allFast)) {
+                  e.preventDefault()
+                  onCantidadChange(Math.max(min, focusValueRef.current))
+                  onScan?.(seq)
+                  return
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  onEnter?.()
+                }
+                return
+              }
+              burstRef.current = ''
+              fastRunRef.current = 0
               if (e.key === 'Escape') {
                 e.preventDefault()
                 e.stopPropagation()
                 ;(onEscape || onRemove)()
                 onEnter?.()
-                return
               }
             }}
             className={`${decimales > 0 ? 'w-16' : 'w-10'} text-center border border-gray-200 rounded px-0.5 py-0.5 text-[12px] font-bold tabular-nums text-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] focus:outline-none focus:ring-1 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]`}

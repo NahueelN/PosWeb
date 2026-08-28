@@ -6,7 +6,7 @@
   <style>
     @page { margin: 0; }
     html, body { margin: 0; padding: 0; background: white; }
-    #ticket { box-sizing: border-box; padding: 2mm; font-family: "Courier New", monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #ticket { box-sizing: border-box; padding: 2mm; overflow-x: hidden; font-family: "Courier New", monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #ticket div { font-weight: 900; }
     .center { text-align: center; }
     .bold { font-weight: 900; }
@@ -20,11 +20,17 @@
     if (!data) window.close()
     else {
       document.getElementById('ticket').style.width = `${data.ancho}mm`
+      const LETRA_PX = {
+        chica: { 58: { base: 11, lg: 14, md: 12, sm: 10 }, 80: { base: 12, lg: 16, md: 14, sm: 10 } },
+        mediana: { 58: { base: 13, lg: 17, md: 14, sm: 12 }, 80: { base: 14, lg: 19, md: 17, sm: 12 } },
+        grande: { 58: { base: 15, lg: 20, md: 17, sm: 14 }, 80: { base: 17, lg: 22, md: 20, sm: 14 } },
+      }
+      const lt = LETRA_PX[data.letra] && LETRA_PX[data.letra][data.ancho] ? LETRA_PX[data.letra][data.ancho] : LETRA_PX.chica[data.ancho]
       data.lines.forEach(line => {
         const row = document.createElement('div')
         row.textContent = line.text
         row.className = `${line.center ? 'center' : ''} ${line.bold ? 'bold' : ''} ${line.space ? 'space' : ''}`
-        row.style.fontSize = line.size === 'lg' ? (data.ancho === 58 ? '14px' : '16px') : line.size === 'md' ? (data.ancho === 58 ? '12px' : '14px') : line.size === 'sm' ? '10px' : (data.ancho === 58 ? '11px' : '12px')
+        row.style.fontSize = line.size === 'lg' ? lt.lg + 'px' : line.size === 'md' ? lt.md + 'px' : line.size === 'sm' ? lt.sm + 'px' : lt.base + 'px'
         document.getElementById('ticket').appendChild(row)
       })
       setTimeout(() => { window.focus(); window.print() }, 100)

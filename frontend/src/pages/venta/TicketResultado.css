@@ -20,6 +20,7 @@
     margin: 0 !important;
     padding: 2mm !important;
     box-sizing: border-box;
+    overflow-x: hidden;
     color: #000 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
