@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Resumen de compra</title>
+  <style>
+    @page { margin: 10mm; }
+    html, body { margin: 0; padding: 0; background: white; font-family: Arial, Helvetica, sans-serif; color: #000; }
+    .empresa { font-size: 16px; font-weight: bold; text-align: center; }
+    .titulo { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 12px; }
+    .meta { font-size: 12px; margin-bottom: 12px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; }
+    th { background: #f0f0f0; }
+    .right { text-align: right; }
+    .total { font-size: 14px; font-weight: bold; text-align: right; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <main id="resumen"></main>
+  <script>
+    const data = JSON.parse(localStorage.getItem('posweb-resumen-print') || 'null')
+    if (!data) window.close()
+    else {
+      const fmt = n => '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      let html = ''
+      html += '<div class="empresa">' + (data.empresaNombre || 'PosWeb') + '</div>'
+      html += '<div class="titulo">RESUMEN DE COMPRA</div>'
+      html += '<div class="meta">'
+      html += '<div>Fecha: ' + data.fecha + '</div>'
+      html += '<div>Comprobante #: ' + String(data.numeroComprobante).padStart(6, '0') + '</div>'
+      if (data.proveedorNombre) html += '<div>Proveedor: ' + data.proveedorNombre + '</div>'
+      if (data.sucursalNombre) html += '<div>Sucursal: ' + data.sucursalNombre + '</div>'
+      html += '</div>'
+      html += '<table><thead><tr><th>Código</th><th>Producto</th><th class="right">Cant.</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead><tbody>'
+      ;(data.items || []).forEach(i => {
+        html += '<tr><td>' + (i.codigoBarra || '') + '</td><td>' + i.nombre + '</td><td class="right">' + i.cantidad + '</td><td class="right">' + fmt(i.precioUnitario) + '</td><td class="right">' + fmt(i.subtotal) + '</td></tr>'
+      })
+      html += '</tbody></table>'
+      html += '<div class="total">TOTAL: ' + fmt(data.total) + '</div>'
+      document.getElementById('resumen').innerHTML = html
+      setTimeout(() => { window.focus(); window.print() }, 100)
+      window.onafterprint = () => window.close()
+    }
+  </script>
+</body>
+</html>

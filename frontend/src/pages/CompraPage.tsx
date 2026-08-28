@@ -449,6 +449,7 @@ export default function CompraPage() {
         inputRef: (el) => { if (el) cantidadRefs.current.set(item.productoId, el) },
         onRemove: () => cart.removeItem(item.productoId),
         onClickName: () => startEdit(i),
+        onClickImporte: () => startEdit(i),
         badge: item.productoId === 0 ? <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">NUEVO</span> : undefined,
       })}
       getItemKey={(_item, i) => i}

@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import Dialog from '../components/ui/Dialog';
 import PageShell from '../components/shared/PageShell';
-import { openWhatsApp } from '../lib/whatsapp';
+import { openWhatsApp, getWhatsAppPref, setWhatsAppPref } from '../lib/whatsapp';
 import { openEmail, getMailPref, setMailPref } from '../lib/mail';
 
 function formatDate(iso: string): string {
@@ -50,6 +50,8 @@ export default function PedidosPage() {
   const shareRef = useRef<HTMLDivElement>(null);
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [mailRecordar, setMailRecordar] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [whatsappRecordar, setWhatsappRecordar] = useState(false);
   const [recepcionPedido, setRecepcionPedido] = useState<PedidoDetailDto | null>(null);
   const [recepcionItems, setRecepcionItems] = useState<Record<number, { cantidad: number; faltante: boolean; precioReal: number }>>({});
   const [receiving, setReceiving] = useState(false);
@@ -192,12 +194,31 @@ export default function PedidosPage() {
     if (detalleModal) openEmail(detalleModal, method);
   };
 
+  const openWhatsAppShare = () => {
+    setShowShare(false);
+    const pref = getWhatsAppPref();
+    if (pref && detalleModal) {
+      openWhatsApp(detalleModal, pref);
+      return;
+    }
+    setWhatsappRecordar(false);
+    setWhatsappModalOpen(true);
+  };
+
+  const elegirWhatsApp = (method: 'desktop' | 'web') => {
+    setWhatsAppPref(whatsappRecordar ? method : null);
+    setWhatsappModalOpen(false);
+    if (detalleModal) openWhatsApp(detalleModal, method);
+  };
+
   useEffect(() => {
-    if (!detalleModal && !mailModalOpen) return;
+    if (!detalleModal && !mailModalOpen && !whatsappModalOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (mailModalOpen) {
         setMailModalOpen(false);
+      } else if (whatsappModalOpen) {
+        setWhatsappModalOpen(false);
       } else {
         setDetalleModal(null);
         setShowShare(false);
@@ -205,7 +226,7 @@ export default function PedidosPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [detalleModal, mailModalOpen]);
+  }, [detalleModal, mailModalOpen, whatsappModalOpen]);
 
   useEffect(() => {
     if (!showShare) return;
@@ -596,7 +617,7 @@ export default function PedidosPage() {
                       <Mail size={16} className="text-gray-400" />
                       Enviar por mail
                     </button>
-                    <button onClick={() => { setShowShare(false); openWhatsApp(detalleModal); }} disabled={!detalleModal.proveedorTelefono}
+                    <button onClick={openWhatsAppShare} disabled={!detalleModal.proveedorTelefono}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100">
                       <MessageCircle size={16} className="text-gray-400" />
                       Compartir por WhatsApp
@@ -639,6 +660,42 @@ export default function PedidosPage() {
             </div>
             <label className="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer select-none">
               <input type="checkbox" checked={mailRecordar} onChange={e => setMailRecordar(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              Guardar como opción predeterminada
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* ── WhatsApp Method Modal ── */}
+      {whatsappModalOpen && (
+        <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={() => setWhatsappModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between mb-1">
+              <h3 className="text-lg font-bold text-gray-900">Compartir por WhatsApp</h3>
+              <button onClick={() => setWhatsappModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">¿Cómo querés abrir WhatsApp?</p>
+            <div className="space-y-2">
+              <button onClick={() => elegirWhatsApp('desktop')}
+                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
+                <MessageCircle size={18} className="text-indigo-600 shrink-0" />
+                <span className="flex-1 text-left">
+                  <span className="block font-medium text-gray-900 text-sm">Escritorio</span>
+                  <span className="block text-xs text-gray-400">WhatsApp Desktop</span>
+                </span>
+              </button>
+              <button onClick={() => elegirWhatsApp('web')}
+                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
+                <Globe size={18} className="text-indigo-600 shrink-0" />
+                <span className="flex-1 text-left">
+                  <span className="block font-medium text-gray-900 text-sm">Navegador</span>
+                  <span className="block text-xs text-gray-400">WhatsApp Web</span>
+                </span>
+              </button>
+            </div>
+            <label className="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer select-none">
+              <input type="checkbox" checked={whatsappRecordar} onChange={e => setWhatsappRecordar(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
               Guardar como opción predeterminada
             </label>

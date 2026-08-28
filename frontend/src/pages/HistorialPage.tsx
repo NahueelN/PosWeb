@@ -7,6 +7,7 @@ import type { TicketData } from '../lib/ticket'
 import { Clock, ChevronDown, Printer } from 'lucide-react'
 import Button from '../components/ui/Button'
 import TicketModal from '../components/ticket/TicketModal'
+import CompraResumenModal from '../components/compra/CompraResumenModal'
 import { PageShell } from '../components/shared'
 
 type ModoHistorial = 'ventas' | 'compras'
@@ -65,6 +66,7 @@ export default function HistorialPage() {
 
   // Ticket printing
   const [ticketData, setTicketData] = useState<TicketData | null>(null)
+  const [compraResumenData, setCompraResumenData] = useState<CompraDetalleDto | null>(null)
 
   // Load sucursales on mount
   useEffect(() => {
@@ -214,22 +216,10 @@ export default function HistorialPage() {
     })
   }
 
-  function abrirCompraTicket(compraId: number) {
+  function abrirCompraResumen(compraId: number) {
     const detalle = compraDetailCache.get(compraId)
     if (!detalle) return
-    setTicketData({
-      empresaNombre: detalle.empresaNombre,
-      ventaId: detalle.numeroComprobante,
-      fecha: detalle.fecha,
-      vendedor: detalle.proveedorNombre,
-      items: detalle.items.map(i => ({ nombre: i.productoNombre, cantidad: i.cantidad, precio: i.precioUnitario })),
-      total: detalle.total,
-      pagos: [],
-      cambio: 0,
-      titulo: 'COMPRA A PROVEEDOR',
-      numeroLabel: 'Comprobante #',
-      contraparteLabel: 'Proveedor',
-    })
+    setCompraResumenData(detalle)
   }
 
   const totalVentaPages = ventaData ? Math.ceil(ventaData.totalCount / ventaData.pageSize) : 0
@@ -639,11 +629,11 @@ export default function HistorialPage() {
                                     </h4>
                                     <div className="flex items-center gap-3">
                                       <button
-                                        onClick={(e) => { e.stopPropagation(); abrirCompraTicket(compra.compraId) }}
+                                        onClick={(e) => { e.stopPropagation(); abrirCompraResumen(compra.compraId) }}
                                         className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
                                       >
                                         <Printer size={14} />
-                                        Imprimir ticket
+                                        Imprimir resumen
                                       </button>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setExpandedCompraId(null) }}
@@ -762,6 +752,11 @@ export default function HistorialPage() {
       {/* Ticket print modal */}
       {ticketData && (
         <TicketModal data={ticketData} onClose={() => setTicketData(null)} />
+      )}
+
+      {/* Compra resumen modal */}
+      {compraResumenData && (
+        <CompraResumenModal data={compraResumenData} onClose={() => setCompraResumenData(null)} />
       )}
     </PageShell>
   )
