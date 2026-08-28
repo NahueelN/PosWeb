@@ -10,6 +10,7 @@ import { useItemSnapshot } from '../hooks/useItemSnapshot';
 import CartHost from '../components/hosts/CartHost';
 import KeyboardHints from '../components/shared/KeyboardHints';
 import { formatCodigoBarra, ProductRow, ProductGridRows, ProductGridHeader } from '../components/shared';
+import { normalizarCodigoBarra } from '../lib/codigoBarra';
 import Dialog from '../components/ui/Dialog';
 import { Search, X, Plus } from 'lucide-react';
 import Button from '../components/ui/Button';
@@ -304,7 +305,7 @@ export default function CompraPage() {
     } catch {}
     // 2. Try local filtered list
     const localMatch = productos.find(
-      p => p.codigoBarra.toLowerCase() === codigo.toLowerCase()
+      p => p.codigoBarra.toLowerCase() === normalizarCodigoBarra(codigo).toLowerCase()
     );
     if (localMatch) { addToCart(localMatch); setSearchQuery(''); return; }
     // 3. Try external API (Open Food Facts)
