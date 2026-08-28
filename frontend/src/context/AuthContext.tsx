@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { api } from '../api/client'
+import { api, clearStoredSession, expireSession, isSessionExpired } from '../api/client'
 import type { LoginRequest, LoginResponse, UsuarioInfo } from '../types'
 
 interface AuthContextType {
@@ -15,15 +15,11 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UsuarioInfo | null>(() => {
     const stored = localStorage.getItem('user_info')
-    const expires = localStorage.getItem('jwt_expires')
-    if (stored && expires) {
-      if (new Date(expires) > new Date()) {
+    if (stored) {
+      if (!isSessionExpired() && localStorage.getItem('jwt_token')) {
         return JSON.parse(stored)
       }
-      // Token expired, clean up
-      localStorage.removeItem('jwt_token')
-      localStorage.removeItem('jwt_expires')
-      localStorage.removeItem('user_info')
+      clearStoredSession()
     }
     return null
   })
@@ -62,6 +58,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('auth:expired', handler)
     return () => window.removeEventListener('auth:expired', handler)
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+
+    const expiresAt = localStorage.getItem('jwt_expires')
+    const delay = expiresAt ? Date.parse(expiresAt) - Date.now() : Number.NaN
+    if (!Number.isFinite(delay) || delay <= 0) {
+      expireSession()
+      return
+    }
+
+    const timeoutId = window.setTimeout(expireSession, delay)
+    return () => window.clearTimeout(timeoutId)
+  }, [user])
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, login, pinLogin, logout }}>

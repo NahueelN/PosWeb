@@ -43,6 +43,37 @@ export async function esperarBackend(maxRetries = 30, delayMs = 500): Promise<vo
   throw new Error('El backend no está disponible')
 }
 
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('La sesión venció. Iniciá sesión nuevamente.')
+    this.name = 'SessionExpiredError'
+  }
+}
+
+export function isSessionExpiredError(error: unknown): error is SessionExpiredError {
+  return error instanceof SessionExpiredError
+}
+
+export function clearStoredSession(): void {
+  localStorage.removeItem('jwt_token')
+  localStorage.removeItem('jwt_expires')
+  localStorage.removeItem('user_info')
+}
+
+export function expireSession(): void {
+  clearStoredSession()
+  window.dispatchEvent(new CustomEvent('auth:expired'))
+}
+
+export function isSessionExpired(): boolean {
+  const token = localStorage.getItem('jwt_token')
+  const expiresAt = localStorage.getItem('jwt_expires')
+  if (!token) return false
+
+  const expirationTime = expiresAt ? Date.parse(expiresAt) : Number.NaN
+  return !Number.isFinite(expirationTime) || expirationTime <= Date.now()
+}
+
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('jwt_token')
   if (token) {
@@ -52,6 +83,14 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  // Do not send a known-expired token. Authentication endpoints must still work
+  // so a user can sign in again after returning to the login page.
+  if (isSessionExpired()) {
+    expireSession()
+    if (!url.startsWith('/auth/')) throw new SessionExpiredError()
+  }
+
+  const hasAuthToken = localStorage.getItem('jwt_token') !== null
   const startTime = Date.now()
   console.log(`[API Request] ${options?.method ?? 'GET'} ${url}`)
 
@@ -74,19 +113,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   
   if (!res.ok) {
     const text = await res.text()
-    // If 401, clear token (session expired)
-    if (res.status === 401) {
-      localStorage.removeItem('jwt_token')
-      localStorage.removeItem('jwt_expires')
-      localStorage.removeItem('user_info')
-      window.dispatchEvent(new CustomEvent('auth:expired'))
-    }
+    if (res.status === 401 && hasAuthToken) expireSession()
     let message = text
     try {
       const parsed = JSON.parse(text)
       message = parsed.error || parsed.title || parsed.message || text
     } catch {}
-    const err = new Error(message)
+    const err = res.status === 401 && hasAuthToken
+      ? new SessionExpiredError()
+      : new Error(message)
     console.error(`[API] ${res.status} ${res.statusText} — ${options?.method ?? 'GET'} ${url} (${duration}ms)`, {
       status: res.status,
       statusText: res.statusText,

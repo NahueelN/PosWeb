@@ -526,6 +526,7 @@ export default function VentasPage() {
             decimales: dec,
             onCantidadChange: (c: number) => { setCantidadDrafts(prev => { const next = { ...prev }; delete next[itemId]; return next }); handleCambiarCantidad(itemId, c) },
             onEnter: () => searchInputRef.current?.focus(),
+            onScan: (code) => { setSearchQuery(''); setSearchQuery(code); searchInputRef.current?.focus(); searchInputRef.current?.select() },
             onFocusQty: () => onFocusQty(itemId, i.cantidad),
             onEscape: () => onEscape(itemId, i.cantidad, (qty) => handleCambiarCantidad(itemId, qty), () => cart.removeItem(itemId)),
             inputRef: (el: HTMLInputElement | null) => { if (el) cantidadRefs.current.set(itemId, el); else cantidadRefs.current.delete(itemId) },
