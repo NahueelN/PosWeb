@@ -96,7 +96,7 @@ public class WidgetFactory
         };
     }
 
-    public Widget CreateProgress(string id, string title, Dataset dataset, decimal? max = null)
+    public Widget CreateProgress(string id, string title, Dataset dataset, decimal? max = null, string? valueFormat = "percentage")
     {
         return new Widget
         {
@@ -108,7 +108,7 @@ public class WidgetFactory
             {
                 Max = max,
                 ShowLabel = true,
-                ValueFormat = "percentage"
+                ValueFormat = valueFormat
             }
         };
     }

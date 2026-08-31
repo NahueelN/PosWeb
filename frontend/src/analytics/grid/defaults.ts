@@ -2,17 +2,16 @@
 // The initial dashboard layout when no saved state exists.
 // All items have explicit x/y — RGL never computes positions.
 // Designed to tile the full 12x6 grid with zero empty cells:
-//   Row 1    → hero KPI (6w) + 2 compact KPIs (fills cols 1-12)
+//   Row 1    → hero KPI (6w) + caja (6w)
 //   Rows 2-4 → sales chart (6x3) + best sellers (6x3) side by side
 //   Rows 5-6 → activity feed (6x2) + alerts + day summary (3x2 each)
 
 import type { LayoutInstance } from './types'
 
 export const DEFAULT_LAYOUT: LayoutInstance[] = [
-  // ── Row 1: Hero metric (6w) + two compact KPIs ──
+  // ── Row 1: Hero metric (6w) + caja (6w) ──
   { id: 'v1', definitionId: 'ventas-hoy',   widgetType: 'KPI',      w: 6, h: 1, x: 1,  y: 1, config: { color: 'indigo' } },
-  { id: 'v2', definitionId: 'caja',         widgetType: 'KPI',      w: 3, h: 1, x: 7,  y: 1, config: { color: 'emerald' } },
-  { id: 'v3', definitionId: 'meta',         widgetType: 'KPI',      w: 3, h: 1, x: 10, y: 1, config: { color: 'purple' } },
+  { id: 'v2', definitionId: 'caja',         widgetType: 'KPI',      w: 6, h: 1, x: 7,  y: 1, config: { color: 'emerald' } },
 
   // ── Rows 2-4: Primary chart (left) + ranking (right), equal 6x3 ──
   { id: 'v5', definitionId: 'ventas-semana', widgetType: 'BAR_CHART', w: 6, h: 3, x: 1, y: 2, config: { period: '7' } },
