@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, Minus, Trash2, X, Mail, Share2, MessageCircle, Globe } from 'lucide-react';
+import { Plus, Minus, Trash2, X } from 'lucide-react';
 import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import Dialog from '../components/ui/Dialog';
 import PageShell from '../components/shared/PageShell';
-import { openWhatsApp, getWhatsAppPref, setWhatsAppPref } from '../lib/whatsapp';
-import { openEmail, getMailPref, setMailPref } from '../lib/mail';
+import CompartirMenu from '../components/CompartirMenu';
+import { buildPedidoWhatsAppMessage } from '../lib/whatsapp';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -46,12 +46,7 @@ export default function PedidosPage() {
 
   // Modal state
   const [detalleModal, setDetalleModal] = useState<PedidoDetailDto | null>(null);
-  const [showShare, setShowShare] = useState(false);
-  const shareRef = useRef<HTMLDivElement>(null);
-  const [mailModalOpen, setMailModalOpen] = useState(false);
-  const [mailRecordar, setMailRecordar] = useState(false);
-  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
-  const [whatsappRecordar, setWhatsappRecordar] = useState(false);
+  const [compartirModalOpen, setCompartirModalOpen] = useState(false);
   const [recepcionPedido, setRecepcionPedido] = useState<PedidoDetailDto | null>(null);
   const [recepcionItems, setRecepcionItems] = useState<Record<number, { cantidad: number; faltante: boolean; precioReal: number }>>({});
   const [receiving, setReceiving] = useState(false);
@@ -164,80 +159,27 @@ export default function PedidosPage() {
 
   const closeDetalle = () => {
     setDetalleModal(null);
-    setShowShare(false);
   };
 
   const openDetalle = async (id: number) => {
     try {
       const detail = await api.pedidos.obtener(id);
-      setShowShare(false);
       setDetalleModal(detail);
     } catch (err: unknown) {
       notifyError(err instanceof Error ? err.message : 'Error al cargar detalle');
     }
   };
 
-  const openMail = () => {
-    setShowShare(false);
-    const pref = getMailPref();
-    if (pref && detalleModal) {
-      openEmail(detalleModal, pref);
-      return;
-    }
-    setMailRecordar(false);
-    setMailModalOpen(true);
-  };
-
-  const elegirMail = (method: 'mailto' | 'gmail') => {
-    setMailPref(mailRecordar ? method : null);
-    setMailModalOpen(false);
-    if (detalleModal) openEmail(detalleModal, method);
-  };
-
-  const openWhatsAppShare = () => {
-    setShowShare(false);
-    const pref = getWhatsAppPref();
-    if (pref && detalleModal) {
-      openWhatsApp(detalleModal, pref);
-      return;
-    }
-    setWhatsappRecordar(false);
-    setWhatsappModalOpen(true);
-  };
-
-  const elegirWhatsApp = (method: 'desktop' | 'web') => {
-    setWhatsAppPref(whatsappRecordar ? method : null);
-    setWhatsappModalOpen(false);
-    if (detalleModal) openWhatsApp(detalleModal, method);
-  };
-
   useEffect(() => {
-    if (!detalleModal && !mailModalOpen && !whatsappModalOpen) return;
+    if (!detalleModal) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (mailModalOpen) {
-        setMailModalOpen(false);
-      } else if (whatsappModalOpen) {
-        setWhatsappModalOpen(false);
-      } else {
-        setDetalleModal(null);
-        setShowShare(false);
-      }
+      if (compartirModalOpen) return;
+      setDetalleModal(null);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [detalleModal, mailModalOpen, whatsappModalOpen]);
-
-  useEffect(() => {
-    if (!showShare) return;
-    const handler = (e: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShowShare(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showShare]);
+  }, [detalleModal, compartirModalOpen]);
 
   const openRecepcion = async (id: number) => {
     try {
@@ -604,101 +546,17 @@ export default function PedidosPage() {
               ))}</tbody>
             </table>
             <div className="mt-4 flex gap-2">
-              <div ref={shareRef} className="relative flex-1">
-                <button onClick={() => setShowShare(v => !v)}
-                  className="w-full py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-                  <Share2 size={16} />
-                  Compartir
-                </button>
-                {showShare && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-10">
-                    <button onClick={openMail} disabled={!detalleModal.proveedorMail}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                      <Mail size={16} className="text-gray-400" />
-                      Enviar por mail
-                    </button>
-                    <button onClick={openWhatsAppShare} disabled={!detalleModal.proveedorTelefono}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100">
-                      <MessageCircle size={16} className="text-gray-400" />
-                      Compartir por WhatsApp
-                    </button>
-                  </div>
-                )}
-              </div>
+              <CompartirMenu
+                mail={detalleModal.proveedorMail}
+                telefono={detalleModal.proveedorTelefono}
+                mailSubject={`Pedido #${detalleModal.id}`}
+                mensaje={buildPedidoWhatsAppMessage(detalleModal)}
+                className="relative flex-1"
+                dropdownUp
+                onOpenChange={setCompartirModalOpen}
+              />
               <button onClick={closeDetalle} className="flex-1 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">Cerrar</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Mail Method Modal ── */}
-      {mailModalOpen && (
-        <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={() => setMailModalOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between mb-1">
-              <h3 className="text-lg font-bold text-gray-900">Compartir por mail</h3>
-              <button onClick={() => setMailModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">¿Cómo querés abrir el correo?</p>
-            <div className="space-y-2">
-              <button onClick={() => elegirMail('mailto')}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
-                <Mail size={18} className="text-indigo-600 shrink-0" />
-                <span className="flex-1 text-left">
-                  <span className="block font-medium text-gray-900 text-sm">Outlook</span>
-                  <span className="block text-xs text-gray-400">Abre con mailto</span>
-                </span>
-              </button>
-              <button onClick={() => elegirMail('gmail')}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
-                <Globe size={18} className="text-indigo-600 shrink-0" />
-                <span className="flex-1 text-left">
-                  <span className="block font-medium text-gray-900 text-sm">Navegador (Gmail)</span>
-                  <span className="block text-xs text-gray-400">Abre en Gmail web</span>
-                </span>
-              </button>
-            </div>
-            <label className="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer select-none">
-              <input type="checkbox" checked={mailRecordar} onChange={e => setMailRecordar(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-              Guardar como opción predeterminada
-            </label>
-          </div>
-        </div>
-      )}
-
-      {/* ── WhatsApp Method Modal ── */}
-      {whatsappModalOpen && (
-        <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={() => setWhatsappModalOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between mb-1">
-              <h3 className="text-lg font-bold text-gray-900">Compartir por WhatsApp</h3>
-              <button onClick={() => setWhatsappModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">¿Cómo querés abrir WhatsApp?</p>
-            <div className="space-y-2">
-              <button onClick={() => elegirWhatsApp('desktop')}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
-                <MessageCircle size={18} className="text-indigo-600 shrink-0" />
-                <span className="flex-1 text-left">
-                  <span className="block font-medium text-gray-900 text-sm">Escritorio</span>
-                  <span className="block text-xs text-gray-400">WhatsApp Desktop</span>
-                </span>
-              </button>
-              <button onClick={() => elegirWhatsApp('web')}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl transition-colors hover:border-indigo-300 hover:bg-gray-50">
-                <Globe size={18} className="text-indigo-600 shrink-0" />
-                <span className="flex-1 text-left">
-                  <span className="block font-medium text-gray-900 text-sm">Navegador</span>
-                  <span className="block text-xs text-gray-400">WhatsApp Web</span>
-                </span>
-              </button>
-            </div>
-            <label className="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer select-none">
-              <input type="checkbox" checked={whatsappRecordar} onChange={e => setWhatsappRecordar(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-              Guardar como opción predeterminada
-            </label>
           </div>
         </div>
       )}

@@ -316,7 +316,7 @@ public class VentaService
         if (!esTransferenciaPendiente && isPartialPayment && dto.ClienteId.HasValue)
         {
             deudaMonto = totalVenta - totalPagos;
-            var deuda = new Deuda(totalVenta, idCliente: dto.ClienteId.Value, idVenta: venta.ID_VENTA, montoPagado: totalPagos);
+            var deuda = new Deuda(deudaMonto.Value, idCliente: dto.ClienteId.Value, idVenta: venta.ID_VENTA);
             _context.Deuda.Add(deuda);
             _context.SaveChanges();
             deudaId = deuda.ID_DEUDA;

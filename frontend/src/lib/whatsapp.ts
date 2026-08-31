@@ -54,11 +54,7 @@ export async function isWhatsAppDesktopInstalled(): Promise<boolean> {
   }
 }
 
-export async function openWhatsApp(pedido: PedidoDetailDto, method: WhatsAppMethod = 'web'): Promise<void> {
-  const phone = pedido.proveedorTelefono?.trim()
-  if (!phone) return
-  const message = buildPedidoWhatsAppMessage(pedido)
-
+export async function openWhatsAppTo(phone: string, message: string, method: WhatsAppMethod = 'web'): Promise<void> {
   if (method === 'desktop') {
     const instalado = await isWhatsAppDesktopInstalled()
     if (instalado) {
@@ -78,4 +74,10 @@ export async function openWhatsApp(pedido: PedidoDetailDto, method: WhatsAppMeth
   } catch {
     window.open(webUrl, '_blank')
   }
+}
+
+export async function openWhatsApp(pedido: PedidoDetailDto, method: WhatsAppMethod = 'web'): Promise<void> {
+  const phone = pedido.proveedorTelefono?.trim()
+  if (!phone) return
+  await openWhatsAppTo(phone, buildPedidoWhatsAppMessage(pedido), method)
 }

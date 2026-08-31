@@ -758,6 +758,8 @@ export interface MovimientoCuentaDto {
   descripcion?: string
   pagoId?: number
   deudaId?: number
+  ventaId?: number
+  compraId?: number
   usuario?: string
   anulado?: boolean
 }

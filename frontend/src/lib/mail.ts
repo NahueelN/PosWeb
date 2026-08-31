@@ -30,11 +30,7 @@ export function buildGmailUrl(email: string, subject: string, body: string): str
   return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
-export async function openEmail(pedido: PedidoDetailDto, method: MailMethod = 'mailto'): Promise<void> {
-  const email = pedido.proveedorMail?.trim()
-  if (!email) return
-  const subject = `Pedido #${pedido.id}`
-  const body = buildPedidoWhatsAppMessage(pedido)
+export async function openEmailTo(email: string, subject: string, body: string, method: MailMethod = 'mailto'): Promise<void> {
   const url = method === 'gmail'
     ? buildGmailUrl(email, subject, body)
     : buildMailtoUrl(email, subject, body)
@@ -43,4 +39,10 @@ export async function openEmail(pedido: PedidoDetailDto, method: MailMethod = 'm
   } catch {
     window.open(url, '_blank')
   }
+}
+
+export async function openEmail(pedido: PedidoDetailDto, method: MailMethod = 'mailto'): Promise<void> {
+  const email = pedido.proveedorMail?.trim()
+  if (!email) return
+  await openEmailTo(email, `Pedido #${pedido.id}`, buildPedidoWhatsAppMessage(pedido), method)
 }
