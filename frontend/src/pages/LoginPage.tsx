@@ -7,12 +7,10 @@ import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login, pinLogin, isAuthenticated } = useAuth()
+  const { login, isAuthenticated } = useAuth()
 
-  const [tab, setTab] = useState<'password' | 'pin'>('password')
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
-  const [pin, setPin] = useState('')
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
   const [sucursalId, setSucursalId] = useState<number>(0)
   const [loading, setLoading] = useState(false)
@@ -62,11 +60,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      if (tab === 'password') {
-        await login({ usuario, password, sucursalId })
-      } else {
-        await pinLogin({ usuario, pin, sucursalId })
-      }
+      await login({ usuario, password, sucursalId })
       navigate('/', { replace: true })
       try {
         const nombre = sucursales.find((s: SucursalDto) => s.id === sucursalId)?.nombre ?? 'Central'
@@ -97,7 +91,7 @@ export default function LoginPage() {
         password: regPassword,
         mail: regMail,
         rol: 'Admin',
-        empresaId: regEmpresa ? parseInt(regEmpresa) : undefined,
+        empresaNombre: regEmpresa.trim() || undefined,
       })
       notifySuccess('Administrador registrado correctamente. Ya podés iniciar sesión.')
       setRegUsuario('')
@@ -133,23 +127,6 @@ export default function LoginPage() {
 
         {!showRegister && (
           <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
-            <div className="flex rounded-lg bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setTab('password')}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${tab === 'password' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Contraseña
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('pin')}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${tab === 'pin' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                PIN
-              </button>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
               <input
@@ -163,33 +140,17 @@ export default function LoginPage() {
               />
             </div>
 
-            {tab === 'password' ? (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">PIN</label>
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="4 dígitos"
-                  required
-                  maxLength={4}
-                  inputMode="numeric"
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
             {sucursales.length > 1 && (
             <div>
@@ -272,13 +233,13 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa ID</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Empresa</label>
               <input
-                type="number"
+                type="text"
                 value={regEmpresa}
                 onChange={e => setRegEmpresa(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="ID de empresa (opcional)"
+                placeholder="Nombre de empresa (opcional)"
               />
             </div>
 

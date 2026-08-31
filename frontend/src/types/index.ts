@@ -230,6 +230,7 @@ export interface RegisterRequest {
   mail: string
   rol: string
   empresaId?: number | null
+  empresaNombre?: string | null
 }
 
 export interface RegisterResponse {
