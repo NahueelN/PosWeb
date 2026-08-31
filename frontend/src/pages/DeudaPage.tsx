@@ -390,13 +390,39 @@ export default function DeudaPage() {
     }
   }
 
+  const renderTabs = (onSwitch: (m: ModoDeuda) => void) => (
+    <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
+      <button onClick={() => onSwitch('clientes')}
+        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+        Clientes
+      </button>
+      {user?.rol !== 'UsuarioComun' && (
+        <button onClick={() => onSwitch('proveedores')}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+          Proveedores
+        </button>
+      )}
+    </div>
+  );
+
+  const handleTabSwitch = (m: ModoDeuda) => {
+    if (m === modo) return;
+    closeCuenta();
+    setModo(m);
+  };
+
   if (cuenta && entidadSeleccionada) {
     const saldo = cuenta.saldoActual;
 
     return (
       <PageShell
         title="Deudas"
-        subtitle={modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}
+        tabs={renderTabs(handleTabSwitch)}
+        backButton={
+          <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 mt-2">
+            ← Volver
+          </button>
+        }
         actions={
           <div className="flex items-center gap-3">
             <CompartirMenu
@@ -412,9 +438,6 @@ export default function DeudaPage() {
               className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
               + Nueva deuda
             </button>
-            <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1">
-              ← Volver
-            </button>
           </div>
         }
       >
@@ -424,7 +447,6 @@ export default function DeudaPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-2 sm:mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">{entidadSeleccionada.nombre}</h2>
-              <p className="text-xs sm:text-sm text-gray-500">{modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider">Saldo pendiente</p>
@@ -660,20 +682,7 @@ export default function DeudaPage() {
           + Nueva deuda
         </button>
       }
-      tabs={
-        <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
-          <button onClick={() => setModo('clientes')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Clientes
-          </button>
-          {user?.rol !== 'UsuarioComun' && (
-          <button onClick={() => setModo('proveedores')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Proveedores
-          </button>
-          )}
-        </div>
-      }
+      tabs={renderTabs(setModo)}
     >
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">

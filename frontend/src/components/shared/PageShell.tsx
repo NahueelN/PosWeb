@@ -17,6 +17,8 @@ interface PageShellProps {
   title: string
   /** Optional subtitle below the title */
   subtitle?: string
+  /** Optional back button rendered to the left of the title */
+  backButton?: ReactNode
   /** Optional actions on the right side of the header (e.g., "+ Nuevo" button) */
   actions?: ReactNode
   /**
@@ -65,6 +67,7 @@ interface PageShellProps {
 export default function PageShell({
   title,
   subtitle,
+  backButton,
   actions,
   tabs,
   caja,
@@ -78,11 +81,14 @@ export default function PageShell({
     <div className="flex flex-col h-full min-h-0">
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-5">
-        <div>
-          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">{title}</h1>
-          {subtitle && (
-            <p className="text-[13px] text-gray-400 mt-0.5">{subtitle}</p>
-          )}
+        <div className="flex items-start gap-3">
+          <div>
+            <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">{title}</h1>
+            {subtitle && (
+              <p className="text-[13px] text-gray-400 mt-0.5">{subtitle}</p>
+            )}
+            {backButton}
+          </div>
         </div>
         {actions && (
           <div className="flex items-center gap-2 shrink-0">{actions}</div>
