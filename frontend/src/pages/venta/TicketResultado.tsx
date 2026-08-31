@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Printer } from 'lucide-react'
 import Button from '../../components/ui/Button'
+import { api } from '../../api/client'
 import type { VentaResultadoDto, UsuarioInfo } from '../../types'
 import { buildTicketLines, type TicketLine, type TicketWidth } from '../../lib/ticket'
 import './TicketResultado.css'
@@ -58,11 +59,36 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
-  const [ancho, setAncho] = useState<TicketWidth>(80)
+  const [ancho, setAncho] = useState<TicketWidth>(() => {
+    const saved = localStorage.getItem('posweb-ticket-ancho')
+    return saved === '58' ? 58 : 80
+  })
   const [letra, setLetra] = useState<Letra>(() => {
     const saved = localStorage.getItem('posweb-ticket-letra')
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
+
+  const persistirTicket = (nuevoAncho: TicketWidth, nuevaLetra: Letra) => {
+    localStorage.setItem('posweb-ticket-ancho', String(nuevoAncho))
+    localStorage.setItem('posweb-ticket-letra', nuevaLetra)
+    api.preferencias.guardar({ ticket: { ancho: String(nuevoAncho), letra: nuevaLetra } }).catch(() => {})
+  }
+
+  useEffect(() => {
+    let mounted = true
+    api.preferencias.obtener()
+      .then(res => {
+        if (!mounted) return
+        const t = res.preferencias?.ticket
+        if (!t) return
+        if (t.ancho === '58' || t.ancho === '80') setAncho(Number(t.ancho) as TicketWidth)
+        if (t.letra === 'chica' || t.letra === 'mediana' || t.letra === 'grande') setLetra(t.letra as Letra)
+        localStorage.setItem('posweb-ticket-ancho', String(t.ancho))
+        localStorage.setItem('posweb-ticket-letra', t.letra)
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
 
   const lines = buildTicketLines({
     empresaNombre: resultado.empresaNombre,
@@ -136,13 +162,13 @@ ${pxCss}
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
           <button
-            onClick={() => setAncho(58)}
+            onClick={() => { setAncho(58); persistirTicket(58, letra) }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             58 mm
           </button>
           <button
-            onClick={() => setAncho(80)}
+            onClick={() => { setAncho(80); persistirTicket(80, letra) }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 80 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             80 mm
@@ -155,7 +181,7 @@ ${pxCss}
               key={l.id}
               onClick={() => {
                 setLetra(l.id)
-                localStorage.setItem('posweb-ticket-letra', l.id)
+                persistirTicket(ancho, l.id)
               }}
               className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${letra === l.id ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
             >

@@ -1345,6 +1345,37 @@ namespace PosWeb.Migrations.Local
                     b.ToTable("VENTA", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
+                {
+                    b.Property<int>("ID_USUARIO_PREFERENCIA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_PREFERENCIA");
+
+                    b.Property<string>("CLAVE")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("CLAVE");
+
+                    b.Property<int>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<string>("VALOR")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("VALOR");
+
+                    b.HasKey("ID_USUARIO_PREFERENCIA");
+
+                    b.HasIndex("ID_USUARIO", "CLAVE")
+                        .IsUnique();
+
+                    b.ToTable("USUARIO_PREFERENCIA", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Caja", b =>
                 {
                     b.HasOne("PosWeb.Domain.Sucursal", null)
@@ -1655,6 +1686,15 @@ namespace PosWeb.Migrations.Local
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Combo", b =>

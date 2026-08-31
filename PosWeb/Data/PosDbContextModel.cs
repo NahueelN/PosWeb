@@ -1200,6 +1200,38 @@ public partial class PosDbContext
                 .HasForeignKey(r => r.ID_PRODUCTO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ---- USUARIO PREFERENCIA ----
+        modelBuilder.Entity<UsuarioPreferencia>(entity =>
+        {
+            entity.ToTable("USUARIO_PREFERENCIA");
+
+            entity.HasKey(p => p.ID_USUARIO_PREFERENCIA);
+
+            entity.Property(p => p.ID_USUARIO_PREFERENCIA)
+                .HasColumnName("ID_USUARIO_PREFERENCIA");
+
+            entity.Property(p => p.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.CLAVE)
+                .HasColumnName("CLAVE")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(p => p.VALOR)
+                .HasColumnName("VALOR")
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            entity.HasIndex(p => new { p.ID_USUARIO, p.CLAVE })
+                .IsUnique();
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     internal static void SeedLocalData(ModelBuilder modelBuilder)
