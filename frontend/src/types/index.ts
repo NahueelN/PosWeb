@@ -800,3 +800,9 @@ export interface EmpresaDto {
   nombre: string
   documento: string
 }
+
+// --- Preferencias de usuario ---
+export interface PreferenciasResponse {
+  preferencias: Record<string, Record<string, string>>
+}
+
