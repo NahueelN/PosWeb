@@ -127,7 +127,6 @@ function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; 
 }
 
 export default function Layout() {
-  const location = useLocation()
   const navigate = useNavigate()
   const { sucursal, limpiar } = useSucursalActiva()
   const { user, logout } = useAuth()
@@ -329,14 +328,15 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {sucursal && location.pathname !== '/sucursales' && (
-              <button
-                onClick={() => { limpiar(); window.location.reload() }}
-                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors font-medium"
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-400 font-medium select-none shrink-0">
+              <kbd
+                className="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1 rounded border border-gray-300 bg-gray-50 text-[10px] font-semibold text-gray-600"
+                style={{ boxShadow: '0 1px 0 0 oklch(0.82 0.01 262)' }}
               >
-                Cambiar sucursal
-              </button>
-            )}
+                F2
+              </kbd>
+              <span>búsqueda rápida</span>
+            </div>
 
             {user && (
               <div className="flex items-center gap-3">

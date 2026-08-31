@@ -714,6 +714,10 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ACTIVO");
 
+                    b.Property<decimal?>("CANTIDAD_IDEAL")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("CANTIDAD_IDEAL");
+
                     b.Property<string>("CODIGO_BARRAS")
                         .IsRequired()
                         .HasMaxLength(100)

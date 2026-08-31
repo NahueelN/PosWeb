@@ -20,6 +20,11 @@
           "name": "taskkill",
           "cmd": "taskkill",
           "args": true
+        },
+        {
+          "name": "reg",
+          "cmd": "reg",
+          "args": true
         }
       ]
     },
@@ -28,7 +33,8 @@
       "identifier": "shell:allow-open",
       "allow": [
         { "url": "https://**" },
-        { "url": "http://**" }
+        { "url": "http://**" },
+        { "url": "whatsapp://**" }
       ]
     }
   ]

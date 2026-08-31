@@ -47,6 +47,7 @@ public class ProductoService
                 DescAdicional = p.DESC_ADICIONAL,
                 CodigoProducto = p.COD_PRODUCTO,
                 MargenGanancia = p.MARGEN_GANANCIA,
+                CantidadIdeal = p.CANTIDAD_IDEAL,
                 SeguirStock = p.SEGUIR_STOCK,
                 EsPesable = p.ES_PESABLE,
                 EsBulto = p.ES_BULTO,
@@ -257,6 +258,7 @@ public class ProductoService
             DescAdicional = producto.DESC_ADICIONAL,
             CodigoProducto = producto.COD_PRODUCTO,
             MargenGanancia = producto.MARGEN_GANANCIA,
+            CantidadIdeal = producto.CANTIDAD_IDEAL,
             SeguirStock = producto.SEGUIR_STOCK,
             EsPesable = producto.ES_PESABLE,
             EsBulto = producto.ES_BULTO,
@@ -692,6 +694,21 @@ public class ProductoService
         }
 
         producto.CambiarSeguirStock(seguir);
+        _context.SaveChanges();
+
+        return MapToDto(producto);
+    }
+
+    public ProductoDto ActualizarCantidadIdeal(int id, decimal? cantidadIdeal)
+    {
+        Producto? producto = _context.Producto.Find(id);
+
+        if (producto == null)
+        {
+            throw new ProductoNoEncontradoException(id);
+        }
+
+        producto.CambiarCantidadIdeal(cantidadIdeal);
         _context.SaveChanges();
 
         return MapToDto(producto);

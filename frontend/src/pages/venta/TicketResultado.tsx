@@ -228,7 +228,7 @@ ${pxCss}
           return (
             <div
               key={i}
-              className={`${sizeCls} ${l.bold ? 'font-bold' : ''} ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
+              className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
               style={l.center ? { textAlign: 'center' } : undefined}
             >
               {l.text}

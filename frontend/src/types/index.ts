@@ -14,6 +14,7 @@ export interface ProductoDto {
   descAdicional?: string | null
   codigoProducto?: string | null
   margenGanancia?: number | null
+  cantidadIdeal?: number | null
   seguirStock?: boolean
   esPesable?: boolean
   esBulto?: boolean
@@ -178,6 +179,10 @@ export interface VentaDetalleDto {
   sucursalNombre: string
   total: number
   items: RenglonHistorialDto[]
+  empresaNombre?: string
+  vendedor?: string
+  pagos: PagoVentaResultDto[]
+  cambio: number
 }
 
 export interface RenglonHistorialDto {
@@ -415,6 +420,7 @@ export interface CompraItemDto {
    sucursalId: number
    sucursalNombre: string
    proveedorNombre?: string
+   empresaNombre?: string
    total: number
    items: RenglonHistorialDto[]
  }
@@ -621,6 +627,7 @@ export interface PedidoDetailDto {
   id: number
   proveedorNombre: string
   proveedorTelefono?: string
+  proveedorMail?: string
   fecha: string
   fechaEsperada?: string
   total: number

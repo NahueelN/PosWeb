@@ -574,6 +574,31 @@ public class VentaService
             }
         ).ToListAsync();
 
+        var pagos = await _context.Pago
+            .Where(p => p.ID_VENTA == ventaId)
+            .Select(p => new PagoVentaResultDto
+            {
+                MedioPagoId = p.ID_MEDIO_PAGO,
+                MedioPagoNombre = _context.MedioPago
+                    .Where(m => m.ID_MEDIO_PAGO == p.ID_MEDIO_PAGO)
+                    .Select(m => m.DESC_MEDIO_PAGO)
+                    .FirstOrDefault() ?? "Efectivo",
+                Monto = p.MONTO,
+                Cambio = p.CAMBIO
+            })
+            .ToListAsync();
+
+        string? empresaNombre = await _context.Empresa
+            .Select(e => e.NOMBRE)
+            .FirstOrDefaultAsync();
+
+        string? vendedor = venta.ID_USUARIO.HasValue
+            ? await _context.Usuario
+                .Where(u => u.ID_USUARIO == venta.ID_USUARIO.Value)
+                .Select(u => u.NOMBRE_USUARIO)
+                .FirstOrDefaultAsync()
+            : null;
+
         return new VentaDetalleDto
         {
             VentaId = venta.ID_VENTA,
@@ -581,7 +606,11 @@ public class VentaService
             SucursalId = venta.ID_SUCURSAL,
             SucursalNombre = sucursalNombre,
             Total = venta.TOTAL,
-            Items = items
+            Items = items,
+            EmpresaNombre = empresaNombre,
+            Vendedor = vendedor,
+            Pagos = pagos,
+            Cambio = pagos.Sum(p => p.Cambio)
         };
     }
 
