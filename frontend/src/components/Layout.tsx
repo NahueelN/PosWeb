@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -132,6 +132,9 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const { notifyError } = useNotification()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebarCollapsed') === '1' } catch { return false }
+  })
   const [lookupOpen, setLookupOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [mpVinculando, setMpVinculando] = useState(false)
@@ -191,6 +194,18 @@ export default function Layout() {
 
   function closeSidebar() {
     setSidebarOpen(false)
+  }
+
+  function toggleSidebar() {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      setSidebarCollapsed(c => {
+        const next = !c
+        try { localStorage.setItem('sidebarCollapsed', next ? '1' : '0') } catch { /* ignore */ }
+        return next
+      })
+    } else {
+      setSidebarOpen(true)
+    }
   }
 
   const sidebarContent = (
@@ -297,16 +312,31 @@ export default function Layout() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 w-[196px] bg-[oklch(0.15_0.016_262)] flex flex-col
-          transition-transform duration-200 ease-in-out
+          border-r border-[oklch(0.255_0.016_262)]
+          transition-[width,transform] duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:static lg:translate-x-0 lg:z-auto lg:shrink-0
+          ${sidebarCollapsed ? 'lg:w-0 lg:overflow-hidden lg:border-r-0' : ''}
         `}
-        style={{ borderRight: '1px solid oklch(0.255 0.016 262)' }}
       >
         {sidebarContent}
       </aside>
 
       <main className="flex-1 flex flex-col overflow-auto min-w-0 min-h-0">
+        <button
+          onClick={toggleSidebar}
+          className={`
+            hidden lg:flex fixed top-1/2 -translate-y-1/2 z-40 w-7 h-16
+            items-center justify-center rounded-r-lg
+            bg-[oklch(0.15_0.016_262)] text-white/60 hover:text-white
+            border border-l-0 border-[oklch(0.255_0.016_262)]
+            transition-all duration-200 ease-in-out cursor-pointer
+            ${sidebarCollapsed ? 'left-0' : 'left-[196px]'}
+          `}
+          aria-label={sidebarCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
+        >
+          {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
         <header className="h-[48px] bg-white border-b border-gray-200 flex items-center justify-between px-5 gap-4 shrink-0"
           style={{ boxShadow: '0 1px 0 0 oklch(0.91 0.008 265)' }}>
           <div className="flex items-center gap-3 min-w-0">
