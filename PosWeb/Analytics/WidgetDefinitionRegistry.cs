@@ -108,6 +108,7 @@ public static class WidgetDefinitionRegistry
                     Type = "KPI", Label = "Indicador", Icon = "Target",
                     Params = new()
                     {
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -120,18 +121,10 @@ public static class WidgetDefinitionRegistry
                 },
                 new WidgetVisualizationType
                 {
-                    Type = "GAUGE", Label = "Velocímetro", Icon = "Gauge",
-                    Params = new()
-                    {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta", Type = "number", Default = 100000, Min = 1 },
-                    }
-                },
-                new WidgetVisualizationType
-                {
                     Type = "PROGRESS", Label = "Barra de progreso", Icon = "Target",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta", Type = "number", Default = 100000, Min = 1 },
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -255,6 +248,14 @@ public static class WidgetDefinitionRegistry
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
                     Params = new()
                     {
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                            Options = new()
+                            {
+                                new() { Value = "0", Label = "Hoy" },
+                                new() { Value = "7", Label = "Última semana" },
+                                new() { Value = "30", Label = "Último mes" },
+                            }
+                        },
                         new WidgetDefinitionParam { Key = "limit", Label = "Cantidad", Type = "number", Default = 5, Min = 3, Max = 15 },
                     }
                 },
@@ -263,6 +264,14 @@ public static class WidgetDefinitionRegistry
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
                     Params = new()
                     {
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                            Options = new()
+                            {
+                                new() { Value = "0", Label = "Hoy" },
+                                new() { Value = "7", Label = "Última semana" },
+                                new() { Value = "30", Label = "Último mes" },
+                            }
+                        },
                         new WidgetDefinitionParam { Key = "limit", Label = "Cantidad", Type = "number", Default = 5, Min = 3, Max = 15 },
                     }
                 },
@@ -271,6 +280,14 @@ public static class WidgetDefinitionRegistry
                     Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
                     Params = new()
                     {
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                            Options = new()
+                            {
+                                new() { Value = "0", Label = "Hoy" },
+                                new() { Value = "7", Label = "Última semana" },
+                                new() { Value = "30", Label = "Último mes" },
+                            }
+                        },
                         new WidgetDefinitionParam { Key = "limit", Label = "Cantidad", Type = "number", Default = 5, Min = 3, Max = 15 },
                         new WidgetDefinitionParam { Key = "donut", Label = "Tipo donut", Type = "boolean", Default = true },
                     }

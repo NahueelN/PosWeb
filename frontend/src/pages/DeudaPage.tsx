@@ -1,13 +1,16 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto, CrearDeudaRequestDto } from '../types';
+import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto, CrearDeudaRequestDto, VentaDetalleDto, CompraDetalleDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { PageShell } from '../components/shared';
 import EntidadContactoForm from '../components/shared/EntidadContactoForm';
+import DetalleVentaCompraModal from '../components/DetalleVentaCompraModal';
+import CompartirMenu from '../components/CompartirMenu';
 import Dialog from '../components/ui/Dialog';
 import Button from '../components/ui/Button';
 import { formatCurrency } from '../formats';
+import { buildDeudaMessage } from '../lib/deuda';
 import { Plus } from 'lucide-react';
 
 function formatDate(iso: string): string {
@@ -47,6 +50,7 @@ export default function DeudaPage() {
   // Detail view
   const [cuenta, setCuenta] = useState<CuentaCorrienteDto | null>(null);
   const [cuentaLoading, setCuentaLoading] = useState(false);
+  const [detalleOrigen, setDetalleOrigen] = useState<{ tipo: 'venta' | 'compra'; detalle: VentaDetalleDto | CompraDetalleDto } | null>(null);
   const [entidadSeleccionada, setEntidadSeleccionada] = useState<EntidadResumen | null>(null);
   const [paying, setPaying] = useState(false);
   const [payMonto, setPayMonto] = useState('');
@@ -128,6 +132,28 @@ export default function DeudaPage() {
   }, [modo, proveedores, clientes, deudas, busqueda, soloPendientes]);
 
   const totalGlobal = entidades.reduce((s, e) => s + e.total, 0);
+
+  const deudasPendientes = useMemo(() => {
+    if (!entidadSeleccionada) return [];
+    return deudas
+      .filter(d => (modo === 'proveedores' ? d.proveedorId : d.clienteId) === entidadSeleccionada.id && d.saldoPendiente > 0)
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [deudas, entidadSeleccionada, modo]);
+
+  const entidadContacto = useMemo(() => {
+    if (!entidadSeleccionada) return { mail: null as string | null, telefono: null as string | null };
+    if (modo === 'proveedores') {
+      const p = proveedores.find(x => x.id === entidadSeleccionada.id);
+      return { mail: p?.mail ?? null, telefono: p?.telefono ?? null };
+    }
+    const c = clientes.find(x => x.id === entidadSeleccionada.id);
+    return { mail: c?.mail ?? null, telefono: c?.telefono ?? null };
+  }, [entidadSeleccionada, modo, proveedores, clientes]);
+
+  const deudaMensaje = useMemo(
+    () => buildDeudaMessage(deudasPendientes.map(d => ({ saldoPendiente: d.saldoPendiente, fecha: d.fecha }))),
+    [deudasPendientes]
+  );
 
   function aplicarPeriodo(p: string) {
     const hoy = new Date();
@@ -350,21 +376,67 @@ export default function DeudaPage() {
     return found ? found.saldo : 0;
   }
 
+  async function abrirDetalleOrigen(m: { ventaId?: number; compraId?: number }) {
+    try {
+      if (m.ventaId) {
+        const detalle = await api.ventas.detalle(m.ventaId);
+        setDetalleOrigen({ tipo: 'venta', detalle });
+      } else if (m.compraId) {
+        const detalle = await api.compras.detalle(m.compraId);
+        setDetalleOrigen({ tipo: 'compra', detalle });
+      }
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al cargar el detalle');
+    }
+  }
+
+  const renderTabs = (onSwitch: (m: ModoDeuda) => void) => (
+    <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
+      <button onClick={() => onSwitch('clientes')}
+        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+        Clientes
+      </button>
+      {user?.rol !== 'UsuarioComun' && (
+        <button onClick={() => onSwitch('proveedores')}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+          Proveedores
+        </button>
+      )}
+    </div>
+  );
+
+  const handleTabSwitch = (m: ModoDeuda) => {
+    if (m === modo) return;
+    closeCuenta();
+    setModo(m);
+  };
+
   if (cuenta && entidadSeleccionada) {
     const saldo = cuenta.saldoActual;
 
     return (
       <PageShell
         title="Deudas"
-        subtitle={modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}
+        tabs={renderTabs(handleTabSwitch)}
+        backButton={
+          <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 mt-2">
+            ← Volver
+          </button>
+        }
         actions={
           <div className="flex items-center gap-3">
+            <CompartirMenu
+              mail={entidadContacto.mail}
+              telefono={entidadContacto.telefono}
+              mailSubject={`Deuda de ${entidadSeleccionada.nombre}`}
+              mensaje={deudaMensaje}
+              className="relative"
+              buttonClassName="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-white text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+              dropdownUp={false}
+            />
             <button onClick={() => { setNdEntidadId(entidadSeleccionada.id); setNdBusqueda(entidadSeleccionada.nombre); setNdMonto(''); setShowNuevaDeuda(true); }}
               className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
               + Nueva deuda
-            </button>
-            <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1">
-              ← Volver
             </button>
           </div>
         }
@@ -375,7 +447,6 @@ export default function DeudaPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-2 sm:mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">{entidadSeleccionada.nombre}</h2>
-              <p className="text-xs sm:text-sm text-gray-500">{modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider">Saldo pendiente</p>
@@ -456,7 +527,17 @@ export default function DeudaPage() {
                         <tr key={i} className={m.anulado ? 'bg-gray-50 text-gray-400 line-through' : m.tipo === 'pago' ? 'bg-emerald-50/30' : ''}>
                           <td className="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">{formatDateTime(m.fecha)}</td>
                           <td className="px-4 py-2.5 text-gray-700">
-                            {m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')}
+                            {(m.ventaId || m.compraId) ? (
+                              <button
+                                onClick={() => abrirDetalleOrigen(m)}
+                                className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium text-left"
+                                title={m.ventaId ? 'Ver venta' : 'Ver compra'}
+                              >
+                                {m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')}
+                              </button>
+                            ) : (
+                              m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')
+                            )}
                             {m.usuario && m.tipo === 'pago' && <span className="text-[10px] text-gray-400 ml-1">({m.usuario})</span>}
                             {m.anulado && <span className="ml-2 text-[10px] font-semibold text-red-500 no-underline">Anulado</span>}
                             {m.tipo === 'deuda' && m.deudaId && !m.anulado && (
@@ -576,6 +657,14 @@ export default function DeudaPage() {
               </div>
             </div>
           )}
+
+          {detalleOrigen && (
+            <DetalleVentaCompraModal
+              tipo={detalleOrigen.tipo}
+              detalle={detalleOrigen.detalle}
+              onClose={() => setDetalleOrigen(null)}
+            />
+          )}
         </div>
       </PageShell>
     );
@@ -593,20 +682,7 @@ export default function DeudaPage() {
           + Nueva deuda
         </button>
       }
-      tabs={
-        <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
-          <button onClick={() => setModo('clientes')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Clientes
-          </button>
-          {user?.rol !== 'UsuarioComun' && (
-          <button onClick={() => setModo('proveedores')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Proveedores
-          </button>
-          )}
-        </div>
-      }
+      tabs={renderTabs(setModo)}
     >
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">

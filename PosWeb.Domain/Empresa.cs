@@ -11,6 +11,12 @@ public class Empresa
 
     public string DOCUMENTO { get; private set; } = null!;
 
+    public string DIRECCION { get; private set; } = string.Empty;
+
+    public string TELEFONO { get; private set; } = string.Empty;
+
+    public bool MOSTRAR_TELEFONO_TICKET { get; private set; }
+
     public int ID_SUSCRIPCION { get; private set; }
 
     protected Empresa() { }
@@ -41,6 +47,21 @@ public class Empresa
         if (string.IsNullOrWhiteSpace(documento))
             throw new ArgumentException("El documento de la empresa es requerido");
         DOCUMENTO = documento.Trim();
+    }
+
+    public void CambiarDireccion(string direccion)
+    {
+        DIRECCION = direccion?.Trim() ?? string.Empty;
+    }
+
+    public void CambiarTelefono(string telefono)
+    {
+        TELEFONO = telefono?.Trim() ?? string.Empty;
+    }
+
+    public void CambiarMostrarTelefonoTicket(bool mostrarTelefonoTicket)
+    {
+        MOSTRAR_TELEFONO_TICKET = mostrarTelefonoTicket;
     }
 
     public void CambiarSuscripcion(int idSuscripcion)

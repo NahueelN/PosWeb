@@ -8,6 +8,7 @@ public class CompraDetalleDto
     public int SucursalId { get; set; }
     public string? SucursalNombre { get; set; }
     public string? ProveedorNombre { get; set; }
+    public string? EmpresaNombre { get; set; }
     public decimal Total { get; set; }
     public List<RenglonHistorialDto> Items { get; set; } = [];
 }

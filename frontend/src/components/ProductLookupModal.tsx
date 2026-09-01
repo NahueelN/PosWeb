@@ -1,244 +1,250 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import type { ProductoDto, ProductoDetailDto } from '../types';
-import { api } from '../api/client';
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Barcode, Box, Search, Tag } from 'lucide-react'
+import type { ProductoDto, ProductoDetailDto } from '../types'
+import { api } from '../api/client'
+import Dialog from './ui/Dialog'
 
 function formatCurrency(n: number): string {
-  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  onClose: () => void
 }
 
-export default function ProductLookupModal({ open, onClose }: Props) {
-  const [query, setQuery] = useState('');
-  const [productos, setProductos] = useState<ProductoDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [_selected, setSelected] = useState<ProductoDto | null>(null);
-  const [highlightIdx, setHighlightIdx] = useState(-1);
-  const hlRef = useRef(-1);
-  const gridRef = useRef(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [detailProd, setDetailProd] = useState<ProductoDetailDto | null>(null);
-  const aceptarRef = useRef<HTMLButtonElement>(null);
+export default function ProductLookupModal({ onClose }: Props) {
+  const [query, setQuery] = useState('')
+  const [productos, setProductos] = useState<ProductoDto[]>([])
+  const [loading, setLoading] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(-1)
+  const [detailProd, setDetailProd] = useState<ProductoDetailDto | null>(null)
+  const [listActive, setListActive] = useState(false)
+  const hlRef = useRef(-1)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const showDetail = async (prod: ProductoDto) => {
     try {
-      const detail = await api.productos.detalle(prod.id);
-      setDetailProd(detail);
+      setDetailProd(await api.productos.detalle(prod.id))
     } catch {
       setDetailProd({
         id: prod.id, codigoBarra: prod.codigoBarra, codProducto: prod.codigoBarra,
         nombre: prod.nombre, precio: prod.precio, costo: prod.costo, stock: prod.stock,
-        tamano: prod.tamano, activo: prod.activo,
-        fechaAlta: '', fechaUltimaMod: '',
-      });
+        tamano: prod.tamano, activo: prod.activo, fechaAlta: '', fechaUltimaMod: '',
+      })
     }
-  };
+  }
 
   useEffect(() => {
-    if (detailProd) setTimeout(() => aceptarRef.current?.focus(), 100);
-  }, [detailProd]);
+    const timeout = setTimeout(() => inputRef.current?.focus(), 100)
+    return () => clearTimeout(timeout)
+  }, [])
 
   useEffect(() => {
-    if (open) {
-      setQuery('');
-      setProductos([]);
-      setSelected(null);
-      setHighlightIdx(-1);
-      hlRef.current = -1;
-      gridRef.current = false;
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (!query.trim()) {
+      return
     }
-  }, [open]);
 
-  useEffect(() => {
-    if (!query.trim()) { setProductos([]); return; }
     const timer = setTimeout(async () => {
-      setLoading(true);
+      setLoading(true)
       try {
-        // Try barcode first
-        const byBarra = await api.productos.obtenerPorBarra(query.trim()).catch(() => null);
+        const byBarra = await api.productos.obtenerPorBarra(query.trim()).catch(() => null)
         if (byBarra) {
-          setProductos([byBarra]);
-          showDetail(byBarra);
+          setProductos([byBarra])
+          showDetail(byBarra)
         } else {
-          const results = await api.productos.buscar(query.trim());
-          setProductos(results);
+          setProductos(await api.productos.buscar(query.trim()))
         }
       } catch {
-        setProductos([]);
+        setProductos([])
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+    }, 250)
 
-  const resultados = useMemo(() => productos, [productos]);
+    return () => clearTimeout(timer)
+  }, [query])
 
-  if (!open) return null;
+  const resultados = productos
+  const margen = detailProd && detailProd.costo > 0
+    ? ((detailProd.precio - detailProd.costo) / detailProd.costo * 100).toFixed(0) + '%'
+    : '—'
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-[15vh] p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-        <div className="flex justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Buscar producto</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-        </div>
-
-        <div className="relative mb-3">
-          <input ref={inputRef} type="text" value={query}
-            onChange={e => { setQuery(e.target.value); hlRef.current = -1; setHighlightIdx(-1); gridRef.current = false; setDetailProd(null); }}
-            onKeyDown={e => {
-              const gf = gridRef.current;
-              const idx = hlRef.current;
-              const total = resultados.length;
-              const cols = 2;
-              if (gf) {
-                if (e.key === 'ArrowDown') { e.preventDefault(); const next = Math.min(idx + cols, total - 1); hlRef.current = next; setHighlightIdx(next); return; }
-                if (e.key === 'ArrowUp') { e.preventDefault(); if (idx < cols) { hlRef.current = -1; setHighlightIdx(-1); gridRef.current = false; inputRef.current?.focus(); } else { const prev = idx - cols; hlRef.current = prev; setHighlightIdx(prev); } return; }
-                if (e.key === 'ArrowRight') { e.preventDefault(); const next = idx + 1; if (next < total && Math.floor(next / cols) === Math.floor(idx / cols)) { hlRef.current = next; setHighlightIdx(next); } return; }
-                if (e.key === 'ArrowLeft') { e.preventDefault(); const prev = idx - 1; if (prev >= 0 && Math.floor(prev / cols) === Math.floor(idx / cols)) { hlRef.current = prev; setHighlightIdx(prev); } return; }
-                if (e.key === 'Enter' && idx >= 0) { e.preventDefault(); showDetail(resultados[idx]); return; }
-                if (e.key === 'Escape') { hlRef.current = -1; setHighlightIdx(-1); gridRef.current = false; inputRef.current?.focus(); return; }
-                return;
-              }
-              if (e.key === 'ArrowDown') { e.preventDefault(); if (total > 0) { hlRef.current = 0; setHighlightIdx(0); gridRef.current = true; } return; }
-              if (e.key === 'Enter' && total === 1) { e.preventDefault(); showDetail(resultados[0]); return; }
-              if (e.key === 'Enter' && total > 1) { e.preventDefault(); hlRef.current = 0; setHighlightIdx(0); gridRef.current = true; return; }
+    <Dialog
+      open
+      onClose={onClose}
+      title="Búsqueda rápida"
+      icon={Search}
+      description="Consultá precio, stock y rentabilidad sin salir de la venta."
+      width="xl"
+      closeOnBackdrop={false}
+      footer={
+        <span className="text-xs text-gray-500">
+          <kbd className="rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-600">↑ ↓</kbd> navegar · <kbd className="rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-600">Enter</kbd> consultar · <kbd className="rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-600">Esc</kbd> cerrar
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        <div className="relative">
+          <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={event => {
+              const nextQuery = event.target.value
+              setQuery(nextQuery)
+              if (!nextQuery.trim()) setProductos([])
+              setDetailProd(null)
+              setHighlightIdx(-1)
+              hlRef.current = -1
+              setListActive(false)
             }}
-            placeholder="Nombre o código de barras..."
-            className="w-full pl-3 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors" />
-          {query && (
-            <button onClick={() => { setQuery(''); setProductos([]); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
-          )}
+            onKeyDown={event => {
+              const index = hlRef.current
+              if (listActive) {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault()
+                  const next = Math.min(index + 1, resultados.length - 1)
+                  hlRef.current = next
+                  setHighlightIdx(next)
+                  return
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  const previous = Math.max(index - 1, 0)
+                  hlRef.current = previous
+                  setHighlightIdx(previous)
+                  return
+                }
+                if (event.key === 'Enter' && index >= 0) {
+                  event.preventDefault()
+                  showDetail(resultados[index])
+                }
+                return
+              }
+              if (event.key === 'ArrowDown' && resultados.length > 0) {
+                event.preventDefault()
+                hlRef.current = 0
+                setHighlightIdx(0)
+                setListActive(true)
+              }
+              if (event.key === 'Enter' && resultados.length === 1) {
+                event.preventDefault()
+                showDetail(resultados[0])
+              }
+            }}
+            placeholder="Nombre, código interno o código de barras..."
+            className="h-11 w-full rounded-lg border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-gray-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-ring)]"
+          />
         </div>
 
-        {loading && (
-          <div className="flex items-center justify-center py-8 gap-2">
-            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-500">Buscando...</span>
-          </div>
-        )}
+        <div className="grid gap-4 sm:grid-cols-[0.85fr_1.15fr]">
+          <section className="flex h-[300px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 bg-gray-50 px-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-600">Resultados</span>
+              {productos.length > 0 && <span className="text-xs text-gray-400">{productos.length} resultados</span>}
+            </div>
 
-        {/* Detail card — all product data */}
-        {detailProd && (
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-3 shadow-sm">
-            {/* Header: name + code */}
-            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-start">
-                <div className="min-w-0">
-                  <h4 className="text-lg font-bold text-gray-900 truncate">{detailProd.nombre}</h4>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-500 font-mono">{detailProd.codigoBarra}</span>
-                    {detailProd.codProducto !== detailProd.codigoBarra && (
-                      <span className="text-xs text-gray-400 font-mono">Cód: {detailProd.codProducto}</span>
-                    )}
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${detailProd.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {detailProd.activo ? 'Activo' : 'Inactivo'}
+            {loading && <EmptyState icon={<span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />} text="Buscando productos..." />}
+            {!loading && !query && <EmptyState icon={<Barcode size={32} strokeWidth={1.5} />} text="Listo para buscar" detail="Escribí un nombre o escaneá un código." />}
+            {!loading && query && resultados.length === 0 && <EmptyState icon={<Box size={32} strokeWidth={1.5} />} text="No encontramos productos" detail="Probá con otro nombre o código." />}
+
+            {!loading && resultados.length > 0 && (
+              <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
+                {resultados.map((producto, index) => (
+                  <button
+                    key={producto.id}
+                    onClick={() => showDetail(producto)}
+                    className={`flex h-8 w-full items-center justify-between gap-4 px-3 text-left transition-colors ${
+                      index === highlightIdx && listActive
+                        ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                        : detailProd?.id === producto.id
+                          ? 'bg-gray-50 text-gray-900'
+                          : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="truncate text-sm font-medium">{producto.nombre}</span>
+                    <span className="shrink-0 text-sm font-bold text-[var(--color-primary)]">{formatCurrency(producto.precio)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="min-h-[300px]">
+            {!detailProd ? (
+              <div className="flex h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 text-center">
+                <Tag size={34} strokeWidth={1.5} className="mb-3 text-gray-300" />
+                <p className="text-sm font-semibold text-gray-600">Seleccioná un producto</p>
+                <p className="mt-1 max-w-xs text-xs leading-5 text-gray-400">Su información comercial y de inventario aparecerá acá.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="border-b border-gray-200 pb-3">
+                  <div className="flex items-center gap-2">
+                    <h4 className="truncate text-lg font-bold text-gray-900">{detailProd.nombre}</h4>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${detailProd.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                      {detailProd.activo ? 'ACTIVO' : 'INACTIVO'}
                     </span>
                   </div>
+                  <p className="mt-1 font-mono text-xs text-gray-500">{detailProd.codigoBarra || 'Sin código de barras'}{detailProd.codProducto && detailProd.codProducto !== detailProd.codigoBarra ? ` · Cód. ${detailProd.codProducto}` : ''}</p>
                 </div>
-                <button onClick={() => setDetailProd(null)} className="text-gray-400 hover:text-gray-600 ml-2 shrink-0">✕</button>
-              </div>
-            </div>
 
-            {/* Prices — hero: just the price */}
-            <div className="px-5 py-4 border-b border-gray-100">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Precio</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(detailProd.precio)}</p>
-            </div>
-
-            {/* Stock */}
-            <div className={`px-5 py-4 border-b ${detailProd.stock <= 5 ? 'bg-red-50 border-red-100' : 'border-gray-100'}`}>
-              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Stock</p>
-                  <p className={`text-2xl font-bold ${detailProd.stock <= 5 ? 'text-red-600' : 'text-gray-900'}`}>
-                    {detailProd.stock} unid.
-                  </p>
+                  <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-700">Información</h5>
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-2 text-xs">
+                    <Info label="Categoría" value={detailProd.categoria} />
+                    <Info label="Unidad" value={detailProd.unidadMedida} />
+                    <Info label="Tamaño" value={detailProd.tamano} />
+                    <Info label="Contenido" value={detailProd.contenido != null ? String(detailProd.contenido) : undefined} />
+                    <Info label="Alta" value={detailProd.fechaAlta ? new Date(detailProd.fechaAlta).toLocaleDateString('es-AR') : undefined} />
+                    <Info label="Actualizado" value={detailProd.fechaUltimaMod ? new Date(detailProd.fechaUltimaMod).toLocaleDateString('es-AR') : undefined} />
+                  </div>
                 </div>
-                {detailProd.stock <= 5 && (
-                  <span className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium">Stock bajo</span>
-                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-[var(--color-primary-light)] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Precio de venta</p>
+                    <p className="mt-1 text-2xl font-bold text-[var(--color-primary)]">{formatCurrency(detailProd.precio)}</p>
+                  </div>
+                  <div className={`rounded-xl px-4 py-3 ${detailProd.stock <= 5 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Stock</p>
+                    <p className={`mt-1 text-2xl font-bold ${detailProd.stock <= 5 ? 'text-red-600' : 'text-emerald-700'}`}>{detailProd.stock} un.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 border-t border-gray-200 pt-3 text-xs">
+                  <Info label="Costo" value={formatCurrency(detailProd.costo)} />
+                  <Info label="Margen" value={margen} />
+                  <Info label="Ganancia" value={formatCurrency(detailProd.precio - detailProd.costo)} />
+                </div>
+
+                {detailProd.descAdicional && <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600"><span className="font-semibold text-gray-500">Detalle: </span>{detailProd.descAdicional}</p>}
               </div>
-            </div>
-
-            {/* Details */}
-            <div className="px-5 py-4">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Detalles</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Costo</span><span className="font-medium text-gray-700">{formatCurrency(detailProd.costo)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Margen</span><span className="font-medium text-green-600">{detailProd.costo > 0 ? `${((detailProd.precio - detailProd.costo) / detailProd.costo * 100).toFixed(0)}%` : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Ganancia</span><span className="font-medium text-green-600">{formatCurrency(detailProd.precio - detailProd.costo)}</span></div>
-                {detailProd.categoria && (
-                  <div className="flex justify-between"><span className="text-gray-500">Categoría</span><span className="font-medium text-gray-700">{detailProd.categoria}</span></div>
-                )}
-                {detailProd.unidadMedida && (
-                  <div className="flex justify-between"><span className="text-gray-500">Unidad</span><span className="font-medium text-gray-700">{detailProd.unidadMedida}</span></div>
-                )}
-                {detailProd.tamano && (
-                  <div className="flex justify-between"><span className="text-gray-500">Tamaño</span><span className="font-medium text-gray-700">{detailProd.tamano}</span></div>
-                )}
-                {detailProd.contenido != null && (
-                  <div className="flex justify-between"><span className="text-gray-500">Contenido</span><span className="font-medium text-gray-700">{detailProd.contenido}</span></div>
-                )}
-                <div className="flex justify-between"><span className="text-gray-500">Alta</span><span className="text-gray-700">{detailProd.fechaAlta ? new Date(detailProd.fechaAlta).toLocaleDateString('es-AR') : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Última mod.</span><span className="text-gray-700">{detailProd.fechaUltimaMod ? new Date(detailProd.fechaUltimaMod).toLocaleDateString('es-AR') : '—'}</span></div>
-                {detailProd.fechaBaja && (
-                  <div className="flex justify-between col-span-2"><span className="text-red-500">Fecha baja</span><span className="text-red-600">{new Date(detailProd.fechaBaja).toLocaleDateString('es-AR')}</span></div>
-                )}
-              </div>
-              {detailProd.descAdicional && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 mb-1">Descripción adicional</p>
-                  <p className="text-sm text-gray-600">{detailProd.descAdicional}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Aceptar button */}
-            <div className="px-5 py-3 bg-gray-50 border-t border-gray-200">
-              <button ref={aceptarRef} onClick={() => { setDetailProd(null); setQuery(''); setProductos([]); setTimeout(() => inputRef.current?.focus(), 50); }}
-                className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm">
-                Aceptar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Results */}
-        {!loading && resultados.length > 0 && !detailProd && (
-          <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-            {resultados.map((p, i) => (
-              <button key={p.id} onClick={() => showDetail(p)}
-                className={`text-left border rounded-xl p-3 transition-all ${
-                  i === highlightIdx && gridRef.current
-                    ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
-                    : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                }`}>
-                <p className="font-medium text-sm truncate">{p.nombre}</p>
-                <p className="text-xs text-gray-400 font-mono mt-0.5">{p.codigoBarra}</p>
-                <div className="flex justify-between mt-1.5">
-                  <span className="text-sm font-semibold text-indigo-700">{formatCurrency(p.precio)}</span>
-                  <span className="text-xs text-gray-400">Stock: {p.stock}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {!loading && query && resultados.length === 0 && (
-          <p className="text-center text-sm text-gray-400 py-8">Sin resultados</p>
-        )}
-
-        {!query && !loading && (
-          <p className="text-center text-sm text-gray-400 py-8">Escribí para buscar por nombre o código de barras</p>
-        )}
+            )}
+          </section>
+        </div>
       </div>
+    </Dialog>
+  )
+}
+
+function EmptyState({ icon, text, detail }: { icon: ReactNode; text: string; detail?: string }) {
+  return (
+    <div className="flex h-[260px] flex-col items-center justify-center text-center text-gray-400">
+      <span className="mb-3">{icon}</span>
+      <p className="text-sm font-medium text-gray-500">{text}</p>
+      {detail && <p className="mt-1 text-xs">{detail}</p>}
     </div>
-  );
+  )
+}
+
+function Info({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex min-w-0 justify-between gap-2">
+      <span className="text-slate-400">{label}</span>
+      <span className="truncate text-right font-medium text-slate-700">{value || '—'}</span>
+    </div>
+  )
 }

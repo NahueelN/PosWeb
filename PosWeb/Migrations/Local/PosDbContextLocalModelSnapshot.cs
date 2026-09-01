@@ -395,15 +395,31 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("DOCUMENTO");
 
+                    b.Property<string>("DIRECCION")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DIRECCION");
+
                     b.Property<int>("ID_SUSCRIPCION")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUSCRIPCION");
+
+                    b.Property<bool>("MOSTRAR_TELEFONO_TICKET")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MOSTRAR_TELEFONO_TICKET");
 
                     b.Property<string>("NOMBRE")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("NOMBRE");
+
+                    b.Property<string>("TELEFONO")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TELEFONO");
 
                     b.HasKey("ID_EMPRESA");
 
@@ -714,6 +730,10 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ACTIVO");
 
+                    b.Property<decimal?>("CANTIDAD_IDEAL")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("CANTIDAD_IDEAL");
+
                     b.Property<string>("CODIGO_BARRAS")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -957,6 +977,11 @@ namespace PosWeb.Migrations.Local
                     b.Property<decimal>("CANTIDAD")
                         .HasColumnType("decimal(18,3)")
                         .HasColumnName("CANTIDAD");
+
+                    b.Property<string>("DESCRIPCION_MANUAL")
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DESCRIPCION_MANUAL");
 
                     b.Property<int?>("ID_COMBO")
                         .HasColumnType("INTEGER")
@@ -1345,6 +1370,37 @@ namespace PosWeb.Migrations.Local
                     b.ToTable("VENTA", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
+                {
+                    b.Property<int>("ID_USUARIO_PREFERENCIA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO_PREFERENCIA");
+
+                    b.Property<string>("CLAVE")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("CLAVE");
+
+                    b.Property<int>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<string>("VALOR")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("VALOR");
+
+                    b.HasKey("ID_USUARIO_PREFERENCIA");
+
+                    b.HasIndex("ID_USUARIO", "CLAVE")
+                        .IsUnique();
+
+                    b.ToTable("USUARIO_PREFERENCIA", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Caja", b =>
                 {
                     b.HasOne("PosWeb.Domain.Sucursal", null)
@@ -1655,6 +1711,15 @@ namespace PosWeb.Migrations.Local
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Combo", b =>

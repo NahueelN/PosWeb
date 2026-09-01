@@ -25,6 +25,12 @@ public class VentaResultadoDto
 
     public string? EmpresaNombre { get; set; }
 
+    public string? EmpresaDireccion { get; set; }
+
+    public string? EmpresaTelefono { get; set; }
+
+    public bool MostrarTelefonoTicket { get; set; }
+
     public string Estado { get; set; } = "Completada";
 
     public string? QrData { get; set; }

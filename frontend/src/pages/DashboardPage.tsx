@@ -157,7 +157,7 @@ export default function DashboardPage() {
   // On reduced columns (small window) the 12-col layout overflows.
   // Reflow it into a clean top-down arrangement that grows rows.
   const fitted = useMemo(
-    () => (gridCols < GRID_COLS ? GridEngine.fitLayout(layout, gridCols, GRID_ROWS) : null),
+    () => (gridCols < GRID_COLS ? GridEngine.fitLayout(layout, gridCols, 6) : null),
     [layout, gridCols],
   )
   const renderLayout = fitted ? fitted.instances : positionedLayout
@@ -261,9 +261,11 @@ export default function DashboardPage() {
         notifyError('El nuevo tamaño no cabe en el dashboard')
         return prev
       }
-      return prev.map((i) =>
+      const next = prev.map((i) =>
         i.id === instanceId ? { ...i, w: size.w, h: size.h, config } : i,
       )
+      cargar(next.map((i) => ({ ...i, x: i.x!, y: i.y! })))
+      return next
     })
   }
 
@@ -307,7 +309,7 @@ export default function DashboardPage() {
           </div>
         }
       >
-        <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-100">
           <DashboardGridRGL
             key={layoutGeneration}
             layout={renderLayout}

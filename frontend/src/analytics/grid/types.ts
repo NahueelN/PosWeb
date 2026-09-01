@@ -31,8 +31,8 @@ export const STANDARD_SIZES: Record<string, GridSize> = {
 // ── Dashboard Grid Constants ────────────────────────────────────
 
 export const GRID_COLS = 12
-export const GRID_ROWS = 6
-export const ROW_HEIGHT_PX = 80
+export const GRID_ROWS = 18
+export const ROW_HEIGHT_PX = 120
 
 // ── Layout Instance (persisted) ────────────────────────────────
 // x/y are optional placement hints. When set, engine places widget there.

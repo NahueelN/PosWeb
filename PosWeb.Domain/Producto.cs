@@ -30,6 +30,8 @@ public class Producto
 
     public decimal? MARGEN_GANANCIA { get; private set; }
 
+    public decimal? CANTIDAD_IDEAL { get; private set; }
+
     public bool SEGUIR_STOCK { get; private set; } = true;
 
     public bool ES_PESABLE { get; private set; }
@@ -201,6 +203,12 @@ public class Producto
     public void CambiarMargen(decimal? margen)
     {
         MARGEN_GANANCIA = margen;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarCantidadIdeal(decimal? cantidadIdeal)
+    {
+        CANTIDAD_IDEAL = cantidadIdeal;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 

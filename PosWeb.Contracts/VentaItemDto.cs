@@ -6,4 +6,6 @@ public class VentaItemDto
     public decimal Cantidad { get; set; }
     public int? ComboId { get; set; }
     public int? OfertaId { get; set; }
+    public string? DescripcionManual { get; set; }
+    public decimal PrecioManual { get; set; }
 }

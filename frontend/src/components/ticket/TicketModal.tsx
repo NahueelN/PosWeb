@@ -1,0 +1,188 @@
+import { useRef, useState } from 'react'
+import { Printer, X } from 'lucide-react'
+import { buildTicketLines, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
+
+interface TicketModalProps {
+  data: TicketData
+  onClose: () => void
+}
+
+type Letra = 'chica' | 'mediana' | 'grande'
+
+const LETRAS: { id: Letra; label: string }[] = [
+  { id: 'chica', label: 'Chica' },
+  { id: 'mediana', label: 'Mediana' },
+  { id: 'grande', label: 'Grande' },
+]
+
+const LETRA_PX: Record<Letra, Record<TicketWidth, { base: number; lg: number; md: number; sm: number }>> = {
+  chica: {
+    58: { base: 11, lg: 14, md: 12, sm: 10 },
+    80: { base: 12, lg: 16, md: 14, sm: 10 },
+  },
+  mediana: {
+    58: { base: 13, lg: 17, md: 14, sm: 12 },
+    80: { base: 14, lg: 19, md: 17, sm: 12 },
+  },
+  grande: {
+    58: { base: 15, lg: 20, md: 17, sm: 14 },
+    80: { base: 17, lg: 22, md: 20, sm: 14 },
+  },
+}
+
+const TXT: Record<number, string> = {
+  10: 'text-[10px]',
+  11: 'text-[11px]',
+  12: 'text-[12px]',
+  13: 'text-[13px]',
+  14: 'text-[14px]',
+  15: 'text-[15px]',
+  16: 'text-[16px]',
+  17: 'text-[17px]',
+  19: 'text-[19px]',
+  20: 'text-[20px]',
+  22: 'text-[22px]',
+}
+
+export default function TicketModal({ data, onClose }: TicketModalProps) {
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const [ancho, setAncho] = useState<TicketWidth>(80)
+  const [letra, setLetra] = useState<Letra>(() => {
+    const saved = localStorage.getItem('posweb-ticket-letra')
+    return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
+  })
+
+  const lines = buildTicketLines(data, ancho)
+
+  const sizeClsFor = (l: TicketLine) => {
+    const px = LETRA_PX[letra][ancho]
+    return l.size === 'lg' ? TXT[px.lg] : l.size === 'md' ? TXT[px.md] : l.size === 'sm' ? TXT[px.sm] : TXT[px.base]
+  }
+
+  const handlePrint = async () => {
+    if ('__TAURI_INTERNALS__' in window) {
+      localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, letra, lines }))
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+      new WebviewWindow(`ticket-print-${Date.now()}`, {
+        url: 'ticket-print.html',
+        title: 'Imprimir ticket',
+        width: 1200,
+        height: 700,
+        resizable: false,
+        center: true,
+      })
+      return
+    }
+
+    const ticketWindow = window.open('', 'posweb-ticket', `width=${ancho === 58 ? 360 : 460},height=700`)
+    const ticketHtml = receiptRef.current?.outerHTML
+
+    if (ticketWindow && ticketHtml) {
+      const pxCss = Array.from({ length: 13 }, (_, i) => `.text-[${i + 10}px]{font-size:${i + 10}px}`).join('')
+      ticketWindow.document.write(`<!doctype html>
+<html><head><title>Ticket</title><style>
+@page { size: ${ancho}mm auto; margin: 0; }
+html, body { margin: 0; padding: 0; width: ${ancho}mm; }
+.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.receipt div { font-weight: 900; }
+.text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
+${pxCss}
+</style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+      ticketWindow.document.close()
+      return
+    }
+
+    const styleId = 'ticket-print-size'
+    const old = document.getElementById(styleId)
+    if (old) old.remove()
+    const style = document.createElement('style')
+    style.id = styleId
+    style.textContent = `:root { --ticket-width: ${ancho}mm; } @page { size: ${ancho}mm auto; margin: 0; }`
+    document.head.appendChild(style)
+    window.print()
+    setTimeout(() => document.getElementById(styleId)?.remove(), 200)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800">Ticket</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div ref={receiptRef} className="receipt bg-white mx-auto font-mono leading-[1.45] text-gray-900"
+          style={{ fontFamily: "'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
+          {lines.map((l, i) => {
+            const sizeCls = sizeClsFor(l)
+            return (
+              <div
+                key={i}
+                className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
+                style={l.center ? { textAlign: 'center' } : undefined}
+              >
+                {l.text}
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="flex justify-center gap-3 mt-4 flex-wrap items-center">
+          <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
+            <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
+            <button
+              onClick={() => {
+                setAncho(58)
+                if (letra === 'grande') {
+                  setLetra('chica')
+                  localStorage.setItem('posweb-ticket-letra', 'chica')
+                }
+              }}
+              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              58 mm
+            </button>
+            <button
+              onClick={() => setAncho(80)}
+              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 80 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              80 mm
+            </button>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
+            <span className="text-[11px] text-gray-400 font-medium px-2">Letra</span>
+            {LETRAS.map(l => {
+              const disabled = ancho === 58 && l.id === 'grande'
+              return (
+                <button
+                  key={l.id}
+                  disabled={disabled}
+                  onClick={() => {
+                    setLetra(l.id)
+                    localStorage.setItem('posweb-ticket-letra', l.id)
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${
+                    disabled
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : letra === l.id
+                        ? 'bg-[oklch(0.52_0.255_278)] text-white'
+                        : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {l.label}
+                </button>
+              )
+            })}
+          </div>
+          <button onClick={handlePrint}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors">
+            <Printer size={14} />
+            Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

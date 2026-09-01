@@ -51,6 +51,8 @@ export interface CartItemRowProps {
   removeButton?: ReactNode
   /** Called when clicking the item name area */
   onClickName?: () => void
+  /** Called when clicking the importe/subtotal area (price next to quantity) */
+  onClickImporte?: () => void
 }
 
 // ── Component ──────────────────────────────────────────────────────
@@ -74,6 +76,7 @@ export default function CartItemRow({
   badge,
   details,
   onClickName,
+  onClickImporte,
   onRemove,
   removeButton,
 }: CartItemRowProps) {
@@ -113,7 +116,11 @@ export default function CartItemRow({
         </div>
 
         {/* Importe — fixed column, right-aligned */}
-        <div className="shrink-0 w-[110px] flex items-center justify-end tabular-nums">
+        <div
+          className={`shrink-0 w-[110px] flex items-center justify-end tabular-nums${onClickImporte ? ' cursor-pointer' : ''}`}
+          onClick={onClickImporte}
+          title={onClickImporte ? 'Editar precio' : undefined}
+        >
           <span className="text-[14px] font-bold text-gray-900 leading-none">{subtotal}</span>
         </div>
 

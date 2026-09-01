@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Printer } from 'lucide-react'
 import Button from '../../components/ui/Button'
+import { api } from '../../api/client'
 import type { VentaResultadoDto, UsuarioInfo } from '../../types'
 import { buildTicketLines, type TicketLine, type TicketWidth } from '../../lib/ticket'
 import './TicketResultado.css'
@@ -58,14 +59,55 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
-  const [ancho, setAncho] = useState<TicketWidth>(80)
+  const [ancho, setAncho] = useState<TicketWidth>(() => {
+    const saved = localStorage.getItem('posweb-ticket-ancho')
+    return saved === '58' ? 58 : 80
+  })
   const [letra, setLetra] = useState<Letra>(() => {
     const saved = localStorage.getItem('posweb-ticket-letra')
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
+  const [empresaDireccion, setEmpresaDireccion] = useState(resultado.empresaDireccion)
+  const [empresaTelefono, setEmpresaTelefono] = useState(resultado.empresaTelefono)
+  const [mostrarTelefonoTicket, setMostrarTelefonoTicket] = useState(resultado.mostrarTelefonoTicket ?? false)
+
+  const persistirTicket = (nuevoAncho: TicketWidth, nuevaLetra: Letra) => {
+    localStorage.setItem('posweb-ticket-ancho', String(nuevoAncho))
+    localStorage.setItem('posweb-ticket-letra', nuevaLetra)
+    api.preferencias.guardar({ ticket: { ancho: String(nuevoAncho), letra: nuevaLetra } }).catch(() => {})
+  }
+
+  useEffect(() => {
+    let mounted = true
+    api.preferencias.obtener()
+      .then(res => {
+        if (!mounted) return
+        const t = res.preferencias?.ticket
+        if (!t) return
+        if (t.ancho === '58' || t.ancho === '80') setAncho(Number(t.ancho) as TicketWidth)
+        if (t.letra === 'chica' || t.letra === 'mediana' || t.letra === 'grande') setLetra(t.letra as Letra)
+        localStorage.setItem('posweb-ticket-ancho', String(t.ancho))
+        localStorage.setItem('posweb-ticket-letra', t.letra)
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    api.empresas.obtener()
+      .then(empresa => {
+        setEmpresaDireccion(empresa.direccion)
+        setEmpresaTelefono(empresa.telefono)
+        setMostrarTelefonoTicket(empresa.mostrarTelefonoTicket)
+      })
+      .catch(() => {})
+  }, [])
 
   const lines = buildTicketLines({
     empresaNombre: resultado.empresaNombre,
+    empresaDireccion,
+    empresaTelefono,
+    mostrarTelefonoTicket,
     ventaId: resultado.ventaId,
     fecha: resultado.fecha,
     vendedor: user?.nombre,
@@ -128,27 +170,29 @@ ${pxCss}
     <div className="max-w-3xl mx-auto mt-8 px-4">
       <div className="no-print text-center mb-6">
         <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">
-          VENTA REGISTRADA
+          <span className="inline-flex items-center gap-2">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            VENTA REGISTRADA
+          </span>
         </div>
       </div>
 
-      <div className="no-print flex justify-center gap-3 mt-6 flex-wrap items-center">
+      <div className="no-print flex justify-center gap-3 mt-6 items-center">
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
           <button
             onClick={() => {
+              const nuevaLetra = letra === 'grande' ? 'mediana' : letra
               setAncho(58)
-              if (letra === 'grande') {
-                setLetra('chica')
-                localStorage.setItem('posweb-ticket-letra', 'chica')
-              }
+              setLetra(nuevaLetra)
+              persistirTicket(58, nuevaLetra)
             }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             58 mm
           </button>
           <button
-            onClick={() => setAncho(80)}
+            onClick={() => { setAncho(80); persistirTicket(80, letra) }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 80 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             80 mm
@@ -156,28 +200,19 @@ ${pxCss}
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Letra</span>
-          {LETRAS.map(l => {
-            const disabled = ancho === 58 && l.id === 'grande'
-            return (
-              <button
-                key={l.id}
-                disabled={disabled}
-                onClick={() => {
-                  setLetra(l.id)
-                  localStorage.setItem('posweb-ticket-letra', l.id)
-                }}
-                className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${
-                  disabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : letra === l.id
-                      ? 'bg-[oklch(0.52_0.255_278)] text-white'
-                      : 'text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                {l.label}
-              </button>
-            )
-          })}
+          {LETRAS.map(l => (
+            <button
+              key={l.id}
+              disabled={ancho === 58 && l.id === 'grande'}
+              onClick={() => {
+                setLetra(l.id)
+                persistirTicket(ancho, l.id)
+              }}
+              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${letra === l.id ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              {l.label}
+            </button>
+          ))}
         </div>
         <Button
           ref={imprimirBtnRef}

@@ -82,7 +82,9 @@ export default function App() {
       .then(() => {
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
-        runUpdateCheck(getCurrentVersion())
+        if (!import.meta.env.DEV) {
+          runUpdateCheck(getCurrentVersion())
+        }
       })
       .catch(e => {
         console.error('[Startup] Backend connection failed:', e.message)

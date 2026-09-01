@@ -1,5 +1,5 @@
 import { type RefObject } from 'react'
-import { Search, X, PackageSearch, Sparkles } from 'lucide-react'
+import { Search, X, PackagePlus, PackageSearch, Sparkles } from 'lucide-react'
 import { ProductRow, ProductGridRows, ProductGridHeader, PRODUCT_ROW_GRID_NO_ACTION } from '../../components/shared'
 import KeyboardHints from '../../components/shared/KeyboardHints'
 import { normalizarCodigoBarra } from '../../lib/codigoBarra'
@@ -16,6 +16,7 @@ interface VentaProductGridProps {
   onAgregarProducto: (p: ProductoDto) => void
   onAgregarPorCodigo?: (p: ProductoDto) => void
   onAgregarCombo: (c: ComboDto) => void
+  onAgregarProductoRapido: () => void
   combos: ComboDto[]
   medioRefs: RefObject<(HTMLButtonElement | null)[]>
   onTabFromSearch?: () => void
@@ -28,16 +29,17 @@ interface VentaProductGridProps {
 export default function VentaProductGrid({
   productosLoading, searchQuery, onSearchChange, searchInputRef,
   filteredProductos, filteredCombos, ofertasMap,
-  onAgregarProducto, onAgregarPorCodigo, onAgregarCombo, combos, medioRefs, onTabFromSearch, consumeScanEnter, cartItemsLength,
+  onAgregarProducto, onAgregarPorCodigo, onAgregarCombo, onAgregarProductoRapido, combos, medioRefs, onTabFromSearch, consumeScanEnter, cartItemsLength,
   confirmBtnRef, pagoExacto,
 }: VentaProductGridProps) {
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
         <div className="p-4 pb-0 shrink-0">
-          <div className="relative">
-            <Search size={20} strokeWidth={2} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input ref={searchInputRef} id="search-producto"
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={20} strokeWidth={2} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input ref={searchInputRef} id="search-producto"
               autoComplete="off"
               className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-10 text-[13.5px] text-gray-900 placeholder:text-gray-400 shadow-[0_1px_3px_0_rgba(0,0,0,0.06)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[oklch(0.52_0.255_278_/_0.30)] focus:border-[oklch(0.52_0.255_278_/_0.60)]"
               placeholder="Buscá producto por código de barra o nombre…" value={searchQuery}
@@ -69,12 +71,17 @@ export default function VentaProductGrid({
                 setTimeout(() => { document.querySelector<HTMLElement>('[data-product-row]')?.focus() }, 0)
               }}
               autoFocus />
-            {searchQuery && (
-              <button type="button" onClick={() => { onSearchChange(''); searchInputRef.current?.focus() }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={14} strokeWidth={2} />
-              </button>
-            )}
+              {searchQuery && (
+                <button type="button" onClick={() => { onSearchChange(''); searchInputRef.current?.focus() }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
+            </div>
+            <button type="button" onClick={onAgregarProductoRapido} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+              <PackagePlus size={16} />
+              Manual
+            </button>
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-4">

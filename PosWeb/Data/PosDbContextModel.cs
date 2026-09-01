@@ -63,6 +63,10 @@ public partial class PosDbContext
             entity.Property(p => p.SEGUIR_STOCK)
                 .HasColumnName("SEGUIR_STOCK");
 
+            entity.Property(p => p.CANTIDAD_IDEAL)
+                .HasColumnName("CANTIDAD_IDEAL")
+                .HasColumnType("decimal(18,2)");
+
             entity.Property(p => p.ES_PESABLE)
                 .HasColumnName("ES_PESABLE");
 
@@ -326,6 +330,10 @@ public partial class PosDbContext
 
             entity.Property(r => r.ID_COMBO)
                 .HasColumnName("ID_COMBO");
+
+            entity.Property(r => r.DESCRIPCION_MANUAL)
+                .HasColumnName("DESCRIPCION_MANUAL")
+                .HasMaxLength(250);
 
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
@@ -826,6 +834,20 @@ public partial class PosDbContext
                 .HasMaxLength(20)
                 .IsRequired();
 
+            entity.Property(e => e.DIRECCION)
+                .HasColumnName("DIRECCION")
+                .HasMaxLength(250)
+                .IsRequired();
+
+            entity.Property(e => e.TELEFONO)
+                .HasColumnName("TELEFONO")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.MOSTRAR_TELEFONO_TICKET)
+                .HasColumnName("MOSTRAR_TELEFONO_TICKET")
+                .IsRequired();
+
             entity.Property(e => e.ID_SUSCRIPCION)
                 .HasColumnName("ID_SUSCRIPCION");
 
@@ -1198,6 +1220,38 @@ public partial class PosDbContext
             entity.HasOne<Producto>()
                 .WithMany()
                 .HasForeignKey(r => r.ID_PRODUCTO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---- USUARIO PREFERENCIA ----
+        modelBuilder.Entity<UsuarioPreferencia>(entity =>
+        {
+            entity.ToTable("USUARIO_PREFERENCIA");
+
+            entity.HasKey(p => p.ID_USUARIO_PREFERENCIA);
+
+            entity.Property(p => p.ID_USUARIO_PREFERENCIA)
+                .HasColumnName("ID_USUARIO_PREFERENCIA");
+
+            entity.Property(p => p.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.CLAVE)
+                .HasColumnName("CLAVE")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(p => p.VALOR)
+                .HasColumnName("VALOR")
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            entity.HasIndex(p => new { p.ID_USUARIO, p.CLAVE })
+                .IsUnique();
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_USUARIO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

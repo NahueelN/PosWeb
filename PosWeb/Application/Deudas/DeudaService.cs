@@ -366,6 +366,7 @@ public class DeudaService
                     Monto = d.MONTO_DEUDA,
                     DeudaId = d.ID_DEUDA,
                     Anulado = d.ANULADA,
+                    VentaId = d.ID_VENTA,
                     Descripcion = d.ID_VENTA != null ? $"Venta #{d.ID_VENTA}" : "Deuda registrada",
                 });
                 decimal pagadoRegistrado = 0;
@@ -417,6 +418,7 @@ public class DeudaService
                     Monto = d.MONTO_DEUDA,
                     DeudaId = d.ID_DEUDA,
                     Anulado = d.ANULADA,
+                    CompraId = d.ID_COMPRA,
                     Descripcion = d.ID_COMPRA != null ? $"Compra #{d.ID_COMPRA}" : "Deuda registrada",
                 });
                 decimal pagadoRegistrado = 0;

@@ -14,6 +14,7 @@ export interface ProductoDto {
   descAdicional?: string | null
   codigoProducto?: string | null
   margenGanancia?: number | null
+  cantidadIdeal?: number | null
   seguirStock?: boolean
   esPesable?: boolean
   esBulto?: boolean
@@ -122,6 +123,8 @@ export interface VentaItemDto {
   cantidad: number
   comboId?: number
   ofertaId?: number
+  descripcionManual?: string
+  precioManual?: number
 }
 
 export interface VentaDto {
@@ -141,6 +144,9 @@ export interface VentaResultadoDto {
   pagos: PagoVentaResultDto[]
   cambio: number
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   estado?: string
   qrData?: string | null
 }
@@ -178,6 +184,10 @@ export interface VentaDetalleDto {
   sucursalNombre: string
   total: number
   items: RenglonHistorialDto[]
+  empresaNombre?: string
+  vendedor?: string
+  pagos: PagoVentaResultDto[]
+  cambio: number
 }
 
 export interface RenglonHistorialDto {
@@ -415,6 +425,7 @@ export interface CompraItemDto {
    sucursalId: number
    sucursalNombre: string
    proveedorNombre?: string
+   empresaNombre?: string
    total: number
    items: RenglonHistorialDto[]
  }
@@ -621,6 +632,7 @@ export interface PedidoDetailDto {
   id: number
   proveedorNombre: string
   proveedorTelefono?: string
+  proveedorMail?: string
   fecha: string
   fechaEsperada?: string
   total: number
@@ -751,6 +763,8 @@ export interface MovimientoCuentaDto {
   descripcion?: string
   pagoId?: number
   deudaId?: number
+  ventaId?: number
+  compraId?: number
   usuario?: string
   anulado?: boolean
 }
@@ -790,4 +804,13 @@ export interface EmpresaDto {
   id: number
   nombre: string
   documento: string
+  direccion: string
+  telefono: string
+  mostrarTelefonoTicket: boolean
 }
+
+// --- Preferencias de usuario ---
+export interface PreferenciasResponse {
+  preferencias: Record<string, Record<string, string>>
+}
+

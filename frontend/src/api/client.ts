@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -159,8 +159,15 @@ export const api = {
   // Empresa
   empresas: {
     obtener: () => request<EmpresaDto>('/empresa'),
-    actualizar: (dto: { nombre?: string; documento?: string }) =>
+    actualizar: (dto: { nombre?: string; documento?: string; direccion?: string; telefono?: string; mostrarTelefonoTicket?: boolean }) =>
       request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
+  },
+
+  // Preferencias de usuario (clave-valor JSON por sección)
+  preferencias: {
+    obtener: () => request<PreferenciasResponse>('/preferencias'),
+    guardar: (preferencias: Record<string, unknown>) =>
+      request<PreferenciasResponse>('/preferencias', { method: 'PUT', body: JSON.stringify(preferencias) }),
   },
 
   // Productos
@@ -203,6 +210,11 @@ export const api = {
       request<ProductoDto>(`/productos/${id}/seguir-stock`, {
         method: 'PUT',
         body: JSON.stringify({ seguirStock }),
+      }),
+    actualizarCantidadIdeal: (id: number, cantidadIdeal: number | null) =>
+      request<ProductoDto>(`/productos/${id}/cantidad-ideal`, {
+        method: 'PUT',
+        body: JSON.stringify({ cantidadIdeal }),
       }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
