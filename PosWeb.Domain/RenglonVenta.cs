@@ -17,6 +17,8 @@ public class RenglonVenta
 
     public int? ID_OFERTA { get; private set; }
 
+    public string? DESCRIPCION_MANUAL { get; private set; }
+
     public decimal CANTIDAD { get; private set; }
 
     public decimal PRECIO_UNITARIO { get; private set; }
@@ -90,5 +92,16 @@ public class RenglonVenta
         }
 
         return productoId;
+    }
+
+    public RenglonVenta(string descripcionManual, decimal cantidad, decimal precioUnitario)
+    {
+        if (string.IsNullOrWhiteSpace(descripcionManual))
+            throw new ArgumentException("La descripción del producto manual es requerida", nameof(descripcionManual));
+
+        DESCRIPCION_MANUAL = descripcionManual.Trim();
+        CANTIDAD = SetCantidad(cantidad);
+        PRECIO_UNITARIO = SetPrecioUnitario(precioUnitario);
+        SUBTOTAL = cantidad * precioUnitario;
     }
 }

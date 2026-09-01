@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { EmpresaDto } from '../types'
@@ -8,7 +8,7 @@ import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppM
 export default function ConfiguracionPage() {
   const { notifyError, notifySuccess } = useNotification()
 
-  const [, setEmpresa] = useState<EmpresaDto | null>(null)
+  const [empresa, setEmpresa] = useState<EmpresaDto | null>(null)
   const [empresaNombre, setEmpresaNombre] = useState('')
   const [empresaDireccion, setEmpresaDireccion] = useState('')
   const [empresaTelefono, setEmpresaTelefono] = useState('')
@@ -18,6 +18,14 @@ export default function ConfiguracionPage() {
   const [saving, setSaving] = useState(false)
   const [mailPref, setMailPref] = useState<MailMethod | ''>(getMailPref() ?? '')
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
+
+  const datosEmpresa = useCallback(() => ({
+    nombre: empresaNombre.trim(),
+    direccion: empresaDireccion.trim(),
+    telefono: empresaTelefono.trim(),
+    mostrarTelefonoTicket,
+    documento: empresaDoc.trim(),
+  }), [empresaNombre, empresaDireccion, empresaTelefono, mostrarTelefonoTicket, empresaDoc])
 
   useEffect(() => {
     setLoading(true)
@@ -34,25 +42,31 @@ export default function ConfiguracionPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const handleGuardar = async () => {
-    if (!empresaNombre.trim()) return
+  const guardarEmpresa = useCallback(async (datos = datosEmpresa()) => {
+    if (!empresa || (
+      empresa.nombre === datos.nombre &&
+      empresa.direccion === datos.direccion &&
+      empresa.telefono === datos.telefono &&
+      empresa.mostrarTelefonoTicket === datos.mostrarTelefonoTicket &&
+      empresa.documento === datos.documento
+    )) return true
+
+    if (!datos.nombre) {
+      notifyError('El nombre de la empresa es requerido')
+      return false
+    }
     setSaving(true)
     try {
-      const updated = await api.empresas.actualizar({
-        nombre: empresaNombre.trim(),
-        direccion: empresaDireccion.trim(),
-        telefono: empresaTelefono.trim(),
-        mostrarTelefonoTicket,
-        documento: empresaDoc.trim(),
-      })
+      const updated = await api.empresas.actualizar(datos)
       setEmpresa(updated)
-      notifySuccess('Empresa actualizada')
+      return true
     } catch {
       notifyError('Error al guardar empresa')
+      return false
     } finally {
       setSaving(false)
     }
-  }
+  }, [empresa, datosEmpresa, notifyError])
 
   const handleMailPrefChange = (value: string) => {
     const v = value as MailMethod | ''
@@ -89,6 +103,7 @@ export default function ConfiguracionPage() {
                 type="text"
                 value={empresaNombre}
                 onChange={e => setEmpresaNombre(e.target.value)}
+                onBlur={() => { void guardarEmpresa() }}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                 placeholder="Nombre de la empresa"
               />
@@ -99,6 +114,7 @@ export default function ConfiguracionPage() {
                 type="text"
                 value={empresaDireccion}
                 onChange={e => setEmpresaDireccion(e.target.value)}
+                onBlur={() => { void guardarEmpresa() }}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                 placeholder="Av. Rivadavia 1234, Castelar, Buenos Aires"
               />
@@ -110,6 +126,7 @@ export default function ConfiguracionPage() {
                   type="tel"
                   value={empresaTelefono}
                   onChange={e => setEmpresaTelefono(e.target.value)}
+                  onBlur={() => { void guardarEmpresa() }}
                   className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                   placeholder="(011) 1234-5678"
                 />
@@ -117,7 +134,11 @@ export default function ConfiguracionPage() {
                   <input
                     type="checkbox"
                     checked={mostrarTelefonoTicket}
-                    onChange={e => setMostrarTelefonoTicket(e.target.checked)}
+                    onChange={e => {
+                      const mostrarTelefonoTicket = e.target.checked
+                      setMostrarTelefonoTicket(mostrarTelefonoTicket)
+                      void guardarEmpresa({ ...datosEmpresa(), mostrarTelefonoTicket })
+                    }}
                     className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   Mostrar en ticket
@@ -130,17 +151,12 @@ export default function ConfiguracionPage() {
                 type="text"
                 value={empresaDoc}
                 onChange={e => setEmpresaDoc(e.target.value)}
+                onBlur={() => { void guardarEmpresa() }}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                 placeholder="00000000000"
               />
             </div>
-            <button
-              onClick={handleGuardar}
-              disabled={saving || !empresaNombre.trim()}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+            <p className="text-xs text-slate-500">{saving ? 'Guardando cambios...' : 'Los cambios se guardan al salir de cada campo.'}</p>
           </div>
         )}
       </div>

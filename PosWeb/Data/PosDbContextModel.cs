@@ -331,6 +331,10 @@ public partial class PosDbContext
             entity.Property(r => r.ID_COMBO)
                 .HasColumnName("ID_COMBO");
 
+            entity.Property(r => r.DESCRIPCION_MANUAL)
+                .HasColumnName("DESCRIPCION_MANUAL")
+                .HasMaxLength(250);
+
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
                 .HasColumnType("decimal(18,3)");
@@ -828,6 +832,20 @@ public partial class PosDbContext
             entity.Property(e => e.DOCUMENTO)
                 .HasColumnName("DOCUMENTO")
                 .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(e => e.DIRECCION)
+                .HasColumnName("DIRECCION")
+                .HasMaxLength(250)
+                .IsRequired();
+
+            entity.Property(e => e.TELEFONO)
+                .HasColumnName("TELEFONO")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.MOSTRAR_TELEFONO_TICKET)
+                .HasColumnName("MOSTRAR_TELEFONO_TICKET")
                 .IsRequired();
 
             entity.Property(e => e.ID_SUSCRIPCION)

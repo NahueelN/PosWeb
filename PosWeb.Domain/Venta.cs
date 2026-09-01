@@ -91,6 +91,12 @@ public class Venta
         RecalcularTotal();
     }
 
+    public void AgregarRenglonManual(string descripcion, decimal cantidad, decimal precioUnitario)
+    {
+        _RENGLONES.Add(new RenglonVenta(descripcion, cantidad, precioUnitario));
+        RecalcularTotal();
+    }
+
     public void AsignarCliente(int? clienteId)
     {
         ID_CLIENTE = clienteId;
