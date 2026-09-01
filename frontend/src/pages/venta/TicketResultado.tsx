@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Printer } from 'lucide-react'
 import Button from '../../components/ui/Button'
+import CompartirMenu from '../../components/CompartirMenu'
 import { api } from '../../api/client'
-import type { VentaResultadoDto, UsuarioInfo } from '../../types'
+import type { ClienteDto, VentaResultadoDto, UsuarioInfo } from '../../types'
 import { buildTicketLines, type TicketLine, type TicketWidth } from '../../lib/ticket'
 import './TicketResultado.css'
 
@@ -15,6 +16,7 @@ interface TicketResultadoProps {
   resultado: VentaResultadoDto
   ultimosItems: ItemEmitido[]
   user: UsuarioInfo | null
+  cliente: ClienteDto | null
   onNuevaVenta: () => void
 }
 
@@ -55,7 +57,7 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
+export default function TicketResultado({ resultado, ultimosItems, user, cliente, onNuevaVenta }: TicketResultadoProps) {
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -122,6 +124,9 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     return l.size === 'lg' ? TXT[px.lg] : l.size === 'md' ? TXT[px.md] : l.size === 'sm' ? TXT[px.sm] : TXT[px.base]
   }
 
+  const ticketMensaje = lines.map(line => line.text).join('\n')
+
+
   const handlePrint = async () => {
     if ('__TAURI_INTERNALS__' in window) {
       localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, letra, lines }))
@@ -166,15 +171,20 @@ ${pxCss}
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
 
+  const ticketId = `#${String(resultado.ventaId).padStart(6, '0')}`
+
   return (
     <div className="max-w-3xl mx-auto mt-8 px-4">
       <div className="no-print text-center mb-6">
         <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold">
-          VENTA REGISTRADA
+          <span className="inline-flex items-center gap-2">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            VENTA REGISTRADA
+          </span>
         </div>
       </div>
 
-      <div className="no-print flex justify-center gap-3 mt-6 flex-wrap items-center">
+      <div className="no-print flex justify-center gap-3 mt-6 items-center">
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
           <button
@@ -226,6 +236,15 @@ ${pxCss}
         >
           Imprimir
         </Button>
+        <CompartirMenu
+          mail={cliente?.mail}
+          telefono={cliente?.telefono}
+          mailSubject={`Ticket ${ticketId}`}
+          mensaje={ticketMensaje}
+          className="relative"
+          buttonClassName="h-9 px-4 text-[13px] font-semibold bg-white text-gray-700 border border-gray-200 rounded-lg hover:border-[oklch(0.52_0.255_278_/_0.35)] hover:bg-[oklch(0.52_0.255_278_/_0.04)] hover:text-[oklch(0.52_0.255_278)] transition-all duration-150 flex items-center justify-center gap-2"
+          dropdownUp
+        />
         <Button
           ref={nuevaVentaBtnRef}
           variant="primary"

@@ -88,6 +88,7 @@ export default function VentasPage() {
   const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
   const [buscandoClientes, setBuscandoClientes] = useState(false)
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteDto | null>(null)
+  const [clienteVentaFinalizada, setClienteVentaFinalizada] = useState<ClienteDto | null>(null)
   const [showNuevoCliente, setShowNuevoCliente] = useState(false)
   const [nuevoClienteNombre, setNuevoClienteNombre] = useState('')
   const [esOcasional, setEsOcasional] = useState(true)
@@ -290,7 +291,7 @@ export default function VentasPage() {
 
   // ===== Actions =====
   function seleccionarSucursal(s: SucursalDto) { localStorage.setItem('sucursalActiva', JSON.stringify(s)); setStep('venta'); window.location.reload() }
-  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
+  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setClienteVentaFinalizada(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
 
   function agregarProducto(producto: ProductoDto) {
     const oferta = ofertasMap.get(producto.id)
@@ -473,7 +474,7 @@ export default function VentasPage() {
         if (selectedMedio.pagaVuelto && recibioValor > total) pagosDto[0].conCambio = recibioValor
       }
       const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: ventaItems(), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
-      setResultado(res); setUltimosItems([...cart.items]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
+      setResultado(res); setUltimosItems([...cart.items]); setClienteVentaFinalizada(cliente ?? clienteSeleccionado); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
 
@@ -513,7 +514,7 @@ export default function VentasPage() {
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
-  if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
+  if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} cliente={clienteVentaFinalizada} onNuevaVenta={nuevaVenta} />
 
   if (step === 'esperando_transferencia') {
     return (
