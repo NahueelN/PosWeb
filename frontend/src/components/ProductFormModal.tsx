@@ -104,15 +104,15 @@ export default function ProductFormModal({
   const FLOW_ORDERS: Record<'manual' | 'scanner' | 'off' | 'edit', FieldKey[]> = {
     manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
     scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'esBulto', 'productoBulto', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock', 'codigoProducto'],
-    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'codigoBarra', 'codigoProducto', 'seguirStock', 'margen'],
+    off: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    edit: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
   }
 
   const INITIAL_FOCUS_PRIORITY: Record<'manual' | 'scanner' | 'off' | 'edit', FieldKey[]> = {
     manual: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
     scanner: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    off: ['codigoBarra', 'nombre', 'marca', 'esPesable', 'esBulto', 'productoBulto', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
-    edit: ['precio', 'costo', 'stock', 'nombre', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion'],
+    off: ['codigoBarra', 'nombre', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
+    edit: ['nombre', 'codigoBarra', 'codigoProducto', 'esPesable', 'esBulto', 'productoBulto', 'marca', 'categoria', 'unidadMedida', 'contenido', 'descripcion', 'costo', 'margen', 'precio', 'seguirStock', 'stock'],
   }
 
   const SPATIAL_COORDS: Record<FieldKey, { row: number, col: number }> = {
@@ -199,12 +199,14 @@ export default function ProductFormModal({
     return null
   }
 
-  function moveByFlow(currentKey: FieldKey, direction: 1 | -1) {
+  function moveByFlow(currentKey: FieldKey, direction: 1 | -1): boolean {
     const order = getFlowOrder().filter(key => isFieldVisible(key) && !isFieldDisabled(key))
     const currentIdx = order.indexOf(currentKey)
-    if (currentIdx === -1) return
+    if (currentIdx === -1) return false
     const next = order[currentIdx + direction]
-    if (next) focusField(next)
+    if (!next) return false
+    focusField(next)
+    return true
   }
 
   function moveSpatial(currentKey: FieldKey, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight') {
@@ -248,8 +250,7 @@ export default function ProductFormModal({
     if (target.tagName === 'TEXTAREA' && e.key !== 'Tab' && e.key !== 'Enter') return
 
     if (e.key === 'Tab') {
-      e.preventDefault()
-      moveByFlow(currentKey, e.shiftKey ? -1 : 1)
+      if (moveByFlow(currentKey, e.shiftKey ? -1 : 1)) e.preventDefault()
       return
     }
 

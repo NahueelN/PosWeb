@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Printer } from 'lucide-react'
 import Button from '../../components/ui/Button'
-import CompartirMenu from '../../components/CompartirMenu'
 import { api } from '../../api/client'
-import type { ClienteDto, VentaResultadoDto, UsuarioInfo } from '../../types'
+import type { VentaResultadoDto, UsuarioInfo } from '../../types'
 import { buildTicketLines, type TicketLine, type TicketWidth } from '../../lib/ticket'
 import './TicketResultado.css'
 
@@ -16,7 +15,6 @@ interface TicketResultadoProps {
   resultado: VentaResultadoDto
   ultimosItems: ItemEmitido[]
   user: UsuarioInfo | null
-  cliente: ClienteDto | null
   onNuevaVenta: () => void
 }
 
@@ -57,7 +55,7 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketResultado({ resultado, ultimosItems, user, cliente, onNuevaVenta }: TicketResultadoProps) {
+export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -124,9 +122,6 @@ export default function TicketResultado({ resultado, ultimosItems, user, cliente
     return l.size === 'lg' ? TXT[px.lg] : l.size === 'md' ? TXT[px.md] : l.size === 'sm' ? TXT[px.sm] : TXT[px.base]
   }
 
-  const ticketMensaje = lines.map(line => line.text).join('\n')
-
-
   const handlePrint = async () => {
     if ('__TAURI_INTERNALS__' in window) {
       localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, letra, lines }))
@@ -170,8 +165,6 @@ ${pxCss}
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
-
-  const ticketId = `#${String(resultado.ventaId).padStart(6, '0')}`
 
   return (
     <div className="max-w-3xl mx-auto mt-8 px-4">
@@ -236,15 +229,6 @@ ${pxCss}
         >
           Imprimir
         </Button>
-        <CompartirMenu
-          mail={cliente?.mail}
-          telefono={cliente?.telefono}
-          mailSubject={`Ticket ${ticketId}`}
-          mensaje={ticketMensaje}
-          className="relative"
-          buttonClassName="h-9 px-4 text-[13px] font-semibold bg-white text-gray-700 border border-gray-200 rounded-lg hover:border-[oklch(0.52_0.255_278_/_0.35)] hover:bg-[oklch(0.52_0.255_278_/_0.04)] hover:text-[oklch(0.52_0.255_278)] transition-all duration-150 flex items-center justify-center gap-2"
-          dropdownUp
-        />
         <Button
           ref={nuevaVentaBtnRef}
           variant="primary"

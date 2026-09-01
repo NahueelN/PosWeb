@@ -7,6 +7,7 @@ import { useCart } from '../hooks/useCart'
 import { useItemSnapshot } from '../hooks/useItemSnapshot'
 import CartHost from '../components/hosts/CartHost'
 import { formatCodigoBarra } from '../components/shared/ProductCard'
+import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import { PackagePlus, Undo2 } from 'lucide-react'
 import { estaVigenteHoy } from '../lib/recurrencia'
 import SucursalSelector from './venta/SucursalSelector'
@@ -31,6 +32,11 @@ interface Item {
 }
 
 type Step = 'sucursal' | 'venta' | 'esperando_transferencia' | 'resultado'
+
+// Espera a que el código asentado deje de escribirse antes de auto-agregar por
+// match exacto. Sin este delay, cada tecla del escáner disparaba el match sobre
+// fragmentos parciales y agregaba productos equivocados a mitad de escaneo.
+const SCAN_DEBOUNCE_MS = 220
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -88,7 +94,6 @@ export default function VentasPage() {
   const [clientesResultados, setClientesResultados] = useState<ClienteDto[]>([])
   const [buscandoClientes, setBuscandoClientes] = useState(false)
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteDto | null>(null)
-  const [clienteVentaFinalizada, setClienteVentaFinalizada] = useState<ClienteDto | null>(null)
   const [showNuevoCliente, setShowNuevoCliente] = useState(false)
   const [nuevoClienteNombre, setNuevoClienteNombre] = useState('')
   const [esOcasional, setEsOcasional] = useState(true)
@@ -116,6 +121,7 @@ export default function VentasPage() {
   const productoManualCantidadRef = useRef<HTMLInputElement>(null)
   const productoManualPrecioRef = useRef<HTMLInputElement>(null)
   const pendingAllowSinStock = useRef(false)
+  const scanEnterRef = useRef(false)
   const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
 
@@ -175,7 +181,15 @@ export default function VentasPage() {
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
 
-  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match) }, [searchQuery, productos])
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) return
+    const timer = setTimeout(() => {
+      const match = productos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase())
+      if (match) agregarProducto(match, true)
+    }, SCAN_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [searchQuery, productos])
 
   useEffect(() => {
     if (step !== 'esperando_transferencia') return
@@ -291,9 +305,9 @@ export default function VentasPage() {
 
   // ===== Actions =====
   function seleccionarSucursal(s: SucursalDto) { localStorage.setItem('sucursalActiva', JSON.stringify(s)); setStep('venta'); window.location.reload() }
-  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setClienteVentaFinalizada(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
+  function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
 
-  function agregarProducto(producto: ProductoDto) {
+  function agregarProducto(producto: ProductoDto, mantenerFoco = false) {
     const oferta = ofertasMap.get(producto.id)
     markAdded(producto.id, cart.items.find(i => !i.comboId && i.producto.id === producto.id)?.cantidad)
     const cantidadInicial = producto.esPesable ? 0 : 1
@@ -304,7 +318,11 @@ export default function VentasPage() {
     setSearchQuery('')
     const el = searchInputRef.current; if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
     setCantidadDrafts(prev => { const next = { ...prev }; delete next[producto.id]; return next })
-    setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    if (!mantenerFoco) {
+      setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    } else {
+      scanEnterRef.current = true
+    }
   }
 
   function agregarCombo(combo: ComboDto) {
@@ -357,8 +375,30 @@ export default function VentasPage() {
     ? { productoId: 0, cantidad: i.cantidad, descripcionManual: i.producto.nombre, precioManual: i.producto.precio }
     : { productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })
 
+  // Agrego por código exacto desde el Enter del buscador: mantiene el foco ahí.
+  // El Enter ya fue consumido por VentaProductGrid, así que no marcamos scanEnterRef.
+  function agregarProductoPorCodigo(producto: ProductoDto) {
+    agregarProducto(producto, true)
+    scanEnterRef.current = false
+  }
   function selectMedio(mp: MedioPagoDto) { setSelectedMedio(mp); setTimeout(() => recibioInputRef.current?.focus(), 0) }
   function handleCambiarCantidad(id: number, c: number) { cart.updateQuantity(id, Math.max(0, c)) }
+
+  function enfocarPrimeraCantidad() {
+    const firstItem = cart.items[0]
+    if (!firstItem) return
+    const id = firstItem.comboId ?? firstItem.producto.id
+    const input = cantidadRefs.current.get(id)
+    if (input) { input.focus(); input.select() }
+  }
+
+  function consumeScanEnter(): boolean {
+    if (scanEnterRef.current) {
+      scanEnterRef.current = false
+      return true
+    }
+    return false
+  }
 
   async function deshacerCombo(comboId: number) {
     const combo = combos.find(c => c.id === comboId); if (!combo) return
@@ -474,7 +514,7 @@ export default function VentasPage() {
         if (selectedMedio.pagaVuelto && recibioValor > total) pagosDto[0].conCambio = recibioValor
       }
       const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: ventaItems(), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
-      setResultado(res); setUltimosItems([...cart.items]); setClienteVentaFinalizada(cliente ?? clienteSeleccionado); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
+      setResultado(res); setUltimosItems([...cart.items]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
 
@@ -514,7 +554,7 @@ export default function VentasPage() {
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
-  if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} cliente={clienteVentaFinalizada} onNuevaVenta={nuevaVenta} />
+  if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
 
   if (step === 'esperando_transferencia') {
     return (
@@ -625,10 +665,13 @@ export default function VentasPage() {
           filteredCombos={filteredCombos}
           ofertasMap={ofertasMap}
           onAgregarProducto={agregarProducto}
+          onAgregarPorCodigo={agregarProductoPorCodigo}
           onAgregarCombo={agregarCombo}
           onAgregarProductoRapido={() => setShowProductoRapido(true)}
           combos={combos}
           medioRefs={medioRefs}
+          onTabFromSearch={enfocarPrimeraCantidad}
+          consumeScanEnter={consumeScanEnter}
           cartItemsLength={cart.items.length}
           confirmBtnRef={confirmBtnRef}
           pagoExacto={recibio !== '' && Math.abs(parseFloat(recibio) - total) < 0.005}

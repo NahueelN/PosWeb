@@ -3,7 +3,10 @@ import type { ReactNode } from 'react'
 // ── Shared grid template ───────────────────────────────────────────
 // 7 columns: codigo | nombre | marca | presentacion | stock | precio | accion
 export const PRODUCT_ROW_GRID =
-  'grid grid-cols-[110px_minmax(0,1fr)_64px_96px_44px] items-center gap-x-3'
+  'grid grid-cols-[98px_minmax(0,1fr)_44px_78px_48px] items-center gap-x-2'
+
+export const PRODUCT_ROW_GRID_NO_ACTION =
+  'grid grid-cols-[98px_minmax(0,1fr)_44px_78px] items-center gap-x-2'
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface ProductRowProps {
@@ -35,7 +38,7 @@ export default function ProductRow({
       data-card-id={id}
       onClick={onClick}
       className={[
-        PRODUCT_ROW_GRID,
+        action ? PRODUCT_ROW_GRID : PRODUCT_ROW_GRID_NO_ACTION,
         'w-full text-left px-3 py-2 rounded-lg border border-gray-100',
         'hover:bg-indigo-50/50 hover:border-indigo-200',
         'focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500',
@@ -60,12 +63,14 @@ export default function ProductRow({
       <span className="text-right font-bold tabular-nums text-gray-900">{precio}</span>
 
       {/* 5. Acción */}
-      <span
-        className="flex justify-end"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {action ?? <span />}
-      </span>
+      {action != null && (
+        <span
+          className="flex justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {action}
+        </span>
+      )}
     </button>
   )
 }
