@@ -7,7 +7,7 @@ import { useCart } from '../hooks/useCart'
 import { useItemSnapshot } from '../hooks/useItemSnapshot'
 import CartHost from '../components/hosts/CartHost'
 import { formatCodigoBarra } from '../components/shared/ProductCard'
-import { Undo2 } from 'lucide-react'
+import { PackagePlus, Undo2 } from 'lucide-react'
 import { estaVigenteHoy } from '../lib/recurrencia'
 import SucursalSelector from './venta/SucursalSelector'
 import TicketResultado from './venta/TicketResultado'
@@ -15,6 +15,7 @@ import VentaProductGrid from './venta/VentaProductGrid'
 import VentaPaymentSlot from './venta/VentaPaymentSlot'
 import VentaDialogs, { type StockConflictItem } from './venta/VentaDialogs'
 import TransferenciaEspera from './venta/TransferenciaEspera'
+import Dialog from '../components/ui/Dialog'
 import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto, MercadoPagoEstadoDto } from '../types'
 
 interface Item {
@@ -26,6 +27,7 @@ interface Item {
   ofertaId?: number
   descuentoAplicado?: number
   precioOriginal?: number
+  manual?: boolean
 }
 
 type Step = 'sucursal' | 'venta' | 'esperando_transferencia' | 'resultado'
@@ -97,6 +99,8 @@ export default function VentasPage() {
     domicilio: '',
     mail: '',
   })
+  const [showProductoRapido, setShowProductoRapido] = useState(false)
+  const [productoRapido, setProductoRapido] = useState({ nombre: '', cantidad: '1', precio: '' })
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null!)
@@ -107,6 +111,9 @@ export default function VentasPage() {
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
+  const productoManualNombreRef = useRef<HTMLInputElement>(null)
+  const productoManualCantidadRef = useRef<HTMLInputElement>(null)
+  const productoManualPrecioRef = useRef<HTMLInputElement>(null)
   const pendingAllowSinStock = useRef(false)
   const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
@@ -306,6 +313,49 @@ export default function VentasPage() {
     setTimeout(() => { const input = cantidadRefs.current.get(combo.id); if (input) { input.focus(); input.select() } }, 0)
   }
 
+  function agregarProductoRapido() {
+    const nombre = productoRapido.nombre.trim()
+    const cantidad = Number(productoRapido.cantidad)
+    const precio = Number(productoRapido.precio)
+    if (!nombre) {
+      notifyError('Ingresá el nombre del producto manual')
+      productoManualNombreRef.current?.focus()
+      return
+    }
+    if (!Number.isFinite(precio) || precio <= 0) {
+      notifyError('Ingresá un precio unitario válido')
+      productoManualPrecioRef.current?.focus()
+      productoManualPrecioRef.current?.select()
+      return
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      notifyError('Ingresá una cantidad válida')
+      productoManualCantidadRef.current?.focus()
+      productoManualCantidadRef.current?.select()
+      return
+    }
+
+    const producto: ProductoDto = {
+      id: -Date.now(),
+      codigoBarra: '',
+      nombre,
+      precio,
+      costo: 0,
+      stock: 0,
+      activo: true,
+      seguirStock: false,
+      esPesable: false,
+      esBulto: false,
+    }
+    cart.addItem({ producto, cantidad, manual: true })
+    setProductoRapido({ nombre: '', cantidad: '1', precio: '' })
+    setShowProductoRapido(false)
+  }
+
+  const ventaItems = () => cart.items.map(i => i.manual
+    ? { productoId: 0, cantidad: i.cantidad, descripcionManual: i.producto.nombre, precioManual: i.producto.precio }
+    : { productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })
+
   function selectMedio(mp: MedioPagoDto) { setSelectedMedio(mp); setTimeout(() => recibioInputRef.current?.focus(), 0) }
   function handleCambiarCantidad(id: number, c: number) { cart.updateQuantity(id, Math.max(0, c)) }
 
@@ -342,7 +392,7 @@ export default function VentasPage() {
     try {
       const res = await api.ventas.crear({
         sucursalId: sucursalEfectiva.id,
-        items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })),
+        items: ventaItems(),
         esperarTransferencia: true,
         pendienteMedioId: selectedMedio?.id,
       })
@@ -422,7 +472,7 @@ export default function VentasPage() {
         pagosDto.push({ medioPagoId: selectedMedio.id, monto })
         if (selectedMedio.pagaVuelto && recibioValor > total) pagosDto[0].conCambio = recibioValor
       }
-      const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
+      const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: ventaItems(), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
       setResultado(res); setUltimosItems([...cart.items]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
@@ -533,6 +583,7 @@ export default function VentasPage() {
             stockWarning: i.producto.seguirStock !== false && i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
             badge: (
               <>
+                {i.manual && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold mr-1">MANUAL</span>}
                 {i.comboId && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span>}
                 {i.ofertaId && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold mr-1">{i.descuentoAplicado}% OFF</span>}
               </>
@@ -574,6 +625,7 @@ export default function VentasPage() {
           ofertasMap={ofertasMap}
           onAgregarProducto={agregarProducto}
           onAgregarCombo={agregarCombo}
+          onAgregarProductoRapido={() => setShowProductoRapido(true)}
           combos={combos}
           medioRefs={medioRefs}
           cartItemsLength={cart.items.length}
@@ -610,6 +662,64 @@ export default function VentasPage() {
         onAbrirNuevoCliente={handleAbrirNuevoCliente}
         onClienteOcasional={handleClienteOcasional}
       />
+      <Dialog
+        open={showProductoRapido}
+        onClose={() => setShowProductoRapido(false)}
+        title="Producto manual"
+        icon={PackagePlus}
+        description="Se agrega a esta venta sin crear un producto de catálogo ni afectar stock."
+        footer={
+          <>
+            <button type="button" onClick={() => setShowProductoRapido(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Cancelar</button>
+            <button type="button" onClick={agregarProductoRapido} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Agregar al carrito</button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+            <input
+              autoFocus
+              ref={productoManualNombreRef}
+              value={productoRapido.nombre}
+              onChange={e => setProductoRapido(prev => ({ ...prev, nombre: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); productoManualPrecioRef.current?.focus() } }}
+              placeholder="Nombre del producto"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Precio unitario</label>
+              <input
+                type="number"
+                ref={productoManualPrecioRef}
+                min="0.01"
+                step="0.01"
+                value={productoRapido.precio}
+                onChange={e => setProductoRapido(prev => ({ ...prev, precio: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); productoManualCantidadRef.current?.focus() } }}
+                placeholder="$ 0,00"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
+              <input
+                type="number"
+                ref={productoManualCantidadRef}
+                min="0.001"
+                step="1"
+                value={productoRapido.cantidad}
+                onChange={e => setProductoRapido(prev => ({ ...prev, cantidad: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarProductoRapido() } }}
+                placeholder="Cantidad"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </>
   )
 }

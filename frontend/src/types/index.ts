@@ -123,6 +123,8 @@ export interface VentaItemDto {
   cantidad: number
   comboId?: number
   ofertaId?: number
+  descripcionManual?: string
+  precioManual?: number
 }
 
 export interface VentaDto {
@@ -142,6 +144,9 @@ export interface VentaResultadoDto {
   pagos: PagoVentaResultDto[]
   cambio: number
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   estado?: string
   qrData?: string | null
 }
@@ -799,6 +804,9 @@ export interface EmpresaDto {
   id: number
   nombre: string
   documento: string
+  direccion: string
+  telefono: string
+  mostrarTelefonoTicket: boolean
 }
 
 // --- Preferencias de usuario ---

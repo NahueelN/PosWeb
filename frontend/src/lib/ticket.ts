@@ -16,6 +16,9 @@ export interface TicketItem {
 
 export interface TicketData {
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   ventaId: number
   fecha: string
   vendedor?: string
@@ -61,31 +64,34 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
     entries.push({ text, bold: opts.bold ?? false, center: opts.center ?? false, size: opts.size, space: opts.space })
 
   push(data.empresaNombre ?? 'PosWeb', { bold: true, center: true, size: 'md' })
-  push('TICKET DE COMPRA', { bold: true, center: true })
-  push('')
-  push(`Fecha: ${fmtFecha(data.fecha)}`)
-  push(`Ticket #: ${String(data.ventaId).padStart(6, '0')}`)
+  if (data.empresaDireccion) push(data.empresaDireccion, { center: true })
+  if (data.mostrarTelefonoTicket && data.empresaTelefono) push(`Tel: ${data.empresaTelefono}`, { center: true })
+  push('TICKET DE COMPRA', { bold: true, center: true, space: true })
+  push(line)
+  push(fmtFecha(data.fecha))
+  push(`Ticket N° ${String(data.ventaId).padStart(6, '0')}`)
   push(`Vendedor: ${data.vendedor ?? '—'}`)
   push(line)
 
   data.items.forEach(item => {
     const name = item.nombre.length > nameMax ? item.nombre.slice(0, nameMax - 3) + '...' : item.nombre
-    push(`${String(item.cantidad).padStart(2)}   ${name}`)
-    push(LR(padFmt(item.precio) + ' c/u', padFmt(item.precio * item.cantidad)))
+    push(name)
+    push(LR(`${item.cantidad} x ${fmtPeso(item.precio)}`, padFmt(item.precio * item.cantidad)))
   })
 
   push(line)
-  push(`Artículos: ${data.items.reduce((s, i) => s + i.cantidad, 0)}`)
-  push(dline)
+  push(`${data.items.reduce((s, i) => s + i.cantidad, 0)} artículos`)
+  push(line)
   push(LR('TOTAL', padFmt(data.total)), { bold: true, size: 'lg', space: true })
   push(dline)
 
-  data.pagos.forEach(p => push(LR('Pago:', p.nombre.toUpperCase())))
+  data.pagos.forEach(p => push(LR('Forma de pago:', p.nombre.toUpperCase())))
   if (data.cambio > 0) {
     push(LR('Pagó:', padFmt(data.total + data.cambio)))
     push(LR('Cambio:', padFmt(data.cambio)))
   }
   push('')
+  push(line)
   push('¡GRACIAS POR SU COMPRA!', { bold: true, center: true, space: true })
   push('NO VÁLIDO COMO FACTURA', { center: true, size: 'sm' })
 

@@ -67,6 +67,9 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     const saved = localStorage.getItem('posweb-ticket-letra')
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
+  const [empresaDireccion, setEmpresaDireccion] = useState(resultado.empresaDireccion)
+  const [empresaTelefono, setEmpresaTelefono] = useState(resultado.empresaTelefono)
+  const [mostrarTelefonoTicket, setMostrarTelefonoTicket] = useState(resultado.mostrarTelefonoTicket ?? false)
 
   const persistirTicket = (nuevoAncho: TicketWidth, nuevaLetra: Letra) => {
     localStorage.setItem('posweb-ticket-ancho', String(nuevoAncho))
@@ -90,8 +93,21 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    api.empresas.obtener()
+      .then(empresa => {
+        setEmpresaDireccion(empresa.direccion)
+        setEmpresaTelefono(empresa.telefono)
+        setMostrarTelefonoTicket(empresa.mostrarTelefonoTicket)
+      })
+      .catch(() => {})
+  }, [])
+
   const lines = buildTicketLines({
     empresaNombre: resultado.empresaNombre,
+    empresaDireccion,
+    empresaTelefono,
+    mostrarTelefonoTicket,
     ventaId: resultado.ventaId,
     fecha: resultado.fecha,
     vendedor: user?.nombre,
@@ -162,7 +178,12 @@ ${pxCss}
         <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
           <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
           <button
-            onClick={() => { setAncho(58); persistirTicket(58, letra) }}
+            onClick={() => {
+              const nuevaLetra = letra === 'grande' ? 'mediana' : letra
+              setAncho(58)
+              setLetra(nuevaLetra)
+              persistirTicket(58, nuevaLetra)
+            }}
             className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             58 mm
@@ -179,11 +200,12 @@ ${pxCss}
           {LETRAS.map(l => (
             <button
               key={l.id}
+              disabled={ancho === 58 && l.id === 'grande'}
               onClick={() => {
                 setLetra(l.id)
                 persistirTicket(ancho, l.id)
               }}
-              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${letra === l.id ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+              className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${letra === l.id ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
             >
               {l.label}
             </button>

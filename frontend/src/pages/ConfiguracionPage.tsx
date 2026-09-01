@@ -10,6 +10,9 @@ export default function ConfiguracionPage() {
 
   const [, setEmpresa] = useState<EmpresaDto | null>(null)
   const [empresaNombre, setEmpresaNombre] = useState('')
+  const [empresaDireccion, setEmpresaDireccion] = useState('')
+  const [empresaTelefono, setEmpresaTelefono] = useState('')
+  const [mostrarTelefonoTicket, setMostrarTelefonoTicket] = useState(false)
   const [empresaDoc, setEmpresaDoc] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -22,6 +25,9 @@ export default function ConfiguracionPage() {
       .then(e => {
         setEmpresa(e)
         setEmpresaNombre(e.nombre)
+        setEmpresaDireccion(e.direccion ?? '')
+        setEmpresaTelefono(e.telefono ?? '')
+        setMostrarTelefonoTicket(e.mostrarTelefonoTicket ?? false)
         setEmpresaDoc(e.documento)
       })
       .catch(() => notifyError('Error al cargar empresa'))
@@ -32,7 +38,13 @@ export default function ConfiguracionPage() {
     if (!empresaNombre.trim()) return
     setSaving(true)
     try {
-      const updated = await api.empresas.actualizar({ nombre: empresaNombre.trim(), documento: empresaDoc.trim() })
+      const updated = await api.empresas.actualizar({
+        nombre: empresaNombre.trim(),
+        direccion: empresaDireccion.trim(),
+        telefono: empresaTelefono.trim(),
+        mostrarTelefonoTicket,
+        documento: empresaDoc.trim(),
+      })
       setEmpresa(updated)
       notifySuccess('Empresa actualizada')
     } catch {
@@ -80,6 +92,37 @@ export default function ConfiguracionPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                 placeholder="Nombre de la empresa"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
+              <input
+                type="text"
+                value={empresaDireccion}
+                onChange={e => setEmpresaDireccion(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                placeholder="Av. Rivadavia 1234, Castelar, Buenos Aires"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="tel"
+                  value={empresaTelefono}
+                  onChange={e => setEmpresaTelefono(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  placeholder="(011) 1234-5678"
+                />
+                <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={mostrarTelefonoTicket}
+                    onChange={e => setMostrarTelefonoTicket(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Mostrar en ticket
+                </label>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Documento (CUIT/CUIL)</label>
