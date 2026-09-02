@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import CategoriasTab from './CategoriasTab'
 import UnidadesMedidaTab from './UnidadesMedidaTab'
-import MargenesTab from './MargenesTab'
 import StockTab from './StockTab'
-import { Folder, Ruler, Percent, Package, Settings } from 'lucide-react'
+import { Folder, Ruler, Package, Settings } from 'lucide-react'
 
-type Section = 'categorias' | 'unidades' | 'margenes' | 'stock'
+type Section = 'categorias' | 'unidades' | 'stock'
 
 const sections: { id: Section; icon: typeof Folder; label: string }[] = [
   { id: 'categorias', icon: Folder, label: 'Categorías' },
   { id: 'unidades', icon: Ruler, label: 'Unidades' },
-  { id: 'margenes', icon: Percent, label: 'Márgenes' },
   { id: 'stock', icon: Package, label: 'Stock' },
 ]
 
@@ -52,7 +50,6 @@ export default function ConfiguracionProductosTab({ notifyError }: { notifyError
       <div className="transition-all duration-200">
         {section === 'categorias' && <CategoriasTab notifyError={notifyError} />}
         {section === 'unidades' && <UnidadesMedidaTab notifyError={notifyError} />}
-        {section === 'margenes' && <MargenesTab notifyError={notifyError} />}
         {section === 'stock' && <StockTab notifyError={notifyError} />}
       </div>
     </div>

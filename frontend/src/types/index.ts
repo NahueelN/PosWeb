@@ -61,6 +61,7 @@ export interface UnidadMedidaDto {
   id: number
   codigo: string
   descripcion: string
+  activo?: boolean
 }
 
 export interface CrearUnidadMedidaRequest {

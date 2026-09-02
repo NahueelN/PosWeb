@@ -543,7 +543,7 @@ export const api = {
         }),
     },
     unidadesMedida: {
-      listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
+      listar: (todas = false) => request<UnidadMedidaDto[]>(`/unidades-medida${todas ? '?todas=true' : ''}`),
       crear: (dto: CrearUnidadMedidaRequest) =>
         request<UnidadMedidaDto>('/unidades-medida', {
           method: 'POST',
@@ -556,6 +556,9 @@ export const api = {
         }),
       eliminar: (id: number) => request<void>(`/unidades-medida/${id}`, {
         method: 'DELETE',
+      }),
+      activar: (id: number) => request<UnidadMedidaDto>(`/unidades-medida/${id}/activar`, {
+        method: 'POST',
       }),
     },
 
