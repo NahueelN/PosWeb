@@ -18,4 +18,9 @@ public class OpenFoodFactsResultDto
     /// Por ejemplo, si el producto es una bebida, apunta a la categoría "Bebidas".
     /// </summary>
     public int? CategoriaIdSugerido { get; set; }
+
+    /// <summary>
+    /// ID de unidad de medida local resuelta/creada a partir de la unidad sugerida.
+    /// </summary>
+    public int? UnidadIdSugerido { get; set; }
 }

@@ -4,6 +4,8 @@ using PosWeb.Application.Exceptions;
 using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Productos;
 using PosWeb.Contracts;
+using PosWeb.Data;
+using PosWeb.Domain;
 using ClosedXML.Excel;
 
 namespace PosWeb.Controllers;
@@ -15,12 +17,14 @@ public class ProductosController : ControllerBase
     private readonly ProductoService _productoService;
     private readonly OpenFoodFactsService _openFoodFactsService;
     private readonly CatalogoService _catalogoService;
+    private readonly PosDbContextLocal _context;
 
-    public ProductosController(ProductoService productoService, OpenFoodFactsService openFoodFactsService, CatalogoService catalogoService)
+    public ProductosController(ProductoService productoService, OpenFoodFactsService openFoodFactsService, CatalogoService catalogoService, PosDbContextLocal context)
     {
         _productoService = productoService;
         _openFoodFactsService = openFoodFactsService;
         _catalogoService = catalogoService;
+        _context = context;
     }
 
     [HttpGet]
@@ -147,8 +151,11 @@ public class ProductosController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
         {
+            var categoriaNombre = dto.CategoriaId.HasValue
+                ? _context.Categoria.Find(dto.CategoriaId.Value)?.DESC_CATEGORIA
+                : null;
             _ = Task.Run(() => _catalogoService.SubirProductoAsync(
-                dto.CodigoBarra, dto.Nombre, dto.Marca, dto.Contenido, null));
+                dto.CodigoBarra, dto.Nombre, dto.Marca, dto.Contenido, null, categoriaNombre));
         }
 
         return Ok(result);

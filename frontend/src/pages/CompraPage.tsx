@@ -32,6 +32,8 @@ interface CartItem {
   descAdicional?: string;
   contenido?: number;
   unidadMedidaId?: number;
+  seguirStock?: boolean;
+  stock?: number;
 }
 
 const COMPRA_CART_KEY = 'compra_cart_pending';
@@ -213,6 +215,8 @@ export default function CompraPage() {
           unidadMedidaId: unidad.unidadMedidaId ?? undefined,
           contenido: unidad.contenido ?? undefined,
           descAdicional: unidad.descAdicional ?? undefined,
+          seguirStock: unidad.seguirStock !== false,
+          stock: unidad.stock ?? 0,
         }
         cart.addItem(item)
       }
@@ -227,6 +231,8 @@ export default function CompraPage() {
         unidadMedidaId: p.unidadMedidaId ?? undefined,
         contenido: p.contenido ?? undefined,
         descAdicional: p.descAdicional ?? undefined,
+        seguirStock: p.seguirStock !== false,
+        stock: p.stock ?? 0,
       }
       cart.addItem(item)
     }
@@ -244,7 +250,7 @@ export default function CompraPage() {
   const handleConfirmPrecio = (data: PrecioStockData) => {
     if (editingIdx === null) return;
     cart.setItems(prev => prev.map((i, i2) =>
-      i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo } : i
+      i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo, seguirStock: data.seguirStock, stock: data.stock } : i
     ));
     setEditingIdx(null);
   };
@@ -583,6 +589,8 @@ export default function CompraPage() {
         <PrecioStockEditor
           initialCosto={cart.items[editingIdx].costoUnitario}
           initialPrecio={cart.items[editingIdx].precio ?? 0}
+          initialStock={cart.items[editingIdx].stock ?? 0}
+          initialSeguirStock={cart.items[editingIdx].seguirStock ?? true}
           onConfirm={handleConfirmPrecio}
           onCancel={() => setEditingIdx(null)}
         />

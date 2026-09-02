@@ -188,7 +188,7 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
         open={confirmDeleteId != null}
         onClose={() => setConfirmDeleteId(null)}
         title="Desactivar unidad de medida"
-        description="¿Estás seguro? La unidad quedará inactiva y no estará disponible para productos nuevos. Los productos existentes no se verán afectados."
+        description="¿Estás seguro? No se podrá desactivar si hay productos activos que la utilizan."
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>

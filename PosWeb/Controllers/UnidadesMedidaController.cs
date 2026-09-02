@@ -92,6 +92,13 @@ public class UnidadesMedidaController : ControllerBase
         if (!unidad.ACTIVO)
             return NoContent();
 
+        bool enUso = await _context.Producto
+            .AnyAsync(p => p.ID_UNIDAD_MEDIDA == id && p.ACTIVO);
+        if (enUso)
+        {
+            return BadRequest(new { error = "No se puede desactivar la unidad: hay productos activos que la utilizan" });
+        }
+
         unidad.Desactivar();
         await _context.SaveChangesAsync();
         return NoContent();

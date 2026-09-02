@@ -102,6 +102,7 @@ export interface OpenFoodFactsResultDto {
   contenido?: number | null
   unidad?: string | null
   categoriaIdSugerido?: number | null
+  unidadIdSugerido?: number | null
 }
 
 export interface ProductoLookupResponseDto {

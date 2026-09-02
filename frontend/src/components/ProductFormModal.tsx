@@ -82,6 +82,8 @@ export default function ProductFormModal({
   const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const focusAppliedRef = useRef(false)
+  const categoriaRefetchRef = useRef<number | null>(null)
+  const unidadRefetchRef = useRef<number | null>(null)
 
   type FieldKey =
     | 'codigoBarra'
@@ -329,20 +331,69 @@ export default function ProductFormModal({
 
   // Preselect unit from OFF data
   useEffect(() => {
-    if (prefillData?.unidad && unidades.length > 0) {
-      const match = unidades.find(u =>
-        u.codigo?.toUpperCase() === prefillData.unidad!.toUpperCase()
-      )
+    const sugerida = prefillData?.unidadIdSugerido
+    if (sugerida) {
+      if (unidades.some(u => u.id === sugerida)) {
+        setUnidadMedidaId(String(sugerida))
+        return
+      }
+      if (unidadRefetchRef.current === sugerida) return
+      unidadRefetchRef.current = sugerida
+
+      // La unidad pudo haber sido creada por el backend en esta misma consulta:
+      // recargar la lista para incluirla. Si aun así no llega, se agrega localmente
+      // la opción para que el campo la muestre y quede seleccionada.
+      api.unidadesMedida.listar().then(list => {
+        setUnidades(prev => {
+          if (list.some(u => u.id === sugerida)) return list
+          if (prev.some(u => u.id === sugerida)) return prev
+          return [...prev, {
+            id: sugerida,
+            codigo: prefillData?.unidad?.toUpperCase() || `U${sugerida}`,
+            descripcion: prefillData?.unidad?.toUpperCase() || `Unidad ${sugerida}`,
+            activo: true,
+          }]
+        })
+      }).catch(() => {})
+      return
+    }
+
+    // Fallback: match por código (flujos sin id sugerido)
+    const cod = prefillData?.unidad
+    if (cod && unidades.some(u => u.codigo?.toUpperCase() === cod.toUpperCase())) {
+      const match = unidades.find(u => u.codigo?.toUpperCase() === cod.toUpperCase())
       if (match) setUnidadMedidaId(match.id.toString())
     }
   }, [prefillData, unidades])
 
   // Preselect category from OFF data
   useEffect(() => {
-    if (prefillData?.categoriaIdSugerido && categorias.length > 0) {
-      const match = categorias.find(c => c.id === prefillData.categoriaIdSugerido)
-      if (match) setCategoriaId(match.id.toString())
+    const sugerida = prefillData?.categoriaIdSugerido
+    if (!sugerida) return
+
+    if (categorias.some(c => c.id === sugerida)) {
+      setCategoriaId(String(sugerida))
+      return
     }
+
+    if (categoriaRefetchRef.current === sugerida) return
+    categoriaRefetchRef.current = sugerida
+
+    // La categoría pudo haber sido creada por el backend en esta misma consulta:
+    // recargar la lista para incluirla. Si aun así no llega, se agrega localmente
+    // la opción para que el campo la muestre y quede seleccionada.
+    api.categorias.listar().then(list => {
+      setCategorias(prev => {
+        if (list.some(c => c.id === sugerida)) return list
+        if (prev.some(c => c.id === sugerida)) return prev
+        return [...prev, {
+          id: sugerida,
+          codigo: '',
+          descripcion: prefillData?.categoria?.trim() || `Categoría ${sugerida}`,
+          margenGanancia: null,
+        }]
+      })
+    }).catch(() => {})
   }, [prefillData, categorias])
 
   // Force KG for pesables (KG = id 2 from seed data), force Unidad for bultos (Unidad = id 1)

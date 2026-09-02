@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
+using PosWeb.Application.Categorias;
 using PosWeb.Application.CategoriasGasto;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
@@ -14,6 +15,7 @@ using PosWeb.Application.Estadisticas;
 using PosWeb.Application.Gastos;
 using PosWeb.Application.Pedidos;
 using PosWeb.Application.Proveedores;
+using PosWeb.Application.UnidadesMedida;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Catalogo;
@@ -128,6 +130,8 @@ builder.Services.AddScoped<ComboService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
 builder.Services.AddScoped<PreferenciaService>();
+builder.Services.AddScoped<CategoriaSugeridaService>();
+builder.Services.AddScoped<UnidadSugeridaService>();
 
 // MercadoPago
 var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
