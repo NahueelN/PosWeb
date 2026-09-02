@@ -106,7 +106,14 @@ public class VentaService
 
         foreach (VentaItemDto item in dto.Items)
         {
-            if (item.ComboId.HasValue && item.ComboId.Value > 0)
+            if (!string.IsNullOrWhiteSpace(item.DescripcionManual))
+            {
+                if (item.ProductoId != 0 || item.ComboId.HasValue || item.OfertaId.HasValue)
+                    throw new InvalidOperationException("El producto manual no puede incluir producto, combo u oferta");
+
+                venta.AgregarRenglonManual(item.DescripcionManual, item.Cantidad, item.PrecioManual);
+            }
+            else if (item.ComboId.HasValue && item.ComboId.Value > 0)
             {
                 var combo = _context.Combo
                     .Include(c => c.ITEMS)
@@ -329,9 +336,9 @@ public class VentaService
             clienteNombre = cli?.NOMBRE;
         }
 
-        string? empresaNombre = _context.Empresa
+        var empresa = _context.Empresa
             .Where(e => e.ID_EMPRESA == sucursal.ID_EMPRESA)
-            .Select(e => e.NOMBRE)
+            .Select(e => new { e.NOMBRE, e.DIRECCION, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
             .FirstOrDefault();
 
         return new VentaResultadoDto
@@ -346,7 +353,10 @@ public class VentaService
             DeudaId = deudaId,
             DeudaMonto = deudaMonto,
             CajaId = cajaActiva.ID_CAJA,
-            EmpresaNombre = empresaNombre,
+            EmpresaNombre = empresa?.NOMBRE,
+            EmpresaDireccion = empresa?.DIRECCION,
+            EmpresaTelefono = empresa?.TELEFONO,
+            MostrarTelefonoTicket = empresa?.MOSTRAR_TELEFONO_TICKET ?? false,
             Estado = venta.ESTADO
         };
     }
@@ -401,9 +411,8 @@ public class VentaService
         }
 
         var sucursalId = venta.ID_SUCURSAL;
-        string? empresaNombre = _context.Empresa
-            .Where(e => e.ID_EMPRESA == sucursalId)
-            .Select(e => e.NOMBRE)
+        var empresa = _context.Empresa
+            .Select(e => new { e.NOMBRE, e.DIRECCION, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
             .FirstOrDefault();
 
         int? cajaId = _context.Caja
@@ -446,7 +455,10 @@ public class VentaService
             ClienteId = venta.ID_CLIENTE,
             ClienteNombre = clienteNombre,
             CajaId = cajaId,
-            EmpresaNombre = empresaNombre,
+            EmpresaNombre = empresa?.NOMBRE,
+            EmpresaDireccion = empresa?.DIRECCION,
+            EmpresaTelefono = empresa?.TELEFONO,
+            MostrarTelefonoTicket = empresa?.MOSTRAR_TELEFONO_TICKET ?? false,
             Estado = venta.ESTADO
         };
     }
@@ -564,7 +576,7 @@ public class VentaService
                 ProductoId = r.ID_PRODUCTO ?? 0,
                 ProductoNombre = r.ID_COMBO != null
                     ? _context.Combo.Where(c => c.ID_COMBO == r.ID_COMBO).Select(c => c.DESC_COMBO).FirstOrDefault() ?? "Combo"
-                    : _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.DESC_PRODUCTO).FirstOrDefault() ?? "",
+                    : r.DESCRIPCION_MANUAL ?? _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.DESC_PRODUCTO).FirstOrDefault() ?? "",
                 CodigoBarra = r.ID_COMBO != null
                     ? _context.Combo.Where(c => c.ID_COMBO == r.ID_COMBO).Select(c => c.COD_COMBO).FirstOrDefault() ?? ""
                     : _context.Producto.Where(p => p.ID_PRODUCTO == r.ID_PRODUCTO).Select(p => p.CODIGO_BARRAS).FirstOrDefault() ?? "",

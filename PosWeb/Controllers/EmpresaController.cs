@@ -24,7 +24,7 @@ public class EmpresaController : ControllerBase
         var empresa = _ctx.Empresa.Find(empresaId.Value);
         if (empresa == null) return NotFound();
 
-        return Ok(new { id = empresa.ID_EMPRESA, nombre = empresa.NOMBRE, documento = empresa.DOCUMENTO });
+        return Ok(new { id = empresa.ID_EMPRESA, nombre = empresa.NOMBRE, documento = empresa.DOCUMENTO, direccion = empresa.DIRECCION, telefono = empresa.TELEFONO, mostrarTelefonoTicket = empresa.MOSTRAR_TELEFONO_TICKET });
     }
 
     [HttpPut]
@@ -38,9 +38,12 @@ public class EmpresaController : ControllerBase
 
         if (req.Nombre != null) empresa.CambiarNombre(req.Nombre);
         if (req.Documento != null) empresa.CambiarDocumento(req.Documento);
+        if (req.Direccion != null) empresa.CambiarDireccion(req.Direccion);
+        if (req.Telefono != null) empresa.CambiarTelefono(req.Telefono);
+        if (req.MostrarTelefonoTicket.HasValue) empresa.CambiarMostrarTelefonoTicket(req.MostrarTelefonoTicket.Value);
         _ctx.SaveChanges();
 
-        return Ok(new { id = empresa.ID_EMPRESA, nombre = empresa.NOMBRE, documento = empresa.DOCUMENTO });
+        return Ok(new { id = empresa.ID_EMPRESA, nombre = empresa.NOMBRE, documento = empresa.DOCUMENTO, direccion = empresa.DIRECCION, telefono = empresa.TELEFONO, mostrarTelefonoTicket = empresa.MOSTRAR_TELEFONO_TICKET });
     }
 
     private int? ObtenerEmpresaId()
@@ -60,5 +63,8 @@ public class EmpresaController : ControllerBase
     {
         public string? Nombre { get; set; }
         public string? Documento { get; set; }
+        public string? Direccion { get; set; }
+        public string? Telefono { get; set; }
+        public bool? MostrarTelefonoTicket { get; set; }
     }
 }

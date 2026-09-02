@@ -30,7 +30,6 @@ export default function CompartirMenu({
   const [mailRecordar, setMailRecordar] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [whatsappRecordar, setWhatsappRecordar] = useState(false)
-
   useEffect(() => {
     onOpenChange?.(mailModalOpen || whatsappModalOpen)
   }, [mailModalOpen, whatsappModalOpen, onOpenChange])
@@ -100,16 +99,20 @@ export default function CompartirMenu({
         </button>
         {showShare && (
           <div className={`absolute ${dropdownUp ? 'bottom-full mb-1' : 'top-full mt-1'} right-0 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-10`}>
-            <button onClick={openMail} disabled={!mail}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <Mail size={16} className="text-gray-400" />
-              Enviar por mail
-            </button>
-            <button onClick={openWhatsAppShare} disabled={!telefono}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100">
-              <MessageCircle size={16} className="text-gray-400" />
-              Compartir por WhatsApp
-            </button>
+            <span className="block" title={!mail ? 'Falta correo electrónico' : undefined}>
+              <button onClick={openMail} disabled={!mail}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Mail size={16} className="text-gray-400" />
+                Enviar por mail
+              </button>
+            </span>
+            <span className="block" title={!telefono ? 'Falta número de celular' : undefined}>
+              <button onClick={openWhatsAppShare} disabled={!telefono}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100">
+                <MessageCircle size={16} className="text-gray-400" />
+                Compartir por WhatsApp
+              </button>
+            </span>
           </div>
         )}
       </div>

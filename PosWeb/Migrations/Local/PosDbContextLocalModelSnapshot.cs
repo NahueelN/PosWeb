@@ -395,15 +395,31 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("DOCUMENTO");
 
+                    b.Property<string>("DIRECCION")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DIRECCION");
+
                     b.Property<int>("ID_SUSCRIPCION")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_SUSCRIPCION");
+
+                    b.Property<bool>("MOSTRAR_TELEFONO_TICKET")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MOSTRAR_TELEFONO_TICKET");
 
                     b.Property<string>("NOMBRE")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("NOMBRE");
+
+                    b.Property<string>("TELEFONO")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TELEFONO");
 
                     b.HasKey("ID_EMPRESA");
 
@@ -961,6 +977,11 @@ namespace PosWeb.Migrations.Local
                     b.Property<decimal>("CANTIDAD")
                         .HasColumnType("decimal(18,3)")
                         .HasColumnName("CANTIDAD");
+
+                    b.Property<string>("DESCRIPCION_MANUAL")
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DESCRIPCION_MANUAL");
 
                     b.Property<int?>("ID_COMBO")
                         .HasColumnType("INTEGER")

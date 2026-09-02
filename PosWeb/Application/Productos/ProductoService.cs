@@ -124,6 +124,8 @@ public class ProductoService
 
     public ProductoDto Crear(ProductoUpsertDto dto)
     {
+        dto.CodigoBarra = Producto.NormalizarCodigoBarra(dto.CodigoBarra);
+
         if (!string.IsNullOrWhiteSpace(dto.CodigoBarra))
         {
             bool codigoExiste = _context.Producto
@@ -237,6 +239,8 @@ public class ProductoService
             throw new CodigoBarraRequeridoException();
         }
 
+        codigoBarras = Producto.NormalizarCodigoBarra(codigoBarras);
+
         Producto? producto = _context.Producto
             .FirstOrDefault(p => p.CODIGO_BARRAS == codigoBarras && p.ACTIVO);
 
@@ -303,6 +307,8 @@ public class ProductoService
         {
             throw new ProductoNoEncontradoException(id);
         }
+
+        dto.CodigoBarra = Producto.NormalizarCodigoBarra(dto.CodigoBarra);
 
         producto.CambiarEsPesable(dto.EsPesable);
         producto.CambiarEsBulto(dto.EsBulto, dto.EsBulto ? dto.ProductoBultoId : null);
@@ -410,7 +416,7 @@ public class ProductoService
             .Where(p => p.ACTIVO)
             .Select(p => p.CODIGO_BARRAS)
             .AsEnumerable()
-            .Select(c => (c ?? "").Trim())
+            .Select(c => Producto.NormalizarCodigoBarra(c ?? ""))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Categorías: indexar por DESC_CATEGORIA (trim, case-insensitive) y por COD_CATEGORIA (uppercase).
@@ -493,6 +499,8 @@ public class ProductoService
             }
             else
             {
+                codigoBarras = Producto.NormalizarCodigoBarra(codigoBarras);
+
                 // Duplicado en DB.
                 if (existentes.Contains(codigoBarras))
                 {

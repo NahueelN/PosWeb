@@ -400,7 +400,7 @@ export default function Layout() {
         </div>
       </main>
 
-      <ProductLookupModal open={lookupOpen} onClose={() => setLookupOpen(false)} />
+      {lookupOpen && <ProductLookupModal onClose={() => setLookupOpen(false)} />}
 
 
       {qrModalOpen && (

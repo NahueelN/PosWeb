@@ -8,6 +8,7 @@ import ProductFormModal from '../components/ProductFormModal'
 import ImportarProductosModal from '../components/ImportarProductosModal'
 import ConfiguracionProductosTab from '../components/ConfiguracionProductosTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
+import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import Dialog from '../components/ui/Dialog'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -114,7 +115,7 @@ export default function ProductosPage() {
       }
     } catch {}
     const localMatch = productos.find(
-      p => p.codigoBarra.toLowerCase() === codigo.toLowerCase()
+      p => p.codigoBarra.toLowerCase() === normalizarCodigoBarra(codigo).toLowerCase()
     )
     if (localMatch) {
       setQuery(codigo)

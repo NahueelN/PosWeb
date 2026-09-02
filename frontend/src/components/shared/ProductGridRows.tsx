@@ -1,15 +1,15 @@
 import { useRef, type ReactNode, type RefObject } from 'react'
-import { PRODUCT_ROW_GRID } from './ProductRow'
+import { PRODUCT_ROW_GRID, PRODUCT_ROW_GRID_NO_ACTION } from './ProductRow'
 
 // ── Header ─────────────────────────────────────────────────────────
 const HEADER_CELL = 'truncate'
 const HEADER_CELL_RIGHT = 'text-right truncate'
 
-export function ProductGridHeader() {
+export function ProductGridHeader({ hasAction = true }: { hasAction?: boolean }) {
   return (
     <div
       className={[
-        PRODUCT_ROW_GRID,
+        hasAction ? PRODUCT_ROW_GRID : PRODUCT_ROW_GRID_NO_ACTION,
         'px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400',
       ].join(' ')}
     >
@@ -17,7 +17,7 @@ export function ProductGridHeader() {
       <span className={HEADER_CELL}>Descripción</span>
       <span className={HEADER_CELL_RIGHT}>Stock</span>
       <span className={HEADER_CELL_RIGHT}>Precio</span>
-      <span />
+      {hasAction && <span />}
     </div>
   )
 }

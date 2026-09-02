@@ -1,7 +1,7 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PosWeb.Data;
 using PosWeb.Domain;
+using System.Text.Json;
 
 namespace PosWeb.Application.Preferencias;
 
@@ -14,45 +14,58 @@ public class PreferenciaService
         _context = context;
     }
 
-    public async Task<Dictionary<string, string>> ObtenerAsync(int userId)
+    public async Task<Dictionary<string, JsonElement>> ObtenerAsync(int userId)
     {
-        return await _context.UsuarioPreferencia
+        var filas = await _context.UsuarioPreferencia
             .Where(p => p.ID_USUARIO == userId)
-            .ToDictionaryAsync(p => p.CLAVE, p => p.VALOR);
+            .ToListAsync();
+
+        var resultado = new Dictionary<string, JsonElement>();
+        foreach (var fila in filas)
+        {
+            if (TryDeserializeValor(fila.VALOR, out var json))
+            {
+                resultado[fila.CLAVE] = json;
+            }
+        }
+
+        return resultado;
     }
 
     public async Task GuardarAsync(int userId, Dictionary<string, JsonElement> preferencias)
     {
-        if (preferencias == null || preferencias.Count == 0) return;
-
-        var claves = preferencias.Keys.ToList();
-        var existentes = await _context.UsuarioPreferencia
-            .Where(p => p.ID_USUARIO == userId && claves.Contains(p.CLAVE))
-            .ToListAsync();
-
-        var map = existentes.ToDictionary(p => p.CLAVE);
-
         foreach (var (clave, valor) in preferencias)
         {
-            var valorStr = valor.ValueKind switch
-            {
-                JsonValueKind.String => valor.GetString() ?? string.Empty,
-                JsonValueKind.Null => string.Empty,
-                _ => valor.GetRawText(),
-            };
+            var valorJson = valor.GetRawText();
 
-            if (string.IsNullOrWhiteSpace(valorStr)) continue;
+            var existente = await _context.UsuarioPreferencia
+                .FirstOrDefaultAsync(p => p.ID_USUARIO == userId && p.CLAVE == clave);
 
-            if (map.TryGetValue(clave, out var existente))
+            if (existente != null)
             {
-                existente.CambiarValor(valorStr);
+                existente.CambiarValor(valorJson);
             }
             else
             {
-                _context.UsuarioPreferencia.Add(new UsuarioPreferencia(userId, clave, valorStr));
+                _context.UsuarioPreferencia.Add(new UsuarioPreferencia(userId, clave, valorJson));
             }
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    private static bool TryDeserializeValor(string valor, out JsonElement json)
+    {
+        json = default;
+        try
+        {
+            using var doc = JsonDocument.Parse(valor);
+            json = doc.RootElement.Clone();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

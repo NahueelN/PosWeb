@@ -159,7 +159,7 @@ export const api = {
   // Empresa
   empresas: {
     obtener: () => request<EmpresaDto>('/empresa'),
-    actualizar: (dto: { nombre?: string; documento?: string }) =>
+    actualizar: (dto: { nombre?: string; documento?: string; direccion?: string; telefono?: string; mostrarTelefonoTicket?: boolean }) =>
       request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
   },
 
