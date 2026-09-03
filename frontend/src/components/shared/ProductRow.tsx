@@ -39,7 +39,7 @@ export default function ProductRow({
       onClick={onClick}
       className={[
         action ? PRODUCT_ROW_GRID : PRODUCT_ROW_GRID_NO_ACTION,
-        'w-full text-left px-3 py-2 rounded-lg border border-gray-100',
+        'w-full text-left px-3 py-2 rounded-lg border-2 border-gray-300',
         'hover:bg-indigo-50/50 hover:border-indigo-200',
         'focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500',
         'transition-colors bg-white',

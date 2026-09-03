@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -266,20 +266,6 @@ export default function Layout() {
               <QrCode size={14} className="shrink-0" />
               Ver QR
             </button>
-            <NavLink
-              to="/usuarios/alta"
-              onClick={closeSidebar}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
-                }`
-              }
-            >
-              <UserPlus size={14} className="shrink-0" />
-              Alta usuario
-            </NavLink>
           </>
         )}
         <NavLink

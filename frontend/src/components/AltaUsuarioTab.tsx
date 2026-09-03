@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import type { UsuarioListadoDto } from '../types'
 
-export default function AltaUsuarioPage() {
-  const navigate = useNavigate()
+export default function AltaUsuarioTab() {
   const { user } = useAuth()
+  const { notifyError, notifySuccess } = useNotification()
 
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +15,6 @@ export default function AltaUsuarioPage() {
   const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
-  const { notifyError, notifySuccess } = useNotification()
   const [_formError, _setFormError] = useState('')
   const [_listError, setListError] = useState('')
   const [_success, setSuccess] = useState('')
@@ -25,13 +23,9 @@ export default function AltaUsuarioPage() {
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
-    if (user?.rol === 'UsuarioComun') {
-      navigate('/ventas', { replace: true })
-      return
-    }
-
     void loadUsuarios()
-  }, [user, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function loadUsuarios() {
     setLoadingList(true)
@@ -139,6 +133,8 @@ export default function AltaUsuarioPage() {
     }
   }
 
+  if (user?.rol === 'UsuarioComun') return null
+
   return (
     <div className="space-y-6">
       <div className="max-w-2xl">
@@ -217,22 +213,13 @@ export default function AltaUsuarioPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Creando...' : 'Crear usuario'}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/ventas')}
-              className="flex-1 border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
-            >
-              Volver
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Creando...' : 'Crear usuario'}
+          </button>
         </form>
       </div>
 

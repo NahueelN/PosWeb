@@ -29,7 +29,7 @@ export default function CartItemList({
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="divide-y-2 divide-gray-300">
       {items.map((item: any, idx: number) => (
         <CartItemRow key={getKey(item, idx)} {...getItemProps(item, idx)} />
       ))}
