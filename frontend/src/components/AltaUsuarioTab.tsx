@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
+import ConfirmDialog from './ui/ConfirmDialog'
 import type { UsuarioListadoDto } from '../types'
 
 export default function AltaUsuarioTab() {
@@ -20,6 +21,8 @@ export default function AltaUsuarioTab() {
   const [_success, setSuccess] = useState('')
   const [desactivandoId, setDesactivandoId] = useState<number | null>(null)
   const [cambiandoSuscripcionId, setCambiandoSuscripcionId] = useState<number | null>(null)
+  const [confirmBaja, setConfirmBaja] = useState<{ id: number; nombre: string } | null>(null)
+  const [confirmSuscripcion, setConfirmSuscripcion] = useState<{ id: number; nombre: string; activa: boolean } | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
@@ -75,11 +78,6 @@ export default function AltaUsuarioTab() {
   }
 
   async function handleDesactivarUsuario(usuarioId: number, nombreUsuario: string) {
-    const confirmacion = window.confirm(`¿Dar de baja a ${nombreUsuario}?`)
-    if (!confirmacion) {
-      return
-    }
-
     setListError('')
     setSuccess('')
     setDesactivandoId(usuarioId)
@@ -100,16 +98,11 @@ export default function AltaUsuarioTab() {
       }
     } finally {
       setDesactivandoId(null)
+      setConfirmBaja(null)
     }
   }
 
   async function handleCambiarSuscripcion(usuarioId: number, nombreUsuario: string, activa: boolean) {
-    const textoAccion = activa ? 'reactivar' : 'suspender'
-    const confirmacion = window.confirm(`¿${textoAccion} la suscripción de ${nombreUsuario} y sus dependientes?`)
-    if (!confirmacion) {
-      return
-    }
-
     setListError('')
     setSuccess('')
     setCambiandoSuscripcionId(usuarioId)
@@ -130,6 +123,7 @@ export default function AltaUsuarioTab() {
       }
     } finally {
       setCambiandoSuscripcionId(null)
+      setConfirmSuscripcion(null)
     }
   }
 
@@ -329,7 +323,7 @@ export default function AltaUsuarioTab() {
                         {usuarioItem.activo && usuarioItem.rol === 'UsuarioComun' ? (
                           <button
                             type="button"
-                            onClick={() => handleDesactivarUsuario(usuarioItem.id, usuarioItem.nombreUsuario)}
+                            onClick={() => setConfirmBaja({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario })}
                             disabled={desactivandoId === usuarioItem.id}
                             className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
@@ -343,11 +337,11 @@ export default function AltaUsuarioTab() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleCambiarSuscripcion(
-                                usuarioItem.id,
-                                usuarioItem.nombreUsuario,
-                                !usuarioItem.suscripcionActiva
-                              )
+                              setConfirmSuscripcion({
+                                id: usuarioItem.id,
+                                nombre: usuarioItem.nombreUsuario,
+                                activa: !usuarioItem.suscripcionActiva,
+                              })
                             }
                             disabled={cambiandoSuscripcionId === usuarioItem.id}
                             className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
@@ -374,6 +368,28 @@ export default function AltaUsuarioTab() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmBaja != null}
+        title="Dar de baja"
+        description={confirmBaja ? `¿Dar de baja a ${confirmBaja.nombre}?` : ''}
+        confirmLabel="Dar de baja"
+        confirmVariant="destructive"
+        onCancel={() => setConfirmBaja(null)}
+        onConfirm={() => { if (confirmBaja) void handleDesactivarUsuario(confirmBaja.id, confirmBaja.nombre) }}
+      />
+
+      <ConfirmDialog
+        open={confirmSuscripcion != null}
+        title="Suscripción"
+        description={confirmSuscripcion
+          ? `¿${confirmSuscripcion.activa ? 'reactivar' : 'suspender'} la suscripción de ${confirmSuscripcion.nombre} y sus dependientes?`
+          : ''}
+        confirmLabel={confirmSuscripcion?.activa ? 'Reactivar' : 'Suspender'}
+        confirmVariant={confirmSuscripcion?.activa ? 'confirm' : 'destructive'}
+        onCancel={() => setConfirmSuscripcion(null)}
+        onConfirm={() => { if (confirmSuscripcion) void handleCambiarSuscripcion(confirmSuscripcion.id, confirmSuscripcion.nombre, confirmSuscripcion.activa) }}
+      />
     </div>
   )
 }

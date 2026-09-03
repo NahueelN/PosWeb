@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
+import { obtenerCredenciales, guardarCredenciales } from '../lib/credenciales'
 import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
@@ -11,6 +12,7 @@ export default function LoginPage() {
 
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
+  const [recordarme, setRecordarme] = useState(true)
   const [sucursales, setSucursales] = useState<SucursalDto[]>([])
   const [sucursalId, setSucursalId] = useState<number>(0)
   const [loading, setLoading] = useState(false)
@@ -55,12 +57,32 @@ export default function LoginPage() {
     load()
   }, [])
 
+  // Prefill credenciales guardadas (keychain del SO en Tauri)
+  useEffect(() => {
+    if (isAuthenticated) return
+    obtenerCredenciales()
+      .then(c => {
+        if (!c) return
+        setUsuario(c.usuario)
+        if (c.password) {
+          setPassword(c.password)
+          setRecordarme(true)
+        }
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
 
     try {
       await login({ usuario, password, sucursalId })
+      if (recordarme) {
+        await guardarCredenciales(usuario, password)
+      } else {
+        await guardarCredenciales(usuario, null)
+      }
       navigate('/', { replace: true })
       try {
         const nombre = sucursales.find((s: SucursalDto) => s.id === sucursalId)?.nombre ?? 'Central'
@@ -151,6 +173,16 @@ export default function LoginPage() {
                 required
               />
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={recordarme}
+                onChange={e => setRecordarme(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Recordarme
+            </label>
 
             {sucursales.length > 1 && (
             <div>
