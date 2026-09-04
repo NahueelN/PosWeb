@@ -129,7 +129,7 @@ export default function VentasPage() {
   const unidadesMap = useMemo(() => { const m = new Map<number, string>(); for (const u of unidades) m.set(u.id, u.codigo); return m }, [unidades])
   const ofertasMap = useMemo(() => { const m = new Map<number, OfertaDto>(); for (const o of ofertas) { if (estaVigenteHoy(o.fechaInicio, o.fechaFin, o.diasSemana, o.activo)) m.set(o.productoId, o) } return m }, [ofertas])
   const combosVigentes = useMemo(() => combos.filter(c => estaVigenteHoy(c.fechaInicio, c.fechaFin, c.diasSemana, c.activo)), [combos])
-  const filteredProductos = useMemo(() => { if (!searchQuery.trim()) return productos; const q = searchQuery.toLowerCase(); return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q)) }, [productos, searchQuery])
+  const filteredProductos = useMemo(() => { if (!searchQuery.trim()) return productos; const q = searchQuery.toLowerCase(); return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q) || p.codigoProducto?.toLowerCase().includes(q)) }, [productos, searchQuery])
   const filteredCombos = useMemo(() => { if (!searchQuery.trim()) return combosVigentes; const q = searchQuery.toLowerCase(); return combosVigentes.filter(c => c.descCombo.toLowerCase().includes(q) || c.codCombo.toLowerCase().includes(q)) }, [combosVigentes, searchQuery])
 
   // Effects
@@ -245,16 +245,27 @@ export default function VentasPage() {
         return next.size === prev.size ? prev : next
       })
     }
-    const match = combosVigentes.find(combo => {
-      if (cart.items.some(i => i.comboId === combo.id)) return false
+    const hasMatch = combosVigentes.some(combo => {
       if (dismissedCombos.has(combo.id)) return false
       return combo.items.every(ci => { const cartItem = cart.items.find(i => !i.comboId && i.producto.id === ci.productoId); return cartItem && cartItem.cantidad >= ci.cantidad })
     })
-    if (!match) return
+    if (!hasMatch) return
     autoComboRef.current = true
     cart.setItems(prev => {
-      const filtered = prev.map(i => { if (i.comboId) return i; const ci = match.items.find(c => c.productoId === i.producto.id); if (!ci) return i; const rest = i.cantidad - ci.cantidad; if (rest <= 0) return null; return { ...i, cantidad: rest } }).filter(Boolean) as Item[]
-      return [...filtered, { producto: { id: 0, codigoBarra: match.codCombo, nombre: match.descCombo, precio: match.precio, costo: 0, stock: 999, activo: true }, cantidad: 1, comboId: match.id, comboNombre: match.descCombo, comboPrecio: match.precio } as Item]
+      let next = prev
+      while (true) {
+        const match = combosVigentes.find(combo => {
+          if (dismissedCombos.has(combo.id)) return false
+          return combo.items.every(ci => { const cartItem = next.find(i => !i.comboId && i.producto.id === ci.productoId); return cartItem && cartItem.cantidad >= ci.cantidad })
+        })
+        if (!match) return next
+
+        const filtered = next.map(i => { if (i.comboId) return i; const ci = match.items.find(c => c.productoId === i.producto.id); if (!ci) return i; const rest = i.cantidad - ci.cantidad; if (rest <= 0) return null; return { ...i, cantidad: rest } }).filter(Boolean) as Item[]
+        const comboExistente = filtered.find(i => i.comboId === match.id)
+        next = comboExistente
+          ? filtered.map(i => i.comboId === match.id ? { ...i, cantidad: i.cantidad + 1 } : i)
+          : [...filtered, { producto: { id: 0, codigoBarra: match.codCombo, nombre: match.descCombo, precio: match.precio, costo: 0, stock: 999, activo: true }, cantidad: 1, comboId: match.id, comboNombre: match.descCombo, comboPrecio: match.precio } as Item]
+      }
     })
   }, [cart.items, combos])
 
@@ -416,19 +427,20 @@ export default function VentasPage() {
     if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
 
+    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (selectedMedio.id === 4 || selectedMedio.id === 5) {
-      await crearVentaPendiente()
+      await crearVentaPendiente(pendingAllowSinStock.current)
+      pendingAllowSinStock.current = false
       return
     }
 
     const r = parseFloat(recibio) || 0
-    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
     await ejecutarVenta(r, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
   }
 
-  async function crearVentaPendiente() {
+  async function crearVentaPendiente(allowSinStock = false) {
     if (!sucursalEfectiva) return
     try {
       const res = await api.ventas.crear({
@@ -436,6 +448,7 @@ export default function VentasPage() {
         items: ventaItems(),
         esperarTransferencia: true,
         pendienteMedioId: selectedMedio?.id,
+        allowSinStock,
       })
       setVentaPendienteId(res.ventaId)
       setMpTimeout(300)
@@ -502,7 +515,17 @@ export default function VentasPage() {
     setStep('venta')
   }
 
-  function continuarVenta() { const r = parseFloat(recibio) || 0; if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }; ejecutarVenta(r, pendingAllowSinStock.current); pendingAllowSinStock.current = false }
+  async function continuarVenta() {
+    const r = parseFloat(recibio) || 0
+    if (selectedMedio?.id === 4 || selectedMedio?.id === 5) {
+      await crearVentaPendiente(pendingAllowSinStock.current)
+      pendingAllowSinStock.current = false
+      return
+    }
+    if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
+    await ejecutarVenta(r, pendingAllowSinStock.current)
+    pendingAllowSinStock.current = false
+  }
 
   async function ejecutarVenta(recibioValor: number, allowSinStock = false, cliente?: ClienteDto) {
     if (!sucursalEfectiva) return
@@ -523,34 +546,10 @@ export default function VentasPage() {
     if (firstItem) { const input = cantidadRefs.current.get(firstItem.producto.id); if (input) { cartListRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); input.focus(); input.select() } }
   }
 
-  function handleStockContinue() { setShowStockConfirm(false); setStockConflictItems([]); pendingAllowSinStock.current = true; continuarVenta() }
+  function handleStockContinue() { setShowStockConfirm(false); setStockConflictItems([]); pendingAllowSinStock.current = true; void continuarVenta() }
 
   function handleClientSelect(cl: ClienteDto) { setClienteSeleccionado(cl); setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]); ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, cl); pendingAllowSinStock.current = false }
   function handleAbrirNuevoCliente() { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }
-
-  async function handleClienteOcasional() {
-    setBuscandoClientes(true)
-    try {
-      const res = await api.clientes.listar('ocasional')
-      let cliente = (res.items ?? []).find(c => c.nombre.toLowerCase() === 'cliente ocasional')
-      if (!cliente) {
-        cliente = await api.clientes.crear({
-          nombre: 'Cliente ocasional',
-          tipoDocumento: 'ConsumidorFinal',
-          numeroDocumento: '',
-          ivaCondicion: 'ConsumidorFinal',
-          telefono: '',
-          mail: '',
-          domicilio: '',
-        })
-      }
-      handleClientSelect(cliente)
-    } catch (e: any) {
-      notifyError(e.message || 'Error')
-    } finally {
-      setBuscandoClientes(false)
-    }
-  }
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
@@ -704,7 +703,6 @@ export default function VentasPage() {
         onFormClienteChange={setFormCliente}
         onCrearCliente={crearClienteYRevertir}
         onAbrirNuevoCliente={handleAbrirNuevoCliente}
-        onClienteOcasional={handleClienteOcasional}
       />
       <Dialog
         open={showProductoRapido}
