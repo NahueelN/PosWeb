@@ -151,7 +151,7 @@ export default function ProductLookupModal({ onClose }: Props) {
             {!loading && query && resultados.length === 0 && <EmptyState icon={<Box size={32} strokeWidth={1.5} />} text="No encontramos productos" detail="Probá con otro nombre o código." />}
 
             {!loading && resultados.length > 0 && (
-              <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
+              <div className="min-h-0 flex-1 divide-y-2 divide-gray-300 overflow-y-auto">
                 {resultados.map((producto, index) => (
                   <button
                     key={producto.id}

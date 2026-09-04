@@ -260,7 +260,7 @@ export default function AltaUsuarioTab() {
                   <th className="py-2 pr-4 font-medium">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y-2 divide-slate-300">
                 {usuarios.map(usuarioItem => (
                   <tr key={usuarioItem.id}>
                     <td className="py-3 pr-4 font-medium text-slate-900">{usuarioItem.nombreUsuario}</td>

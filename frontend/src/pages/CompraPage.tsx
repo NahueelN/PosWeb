@@ -154,6 +154,20 @@ export default function CompraPage() {
       setTimeout(() => searchRef.current?.focus(), 50);
     }
   }, [proveedorId]);
+
+  // Bucle de navegación con Tab: desde el botón confirmar (checkout) vuelve a la búsqueda
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || e.shiftKey) return
+      const active = document.activeElement
+      if (active && confirmBtnRef.current && active === confirmBtnRef.current) {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, []);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -531,7 +545,27 @@ export default function CompraPage() {
             <input ref={searchRef} type="text" autoComplete="off" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => { if (!proveedorOk) return; const text = e.clipboardData.getData('text/plain').trim(); if (!text) return; e.preventDefault(); e.stopPropagation(); await handleBarcodeLookup(text) }}
               onKeyDown={async e => {
-                if (e.key === 'Tab' && !e.shiftKey && proveedorOk && cart.items.length > 0) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }
+                if (e.key === 'Tab' && proveedorOk) {
+                  e.preventDefault()
+                  if (e.shiftKey) {
+                    // Atrás: cierra el bucle hacia el botón confirmar (checkout)
+                    confirmBtnRef.current?.focus()
+                  } else {
+                    // Adelante: barra de búsqueda → productos → (changuito) → checkout
+                    setTimeout(() => {
+                      const firstRow = document.querySelector<HTMLElement>('[data-product-row]')
+                      if (firstRow) {
+                        firstRow.scrollIntoView({ block: 'nearest' })
+                        firstRow.focus()
+                      } else {
+                        const firstQty = document.querySelector<HTMLElement>('[data-cart-qty]')
+                        if (firstQty) firstQty.focus()
+                        else confirmBtnRef.current?.focus()
+                      }
+                    }, 0)
+                  }
+                  return
+                }
                 if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); setSearchQuery(''); searchRef.current?.focus() } return }
                 if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) { e.preventDefault(); setTimeout(() => document.querySelector<HTMLElement>('[data-product-row]')?.focus(), 0); return; }
                 if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }

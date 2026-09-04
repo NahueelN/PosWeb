@@ -237,7 +237,7 @@ export default function StockPage() {
                   <th className="px-4 py-3">Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y-2 divide-gray-300">
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-gray-400">

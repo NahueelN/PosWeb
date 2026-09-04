@@ -481,7 +481,7 @@ export default function CajaPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {historialFiltrado.map(c => (
                       <tr key={c.id}
                         onClick={() => setCierreDetalle(c)}

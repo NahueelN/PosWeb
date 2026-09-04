@@ -478,7 +478,7 @@ export default function PedidosPage() {
                   <th className="px-4 py-3 text-right">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y-2 divide-gray-300">
                 {pedidosFiltrados.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{p.proveedorNombre}</td>
@@ -538,7 +538,7 @@ export default function PedidosPage() {
             <table className="w-full text-xs border-collapse">
               <thead><tr className="border-b border-gray-200"><th className="text-left pb-2">Producto</th><th className="text-right pb-2">Cant</th><th className="text-right pb-2">Estado</th></tr></thead>
               <tbody>{detalleModal.items.map(item => (
-                <tr key={item.id} className="border-b border-gray-50">
+                <tr key={item.id} className="border-b-2 border-gray-300">
                   <td className="py-1.5 pr-2">{item.productoNombre}<br /><span className="text-gray-400 font-mono">{item.codigoBarra}</span></td>
                   <td className="text-right py-1.5">{item.cantidadPedida}</td>
                   <td className="text-right py-1.5"><span className={`px-1.5 py-0.5 rounded text-xs ${estadoBadge(item.estado)}`}>{item.estado}</span></td>
@@ -819,7 +819,7 @@ export default function PedidosPage() {
                     {alertas.length === 0 ? (
                       <p className="text-xs text-gray-400 py-3">No hay productos por debajo del 20% de su cantidad ideal.</p>
                     ) : (
-                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                      <div className="border border-gray-200 rounded-lg divide-y-2 divide-gray-300 max-h-48 overflow-y-auto">
                         {alertas.map(p => {
                           const ideal = p.cantidadIdeal ?? 0;
                           const stock = p.stock ?? 0;
