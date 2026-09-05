@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Imprimir etiquetas</title>
+  <style>
+    @page { margin: 0; }
+    html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #000; }
+    .label { box-sizing: border-box; padding: 3mm; border: .2mm solid #000; display: flex; flex-direction: column; justify-content: space-between; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .name { font-weight: 700; text-align: center; text-transform: uppercase; line-height: 1.1; }
+    .price { font-weight: 900; text-align: center; line-height: 1; white-space: nowrap; }
+    .code { font-size: 12pt; letter-spacing: 1px; }
+    .barcode svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <main id="labels"></main>
+  <script>
+    const closePrintWindow = async () => {
+      const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke
+      if (invoke) await invoke('cerrar_ventana_impresion')
+      else window.close()
+    }
+    const data = JSON.parse(localStorage.getItem('posweb-label-print') || 'null')
+    if (!data) closePrintWindow()
+    else {
+      const ancho = data.ancho === 58 ? 58 : 80
+      const altoMinimo = data.altoMinimo ?? (ancho === 80 ? 35 : 30)
+      const printStyle = document.createElement('style')
+      printStyle.textContent = `@page { size: ${ancho}mm auto; margin: 0; } html, body { width: ${ancho}mm; } .label { width: ${ancho}mm; min-height: ${altoMinimo}mm; } .name { font-size: ${ancho === 80 ? 16 : 14}px; } .price { font-size: ${ancho === 80 ? 48 : 36}px; } .code { font-size: ${ancho === 80 ? 14 : 12}px; }`
+      document.head.appendChild(printStyle)
+      const labels = document.getElementById('labels')
+      const formatter = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      for (let index = 0; index < data.cantidad; index += 1) {
+        const label = document.createElement('article')
+        label.className = 'label'
+        const name = document.createElement('div')
+        name.className = 'name'
+        name.textContent = data.nombre
+        const price = document.createElement('div')
+        price.className = 'price'
+        price.textContent = `$${formatter.format(data.precio)}`
+        label.append(name, price)
+        if (data.barcodeSvg && data.codigoDeBarras) {
+          const barcode = document.createElement('div')
+          barcode.className = 'barcode'
+          barcode.innerHTML = data.barcodeSvg
+          const code = document.createElement('div')
+          code.className = 'code'
+          code.textContent = data.codigoDeBarras
+          label.append(barcode, code)
+        }
+        labels.appendChild(label)
+      }
+      if (!new URLSearchParams(window.location.search).has('preview')) {
+        setTimeout(async () => {
+          window.print()
+          await closePrintWindow()
+        }, 100)
+      }
+    }
+  </script>
+</body>
+</html>

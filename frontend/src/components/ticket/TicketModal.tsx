@@ -61,15 +61,17 @@ export default function TicketModal({ data, onClose }: TicketModalProps) {
 
   const handlePrint = async () => {
     if ('__TAURI_INTERNALS__' in window) {
+      const printWindowLabel = `ticket-print-${Date.now()}`
       localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, letra, lines }))
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
-      new WebviewWindow(`ticket-print-${Date.now()}`, {
+      new WebviewWindow(printWindowLabel, {
         url: 'ticket-print.html',
         title: 'Imprimir ticket',
         width: 1200,
         height: 700,
         resizable: false,
         center: true,
+        decorations: false,
       })
       return
     }

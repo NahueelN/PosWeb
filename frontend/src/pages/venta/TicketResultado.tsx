@@ -124,16 +124,19 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
 
   const handlePrint = async () => {
     if ('__TAURI_INTERNALS__' in window) {
+      const printWindowLabel = `ticket-print-${Date.now()}`
       localStorage.setItem('posweb-ticket-print', JSON.stringify({ ancho, letra, lines }))
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
-      new WebviewWindow(`ticket-print-${Date.now()}`, {
+      new WebviewWindow(printWindowLabel, {
         url: 'ticket-print.html',
         title: 'Imprimir ticket',
         width: 1200,
         height: 700,
         resizable: false,
         center: true,
+        decorations: false,
       })
+      onNuevaVenta()
       return
     }
 
@@ -152,6 +155,7 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
 ${pxCss}
 </style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
       ticketWindow.document.close()
+      onNuevaVenta()
       return
     }
 
@@ -164,6 +168,7 @@ ${pxCss}
     document.head.appendChild(style)
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
+    onNuevaVenta()
   }
 
   return (

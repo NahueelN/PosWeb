@@ -19,8 +19,13 @@
 <body>
   <main id="resumen"></main>
   <script>
+    const closePrintWindow = async () => {
+      const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke
+      if (invoke) await invoke('cerrar_ventana_impresion')
+      else window.close()
+    }
     const data = JSON.parse(localStorage.getItem('posweb-resumen-print') || 'null')
-    if (!data) window.close()
+    if (!data) closePrintWindow()
     else {
       const fmt = n => '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       let html = ''
@@ -39,8 +44,11 @@
       html += '</tbody></table>'
       html += '<div class="total">TOTAL: ' + fmt(data.total) + '</div>'
       document.getElementById('resumen').innerHTML = html
-      setTimeout(() => { window.focus(); window.print() }, 100)
-      window.onafterprint = () => window.close()
+      setTimeout(async () => {
+        window.focus()
+        window.print()
+        await closePrintWindow()
+      }, 100)
     }
   </script>
 </body>

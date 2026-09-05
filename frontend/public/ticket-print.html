@@ -16,8 +16,13 @@
 <body>
   <main id="ticket"></main>
   <script>
+    const closePrintWindow = async () => {
+      const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke
+      if (invoke) await invoke('cerrar_ventana_impresion')
+      else window.close()
+    }
     const data = JSON.parse(localStorage.getItem('posweb-ticket-print') || 'null')
-    if (!data) window.close()
+    if (!data) closePrintWindow()
     else {
       document.getElementById('ticket').style.width = `${data.ancho}mm`
       const LETRA_PX = {
@@ -33,8 +38,11 @@
         row.style.fontSize = line.size === 'lg' ? lt.lg + 'px' : line.size === 'md' ? lt.md + 'px' : line.size === 'sm' ? lt.sm + 'px' : lt.base + 'px'
         document.getElementById('ticket').appendChild(row)
       })
-      setTimeout(() => { window.focus(); window.print() }, 100)
-      window.onafterprint = () => window.close()
+      setTimeout(async () => {
+        window.focus()
+        window.print()
+        await closePrintWindow()
+      }, 100)
     }
   </script>
 </body>

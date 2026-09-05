@@ -68,6 +68,15 @@ fn borrar_credenciales() -> Result<(), String> {
 }
 
 #[tauri::command]
+fn cerrar_ventana_impresion(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    if webview_window.label() == "main" {
+        return Err("La ventana principal no puede cerrarse como ventana de impresión".to_string());
+    }
+
+    webview_window.destroy().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn kill_sidecar(state: tauri::State<SidecarProcess>) {
     if let Ok(mut guard) = state.0.lock() {
         if let Some(child) = guard.take() {
@@ -92,7 +101,8 @@ pub fn run() {
             guardar_credenciales,
             guardar_usuario,
             obtener_credenciales,
-            borrar_credenciales
+            borrar_credenciales,
+            cerrar_ventana_impresion
         ])
         .setup(|app| {
             // Log plugin only in debug
