@@ -124,7 +124,7 @@ export default function CompraPage() {
   // Load data
   useEffect(() => {
     Promise.all([
-      api.productos.listar().then(setProductos).catch(() => {}),
+      api.productos.listar(sucursalId).then(setProductos).catch(() => {}),
       api.proveedores.listar().then(setProveedores).catch(() => {}),
       api.categorias.listar().then(setCategorias).catch(() => {}),
       api.unidadesMedida.listar().then(setUnidades).catch(() => {}),
@@ -261,12 +261,24 @@ export default function CompraPage() {
   const startEdit = (idx: number) => {
     setEditingIdx(idx);
   };
-  const handleConfirmPrecio = (data: PrecioStockData) => {
+  const handleConfirmPrecio = async (data: PrecioStockData) => {
     if (editingIdx === null) return;
+    const item = cart.items[editingIdx];
     cart.setItems(prev => prev.map((i, i2) =>
       i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo, seguirStock: data.seguirStock, stock: data.stock } : i
     ));
     setEditingIdx(null);
+
+    // Persistir seguimiento de inventario y stock del producto
+    if (item.productoId > 0) {
+      try {
+        await api.productos.seguirStockIndividual(item.productoId, data.seguirStock);
+        await api.stock.ajustar(item.productoId, sucursalId, data.stock);
+        api.productos.listar(sucursalId).then(setProductos).catch(() => {});
+      } catch (err: any) {
+        notifyError(err.message || 'Error al actualizar stock del producto');
+      }
+    }
   };
 
   const handleProductCreatedInModal = (producto: ProductoDto) => {
