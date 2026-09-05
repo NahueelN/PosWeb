@@ -52,7 +52,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
 
         var estado = _mpService.ObtenerEstado();
         if (estado == null)
-            return Ok(new { vinculado = false });
+            return Ok(new { vinculado = false, requiereRevincular = false, nombreTitular = (string?)null, qrData = (string?)null });
 
         return Ok(estado);
     }

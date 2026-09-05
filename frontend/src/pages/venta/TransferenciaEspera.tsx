@@ -69,6 +69,15 @@ export default function TransferenciaEspera({
             </p>
           </div>
 
+          {mpEstado?.requiereRevincular && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-0.5">
+              <p className="text-xs font-bold text-amber-800">MercadoPago requiere volver a vincularse</p>
+              <p className="text-xs leading-relaxed text-amber-700">
+                La confirmación automática de este pago puede no funcionar. Volvé a vincular MP desde el panel lateral para detectarlo solo.
+              </p>
+            </div>
+          )}
+
           {modoQr && !qrData && (
             <div className="flex justify-center">
               <p className="text-lg font-bold text-gray-500 mt-4">📱 Mostrale el QR al cliente</p>

@@ -775,6 +775,8 @@ export interface MovimientoCuentaDto {
 export interface MercadoPagoEstadoDto {
   vinculado: boolean
   nombreTitular?: string
+  qrData?: string | null
+  requiereRevincular?: boolean
 }
 
 // --- Importación de productos desde Excel ---

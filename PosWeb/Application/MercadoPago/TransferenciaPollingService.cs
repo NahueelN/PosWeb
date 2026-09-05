@@ -15,6 +15,9 @@ public class TransferenciaPollingService : BackgroundService
     private const int PollingIntervalMs = 5000;
     private const int IdleIntervalMs = 30000;
     private const decimal ToleranciaMatching = 0.01m;
+    private static readonly object LogMutex = new();
+    private static DateTime _ultimoLogSinToken = DateTime.MinValue;
+    private const int LogSinTokenIntervalMin = 10;
 
     public TransferenciaPollingService(
         IServiceScopeFactory scopeFactory,
@@ -62,7 +65,10 @@ public class TransferenciaPollingService : BackgroundService
 
         var token = await mpService.ObtenerTokenValido();
         if (token == null)
+        {
+            LogSinToken();
             return false;
+        }
 
         foreach (var venta in ventasPendientes)
         {
@@ -88,6 +94,20 @@ public class TransferenciaPollingService : BackgroundService
         }
 
         return true;
+    }
+
+    private void LogSinToken()
+    {
+        lock (LogMutex)
+        {
+            var ahora = DateTime.UtcNow;
+            if (ahora - _ultimoLogSinToken < TimeSpan.FromMinutes(LogSinTokenIntervalMin))
+                return;
+            _ultimoLogSinToken = ahora;
+        }
+
+        _logger.LogWarning(
+            "MercadoPago: hay ventas pendientes pero el token no está disponible (sin vincular o requiere revincular). Las transferencias esperarán confirmación manual.");
     }
 
     private static async Task<bool> BuscarPorReferencia(string accessToken, string referencia, CancellationToken ct)
