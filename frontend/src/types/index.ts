@@ -819,3 +819,15 @@ export interface PreferenciasResponse {
   preferencias: Record<string, Record<string, string>>
 }
 
+export interface EnvioCierreCajaConfig {
+  envioAutomatico: boolean
+  whatsapp: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
+  email: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
+}
+
