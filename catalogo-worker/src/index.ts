@@ -11,6 +11,7 @@ interface ProductoRow {
   marca: string | null;
   contenido: number | null;
   unidad: string | null;
+  categoria: string | null;
   contador_usos: number;
   created_at: string;
   updated_at: string;
@@ -22,6 +23,7 @@ interface ProductoInput {
   marca?: string | null;
   contenido?: number | null;
   unidad?: string | null;
+  categoria?: string | null;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -67,6 +69,7 @@ app.get('/productos/:barcode', async (c) => {
       marca: row.marca,
       contenido: row.contenido,
       unidad: row.unidad,
+      categoria: row.categoria,
     },
   });
 });
@@ -81,7 +84,7 @@ app.post('/productos', async (c) => {
     return c.json({ error: 'JSON inválido' }, 400);
   }
 
-  const { codigo_barras, descripcion, marca, contenido, unidad } = body;
+  const { codigo_barras, descripcion, marca, contenido, unidad, categoria } = body;
 
   if (!codigo_barras) {
     return c.json({ error: 'codigo_barras es requerido' }, 400);
@@ -105,7 +108,7 @@ app.post('/productos', async (c) => {
     await env.CATALOGO_DB
       .prepare(
         `UPDATE productos 
-         SET descripcion = ?, marca = ?, contenido = ?, unidad = ?, updated_at = datetime('now')
+         SET descripcion = ?, marca = ?, contenido = ?, unidad = ?, categoria = ?, updated_at = datetime('now')
          WHERE codigo_barras = ?`
       )
       .bind(
@@ -113,6 +116,7 @@ app.post('/productos', async (c) => {
         marca?.trim() || null,
         contenido ?? null,
         unidad?.trim() || null,
+        categoria?.trim() || null,
         barcode
       )
       .run();
@@ -122,15 +126,16 @@ app.post('/productos', async (c) => {
 
   await env.CATALOGO_DB
     .prepare(
-      `INSERT INTO productos (codigo_barras, descripcion, marca, contenido, unidad, contador_usos, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
+      `INSERT INTO productos (codigo_barras, descripcion, marca, contenido, unidad, categoria, contador_usos, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
     )
     .bind(
       barcode,
       descripcion.trim(),
       marca?.trim() || null,
       contenido ?? null,
-      unidad?.trim() || null
+      unidad?.trim() || null,
+      categoria?.trim() || null
     )
     .run();
 
@@ -149,7 +154,7 @@ app.get('/productos', async (c) => {
   const pattern = `%${q.trim()}%`;
   const { results } = await env.CATALOGO_DB
     .prepare(
-      `SELECT codigo_barras, descripcion, marca, contenido, unidad, contador_usos
+      `SELECT codigo_barras, descripcion, marca, contenido, unidad, categoria, contador_usos
        FROM productos
        WHERE descripcion LIKE ? OR marca LIKE ?
        ORDER BY contador_usos DESC
@@ -165,6 +170,7 @@ app.get('/productos', async (c) => {
       marca: r.marca,
       contenido: r.contenido,
       unidad: r.unidad,
+      categoria: r.categoria,
     })),
   });
 });

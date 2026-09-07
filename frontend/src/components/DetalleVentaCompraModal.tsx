@@ -40,7 +40,7 @@ export default function DetalleVentaCompraModal({ tipo, detalle, onClose }: Deta
           </thead>
           <tbody>
             {d.items.map((item, idx) => (
-              <tr key={idx} className="border-b border-gray-50">
+              <tr key={idx} className="border-b-2 border-gray-300">
                 <td className="py-1.5 pr-2 font-mono text-gray-500">{item.codigoBarra}</td>
                 <td className="py-1.5 pr-2 font-medium text-gray-800">{item.productoNombre}</td>
                 <td className="py-1.5 text-right text-gray-700">{item.cantidad}</td>

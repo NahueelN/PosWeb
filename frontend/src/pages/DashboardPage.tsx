@@ -12,6 +12,7 @@ import type { DashboardRepository } from '../analytics/grid'
 import DashboardGridRGL from '../analytics/DashboardGridRGL'
 import WidgetPicker from '../analytics/WidgetPicker'
 import WidgetEditor from '../analytics/WidgetEditor'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import type { SucursalDto } from '../types'
 import { RefreshCw, Plus, RotateCcw } from 'lucide-react'
 
@@ -137,6 +138,7 @@ export default function DashboardPage() {
   }, [currentNotification])
   const [showPicker, setShowPicker] = useState(false)
   const [editingInstance, setEditingInstance] = useState<LayoutInstance | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
   const gridCols = useGridColumns()
 
   useEffect(() => {
@@ -244,12 +246,16 @@ export default function DashboardPage() {
   }
 
   function handleReset() {
-    if (!window.confirm('¿Restablecer el dashboard al diseño predeterminado? Se descartará el layout actual.')) return
+    setConfirmReset(true)
+  }
+
+  function aplicarReset() {
     repo.clear()
     const resetLayout = ensurePositions(DEFAULT_LAYOUT, GRID_COLS)
     setLayout(resetLayout)
     setLayoutGeneration(g => g + 1)
     cargar(resetLayout.map((i) => ({ ...i, x: i.x!, y: i.y! })))
+    setConfirmReset(false)
   }
 
   function handleUpdateWidget(instanceId: string, size: GridSize, config: Record<string, any>) {
@@ -357,6 +363,15 @@ export default function DashboardPage() {
           onUpdate={handleUpdateWidget}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmReset}
+        title="Restablecer dashboard"
+        description="¿Restablecer el dashboard al diseño predeterminado? Se descartará el layout actual."
+        confirmLabel="Restablecer"
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={aplicarReset}
+      />
     </div>
   )
 }

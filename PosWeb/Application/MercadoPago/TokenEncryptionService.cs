@@ -34,6 +34,9 @@ public class TokenEncryptionService
     public string Decrypt(string cipherText)
     {
         var fullCipher = Convert.FromBase64String(cipherText);
+        if (fullCipher.Length <= 16)
+            throw new CryptographicException("El token cifrado es demasiado corto (IV + bloque). Dato corrupto o truncado.");
+
         var iv = new byte[16];
         var cipher = new byte[fullCipher.Length - 16];
 

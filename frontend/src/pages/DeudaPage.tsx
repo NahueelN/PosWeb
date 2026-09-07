@@ -520,7 +520,7 @@ export default function DeudaPage() {
                       <th className="px-4 py-2.5 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleHistSort('saldo')}>Saldo{histSort === 'saldo' ? (histDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {ledgerDesc.map((m, i) => {
                       const saldoMov = getSaldo(m);
                       return (
@@ -742,7 +742,7 @@ export default function DeudaPage() {
                   <th className="px-4 py-3 text-right">Total deuda</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y-2 divide-gray-300">
                 {entidades.map(e => (
                   <tr key={e.id} onClick={() => openCuenta(e)}
                     className="hover:bg-indigo-50 cursor-pointer transition-colors">

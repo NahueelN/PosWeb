@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
+import ConfirmDialog from './ui/ConfirmDialog'
 import type { UsuarioListadoDto } from '../types'
 
-export default function AltaUsuarioPage() {
-  const navigate = useNavigate()
+export default function AltaUsuarioTab() {
   const { user } = useAuth()
+  const { notifyError, notifySuccess } = useNotification()
 
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
@@ -16,22 +16,19 @@ export default function AltaUsuarioPage() {
   const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
-  const { notifyError, notifySuccess } = useNotification()
   const [_formError, _setFormError] = useState('')
   const [_listError, setListError] = useState('')
   const [_success, setSuccess] = useState('')
   const [desactivandoId, setDesactivandoId] = useState<number | null>(null)
   const [cambiandoSuscripcionId, setCambiandoSuscripcionId] = useState<number | null>(null)
+  const [confirmBaja, setConfirmBaja] = useState<{ id: number; nombre: string } | null>(null)
+  const [confirmSuscripcion, setConfirmSuscripcion] = useState<{ id: number; nombre: string; activa: boolean } | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
-    if (user?.rol === 'UsuarioComun') {
-      navigate('/ventas', { replace: true })
-      return
-    }
-
     void loadUsuarios()
-  }, [user, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function loadUsuarios() {
     setLoadingList(true)
@@ -81,11 +78,6 @@ export default function AltaUsuarioPage() {
   }
 
   async function handleDesactivarUsuario(usuarioId: number, nombreUsuario: string) {
-    const confirmacion = window.confirm(`¿Dar de baja a ${nombreUsuario}?`)
-    if (!confirmacion) {
-      return
-    }
-
     setListError('')
     setSuccess('')
     setDesactivandoId(usuarioId)
@@ -106,16 +98,11 @@ export default function AltaUsuarioPage() {
       }
     } finally {
       setDesactivandoId(null)
+      setConfirmBaja(null)
     }
   }
 
   async function handleCambiarSuscripcion(usuarioId: number, nombreUsuario: string, activa: boolean) {
-    const textoAccion = activa ? 'reactivar' : 'suspender'
-    const confirmacion = window.confirm(`¿${textoAccion} la suscripción de ${nombreUsuario} y sus dependientes?`)
-    if (!confirmacion) {
-      return
-    }
-
     setListError('')
     setSuccess('')
     setCambiandoSuscripcionId(usuarioId)
@@ -136,8 +123,11 @@ export default function AltaUsuarioPage() {
       }
     } finally {
       setCambiandoSuscripcionId(null)
+      setConfirmSuscripcion(null)
     }
   }
+
+  if (user?.rol === 'UsuarioComun') return null
 
   return (
     <div className="space-y-6">
@@ -217,22 +207,13 @@ export default function AltaUsuarioPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Creando...' : 'Crear usuario'}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/ventas')}
-              className="flex-1 border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
-            >
-              Volver
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Creando...' : 'Crear usuario'}
+          </button>
         </form>
       </div>
 
@@ -279,7 +260,7 @@ export default function AltaUsuarioPage() {
                   <th className="py-2 pr-4 font-medium">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y-2 divide-slate-300">
                 {usuarios.map(usuarioItem => (
                   <tr key={usuarioItem.id}>
                     <td className="py-3 pr-4 font-medium text-slate-900">{usuarioItem.nombreUsuario}</td>
@@ -342,7 +323,7 @@ export default function AltaUsuarioPage() {
                         {usuarioItem.activo && usuarioItem.rol === 'UsuarioComun' ? (
                           <button
                             type="button"
-                            onClick={() => handleDesactivarUsuario(usuarioItem.id, usuarioItem.nombreUsuario)}
+                            onClick={() => setConfirmBaja({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario })}
                             disabled={desactivandoId === usuarioItem.id}
                             className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
@@ -356,11 +337,11 @@ export default function AltaUsuarioPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleCambiarSuscripcion(
-                                usuarioItem.id,
-                                usuarioItem.nombreUsuario,
-                                !usuarioItem.suscripcionActiva
-                              )
+                              setConfirmSuscripcion({
+                                id: usuarioItem.id,
+                                nombre: usuarioItem.nombreUsuario,
+                                activa: !usuarioItem.suscripcionActiva,
+                              })
                             }
                             disabled={cambiandoSuscripcionId === usuarioItem.id}
                             className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
@@ -387,6 +368,28 @@ export default function AltaUsuarioPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmBaja != null}
+        title="Dar de baja"
+        description={confirmBaja ? `¿Dar de baja a ${confirmBaja.nombre}?` : ''}
+        confirmLabel="Dar de baja"
+        confirmVariant="destructive"
+        onCancel={() => setConfirmBaja(null)}
+        onConfirm={() => { if (confirmBaja) void handleDesactivarUsuario(confirmBaja.id, confirmBaja.nombre) }}
+      />
+
+      <ConfirmDialog
+        open={confirmSuscripcion != null}
+        title="Suscripción"
+        description={confirmSuscripcion
+          ? `¿${confirmSuscripcion.activa ? 'reactivar' : 'suspender'} la suscripción de ${confirmSuscripcion.nombre} y sus dependientes?`
+          : ''}
+        confirmLabel={confirmSuscripcion?.activa ? 'Reactivar' : 'Suspender'}
+        confirmVariant={confirmSuscripcion?.activa ? 'confirm' : 'destructive'}
+        onCancel={() => setConfirmSuscripcion(null)}
+        onConfirm={() => { if (confirmSuscripcion) void handleCambiarSuscripcion(confirmSuscripcion.id, confirmSuscripcion.nombre, confirmSuscripcion.activa) }}
+      />
     </div>
   )
 }

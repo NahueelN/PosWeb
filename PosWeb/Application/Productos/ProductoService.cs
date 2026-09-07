@@ -169,6 +169,35 @@ public class ProductoService
                 .FirstOrDefault();
         }
 
+        // Reuso: si existe un producto INACTIVO con el mismo código de barras o código interno
+        // (borrado lógico previo), reactivarlo y actualizar sus datos en lugar de duplicar la fila.
+        var inactivo = _context.Producto
+            .Where(p => !p.ACTIVO)
+            .FirstOrDefault(p =>
+                (!string.IsNullOrWhiteSpace(dto.CodigoBarra) && p.CODIGO_BARRAS == dto.CodigoBarra)
+                || p.COD_PRODUCTO == codProducto);
+
+        if (inactivo != null)
+        {
+            inactivo.Activar();
+            inactivo.CambiarCodigoProducto(codProducto);
+            inactivo.CambiarCodigoBarras(dto.CodigoBarra);
+            inactivo.CambiarDescripcion(dto.Nombre);
+            inactivo.CambiarPrecio(dto.Precio, dto.EsBulto);
+            inactivo.CambiarCosto(dto.Costo, dto.EsBulto);
+            inactivo.CambiarEsPesable(dto.EsPesable);
+            inactivo.CambiarEsBulto(dto.EsBulto, dto.EsBulto ? dto.ProductoBultoId : null);
+            inactivo.CambiarCategoria(dto.CategoriaId);
+            inactivo.CambiarContenido(dto.Contenido);
+            inactivo.CambiarUnidadMedida(dto.UnidadMedidaId);
+            inactivo.CambiarDescAdicional(dto.DescAdicional);
+            inactivo.CambiarMarca(dto.Marca);
+            inactivo.CambiarMargen(margen);
+
+            _context.SaveChanges();
+            return MapToDto(inactivo);
+        }
+
         Producto producto = new Producto(
             codProducto,
             dto.CodigoBarra,

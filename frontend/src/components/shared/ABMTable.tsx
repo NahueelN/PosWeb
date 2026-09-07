@@ -89,7 +89,7 @@ export default function ABMTable({
                 {headers}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y-2 divide-gray-300">
               {children}
             </tbody>
           </table>

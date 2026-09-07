@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
-import { Loader2, Check, X, Package, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Check, X, Package, Plus, Printer, Trash2 } from 'lucide-react'
 import Dialog from './ui/Dialog'
 import DialogPrimaryField from './ui/DialogPrimaryField'
 import Button from './ui/Button'
 import SelectAltaCruzada from './ui/SelectAltaCruzada'
 import { useNotification } from '../context/NotificationContext'
+import BarcodePrintDialog from './BarcodePrintDialog'
+import { renderBarcode } from '../lib/barcode'
 
 function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
@@ -76,12 +78,23 @@ export default function ProductFormModal({
   const [nuevaUnidadCodigo, setNuevaUnidadCodigo] = useState('')
   const [nuevaUnidadDesc, setNuevaUnidadDesc] = useState('')
   const [loadingUnidad, setLoadingUnidad] = useState(false)
+  const [showEtiqueta, setShowEtiqueta] = useState(false)
+  const [cantidadEtiquetas, setCantidadEtiquetas] = useState('1')
+  const [anchoEtiqueta, setAnchoEtiqueta] = useState<58 | 80>(80)
+  const [incluirCodigoEtiqueta, setIncluirCodigoEtiqueta] = useState(false)
+  const [tipoCodigoEtiqueta, setTipoCodigoEtiqueta] = useState<'ean' | 'interno'>('ean')
+  const [codigoAImprimir, setCodigoAImprimir] = useState<{ codigo: string; origen: string } | null>(null)
 
   // Barcode uniqueness check
   const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false)
   const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const lastLookedUpRef = useRef<string | null>(null)
 
   const focusAppliedRef = useRef(false)
+  const categoriaRefetchRef = useRef<number | null>(null)
+  const unidadRefetchRef = useRef<number | null>(null)
+  const codigoEtiquetaRef = useRef<SVGSVGElement>(null)
 
   type FieldKey =
     | 'codigoBarra'
@@ -327,22 +340,84 @@ export default function ProductFormModal({
     api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    api.preferencias.obtener().then(res => {
+      if (!mounted) return
+      const etiqueta = res.preferencias?.etiquetaProducto
+      if (!etiqueta) return
+      if (etiqueta.ancho === '58' || etiqueta.ancho === '80') setAnchoEtiqueta(Number(etiqueta.ancho) as 58 | 80)
+      if (etiqueta.incluirCodigo === 'true' || etiqueta.incluirCodigo === 'false') setIncluirCodigoEtiqueta(etiqueta.incluirCodigo === 'true')
+      if (etiqueta.tipoCodigo === 'ean' || etiqueta.tipoCodigo === 'interno') setTipoCodigoEtiqueta(etiqueta.tipoCodigo)
+    }).catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
   // Preselect unit from OFF data
   useEffect(() => {
-    if (prefillData?.unidad && unidades.length > 0) {
-      const match = unidades.find(u =>
-        u.codigo?.toUpperCase() === prefillData.unidad!.toUpperCase()
-      )
+    const sugerida = prefillData?.unidadIdSugerido
+    if (sugerida) {
+      if (unidades.some(u => u.id === sugerida)) {
+        setUnidadMedidaId(String(sugerida))
+        return
+      }
+      if (unidadRefetchRef.current === sugerida) return
+      unidadRefetchRef.current = sugerida
+
+      // La unidad pudo haber sido creada por el backend en esta misma consulta:
+      // recargar la lista para incluirla. Si aun así no llega, se agrega localmente
+      // la opción para que el campo la muestre y quede seleccionada.
+      api.unidadesMedida.listar().then(list => {
+        setUnidades(prev => {
+          if (list.some(u => u.id === sugerida)) return list
+          if (prev.some(u => u.id === sugerida)) return prev
+          return [...prev, {
+            id: sugerida,
+            codigo: prefillData?.unidad?.toUpperCase() || `U${sugerida}`,
+            descripcion: prefillData?.unidad?.toUpperCase() || `Unidad ${sugerida}`,
+            activo: true,
+          }]
+        })
+      }).catch(() => {})
+      return
+    }
+
+    // Fallback: match por código (flujos sin id sugerido)
+    const cod = prefillData?.unidad
+    if (cod && unidades.some(u => u.codigo?.toUpperCase() === cod.toUpperCase())) {
+      const match = unidades.find(u => u.codigo?.toUpperCase() === cod.toUpperCase())
       if (match) setUnidadMedidaId(match.id.toString())
     }
   }, [prefillData, unidades])
 
   // Preselect category from OFF data
   useEffect(() => {
-    if (prefillData?.categoriaIdSugerido && categorias.length > 0) {
-      const match = categorias.find(c => c.id === prefillData.categoriaIdSugerido)
-      if (match) setCategoriaId(match.id.toString())
+    const sugerida = prefillData?.categoriaIdSugerido
+    if (!sugerida) return
+
+    if (categorias.some(c => c.id === sugerida)) {
+      setCategoriaId(String(sugerida))
+      return
     }
+
+    if (categoriaRefetchRef.current === sugerida) return
+    categoriaRefetchRef.current = sugerida
+
+    // La categoría pudo haber sido creada por el backend en esta misma consulta:
+    // recargar la lista para incluirla. Si aun así no llega, se agrega localmente
+    // la opción para que el campo la muestre y quede seleccionada.
+    api.categorias.listar().then(list => {
+      setCategorias(prev => {
+        if (list.some(c => c.id === sugerida)) return list
+        if (prev.some(c => c.id === sugerida)) return prev
+        return [...prev, {
+          id: sugerida,
+          codigo: '',
+          descripcion: prefillData?.categoria?.trim() || `Categoría ${sugerida}`,
+          margenGanancia: null,
+        }]
+      })
+    }).catch(() => {})
   }, [prefillData, categorias])
 
   // Force KG for pesables (KG = id 2 from seed data), force Unidad for bultos (Unidad = id 1)
@@ -415,6 +490,52 @@ export default function ProductFormModal({
     }, 400)
     return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current) }
   }, [codigoBarra, prefillData])
+
+  const codigoParaEtiqueta = tipoCodigoEtiqueta === 'ean' ? codigoBarra.trim() : codigoProducto.trim()
+  useEffect(() => {
+    if (!showEtiqueta || !incluirCodigoEtiqueta || !codigoParaEtiqueta || !codigoEtiquetaRef.current) return
+    renderBarcode(codigoEtiquetaRef.current, codigoParaEtiqueta, anchoEtiqueta, anchoEtiqueta === 80 ? 45 : 36)
+  }, [showEtiqueta, incluirCodigoEtiqueta, codigoParaEtiqueta, anchoEtiqueta])
+
+  function persistirEtiqueta(ancho: 58 | 80, incluirCodigo: boolean, tipoCodigo: 'ean' | 'interno') {
+    setAnchoEtiqueta(ancho)
+    setIncluirCodigoEtiqueta(incluirCodigo)
+    setTipoCodigoEtiqueta(tipoCodigo)
+    api.preferencias.guardar({ etiquetaProducto: { ancho: String(ancho), incluirCodigo: String(incluirCodigo), tipoCodigo } }).catch(() => {})
+  }
+
+  async function buscarCodigoEnCatalogo() {
+    const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
+    if (!/^\d{8,14}$/.test(codigo) || isEditing || prefillData?.codigoBarras) return
+    if (lookingUpBarcode || lastLookedUpRef.current === codigo) return
+
+    if (codigoBarra !== codigo) setCodigoBarra(codigo)
+    lastLookedUpRef.current = codigo
+    setLookingUpBarcode(true)
+    try {
+      const resultado = await api.productos.lookupOpenFoodFacts(codigo)
+      if (resultado.encontrado && resultado.datos) {
+        const datos = resultado.datos
+        setCodigoBarra(datos.codigoBarras)
+        setNombre(datos.descripcion.toUpperCase())
+        setMarca(datos.marca || '')
+        setContenido(datos.contenido?.toString() || '')
+        if (datos.categoriaIdSugerido) setCategoriaId(String(datos.categoriaIdSugerido))
+        if (datos.unidadIdSugerido) setUnidadMedidaId(String(datos.unidadIdSugerido))
+        setTimeout(() => focusField('costo'), 0)
+        return
+      }
+      if (resultado.local && resultado.producto) {
+        notifyError(`El código ya pertenece a "${resultado.producto.nombre}"`)
+        return
+      }
+      notifyError('No se encontraron datos para este código')
+    } catch (error: unknown) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo consultar el catálogo de productos')
+    } finally {
+      setLookingUpBarcode(false)
+    }
+  }
 
   async function handleCrearCategoria() {
     const desc = nuevaCategoriaDesc.trim()
@@ -530,6 +651,79 @@ export default function ProductFormModal({
     }
   }
 
+  async function imprimirEtiquetas() {
+    const cantidad = Math.floor(Number(cantidadEtiquetas))
+    const codigo = codigoBarra.trim() || codigoProducto.trim()
+    const precioEtiqueta = Number(precio)
+    if (!Number.isFinite(cantidad) || cantidad < 1) {
+      notifyError('Ingresá una cantidad de etiquetas válida')
+      return
+    }
+    if (!codigo || !nombre.trim() || !Number.isFinite(precioEtiqueta) || precioEtiqueta <= 0) {
+      notifyError('El producto debe tener nombre, precio y código para imprimir una etiqueta')
+      return
+    }
+
+    const codigoDeBarras = incluirCodigoEtiqueta ? codigoParaEtiqueta : ''
+    const barcodeSvg = codigoDeBarras
+      ? (() => {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          renderBarcode(svg, codigoDeBarras, anchoEtiqueta, anchoEtiqueta === 80 ? 45 : 36)
+          return svg.outerHTML
+        })()
+      : null
+    const etiqueta = {
+      nombre: nombre.trim(),
+      precio: precioEtiqueta,
+      codigo,
+      cantidad,
+      barcodeSvg,
+      codigoDeBarras,
+      ancho: anchoEtiqueta,
+      altoMinimo: barcodeSvg ? (anchoEtiqueta === 80 ? 42 : 34) : (anchoEtiqueta === 80 ? 35 : 30),
+    }
+    setShowEtiqueta(false)
+
+    if ('__TAURI_INTERNALS__' in window) {
+      const printWindowLabel = `label-print-${Date.now()}`
+      localStorage.setItem('posweb-label-print', JSON.stringify(etiqueta))
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+      new WebviewWindow(printWindowLabel, {
+        url: `label-print.html?print=${Date.now()}`,
+        title: 'Imprimir etiquetas',
+        width: 1200,
+        height: 700,
+        resizable: false,
+        center: true,
+        decorations: false,
+      })
+      return
+    }
+
+    const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]!)
+    const etiquetaHtml = Array.from({ length: cantidad }, () => `
+      <article class="label">
+        <div class="name">${escapeHtml(etiqueta.nombre)}</div>
+        <div class="price">$${etiqueta.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        ${etiqueta.barcodeSvg ? `<div class="barcode">${etiqueta.barcodeSvg}</div><div class="code">${escapeHtml(etiqueta.codigoDeBarras)}</div>` : ''}
+      </article>`).join('')
+    const printWindow = window.open('', 'posweb-label', 'width=420,height=340')
+    if (!printWindow) {
+      notifyError('No se pudo abrir la ventana de impresión')
+      return
+    }
+    printWindow.document.write(`<!doctype html><html><head><title>Imprimir etiquetas</title><style>
+      @page { size: ${etiqueta.ancho}mm auto; margin: 0; }
+      html, body { margin: 0; padding: 0; width: ${etiqueta.ancho}mm; font-family: Arial, sans-serif; color: #000; }
+      .label { box-sizing: border-box; width: ${etiqueta.ancho}mm; min-height: ${etiqueta.altoMinimo}mm; padding: 3mm; border: .2mm solid #000; display: flex; flex-direction: column; justify-content: space-between; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .name { font-size: ${etiqueta.ancho === 80 ? 16 : 14}px; font-weight: 700; text-align: center; text-transform: uppercase; line-height: 1.1; }
+      .price { font-size: ${etiqueta.ancho === 80 ? 48 : 36}px; font-weight: 900; text-align: center; line-height: 1; white-space: nowrap; }
+      .code { font-size: ${etiqueta.ancho === 80 ? 14 : 12}px; letter-spacing: 1px; }
+      .barcode svg { display: block; width: 100%; height: auto; }
+    </style></head><body>${etiquetaHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+    printWindow.document.close()
+  }
+
   const precioNum = parseFloat(precio)
   const costoNum = parseFloat(costo)
   const precioInferiorCosto = !isNaN(precioNum) && precioNum > 0 && !isNaN(costoNum) && costoNum > 0 && precioNum < costoNum
@@ -558,6 +752,11 @@ export default function ProductFormModal({
             {editingProduct && onDelete && (
               <Button variant="destructive" size="md" icon={<Trash2 size={16} />} type="button" onClick={() => onDelete(editingProduct)}>
                 Eliminar
+              </Button>
+            )}
+            {isEditing && (
+              <Button variant="secondary" size="md" icon={<Printer size={16} />} type="button" className="ml-2" onClick={() => setShowEtiqueta(true)}>
+                Imprimir etiqueta
               </Button>
             )}
           </div>
@@ -601,19 +800,40 @@ export default function ProductFormModal({
                     <input
                       type="text"
                       value={codigoBarra}
-                      onChange={e => setCodigoBarra(e.target.value)}
+                      onChange={e => {
+                        setCodigoBarra(e.target.value)
+                        lastLookedUpRef.current = null
+                      }}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter' || !/^\d{8,14}$/.test(e.currentTarget.value.replace(/[\r\n\s]/g, ''))) return
+                        e.preventDefault()
+                        e.stopPropagation()
+                        void buscarCodigoEnCatalogo()
+                      }}
+                      onBlur={() => {
+                        const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
+                        if (/^\d{8,14}$/.test(codigo) && !isEditing && !prefillData?.codigoBarras) {
+                          void buscarCodigoEnCatalogo()
+                        }
+                      }}
                       readOnly={isReadonlyCodigo}
                       required
                       data-field="codigoBarra"
-                      className={`w-full h-7 px-1.5 border rounded-md text-sm font-mono pr-6 outline-none transition-all duration-150 ${
+                      className={`w-full h-7 px-1.5 border rounded-md text-sm font-mono pr-12 outline-none transition-all duration-150 ${
                         isReadonlyCodigo
                           ? 'bg-gray-50 text-gray-500 border-gray-200'
                           : 'bg-white border-gray-200 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400'
                       }`}
                       placeholder="Código de barras"
                     />
-                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
-                      {barcodeStatus === 'checking' && (
+                    {codigoBarra.trim() && (
+                      <button type="button" title="Imprimir código de barras" onClick={() => setCodigoAImprimir({ codigo: codigoBarra.trim(), origen: 'Código de barras' })}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--color-primary)] transition-colors">
+                        <Printer size={13} />
+                      </button>
+                    )}
+                    <span className="absolute right-7 top-1/2 -translate-y-1/2">
+                      {(lookingUpBarcode || barcodeStatus === 'checking') && (
                         <Loader2 size={11} className="text-gray-400 animate-spin" />
                       )}
                       {barcodeStatus === 'available' && (
@@ -645,9 +865,15 @@ export default function ProductFormModal({
                         setCodigoProducto(val ? 'PROD' + val : '')
                       }}
                       data-field="codigoProducto"
-                      className="w-full h-7 pl-[31px] pr-1.5 border border-gray-300 rounded-md text-sm font-mono outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
+                      className="w-full h-7 pl-[31px] pr-7 border border-gray-300 rounded-md text-sm font-mono outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
                       placeholder="Auto-generado"
                     />
+                    {codigoProducto && (
+                      <button type="button" title="Imprimir código interno" onClick={() => setCodigoAImprimir({ codigo: codigoProducto, origen: 'Código interno' })}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--color-primary)] transition-colors">
+                        <Printer size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -875,6 +1101,82 @@ export default function ProductFormModal({
         </div>
       </form>
     </Dialog>
+
+    <Dialog
+      open={showEtiqueta}
+      onClose={() => setShowEtiqueta(false)}
+      title="Imprimir etiquetas"
+      highlight={nombre || editingProduct?.nombre}
+      description={`Formato térmico de ${anchoEtiqueta} mm.`}
+      width="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setShowEtiqueta(false)}>Cancelar</Button>
+          <Button variant="primary" size="sm" icon={<Printer size={14} />} onClick={() => void imprimirEtiquetas()}>Imprimir</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <label className="block text-sm font-semibold text-gray-700">
+          Cantidad de etiquetas
+          <input
+            autoFocus
+            type="number"
+            min="1"
+            step="1"
+            value={cantidadEtiquetas}
+            onChange={e => setCantidadEtiquetas(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void imprimirEtiquetas() } }}
+            className="mt-1.5 w-full h-10 px-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)]"
+          />
+        </label>
+        <div>
+          <p className="mb-1.5 text-sm font-semibold text-gray-700">Ancho del rollo</p>
+          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+            {[58, 80].map(ancho => (
+              <button
+                key={ancho}
+                type="button"
+                onClick={() => persistirEtiqueta(ancho as 58 | 80, incluirCodigoEtiqueta, tipoCodigoEtiqueta)}
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${anchoEtiqueta === ancho ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-gray-500 hover:bg-white'}`}
+              >
+                {ancho} mm
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <input type="checkbox" checked={incluirCodigoEtiqueta} onChange={e => persistirEtiqueta(anchoEtiqueta, e.target.checked, tipoCodigoEtiqueta)}
+              disabled={!codigoBarra.trim() && !codigoProducto.trim()}
+              className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)]" />
+            Incluir código
+          </label>
+          <select value={tipoCodigoEtiqueta} onChange={e => persistirEtiqueta(anchoEtiqueta, incluirCodigoEtiqueta, e.target.value as 'ean' | 'interno')}
+            disabled={!incluirCodigoEtiqueta}
+            className="h-8 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+            <option value="ean" disabled={!codigoBarra.trim()}>EAN / código de barras</option>
+            <option value="interno" disabled={!codigoProducto.trim()}>Código interno</option>
+          </select>
+        </div>
+        <div className={`mx-auto border border-dashed border-gray-300 bg-gray-50 p-3 ${anchoEtiqueta === 80 ? 'w-[360px]' : 'w-[290px]'}`}>
+          <div className="border border-black bg-white px-3 py-2.5 text-black">
+            <p className={`text-center font-bold uppercase leading-tight line-clamp-2 ${anchoEtiqueta === 80 ? 'text-base' : 'text-sm'}`}>{nombre || 'Nombre del producto'}</p>
+            <p className={`my-2 text-center font-black leading-none whitespace-nowrap ${anchoEtiqueta === 80 ? 'text-5xl' : 'text-4xl'}`}>${Number(precio || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            {incluirCodigoEtiqueta && codigoParaEtiqueta && (
+              <>
+                <svg ref={codigoEtiquetaRef} className="mt-2 w-full h-auto" aria-label={`Código de barras ${codigoParaEtiqueta}`} />
+                <p className={`mt-1 text-center font-mono tracking-wider ${anchoEtiqueta === 80 ? 'text-sm' : 'text-xs'}`}>{codigoParaEtiqueta}</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </Dialog>
+
+    {codigoAImprimir && (
+      <BarcodePrintDialog codigo={codigoAImprimir.codigo} origen={codigoAImprimir.origen} onClose={() => setCodigoAImprimir(null)} />
+    )}
 
     {/* ── Alta cruzada: Nueva categoría ── */}
     <Dialog

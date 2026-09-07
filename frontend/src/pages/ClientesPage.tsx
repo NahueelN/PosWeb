@@ -119,7 +119,7 @@ export default function ClientesPage() {
               </thead>
               <tbody>
                 {list.data.map(c => (
-                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(c)}>
+                  <tr key={c.id} className="border-b-2 border-gray-300 hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(c)}>
                     <td className="px-4 py-3 font-medium">{c.nombre}</td>
                     <td className="px-4 py-3 text-gray-600">{c.tipoDocumento && c.numeroDocumento ? `${c.tipoDocumento} ${c.numeroDocumento}` : ''}</td>
                     <td className="px-4 py-3 text-gray-600">{c.ivaCondicion}</td>

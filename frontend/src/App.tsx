@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
@@ -11,7 +11,6 @@ import VentasPage from './pages/VentasPage'
 import HistorialPage from './pages/HistorialPage'
 import ClientesPage from './pages/ClientesPage'
 import CajaPage from './pages/CajaPage'
-import AltaUsuarioPage from './pages/AltaUsuarioPage'
 import CompraPage from './pages/CompraPage'
 import GastosPage from './pages/GastosPage'
 import ProveedoresPage from './pages/ProveedoresPage'
@@ -134,7 +133,7 @@ export default function App() {
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/combos" element={<CombosPage />} />
 
-              <Route path="/usuarios/alta" element={<AltaUsuarioPage />} />
+              <Route path="/usuarios/alta" element={<Navigate to="/configuracion" replace />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
             </Route>
           </Route>

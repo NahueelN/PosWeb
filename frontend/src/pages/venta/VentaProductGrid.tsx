@@ -118,7 +118,7 @@ export default function VentaProductGrid({
                   <ProductRow
                     key={p.id}
                     id={p.id}
-                    codigo={p.codigoBarra}
+                    codigo={p.codigoBarra || p.codigoProducto || ''}
                     nombre={p.nombre}
                     stock={p.stock}
                     precio={precioOferta != null ? (

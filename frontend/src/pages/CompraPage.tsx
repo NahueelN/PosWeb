@@ -32,6 +32,8 @@ interface CartItem {
   descAdicional?: string;
   contenido?: number;
   unidadMedidaId?: number;
+  seguirStock?: boolean;
+  stock?: number;
 }
 
 const COMPRA_CART_KEY = 'compra_cart_pending';
@@ -122,7 +124,7 @@ export default function CompraPage() {
   // Load data
   useEffect(() => {
     Promise.all([
-      api.productos.listar().then(setProductos).catch(() => {}),
+      api.productos.listar(sucursalId).then(setProductos).catch(() => {}),
       api.proveedores.listar().then(setProveedores).catch(() => {}),
       api.categorias.listar().then(setCategorias).catch(() => {}),
       api.unidadesMedida.listar().then(setUnidades).catch(() => {}),
@@ -152,6 +154,20 @@ export default function CompraPage() {
       setTimeout(() => searchRef.current?.focus(), 50);
     }
   }, [proveedorId]);
+
+  // Bucle de navegación con Tab: desde el botón confirmar (checkout) vuelve a la búsqueda
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || e.shiftKey) return
+      const active = document.activeElement
+      if (active && confirmBtnRef.current && active === confirmBtnRef.current) {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, []);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -213,6 +229,8 @@ export default function CompraPage() {
           unidadMedidaId: unidad.unidadMedidaId ?? undefined,
           contenido: unidad.contenido ?? undefined,
           descAdicional: unidad.descAdicional ?? undefined,
+          seguirStock: unidad.seguirStock !== false,
+          stock: unidad.stock ?? 0,
         }
         cart.addItem(item)
       }
@@ -227,6 +245,8 @@ export default function CompraPage() {
         unidadMedidaId: p.unidadMedidaId ?? undefined,
         contenido: p.contenido ?? undefined,
         descAdicional: p.descAdicional ?? undefined,
+        seguirStock: p.seguirStock !== false,
+        stock: p.stock ?? 0,
       }
       cart.addItem(item)
     }
@@ -241,12 +261,24 @@ export default function CompraPage() {
   const startEdit = (idx: number) => {
     setEditingIdx(idx);
   };
-  const handleConfirmPrecio = (data: PrecioStockData) => {
+  const handleConfirmPrecio = async (data: PrecioStockData) => {
     if (editingIdx === null) return;
+    const item = cart.items[editingIdx];
     cart.setItems(prev => prev.map((i, i2) =>
-      i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo } : i
+      i2 === editingIdx ? { ...i, costoUnitario: data.costo, subtotal: i.cantidad * data.costo, precio: data.precio, costo: data.costo, seguirStock: data.seguirStock, stock: data.stock } : i
     ));
     setEditingIdx(null);
+
+    // Persistir seguimiento de inventario y stock del producto
+    if (item.productoId > 0) {
+      try {
+        await api.productos.seguirStockIndividual(item.productoId, data.seguirStock);
+        await api.stock.ajustar(item.productoId, sucursalId, data.stock);
+        api.productos.listar(sucursalId).then(setProductos).catch(() => {});
+      } catch (err: any) {
+        notifyError(err.message || 'Error al actualizar stock del producto');
+      }
+    }
   };
 
   const handleProductCreatedInModal = (producto: ProductoDto) => {
@@ -525,7 +557,27 @@ export default function CompraPage() {
             <input ref={searchRef} type="text" autoComplete="off" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onPasteCapture={async (e: React.ClipboardEvent<HTMLInputElement>) => { if (!proveedorOk) return; const text = e.clipboardData.getData('text/plain').trim(); if (!text) return; e.preventDefault(); e.stopPropagation(); await handleBarcodeLookup(text) }}
               onKeyDown={async e => {
-                if (e.key === 'Tab' && !e.shiftKey && proveedorOk && cart.items.length > 0) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }
+                if (e.key === 'Tab' && proveedorOk) {
+                  e.preventDefault()
+                  if (e.shiftKey) {
+                    // Atrás: cierra el bucle hacia el botón confirmar (checkout)
+                    confirmBtnRef.current?.focus()
+                  } else {
+                    // Adelante: barra de búsqueda → productos → (changuito) → checkout
+                    setTimeout(() => {
+                      const firstRow = document.querySelector<HTMLElement>('[data-product-row]')
+                      if (firstRow) {
+                        firstRow.scrollIntoView({ block: 'nearest' })
+                        firstRow.focus()
+                      } else {
+                        const firstQty = document.querySelector<HTMLElement>('[data-cart-qty]')
+                        if (firstQty) firstQty.focus()
+                        else confirmBtnRef.current?.focus()
+                      }
+                    }, 0)
+                  }
+                  return
+                }
                 if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); setSearchQuery(''); searchRef.current?.focus() } return }
                 if ((e.key === 'ArrowDown') && proveedorOk && filteredProducts.length > 0 && !searchQuery.trim()) { e.preventDefault(); setTimeout(() => document.querySelector<HTMLElement>('[data-product-row]')?.focus(), 0); return; }
                 if (e.key === 'Enter' && proveedorOk && !searchQuery.trim()) { e.preventDefault(); fuenteRefs.current[0]?.focus(); return; }
@@ -583,6 +635,8 @@ export default function CompraPage() {
         <PrecioStockEditor
           initialCosto={cart.items[editingIdx].costoUnitario}
           initialPrecio={cart.items[editingIdx].precio ?? 0}
+          initialStock={cart.items[editingIdx].stock ?? 0}
+          initialSeguirStock={cart.items[editingIdx].seguirStock ?? true}
           onConfirm={handleConfirmPrecio}
           onCancel={() => setEditingIdx(null)}
         />

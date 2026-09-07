@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using PosWeb.Application.Categorias;
+using PosWeb.Application.UnidadesMedida;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -11,6 +13,8 @@ public class OpenFoodFactsService
     private readonly HttpClient _http;
     private readonly ILogger<OpenFoodFactsService> _logger;
     private readonly PosDbContextLocal _context;
+    private readonly CategoriaSugeridaService _categoriaSugeridaService;
+    private readonly UnidadSugeridaService _unidadSugeridaService;
 
     /// <summary>
     /// Tags de Open Food Facts que indican que un producto es una bebida.
@@ -63,11 +67,13 @@ public class OpenFoodFactsService
         ["pack"] = "PACK",
     };
 
-    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger, PosDbContextLocal context)
+    public OpenFoodFactsService(HttpClient http, ILogger<OpenFoodFactsService> logger, PosDbContextLocal context, CategoriaSugeridaService categoriaSugeridaService, UnidadSugeridaService unidadSugeridaService)
     {
         _http = http;
         _logger = logger;
         _context = context;
+        _categoriaSugeridaService = categoriaSugeridaService;
+        _unidadSugeridaService = unidadSugeridaService;
     }
 
     /// <summary>
@@ -157,48 +163,69 @@ public class OpenFoodFactsService
             dto.Unidad = "L";
         }
 
+        // Resolver o crear la unidad de medida local a partir del código final
+        dto.UnidadIdSugerido = _unidadSugeridaService.ResolverOCrear(dto.Unidad);
+
         return dto;
     }
 
     /// <summary>
-    /// Si el producto tiene categories_tags que matchean una bebida, busca o crea
-    /// la categoría "Bebidas" y devuelve su ID.
+    /// Resuelve la categoría sugerida por Open Food Facts si ya existe en la base.
+    /// Deriva el nombre desde categories_tags (tag en:) o el campo categories
+    /// y delega la búsqueda case-insensitive en CategoriaSugeridaService. No crea categorías.
     /// </summary>
     private int? ResolverCategoriaSugerida(JsonElement product)
     {
-        if (!product.TryGetProperty("categories_tags", out var tags) || tags.ValueKind != JsonValueKind.Array)
-            return null;
+        return _categoriaSugeridaService.Resolver(ObtenerNombreCategoria(product));
+    }
 
-        var esBebida = false;
-        foreach (var tag in tags.EnumerateArray())
+    /// <summary>
+    /// Determina el nombre de la categoría a partir del producto de Open Food Facts.
+    /// Prioriza el tag en: de categories_tags; las bebidas mantienen su nombre en español;
+    /// si no hay tag en:, usa el primer segmento del campo categories.
+    /// </summary>
+    private static string? ObtenerNombreCategoria(JsonElement product)
+    {
+        if (product.TryGetProperty("categories_tags", out var tags) && tags.ValueKind == JsonValueKind.Array)
         {
-            if (tag.ValueKind == JsonValueKind.String)
+            foreach (var tag in tags.EnumerateArray())
             {
+                if (tag.ValueKind != JsonValueKind.String)
+                    continue;
+
                 var tagStr = tag.GetString();
-                if (tagStr != null && BeverageTags.Contains(tagStr))
-                {
-                    esBebida = true;
-                    break;
-                }
+                if (string.IsNullOrWhiteSpace(tagStr))
+                    continue;
+
+                if (BeverageTags.Contains(tagStr))
+                    return "Bebidas";
+
+                if (tagStr.StartsWith("en:", StringComparison.OrdinalIgnoreCase) && tagStr.Length > 3)
+                    return FormatearNombre(tagStr[3..]);
             }
         }
 
-        if (!esBebida)
-            return null;
+        var categoriesText = TryGetString(product, "categories");
+        if (!string.IsNullOrWhiteSpace(categoriesText))
+        {
+            var primero = categoriesText
+                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(primero))
+                return primero.Length > 200 ? primero[..200] : primero;
+        }
 
-        // Buscar categoría Bebidas existente
-        var bebidas = _context.Categoria
-            .FirstOrDefault(c => c.COD_CATEGORIA == "BEBIDAS" || c.DESC_CATEGORIA == "Bebidas");
+        return null;
+    }
 
-        if (bebidas != null)
-            return bebidas.ID_CATEGORIA;
-
-        // Crear categoría Bebidas
-        var nueva = new Categoria("BEBIDAS", "Bebidas");
-        _context.Categoria.Add(nueva);
-        _context.SaveChanges();
-
-        return nueva.ID_CATEGORIA;
+    /// <summary>
+    /// Convierte un slug (ej: "salty-snacks") a un nombre legible (ej: "Salty Snacks").
+    /// </summary>
+    private static string FormatearNombre(string slug)
+    {
+        var palabras = slug.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(' ', palabras.Select(p =>
+            p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..] : p));
     }
 
     /// <summary>

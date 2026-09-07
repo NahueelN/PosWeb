@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PosWeb.Application.Cajas;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.StockSucursales;
@@ -60,6 +61,8 @@ public class VentaService
         {
             throw new VentaSinCajaActivaException();
         }
+
+        ValidarPeriodoCaja(cajaActiva, usuarioId);
 
         decimal totalPagos = 0;
         List<(int medioPagoId, decimal monto, decimal? conCambio)> pagosData = new();
@@ -378,6 +381,8 @@ public class VentaService
             .FirstOrDefault(c => c.ID_SUCURSAL == venta.ID_SUCURSAL && c.ESTADO == "Abierta")
             ?? throw new VentaSinCajaActivaException();
 
+        ValidarPeriodoCaja(cajaActiva, venta.ID_USUARIO);
+
         venta.Confirmar();
 
         // QR sales are identified by REFERENCIA_MP (assigned only when creating the QR order)
@@ -674,5 +679,48 @@ public class VentaService
 
         venta.Anular();
         _context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Rechaza operar cuando la caja superó su período configurado.
+    /// El período tiene dos modos excluyentes:
+    /// - "duracion": vence al sumar una cantidad (horas o días) a la apertura.
+    /// - "horario": lista de turnos diarios (inicio→fin, puede cruzar medianoche). La caja
+    ///   pertenece al turno que contiene la apertura y vence al llegar a la hora final de ese turno.
+    /// </summary>
+    private void ValidarPeriodoCaja(Caja caja, int? usuarioId)
+    {
+        if (!usuarioId.HasValue) return;
+
+        string? valor = _context.UsuarioPreferencia
+            .Where(p => p.ID_USUARIO == usuarioId.Value && p.CLAVE == CajaPeriodoHelper.Clave)
+            .Select(p => p.VALOR)
+            .FirstOrDefault();
+
+        if (!CajaPeriodoHelper.TryDeserializar(valor, out var config) || config is null) return;
+
+        if (config.Modo == "duracion")
+        {
+            if (config.Cantidad <= 0) return;
+            var horas = config.Unidad == "dias" ? config.Cantidad * 24 : config.Cantidad;
+            if (DateTime.Now > caja.FECHA_APERTURA.AddHours(horas))
+            {
+                throw new CajaPeriodoVencidoException();
+            }
+            return;
+        }
+
+        // Modo "horario": la caja pertenece al turno que contiene la apertura.
+        var apertura = caja.FECHA_APERTURA;
+        var turno = CajaPeriodoHelper.Encontrar(config.Periodos, TimeOnly.FromDateTime(apertura));
+        if (turno == null)
+        {
+            throw new CajaFueraDePeriodoException();
+        }
+
+        if (DateTime.Now > CajaPeriodoHelper.FinDelTurno(apertura, turno))
+        {
+            throw new CajaPeriodoVencidoException();
+        }
     }
 }

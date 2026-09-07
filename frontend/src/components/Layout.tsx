@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -140,6 +140,7 @@ export default function Layout() {
   const [mpVinculando, setMpVinculando] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrData, setQrData] = useState('')
+  const [qrRevinculacion, setQrRevinculacion] = useState(false)
 
   useEffect(() => {
     const v = getCurrentVersion()
@@ -184,6 +185,9 @@ export default function Layout() {
 
   async function handleVerQr() {
     try {
+      api.mercadopago.estado()
+        .then(e => setQrRevinculacion(Boolean(e?.requiereRevincular)))
+        .catch(() => setQrRevinculacion(false))
       const res = await api.mercadopago.qr()
       setQrData(res.qrData || '')
       setQrModalOpen(true)
@@ -266,20 +270,6 @@ export default function Layout() {
               <QrCode size={14} className="shrink-0" />
               Ver QR
             </button>
-            <NavLink
-              to="/usuarios/alta"
-              onClick={closeSidebar}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
-                }`
-              }
-            >
-              <UserPlus size={14} className="shrink-0" />
-              Alta usuario
-            </NavLink>
           </>
         )}
         <NavLink
@@ -413,6 +403,14 @@ export default function Layout() {
             <p className="text-sm text-gray-500">
               Imprimí este QR y pegalo en el mostrador. Es siempre el mismo para todos los cobros.
             </p>
+            {qrRevinculacion && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-0.5">
+                <p className="text-xs font-bold text-amber-800">MercadoPago requiere volver a vincularse</p>
+                <p className="text-xs leading-relaxed text-amber-700">
+                  El QR puede no confirmar los pagos automáticamente. Actualizá la vinculación desde el panel lateral.
+                </p>
+              </div>
+            )}
             {qrData ? (
               <div className="flex justify-center">
                 <img

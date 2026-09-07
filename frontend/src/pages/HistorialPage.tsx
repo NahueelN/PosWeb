@@ -314,7 +314,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {[...Array(5)].map((_, i) => (
                       <tr key={i}>
                         <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-100 rounded animate-pulse" /></td>
@@ -359,7 +359,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {ventaData.items.map((venta) => (
                       <Fragment key={venta.ventaId}>
                         <tr
@@ -450,7 +450,7 @@ export default function HistorialPage() {
                                           <th className="px-2 py-1.5 font-medium text-right">Subtotal</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100">
+                                      <tbody className="divide-y-2 divide-gray-300">
                                         {ventaDetailCache.get(venta.ventaId)!.items.map((item, idx) => (
                                           <tr key={idx} className="hover:bg-gray-100/50">
                                             <td className="px-2 py-1.5 font-mono text-gray-500">{item.codigoBarra}</td>
@@ -531,7 +531,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {[...Array(5)].map((_, i) => (
                       <tr key={i}>
                         <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-100 rounded animate-pulse" /></td>
@@ -576,7 +576,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {compraData.items.map((compra) => (
                       <Fragment key={compra.compraId}>
                         <tr
@@ -655,7 +655,7 @@ export default function HistorialPage() {
                                           <th className="px-2 py-1.5 font-medium text-right">Subtotal</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100">
+                                      <tbody className="divide-y-2 divide-gray-300">
                                         {compraDetailCache.get(compra.compraId)!.items.map((item, idx) => (
                                           <tr key={idx} className="hover:bg-gray-100/50">
                                             <td className="px-2 py-1.5 font-mono text-gray-500">{item.codigoBarra}</td>

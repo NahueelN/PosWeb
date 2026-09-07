@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PosWeb.Application.Categorias;
+using PosWeb.Application.UnidadesMedida;
 using PosWeb.Contracts;
 
 namespace PosWeb.Application.Catalogo;
@@ -10,6 +12,8 @@ public class CatalogoService
     private readonly HttpClient _http;
     private readonly ILogger<CatalogoService> _logger;
     private readonly bool _habilitado;
+    private readonly CategoriaSugeridaService _categoriaSugeridaService;
+    private readonly UnidadSugeridaService _unidadSugeridaService;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -17,11 +21,14 @@ public class CatalogoService
         PropertyNameCaseInsensitive = true
     };
 
-    public CatalogoService(HttpClient http, ILogger<CatalogoService> logger, IConfiguration configuration)
+    public CatalogoService(HttpClient http, ILogger<CatalogoService> logger, IConfiguration configuration,
+        CategoriaSugeridaService categoriaSugeridaService, UnidadSugeridaService unidadSugeridaService)
     {
         _http = http;
         _logger = logger;
         _habilitado = configuration.GetValue<bool?>("Catalogo:Habilitado") ?? true;
+        _categoriaSugeridaService = categoriaSugeridaService;
+        _unidadSugeridaService = unidadSugeridaService;
     }
 
     public async Task<OpenFoodFactsResultDto?> ConsultarAsync(string codigoBarras)
@@ -51,6 +58,9 @@ public class CatalogoService
                 Marca = result.Datos.Marca,
                 Contenido = result.Datos.Contenido,
                 Unidad = result.Datos.Unidad,
+                Categoria = result.Datos.Categoria,
+                CategoriaIdSugerido = _categoriaSugeridaService.Resolver(result.Datos.Categoria),
+                UnidadIdSugerido = _unidadSugeridaService.ResolverOCrear(result.Datos.Unidad),
             };
         }
         catch (HttpRequestException ex)
@@ -70,7 +80,7 @@ public class CatalogoService
         }
     }
 
-    public async Task SubirProductoAsync(string codigoBarras, string descripcion, string? marca, decimal? contenido, string? unidad)
+    public async Task SubirProductoAsync(string codigoBarras, string descripcion, string? marca, decimal? contenido, string? unidad, string? categoria = null)
     {
         if (!_habilitado || string.IsNullOrWhiteSpace(codigoBarras) || string.IsNullOrWhiteSpace(descripcion))
             return;
@@ -83,7 +93,8 @@ public class CatalogoService
                 descripcion = descripcion.Trim(),
                 marca = string.IsNullOrWhiteSpace(marca) ? null : marca.Trim(),
                 contenido,
-                unidad = string.IsNullOrWhiteSpace(unidad) ? null : unidad.Trim()
+                unidad = string.IsNullOrWhiteSpace(unidad) ? null : unidad.Trim(),
+                categoria = string.IsNullOrWhiteSpace(categoria) ? null : categoria.Trim()
             }, JsonOptions);
 
             if (!response.IsSuccessStatusCode)
@@ -127,5 +138,8 @@ public class CatalogoService
 
         [JsonPropertyName("unidad")]
         public string? Unidad { get; set; }
+
+        [JsonPropertyName("categoria")]
+        public string? Categoria { get; set; }
     }
 }

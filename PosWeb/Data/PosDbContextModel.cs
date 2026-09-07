@@ -1269,11 +1269,11 @@ public partial class PosDbContext
 
         // Seed Unidades de Medida
         modelBuilder.Entity<UnidadMedida>().HasData(
-            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidades" },
-            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramos" },
-            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "L", DESC_UNIDAD_MEDIDA = "Litros" },
-            new { ID_UNIDAD_MEDIDA = 4, COD_UNIDAD_MEDIDA = "ML", DESC_UNIDAD_MEDIDA = "Mililitros" },
-            new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos" }
+            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidades", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramos", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "L", DESC_UNIDAD_MEDIDA = "Litros", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 4, COD_UNIDAD_MEDIDA = "ML", DESC_UNIDAD_MEDIDA = "Mililitros", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos", ACTIVO = true }
         );
 
         // Seed admin user (password: admin123)

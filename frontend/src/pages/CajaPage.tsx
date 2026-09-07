@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api, isSessionExpiredError } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
+import ConfiguracionCajaTab from '../components/ConfiguracionCajaTab'
 import type { CajaDto, SucursalDto, CierrePreviewDto, MedioPagoDto } from '../types'
 import { formatDate, formatCurrency } from '../formats'
+import { ENVIO_CIERRE_SUBJECT, buildCierreCajaMessage, normalizarEnvioCierre } from '../lib/cierreCaja'
+import { openWhatsAppTo } from '../lib/whatsapp'
+import { openEmailTo } from '../lib/mail'
 import { Clock, Plus } from 'lucide-react'
 
 export default function CajaPage() {
@@ -77,6 +81,17 @@ export default function CajaPage() {
   // Close form
   const [montoEfectivo, setMontoEfectivo] = useState('')
   const [montoTarjetas, setMontoTarjetas] = useState('')
+  const [saldoInicialSiguiente, setSaldoInicialSiguiente] = useState('')
+  const saldoSiguienteTimer = useRef<number | null>(null)
+  const [tab, setTab] = useState<'caja' | 'configuracion'>('caja')
+
+  const guardarSaldoSiguiente = useCallback((valor: string) => {
+    if (saldoSiguienteTimer.current) window.clearTimeout(saldoSiguienteTimer.current)
+    saldoSiguienteTimer.current = window.setTimeout(() => {
+      const num = parseFloat(valor) || 0
+      api.preferencias.guardar({ saldoInicialDiaSiguiente: num > 0 ? { monto: num } : null }).catch(() => {})
+    }, 500)
+  }, [])
 
   const loadCaja = useCallback(async () => {
     if (!sucursal) return
@@ -93,6 +108,15 @@ export default function CajaPage() {
         loadPreview(res.caja.id)
       }
       loadHistorial()
+      // Cargar saldo inicial día siguiente desde preferencias
+      api.preferencias.obtener().then(prefRes => {
+        const pref = prefRes.preferencias?.saldoInicialDiaSiguiente
+        const montoPref = Number(pref?.monto)
+        if (!montoPref || montoPref <= 0) return
+        const monto = String(montoPref)
+        if (res.activa) setSaldoInicialSiguiente(monto)
+        else setMontoInicial(monto)
+      }).catch(() => {})
       api.mediosPago.listar().then(setMediosPago).catch(() => {})
     } catch (err: any) {
       if (isSessionExpiredError(err)) return
@@ -144,6 +168,7 @@ export default function CajaPage() {
       setReporteCierre(null)
       setPreview(null)
       setMontoInicial('')
+      api.preferencias.guardar({ saldoInicialDiaSiguiente: null }).catch(() => {})
       loadHistorial()
       notifySuccess('Caja abierta correctamente')
     } catch (err: any) {
@@ -170,12 +195,45 @@ export default function CajaPage() {
       setReporteCierre(result)
       setMontoEfectivo('')
       setMontoTarjetas('')
+      setSaldoInicialSiguiente('')
+      // Guardar saldo inicial día siguiente como preferencia
+      const saldoNum = parseFloat(saldoInicialSiguiente) || 0
+      if (saldoSiguienteTimer.current) window.clearTimeout(saldoSiguienteTimer.current)
+      api.preferencias.guardar({ saldoInicialDiaSiguiente: saldoNum > 0 ? { monto: saldoNum } : null }).catch(() => {})
+      if (saldoNum > 0) setMontoInicial(String(saldoNum))
       loadHistorial()
+      void enviarResumenAutomatico(result)
     } catch (err: any) {
       if (isSessionExpiredError(err)) return
       notifyError(err.message || 'Error al cerrar caja')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function enviarResumenAutomatico(cajaCerrada: CajaDto) {
+    try {
+      const res = await api.preferencias.obtener()
+      const cfg = normalizarEnvioCierre(res.preferencias?.envioCierreCaja)
+      if (!cfg.envioAutomatico) return
+      const mensaje = buildCierreCajaMessage(cajaCerrada)
+      const fallaron: string[] = []
+      if (cfg.whatsapp.habilitado && cfg.whatsapp.destinatarios.length > 0) {
+        for (const d of cfg.whatsapp.destinatarios) {
+          try { await openWhatsAppTo(d, mensaje) } catch { fallaron.push(`WhatsApp ${d}`) }
+        }
+      }
+      if (cfg.email.habilitado && cfg.email.destinatarios.length > 0) {
+        for (const d of cfg.email.destinatarios) {
+          try { await openEmailTo(d, ENVIO_CIERRE_SUBJECT, mensaje) } catch { fallaron.push(`email ${d}`) }
+        }
+      }
+      if (fallaron.length > 0) {
+        console.warn('Envío de cierre de caja fallido:', fallaron)
+        notifyInfo(`La caja se cerró, pero no se pudo abrir el envío a: ${fallaron.join(', ')}`)
+      }
+    } catch {
+      // El cierre ya está persistido: un fallo de envío nunca debe afectar la caja.
     }
   }
 
@@ -218,15 +276,29 @@ export default function CajaPage() {
     )
   }
 
-  const cantidadVentas = preview?.desglosePagos?.reduce((s, p) => s + (p.cantidadVentas ?? 1), 0) ?? 0
-
   return (
     <PageShell
       title="Caja"
       subtitle="Gestione la apertura, el cierre y el balance de caja."
       loading={loading && !caja && !reporteCierre}
+      tabs={
+        <div className="flex border-b border-slate-200">
+          <button onClick={() => setTab('caja')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'caja'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Caja</button>
+          <button onClick={() => setTab('configuracion')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'configuracion'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>Configuración</button>
+        </div>
+      }
     >
-      {!loading && (
+      {tab === 'caja' && !loading && (
         <>
           {/* ── Status banner ── */}
           {!activa && !reporteCierre && (
@@ -243,7 +315,7 @@ export default function CajaPage() {
 
           {/* ── Simple hero (caja activa) ── */}
           {activa && caja && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5 mb-6">
               <div className="flex items-end justify-between flex-wrap gap-6">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total vendido</p>
@@ -258,11 +330,7 @@ export default function CajaPage() {
                       <p className="text-2xl font-bold text-red-600">-${totalGastos.toFixed(2)}</p>
                     </div>
                   )}
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 mb-0.5">Operaciones</p>
-                    <p className="text-2xl font-bold text-gray-700">{cantidadVentas}</p>
                   </div>
-                </div>
               </div>
             </div>
           )}
@@ -272,7 +340,7 @@ export default function CajaPage() {
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 {/* Resumen financiero */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
                   <h3 className="text-sm font-semibold text-gray-700 mb-4">Resumen financiero</h3>
                   {loadingPreview ? (
                     <div className="flex items-center justify-center py-8">
@@ -312,14 +380,14 @@ export default function CajaPage() {
                 </div>
 
                 {/* Conteo final */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
                   <h3 className="text-sm font-semibold text-gray-700 mb-4">Conteo final</h3>
                   <form onSubmit={handleCerrar} className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Efectivo en caja</label>
                       <input type="number" step="0.01" min="0" value={montoEfectivo}
                         onChange={e => setMontoEfectivo(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
+                        className="w-full px-3 py-2 border border-gray-400 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
                       {preview && (ef > 0 || efectivoVentas > 0) && (
                         <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
                           <div className="flex justify-between text-gray-600"><span>Esperado</span><span>${efectivoEsperado.toFixed(2)}</span></div>
@@ -338,7 +406,7 @@ export default function CajaPage() {
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total tarjetas</label>
                       <input type="number" step="0.01" min="0" value={montoTarjetas}
                         onChange={e => setMontoTarjetas(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
+                        className="w-full px-3 py-2 border border-gray-400 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" required placeholder="0.00" />
                       {preview && (tj > 0 || tarjetasVentas > 0) && (
                         <div className="mt-2 bg-gray-50 rounded-lg p-3 text-sm space-y-1">
                           <div className="flex justify-between text-gray-600"><span>Esperado</span><span>${tarjetasEsperado.toFixed(2)}</span></div>
@@ -355,12 +423,26 @@ export default function CajaPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Gastos</label>
-                      <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700">
                         {totalGastos > 0
                           ? <span className="font-medium text-red-600">-${totalGastos.toFixed(2)}</span>
                           : <span className="text-gray-400">$0.00</span>}
                       </div>
                       <p className="text-xs text-gray-400 mt-1">Los gastos se cargan desde la solapa <strong>Gastos</strong></p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Saldo inicial día siguiente</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">$</span>
+                        <input type="number" step="0.01" min="0" value={saldoInicialSiguiente}
+                          onChange={e => {
+                            setSaldoInicialSiguiente(e.target.value)
+                            guardarSaldoSiguiente(e.target.value)
+                          }}
+                          className="w-full pl-7 pr-3 py-2 border border-gray-400 rounded-lg text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                          placeholder="Opcional" />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Se cargará automáticamente al abrir la próxima caja</p>
                     </div>
                     <button type="submit" disabled={loading}
                       className="w-full bg-orange-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-orange-500 disabled:opacity-50 transition-colors">
@@ -374,7 +456,7 @@ export default function CajaPage() {
 
           {/* ── Último cierre ── */}
           {reporteCierre && !activa && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 cursor-pointer hover:border-indigo-300 transition-colors"
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-4 mb-6 cursor-pointer hover:border-indigo-300 transition-colors"
               onClick={() => setCierreDetalle(reporteCierre)}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -416,7 +498,7 @@ export default function CajaPage() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
                       <input type="number" step="0.01" min="0" value={montoInicial}
                         onChange={e => setMontoInicial(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-lg font-semibold text-right focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
+                        className="w-full pl-8 pr-3 py-2.5 border border-gray-400 rounded-lg text-lg font-semibold text-right focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
                         required placeholder="0.00" autoFocus />
                     </div>
                   </div>
@@ -430,22 +512,22 @@ export default function CajaPage() {
           )}
 
           {/* ── Historial de cierres ── */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <h3 className="text-lg font-semibold text-gray-900">
                 Historial de cierres{historial.length > 0 ? ` (${historial.length})` : ''}
               </h3>
               {historial.length > 0 && (
                 <input type="text" value={busquedaHistorial} onChange={e => setBusquedaHistorial(e.target.value)}
-                  placeholder="Buscar..." className="w-48 px-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all shadow-sm" />
+                  placeholder="Buscar..." className="w-48 px-3 py-1.5 text-xs border border-gray-400 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all shadow-sm" />
               )}
               <div className="flex items-center gap-2 text-xs">
                 <label className="text-gray-500">Desde</label>
                 <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
-                  className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
+                  className="px-2 py-1 border border-gray-400 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
                 <label className="text-gray-500">Hasta</label>
                 <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
-                  className="px-2 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
+                  className="px-2 py-1 border border-gray-400 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none" />
                 {(fechaDesde || fechaHasta) && (
                   <button onClick={() => { setFechaDesde(''); setFechaHasta('') }}
                     className="text-gray-400 hover:text-gray-600 px-1" title="Limpiar filtro de fechas">✕</button>
@@ -481,7 +563,7 @@ export default function CajaPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {historialFiltrado.map(c => (
                       <tr key={c.id}
                         onClick={() => setCierreDetalle(c)}
@@ -588,6 +670,10 @@ export default function CajaPage() {
             </div>
           )}
         </>
+      )}
+
+      {tab === 'configuracion' && (
+        <ConfiguracionCajaTab />
       )}
     </PageShell>
   )

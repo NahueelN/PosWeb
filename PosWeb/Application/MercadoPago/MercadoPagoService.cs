@@ -22,6 +22,12 @@ public class MercadoPagoService
     private static string? _pendingState;
     private static string? _pendingCodeVerifier;
 
+    private static readonly object TokenMutex = new();
+    private static DateTime _ultimoLogTokenIlegible = DateTime.MinValue;
+    private static DateTime _ultimoIntentoRefresh = DateTime.MinValue;
+    private const int LogIlegibleIntervalMin = 10;
+    private const int RefreshRetryIntervalMin = 5;
+
     public MercadoPagoService(
         PosDbContextLocal context,
         TokenEncryptionService encryption,
@@ -198,10 +204,32 @@ public class MercadoPagoService
         if (suscripcion == null || !suscripcion.MP_VINCULADO || string.IsNullOrEmpty(suscripcion.MP_REFRESH_TOKEN))
             return null;
 
+        string refreshToken;
         try
         {
-            var refreshToken = _encryption.Decrypt(suscripcion.MP_REFRESH_TOKEN);
+            refreshToken = _encryption.Decrypt(suscripcion.MP_REFRESH_TOKEN);
+        }
+        catch (CryptographicException ex)
+        {
+            LogTokenIlegible("MP_REFRESH_TOKEN", ex);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            LogTokenIlegible("MP_REFRESH_TOKEN", ex);
+            return null;
+        }
 
+        lock (TokenMutex)
+        {
+            var ahora = DateTime.UtcNow;
+            if (ahora - _ultimoIntentoRefresh < TimeSpan.FromMinutes(RefreshRetryIntervalMin))
+                return null;
+            _ultimoIntentoRefresh = ahora;
+        }
+
+        try
+        {
             var client = _httpClientFactory.CreateClient("MercadoPago");
             var body = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -212,7 +240,13 @@ public class MercadoPagoService
             });
 
             var response = await client.PostAsync("https://api.mercadopago.com/oauth/token", body);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("MercadoPago: refresh de token rechazado [{StatusCode}]: {ErrorBody}",
+                    response.StatusCode, errorBody);
+                return null;
+            }
 
             var content = await response.Content.ReadAsStringAsync();
             var doc = JsonSerializer.Deserialize<JsonElement>(content);
@@ -226,8 +260,9 @@ public class MercadoPagoService
 
             return newAccessToken;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning("MercadoPago: error inesperado al refrescar token: {Message}", ex.Message);
             return null;
         }
     }
@@ -376,8 +411,27 @@ public class MercadoPagoService
         {
             Vinculado = true,
             NombreTitular = suscripcion.MP_USER_ID,
-            QrData = suscripcion.MP_QR_DATA
+            QrData = suscripcion.MP_QR_DATA,
+            RequiereRevincular = EsTokenIlegible(suscripcion.MP_ACCESS_TOKEN)
         };
+    }
+
+    private bool EsTokenIlegible(string? cifrado)
+    {
+        if (string.IsNullOrEmpty(cifrado)) return true;
+        try
+        {
+            _encryption.Decrypt(cifrado);
+            return false;
+        }
+        catch (CryptographicException)
+        {
+            return true;
+        }
+        catch (FormatException)
+        {
+            return true;
+        }
     }
 
     public void Desvincular()
@@ -405,7 +459,35 @@ public class MercadoPagoService
         if (suscripcion == null || !suscripcion.MP_VINCULADO || string.IsNullOrEmpty(suscripcion.MP_ACCESS_TOKEN))
             return null;
 
-        return _encryption.Decrypt(suscripcion.MP_ACCESS_TOKEN);
+        try
+        {
+            return _encryption.Decrypt(suscripcion.MP_ACCESS_TOKEN);
+        }
+        catch (CryptographicException ex)
+        {
+            LogTokenIlegible("MP_ACCESS_TOKEN", ex);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            LogTokenIlegible("MP_ACCESS_TOKEN", ex);
+            return null;
+        }
+    }
+
+    private void LogTokenIlegible(string campo, Exception ex)
+    {
+        lock (TokenMutex)
+        {
+            var ahora = DateTime.UtcNow;
+            if (ahora - _ultimoLogTokenIlegible < TimeSpan.FromMinutes(LogIlegibleIntervalMin))
+                return;
+            _ultimoLogTokenIlegible = ahora;
+        }
+
+        _logger.LogError(
+            "MercadoPago: no se pudo descifrar {Campo}. La vinculación está dañada o fue creada con otra clave; se requiere volver a vincular. Detalle: {Detail}",
+            campo, ex.Message);
     }
 
     public async Task<bool> VerificarTransferencia(decimal montoEsperado)
@@ -531,4 +613,5 @@ public class MercadoPagoEstadoDto
     public bool Vinculado { get; set; }
     public string? NombreTitular { get; set; }
     public string? QrData { get; set; }
+    public bool RequiereRevincular { get; set; }
 }

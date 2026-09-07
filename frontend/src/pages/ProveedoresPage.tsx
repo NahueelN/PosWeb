@@ -117,7 +117,7 @@ export default function ProveedoresPage() {
                 <th className="px-4 py-3 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y-2 divide-gray-300">
               {list.data.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(p)}>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.codigo}</td>

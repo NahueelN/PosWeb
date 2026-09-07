@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api/client'
 import type { CategoriaDto } from '../types'
-import { Folder, Pencil, Trash2 } from 'lucide-react'
+import { Folder, Pencil, Trash2, Check, X } from 'lucide-react'
 import ABMTable from './shared/ABMTable'
 import Dialog from './ui/Dialog'
 import Button from './ui/Button'
@@ -16,6 +16,9 @@ export default function CategoriasTab({ notifyError }: { notifyError: (msg: stri
   const [descripcion, setDescripcion] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [editingMargenId, setEditingMargenId] = useState<number | null>(null)
+  const [editMargenValue, setEditMargenValue] = useState('')
+  const [savingMargen, setSavingMargen] = useState<number | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -72,12 +75,43 @@ export default function CategoriasTab({ notifyError }: { notifyError: (msg: stri
     } catch (err: any) { notifyError(err.message || 'Error al eliminar') }
   }
 
+  function startEditMargen(item: CategoriaDto) {
+    setEditingMargenId(item.id)
+    setEditMargenValue(item.margenGanancia?.toString() ?? '')
+  }
+
+  function cancelEditMargen() {
+    setEditingMargenId(null)
+    setEditMargenValue('')
+  }
+
+  async function saveMargen(id: number) {
+    const trimmed = editMargenValue.trim()
+    const margen = trimmed === '' ? null : parseFloat(trimmed)
+    if (trimmed !== '' && (isNaN(margen!) || margen! < 0 || margen! > 999.99)) {
+      notifyError('El margen debe ser un número entre 0 y 999.99')
+      return
+    }
+
+    setSavingMargen(id)
+    try {
+      const updated = await api.categorias.actualizarMargen(id, margen)
+      setItems(prev => prev.map(c => c.id === id ? updated : c))
+      setEditingMargenId(null)
+      setEditMargenValue('')
+    } catch (err: any) {
+      notifyError(err.message || 'Error al guardar margen')
+    } finally {
+      setSavingMargen(null)
+    }
+  }
+
   return (
     <>
       <ABMTable
         icon={<Folder size={22} />}
         title="Categorías"
-        description="Administrá las categorías utilizadas por los productos."
+        description="Administrá las categorías y los márgenes sugeridos de cada una."
         loading={loading}
         search={search}
         onSearchChange={setSearch}
@@ -108,27 +142,65 @@ export default function CategoriasTab({ notifyError }: { notifyError: (msg: stri
             <td className="py-3 pr-4">
               <span className="font-medium text-gray-800">{item.descripcion}</span>
             </td>
-            <td className="py-3 pr-4 text-right">
-              {item.margenGanancia != null
-                ? <span className="font-medium text-gray-700">{item.margenGanancia}%</span>
-                : <span className="text-gray-300">—</span>}
+            <td className="py-3 pr-4">
+              {editingMargenId === item.id ? (
+                <div className="relative inline-block">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="999.99"
+                    value={editMargenValue}
+                    onChange={e => setEditMargenValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveMargen(item.id)
+                      if (e.key === 'Escape') cancelEditMargen()
+                    }}
+                    className="w-24 h-8 pl-3 pr-7 text-sm border border-indigo-300 rounded-lg
+                      focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                    autoFocus
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                </div>
+              ) : (
+                <button onClick={() => startEditMargen(item)}
+                  title={item.margenGanancia != null ? 'Editar margen' : 'Asignar margen'}
+                  className={`font-medium ${item.margenGanancia != null ? 'text-gray-700 hover:text-indigo-600' : 'text-gray-300 hover:text-indigo-500'}`}>
+                  {item.margenGanancia != null ? `${item.margenGanancia}%` : '—'}
+                </button>
+              )}
             </td>
             <td className="py-3 pr-4 text-right">
               <span className="text-gray-300">—</span>
             </td>
             <td className="py-3 pr-4 text-right">
-              <div className="flex items-center justify-end gap-1">
-                <button onClick={() => openEdit(item)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                  title="Editar categoría">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => setConfirmDeleteId(item.id)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  title="Eliminar categoría">
-                  <Trash2 size={14} />
-                </button>
-              </div>
+              {editingMargenId === item.id ? (
+                <div className="flex items-center justify-end gap-1">
+                  <button onClick={() => saveMargen(item.id)} disabled={savingMargen === item.id}
+                    className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                    title="Guardar margen">
+                    <Check size={14} />
+                  </button>
+                  <button onClick={cancelEditMargen}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    title="Cancelar">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-end gap-1">
+                  <button onClick={() => openEdit(item)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title="Editar categoría">
+                    <Pencil size={14} />
+                  </button>
+                  <button onClick={() => setConfirmDeleteId(item.id)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Eliminar categoría">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
             </td>
           </tr>
         ))}

@@ -19,6 +19,7 @@ export default function CompraResumenModal({ data, onClose }: CompraResumenModal
 
   const handlePrint = async () => {
     if ('__TAURI_INTERNALS__' in window) {
+      const printWindowLabel = `resumen-print-${Date.now()}`
       localStorage.setItem('posweb-resumen-print', JSON.stringify({
         empresaNombre: data.empresaNombre,
         numeroComprobante: data.numeroComprobante,
@@ -35,13 +36,14 @@ export default function CompraResumenModal({ data, onClose }: CompraResumenModal
         total: data.total,
       }))
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
-      new WebviewWindow(`resumen-print-${Date.now()}`, {
+      new WebviewWindow(printWindowLabel, {
         url: 'resumen-print.html',
         title: 'Resumen de compra',
         width: 800,
         height: 700,
         resizable: false,
         center: true,
+        decorations: false,
       })
       return
     }

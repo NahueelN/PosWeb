@@ -188,6 +188,18 @@ public class AuthService
 
         int? empresaId = request.EmpresaId;
 
+        // Si viene el nombre en vez del ID, resolver la empresa por nombre.
+        if (!empresaId.HasValue && !string.IsNullOrWhiteSpace(request.EmpresaNombre))
+        {
+            var empresa = _context.Empresa
+                .FirstOrDefault(e => e.NOMBRE == request.EmpresaNombre.Trim());
+            if (empresa == null)
+            {
+                throw new ArgumentException($"No existe una empresa con el nombre '{request.EmpresaNombre.Trim()}'");
+            }
+            empresaId = empresa.ID_EMPRESA;
+        }
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         var nuevoUsuario = new Usuario(

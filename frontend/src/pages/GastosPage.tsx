@@ -427,7 +427,7 @@ export default function GastosPage() {
                       <th className="pb-2">Detalle</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {gastos.map(g => (
                       <tr key={g.id} className={`hover:bg-gray-100/80 hover:ring-1 hover:ring-gray-300 hover:ring-inset transition-all ${g.anulado ? 'bg-red-50/30' : ''}`}>
                         <td className="py-2.5 pr-3 whitespace-nowrap">
@@ -525,7 +525,7 @@ export default function GastosPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y-2 divide-gray-300">
                   {historialFiltrado.map(g => (
                     <tr key={g.id} className={`hover:bg-gray-100/80 hover:ring-1 hover:ring-gray-300 hover:ring-inset transition-all ${g.anulado ? 'bg-red-50/30' : ''}`}>
                       <td className="py-2.5 pr-3 whitespace-nowrap">

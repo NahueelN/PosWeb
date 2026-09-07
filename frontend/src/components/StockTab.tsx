@@ -188,7 +188,7 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                 />
               </div>
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-96 overflow-y-auto">
+              <div className="border border-slate-200 rounded-xl divide-y-2 divide-slate-300 max-h-96 overflow-y-auto">
                 {productosFiltrados.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-6">
                     {search.trim() ? 'Sin resultados' : 'No hay productos cargados.'}

@@ -25,7 +25,8 @@ function getPresentacion(p: ProductoDto, unidadesMap: Map<number, string>): stri
 /** Codigo barra + presentación opcional */
 export function formatCodigoBarra(p: ProductoDto, unidadesMap: Map<number, string>): string {
   const pres = getPresentacion(p, unidadesMap)
-  return pres ? `${p.codigoBarra} · ${pres}` : p.codigoBarra
+  const codigo = p.codigoBarra || p.codigoProducto || ''
+  return pres ? `${codigo} · ${pres}` : codigo
 }
 
 // ── Component ──────────────────────────────────────────────────────

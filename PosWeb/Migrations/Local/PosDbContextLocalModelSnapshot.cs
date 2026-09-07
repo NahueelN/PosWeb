@@ -1193,6 +1193,10 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("DESC_UNIDAD_MEDIDA");
 
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ACTIVO");
+
                     b.HasKey("ID_UNIDAD_MEDIDA");
 
                     b.HasIndex("COD_UNIDAD_MEDIDA")
@@ -1204,30 +1208,35 @@ namespace PosWeb.Migrations.Local
                         new
                         {
                             ID_UNIDAD_MEDIDA = 1,
+                            ACTIVO = true,
                             COD_UNIDAD_MEDIDA = "UNIDAD",
                             DESC_UNIDAD_MEDIDA = "Unidades"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 2,
+                            ACTIVO = true,
                             COD_UNIDAD_MEDIDA = "KILO",
                             DESC_UNIDAD_MEDIDA = "Kilogramos"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 3,
+                            ACTIVO = true,
                             COD_UNIDAD_MEDIDA = "L",
                             DESC_UNIDAD_MEDIDA = "Litros"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 4,
+                            ACTIVO = true,
                             COD_UNIDAD_MEDIDA = "ML",
                             DESC_UNIDAD_MEDIDA = "Mililitros"
                         },
                         new
                         {
                             ID_UNIDAD_MEDIDA = 5,
+                            ACTIVO = true,
                             COD_UNIDAD_MEDIDA = "GR",
                             DESC_UNIDAD_MEDIDA = "Gramos"
                         });

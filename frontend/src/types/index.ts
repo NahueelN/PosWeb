@@ -61,6 +61,7 @@ export interface UnidadMedidaDto {
   id: number
   codigo: string
   descripcion: string
+  activo?: boolean
 }
 
 export interface CrearUnidadMedidaRequest {
@@ -101,6 +102,7 @@ export interface OpenFoodFactsResultDto {
   contenido?: number | null
   unidad?: string | null
   categoriaIdSugerido?: number | null
+  unidadIdSugerido?: number | null
 }
 
 export interface ProductoLookupResponseDto {
@@ -235,6 +237,7 @@ export interface RegisterRequest {
   mail: string
   rol: string
   empresaId?: number | null
+  empresaNombre?: string | null
 }
 
 export interface RegisterResponse {
@@ -772,6 +775,8 @@ export interface MovimientoCuentaDto {
 export interface MercadoPagoEstadoDto {
   vinculado: boolean
   nombreTitular?: string
+  qrData?: string | null
+  requiereRevincular?: boolean
 }
 
 // --- Importación de productos desde Excel ---
@@ -812,5 +817,17 @@ export interface EmpresaDto {
 // --- Preferencias de usuario ---
 export interface PreferenciasResponse {
   preferencias: Record<string, Record<string, string>>
+}
+
+export interface EnvioCierreCajaConfig {
+  envioAutomatico: boolean
+  whatsapp: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
+  email: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
 }
 
