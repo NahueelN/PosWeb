@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { useSucursalActiva } from '../components/Layout'
 import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import TicketResultado from './venta/TicketResultado'
 import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto } from '../types'
@@ -75,6 +76,7 @@ export default function MesasPage() {
 
   const [nuevaMesaNumero, setNuevaMesaNumero] = useState('')
   const [mostrarNuevaMesa, setMostrarNuevaMesa] = useState(false)
+  const [confirmar, setConfirmar] = useState<{ tipo: 'cancelar' | 'eliminar'; sesion?: SesionMesaDto; mesa?: MesaDto } | null>(null)
 
   const sesionPorMesa = useMemo(() => {
     const map = new Map<number, SesionMesaDto>()
@@ -117,7 +119,6 @@ export default function MesasPage() {
   }
 
   async function cancelarSesion(sesion: SesionMesaDto) {
-    if (!confirm('¿Cancelar la cuenta de la mesa? Los items se descartan.')) return
     try {
       await api.restaurante.cancelarSesion(sesion.id)
       setSesiones(prev => prev.filter(x => x.id !== sesion.id))
@@ -170,13 +171,19 @@ export default function MesasPage() {
   }
 
   async function eliminarMesa(mesa: MesaDto) {
-    if (!confirm(`¿Eliminar la mesa ${mesa.numero}?`)) return
     try {
       await api.restaurante.eliminarMesa(mesa.id)
       await cargar()
     } catch (e: any) {
       notifyError(e.message || 'No se pudo eliminar la mesa')
     }
+  }
+
+  function handleConfirmar() {
+    if (!confirmar) return
+    if (confirmar.tipo === 'cancelar' && confirmar.sesion) void cancelarSesion(confirmar.sesion)
+    else if (confirmar.tipo === 'eliminar' && confirmar.mesa) void eliminarMesa(confirmar.mesa)
+    setConfirmar(null)
   }
 
   async function moverMesa(mesa: MesaDto, x: number, y: number) {
@@ -271,7 +278,7 @@ export default function MesasPage() {
                     <button
                       type="button"
                       className="ml-1 text-red-500 hover:text-red-700"
-                      onClick={e => { e.stopPropagation(); eliminarMesa(mesa) }}
+                      onClick={e => { e.stopPropagation(); setConfirmar({ tipo: 'eliminar', mesa }) }}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -328,7 +335,7 @@ export default function MesasPage() {
                 <Button size="sm" variant="confirm" icon={<Banknote size={13} />} onClick={() => setCobrarSesion(sesionSeleccionada)}>
                   Cobrar
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => cancelarSesion(sesionSeleccionada)}>
+                <Button size="sm" variant="destructive" onClick={() => setConfirmar({ tipo: 'cancelar', sesion: sesionSeleccionada })}>
                   Cancelar
                 </Button>
               </div>
@@ -430,6 +437,18 @@ export default function MesasPage() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmar != null}
+        title={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : 'Eliminar mesa'}
+        description={confirmar?.tipo === 'cancelar'
+          ? `¿Cancelar la cuenta de la mesa ${confirmar?.sesion?.mesaNumero || confirmar?.sesion?.mesaId}? Los items se descartan.`
+          : `¿Eliminar la mesa ${confirmar?.mesa?.numero}?`}
+        confirmLabel={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : 'Eliminar'}
+        confirmVariant="destructive"
+        onCancel={() => setConfirmar(null)}
+        onConfirm={handleConfirmar}
+      />
     </div>
   )
 }
