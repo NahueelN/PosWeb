@@ -349,8 +349,8 @@ public class VentaServiceTest
         VentaResultadoDto resultado = await service.CrearVenta(dto);
 
         Deuda deuda = context.Deuda.Single();
-        Assert.Equal(200m, deuda.MONTO_DEUDA);
-        Assert.Equal(50m, deuda.MONTO_PAGADO);
+        Assert.Equal(150m, deuda.MONTO_DEUDA);
+        Assert.Equal(0m, deuda.MONTO_PAGADO);
         Assert.False(deuda.PAGO);
         Assert.Equal(150m, resultado.DeudaMonto);
     }
