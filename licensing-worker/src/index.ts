@@ -6,7 +6,6 @@ interface Env {
   MP_ACCESS_TOKEN: string;
   MP_WEBHOOK_SECRET?: string;
   POSWEB_INTERNAL_KEY?: string;
-  LICENSE_DURATION_HOURS?: string;
 }
 
 interface License {
@@ -70,22 +69,12 @@ function fechaBaseParaRenovacion(nextBillingActual: string | null): Date {
   return actual > hoy ? actual : hoy;
 }
 
-// Duración de cada renovación/vencimiento. Por defecto 30 días (720 h); parametrizable
-// vía la variable de entorno LICENSE_DURATION_HOURS para acortarla en pruebas (ej. "2").
-const RENEWAL_HOURS_DEFAULT = 720;
-
-function duracionRenovacionHoras(env: Env): number {
-  const raw = env.LICENSE_DURATION_HOURS?.trim();
-  if (!raw) return RENEWAL_HOURS_DEFAULT;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : RENEWAL_HOURS_DEFAULT;
-}
-
-// Renovación manual mensual: se suman `duracionHoras` desde el vencimiento vigente si todavía
+// Renovación manual mensual: se suman 30 días desde el vencimiento vigente si todavía
 // quedaban días (se respeta el original), o desde hoy si la licencia ya estaba vencida.
-function calcularNuevoVencimiento(nextBillingActual: string | null, duracionHoras: number): string {
+function calcularNuevoVencimiento(nextBillingActual: string | null): string {
   const base = fechaBaseParaRenovacion(nextBillingActual);
-  return new Date(base.getTime() + duracionHoras * 60 * 60 * 1000).toISOString();
+  base.setDate(base.getDate() + 30);
+  return base.toISOString().split('T')[0];
 }
 
 const GRACE_HOURS = 48;
@@ -184,7 +173,7 @@ app.post('/webhook', async (c) => {
       }
 
       if (paymentStatus === 'approved') {
-        const nextBilling = calcularNuevoVencimiento(existing.next_billing, duracionRenovacionHoras(env));
+        const nextBilling = calcularNuevoVencimiento(existing.next_billing);
         await env.LICENSES_DB
           .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
           .bind('active', nextBilling, licenseKey)
@@ -253,7 +242,7 @@ app.post('/webhook', async (c) => {
       return c.json({ error: 'License not found for this preapproval' }, 404);
     }
 
-    const nextBilling = calcularNuevoVencimiento(existing.next_billing, duracionRenovacionHoras(env));
+    const nextBilling = calcularNuevoVencimiento(existing.next_billing);
 
     await env.LICENSES_DB
       .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -351,7 +340,7 @@ app.post('/status', async (c) => {
         const searchData: any = await mpCheck.json();
         const approved = searchData.results?.find((p: any) => p.status === 'approved');
         if (approved) {
-          const nextBilling = calcularNuevoVencimiento(license.next_billing, duracionRenovacionHoras(env));
+          const nextBilling = calcularNuevoVencimiento(license.next_billing);
           await env.LICENSES_DB
             .prepare('UPDATE licenses SET status = ?, next_billing = ?, preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
             .bind('active', nextBilling, approved.id.toString(), license.license_key)
