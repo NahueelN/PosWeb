@@ -99,6 +99,7 @@ public class VentaService
 
         Venta venta = new Venta(dto.SucursalId, usuarioId);
         venta.AsignarCliente(dto.ClienteId);
+        venta.AsignarSesionMesa(dto.SesionMesaId);
 
         if (esTransferenciaPendiente)
         {
@@ -136,7 +137,7 @@ public class VentaService
 
                     decimal cantidadNecesaria = citem.CANTIDAD * item.Cantidad;
 
-                    if (cproducto.SEGUIR_STOCK)
+                    if (!dto.SinStock && cproducto.SEGUIR_STOCK)
                     {
                         StockSucursal? cstock = _context.StockSucursal
                             .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
@@ -177,7 +178,7 @@ public class VentaService
                     throw new ProductoInactivoException(item.ProductoId);
                 }
 
-                if (producto.SEGUIR_STOCK)
+                if (!dto.SinStock && producto.SEGUIR_STOCK)
                 {
                     StockSucursal? stockSuc = _context.StockSucursal
                         .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
@@ -212,7 +213,12 @@ public class VentaService
                         throw new InvalidOperationException($"La oferta del producto '{producto.DESC_PRODUCTO}' no está vigente hoy");
                 }
 
-                venta.AgregarRenglon(producto, item.Cantidad, item.OfertaId);
+                // En ventas de mesa (SinStock) se usa el precio capturado en la comanda si viene.
+                var precioUnitario = dto.SinStock && item.PrecioUnitario.HasValue
+                    ? item.PrecioUnitario.Value
+                    : producto.PRECIO;
+
+                venta.AgregarRenglon(producto, item.Cantidad, precioUnitario, item.OfertaId);
             }
 
         }

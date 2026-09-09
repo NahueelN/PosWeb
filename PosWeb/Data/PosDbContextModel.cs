@@ -1292,4 +1292,162 @@ public partial class PosDbContext
             }
         );
     }
+
+    /// <summary>
+    /// Segmento restaurante: mesas, sesiones de mesa, comandas y configuración del módulo.
+    /// Se configura solo en el contexto local (PosDbContextLocal), no en el MySQL.
+    /// </summary>
+    internal static void ConfigureRestaurante(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Mesa>(entity =>
+        {
+            entity.ToTable("MESA");
+
+            entity.HasKey(m => m.ID_MESA);
+
+            entity.Property(m => m.ID_MESA)
+                .HasColumnName("ID_MESA");
+
+            entity.Property(m => m.ID_SUCURSAL)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(m => m.NUMERO_MESA)
+                .HasColumnName("NUMERO_MESA")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(m => m.DESCRIPCION)
+                .HasColumnName("DESCRIPCION")
+                .HasMaxLength(200);
+
+            entity.Property(m => m.POS_X)
+                .HasColumnName("POS_X")
+                .HasColumnType("decimal(5,2)");
+
+            entity.Property(m => m.POS_Y)
+                .HasColumnName("POS_Y")
+                .HasColumnType("decimal(5,2)");
+
+            entity.Property(m => m.ACTIVA)
+                .HasColumnName("ACTIVA");
+
+            entity.HasIndex(m => new { m.ID_SUCURSAL, m.NUMERO_MESA })
+                .HasFilter("ACTIVA = 1")
+                .IsUnique();
+
+            entity.HasOne<Sucursal>()
+                .WithMany()
+                .HasForeignKey(m => m.ID_SUCURSAL)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SesionMesa>(entity =>
+        {
+            entity.ToTable("SESION_MESA");
+
+            entity.HasKey(s => s.ID_SESION_MESA);
+
+            entity.Property(s => s.ID_SESION_MESA)
+                .HasColumnName("ID_SESION_MESA");
+
+            entity.Property(s => s.ID_MESA)
+                .HasColumnName("ID_MESA");
+
+            entity.Property(s => s.ID_SUCURSAL)
+                .HasColumnName("ID_SUCURSAL");
+
+            entity.Property(s => s.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(s => s.FECHA_APERTURA)
+                .HasColumnName("FECHA_APERTURA");
+
+            entity.Property(s => s.FECHA_CIERRE)
+                .HasColumnName("FECHA_CIERRE");
+
+            entity.Property(s => s.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(s => s.ID_VENTA)
+                .HasColumnName("ID_VENTA");
+
+            entity.HasMany(s => s.ITEMS)
+                .WithOne()
+                .HasForeignKey(i => i.ID_SESION_MESA)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Mesa>()
+                .WithMany()
+                .HasForeignKey(s => s.ID_MESA)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(s => new { s.ID_MESA, s.ESTADO });
+        });
+
+        modelBuilder.Entity<ItemComanda>(entity =>
+        {
+            entity.ToTable("ITEM_COMANDA");
+
+            entity.HasKey(i => i.ID_ITEM_COMANDA);
+
+            entity.Property(i => i.ID_ITEM_COMANDA)
+                .HasColumnName("ID_ITEM_COMANDA");
+
+            entity.Property(i => i.ID_SESION_MESA)
+                .HasColumnName("ID_SESION_MESA");
+
+            entity.Property(i => i.ID_PRODUCTO)
+                .HasColumnName("ID_PRODUCTO");
+
+            entity.Property(i => i.ID_COMBO)
+                .HasColumnName("ID_COMBO");
+
+            entity.Property(i => i.DESCRIPCION)
+                .HasColumnName("DESCRIPCION")
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(i => i.CANTIDAD)
+                .HasColumnName("CANTIDAD")
+                .HasColumnType("decimal(12,3)");
+
+            entity.Property(i => i.PRECIO_UNITARIO)
+                .HasColumnName("PRECIO_UNITARIO")
+                .HasColumnType("decimal(18,2)");
+
+            entity.Property(i => i.NOTA)
+                .HasColumnName("NOTA")
+                .HasMaxLength(500);
+
+            entity.Property(i => i.ESTADO)
+                .HasColumnName("ESTADO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(i => i.FECHA_ALTA)
+                .HasColumnName("FECHA_ALTA");
+
+            entity.Property(i => i.FECHA_ESTADO)
+                .HasColumnName("FECHA_ESTADO");
+        });
+
+        modelBuilder.Entity<EmpresaConfiguracion>(entity =>
+        {
+            entity.ToTable("EMPRESA_CONFIGURACION");
+
+            entity.HasKey(e => e.ID_EMPRESA);
+
+            entity.Property(e => e.ID_EMPRESA)
+                .HasColumnName("ID_EMPRESA");
+
+            entity.Property(e => e.MODULO_RESTAURANTE)
+                .HasColumnName("MODULO_RESTAURANTE");
+        });
+
+        // Trazabilidad de la venta con la sesión de mesa.
+        modelBuilder.Entity<Venta>().Property(v => v.ID_SESION_MESA).HasColumnName("ID_SESION_MESA");
+        modelBuilder.Entity<Venta>().HasOne<SesionMesa>().WithMany().HasForeignKey(v => v.ID_SESION_MESA).OnDelete(DeleteBehavior.Restrict);
+    }
 }

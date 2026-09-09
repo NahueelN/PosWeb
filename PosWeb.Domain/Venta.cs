@@ -24,6 +24,9 @@ public class Venta
 
     public string? REFERENCIA_MP { get; private set; }
 
+    /// <summary>Sesión de mesa (restaurante) que dio origen a esta venta, si aplica.</summary>
+    public int? ID_SESION_MESA { get; private set; }
+
     private readonly List<RenglonVenta> _RENGLONES = new();
 
     public IReadOnlyCollection<RenglonVenta> RENGLONES => _RENGLONES;
@@ -52,6 +55,12 @@ public class Venta
 
     public void AgregarRenglon(Producto producto, decimal cantidad, int? ofertaId = null)
     {
+        AgregarRenglon(producto, cantidad, producto.PRECIO, ofertaId);
+    }
+
+    /// <summary>Agrega un renglón usando el precio capturado (p. ej. el de la comanda), no el actual del producto.</summary>
+    public void AgregarRenglon(Producto producto, decimal cantidad, decimal precioUnitario, int? ofertaId = null)
+    {
         if (producto == null)
         {
             throw new ProductoInvalidoException(0);
@@ -65,7 +74,7 @@ public class Venta
         RenglonVenta renglon = new RenglonVenta(
             producto.ID_PRODUCTO,
             cantidad,
-            producto.PRECIO,
+            precioUnitario,
             ofertaId
         );
 
@@ -100,6 +109,11 @@ public class Venta
     public void AsignarCliente(int? clienteId)
     {
         ID_CLIENTE = clienteId;
+    }
+
+    public void AsignarSesionMesa(int? sesionMesaId)
+    {
+        ID_SESION_MESA = sesionMesaId;
     }
 
     private void RecalcularTotal()

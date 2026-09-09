@@ -23,6 +23,7 @@ using PosWeb.Application.Productos;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Sucursales;
 using PosWeb.Application.Ventas;
+using PosWeb.Application.Restaurante;
 using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
 using PosWeb.Application.Preferencias;
@@ -109,6 +110,7 @@ builder.Services.AddAuthorization();
 
 // Scoped services
 builder.Services.AddScoped<VentaService>();
+builder.Services.AddScoped<RestauranteService>();
 builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<StockSucursalService>();
