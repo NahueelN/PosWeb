@@ -27,7 +27,7 @@ public class RestauranteTest
         return new PosDbContextLocal(options);
     }
 
-    private static RestauranteService CrearServicio(PosDbContextLocal context)
+    private static VentaService CrearVentaService(PosDbContextLocal context)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -46,9 +46,12 @@ public class RestauranteTest
             config,
             NullLogger<MercadoPagoService>.Instance);
         var stock = new StockSucursalService(context);
-        var ventas = new VentaService(context, stock, mp);
+        return new VentaService(context, stock, mp);
+    }
 
-        return new RestauranteService(context, ventas);
+    private static RestauranteService CrearServicio(PosDbContextLocal context)
+    {
+        return new RestauranteService(context, CrearVentaService(context));
     }
 
     private static void SeedBasico(PosDbContextLocal context)
@@ -181,7 +184,7 @@ public class RestauranteTest
     }
 
     [Fact]
-    public void CobrarCuenta_CreaVentaSinDescontarStock_YMarcaCobrada()
+    public async Task CobrarCuenta_CreaVentaSinDescontarStock_YMarcaCobrada()
     {
         var context = CrearContexto(nameof(CobrarCuenta_CreaVentaSinDescontarStock_YMarcaCobrada));
         var service = CrearServicio(context);
@@ -198,7 +201,7 @@ public class RestauranteTest
         sesion = service.ObtenerSesion(sesion.Id);
         var total = sesion.Total;
 
-        var resultado = service.CobrarCuenta(sesion.Id, new CobrarCuentaRequest
+        var resultado = await service.CobrarCuenta(sesion.Id, new CobrarCuentaRequest
         {
             Pagos = new List<PagoVentaDto> { new() { MedioPagoId = 1, Monto = total } }
         }, usuarioId);
@@ -216,5 +219,72 @@ public class RestauranteTest
         var sesionFinal = service.ObtenerSesion(sesion.Id);
         Assert.Equal("Cobrada", sesionFinal.Estado);
         Assert.Equal(venta.ID_VENTA, sesionFinal.IdVenta);
+    }
+
+    [Fact]
+    public async Task CobrarCuentaPendiente_MantieneSesionAbierta_YAlConfirmarLaCierra_SinTocarStock()
+    {
+        var context = CrearContexto(nameof(CobrarCuentaPendiente_MantieneSesionAbierta_YAlConfirmarLaCierra_SinTocarStock));
+        var service = CrearServicio(context);
+        var ventas = CrearVentaService(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+        var stockAntes = context.StockSucursal.Single().STOCK;
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "4" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+        service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 2 });
+
+        var resultado = await service.CobrarCuenta(sesion.Id, new CobrarCuentaRequest
+        {
+            EsperarTransferencia = true,
+            PendienteMedioId = 4
+        }, usuarioId);
+
+        Assert.Equal("PendientePago", resultado.Estado);
+        // La mesa sigue abierta mientras el pago no se confirma.
+        Assert.Equal("Abierta", service.ObtenerSesion(sesion.Id).Estado);
+        Assert.Equal(stockAntes, context.StockSucursal.Single().STOCK);
+
+        // Se confirma la transferencia: la sesión se cierra y el stock sigue intacto.
+        ventas.ConfirmarTransferencia(resultado.VentaId);
+
+        var sesionFinal = service.ObtenerSesion(sesion.Id);
+        Assert.Equal("Cobrada", sesionFinal.Estado);
+        Assert.Equal(resultado.VentaId, sesionFinal.IdVenta);
+        Assert.Equal(stockAntes, context.StockSucursal.Single().STOCK);
+    }
+
+    [Fact]
+    public async Task CancelarVentaPendienteDeMesa_NoReponeStock_YDejaSesionAbierta()
+    {
+        var context = CrearContexto(nameof(CancelarVentaPendienteDeMesa_NoReponeStock_YDejaSesionAbierta));
+        var service = CrearServicio(context);
+        var ventas = CrearVentaService(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+        var stockAntes = context.StockSucursal.Single().STOCK;
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "5" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+        service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 3 });
+
+        var resultado = await service.CobrarCuenta(sesion.Id, new CobrarCuentaRequest
+        {
+            EsperarTransferencia = true,
+            PendienteMedioId = 4
+        }, usuarioId);
+
+        ventas.CancelarVentaPendiente(resultado.VentaId, false);
+
+        Assert.Equal("Anulada", ventas.ObtenerEstadoVenta(resultado.VentaId));
+        // No se repuso stock porque nunca se descontó.
+        Assert.Equal(stockAntes, context.StockSucursal.Single().STOCK);
+        // La sesión queda abierta para reintentar el cobro.
+        Assert.Equal("Abierta", service.ObtenerSesion(sesion.Id).Estado);
     }
 }

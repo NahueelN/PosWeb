@@ -113,9 +113,9 @@ public class RestauranteController : ControllerBase
     }
 
     [HttpPost("sesiones/{id:int}/cobrar")]
-    public IActionResult Cobrar(int id, [FromBody] CobrarCuentaRequest req)
+    public async Task<IActionResult> Cobrar(int id, [FromBody] CobrarCuentaRequest req)
     {
-        return Ok(_restauranteService.CobrarCuenta(id, req, GetUserId()));
+        return Ok(await _restauranteService.CobrarCuenta(id, req, GetUserId()));
     }
 
     [HttpPost("sesiones/{id:int}/cancelar")]

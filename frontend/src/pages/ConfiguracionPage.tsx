@@ -194,26 +194,28 @@ export default function ConfiguracionPage() {
                 />
               </div>
               <p className="text-xs text-slate-500">{saving ? 'Guardando cambios...' : 'Los cambios se guardan al salir de cada campo.'}</p>
-              <div className="border-t border-slate-100 pt-4">
-                <label className="flex items-center justify-between gap-3 cursor-pointer">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Módulo restaurante (mesas)</p>
-                    <p className="text-xs text-slate-500">Habilita la operación por mesas en el menú. La venta de mesa se cobra sin descontar stock.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={restauranteHabilitado}
-                    onChange={e => {
-                      const on = e.target.checked
-                      setRestauranteHabilitado(on)
-                      api.restaurante.setConfig(on)
-                        .then(() => window.location.reload())
-                        .catch(() => setRestauranteHabilitado(!on))
-                    }}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                </label>
-              </div>
+              {canManageUsers && (
+                <div className="border-t border-slate-100 pt-4">
+                  <label className="flex items-center justify-between gap-3 cursor-pointer">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Módulo restaurante (mesas)</p>
+                      <p className="text-xs text-slate-500">Habilita la operación por mesas en el menú. La venta de mesa se cobra sin descontar stock.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={restauranteHabilitado}
+                      onChange={e => {
+                        const on = e.target.checked
+                        setRestauranteHabilitado(on)
+                        api.restaurante.setConfig(on)
+                          .then(() => window.location.reload())
+                          .catch(() => setRestauranteHabilitado(!on))
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           )}
         </div>

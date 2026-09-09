@@ -96,6 +96,7 @@ export default function MesasPage() {
       setMesas(m)
       setSesiones(s)
       setMediosPago(mp)
+      setMesaSeleccionada(prev => (prev && m.some(mm => mm.id === prev.id)) ? prev : null)
     } catch (e: any) {
       notifyError(e.message || 'Error al cargar mesas')
     } finally {

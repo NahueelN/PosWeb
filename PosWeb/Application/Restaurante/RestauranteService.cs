@@ -146,23 +146,27 @@ public class RestauranteService
         _context.SesionMesa.Add(sesion);
         _context.SaveChanges();
 
-        return MapSesion(sesion);
+        return MapSesion(sesion, mesa.NUMERO_MESA);
     }
 
     public SesionMesaDto ObtenerSesion(int sesionId)
     {
         var sesion = CargarSesion(sesionId);
-        return MapSesion(sesion);
+        return MapSesion(sesion, ObtenerNumeroMesa(sesion.ID_MESA));
     }
 
     public List<SesionMesaDto> ListarSesionesAbiertas(int sucursalId)
     {
+        var numeros = _context.Mesa
+            .Where(m => m.ID_SUCURSAL == sucursalId)
+            .ToDictionary(m => m.ID_MESA, m => m.NUMERO_MESA);
+
         return _context.SesionMesa
             .Where(s => s.ID_SUCURSAL == sucursalId && s.ESTADO == EstadosSesionMesa.Abierta)
             .Include(s => s.ITEMS)
             .OrderBy(s => s.FECHA_APERTURA)
             .AsEnumerable()
-            .Select(MapSesion)
+            .Select(s => MapSesion(s, numeros.GetValueOrDefault(s.ID_MESA, "")))
             .ToList();
     }
 
@@ -244,10 +248,10 @@ public class RestauranteService
 
         _context.SaveChanges();
 
-        return MapSesion(CargarSesion(haciaSesionId));
+        return MapSesion(CargarSesion(haciaSesionId), ObtenerNumeroMesa(hacia.ID_MESA));
     }
 
-    public VentaResultadoDto CobrarCuenta(int sesionId, CobrarCuentaRequest req, int? usuarioId)
+    public async Task<VentaResultadoDto> CobrarCuenta(int sesionId, CobrarCuentaRequest req, int? usuarioId)
     {
         var sesion = CargarSesion(sesionId);
         if (!sesion.EstadoAbierta)
@@ -275,10 +279,15 @@ public class RestauranteService
             }).ToList()
         };
 
-        var resultado = _ventaService.CrearVenta(dto, usuarioId).GetAwaiter().GetResult();
+        var resultado = await _ventaService.CrearVenta(dto, usuarioId);
 
-        sesion.MarcarCobrada(resultado.VentaId);
-        _context.SaveChanges();
+        // Con pago pendiente (QR/transferencia) la mesa queda ocupada hasta confirmar el pago,
+        // así se evita marcar como cobrada una venta que puede cancelarse.
+        if (!req.EsperarTransferencia)
+        {
+            sesion.MarcarCobrada(resultado.VentaId);
+            _context.SaveChanges();
+        }
 
         return resultado;
     }
@@ -298,6 +307,11 @@ public class RestauranteService
             .Include(s => s.ITEMS)
             .FirstOrDefault(s => s.ID_SESION_MESA == sesionId)
             ?? throw new SesionMesaNoEncontradaException(sesionId);
+    }
+
+    private string ObtenerNumeroMesa(int mesaId)
+    {
+        return _context.Mesa.FirstOrDefault(m => m.ID_MESA == mesaId)?.NUMERO_MESA ?? "";
     }
 
     private static MesaDto MapMesa(Mesa mesa, bool ocupada)
@@ -334,13 +348,13 @@ public class RestauranteService
         };
     }
 
-    private static SesionMesaDto MapSesion(SesionMesa sesion)
+    private static SesionMesaDto MapSesion(SesionMesa sesion, string mesaNumero)
     {
         return new SesionMesaDto
         {
             Id = sesion.ID_SESION_MESA,
             MesaId = sesion.ID_MESA,
-            MesaNumero = "",
+            MesaNumero = mesaNumero,
             SucursalId = sesion.ID_SUCURSAL,
             UsuarioId = sesion.ID_USUARIO,
             Estado = sesion.ESTADO,
