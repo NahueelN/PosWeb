@@ -63,7 +63,7 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   const push = (text: string, opts: { bold?: boolean; center?: boolean; size?: 'sm' | 'md' | 'lg'; space?: boolean } = {}) =>
     entries.push({ text, bold: opts.bold ?? false, center: opts.center ?? false, size: opts.size, space: opts.space })
 
-  push(data.empresaNombre ?? 'PosWeb', { bold: true, center: true, size: 'md' })
+  push(data.empresaNombre ?? 'Vendeto', { bold: true, center: true, size: 'md' })
   if (data.empresaDireccion) push(data.empresaDireccion, { center: true })
   if (data.mostrarTelefonoTicket && data.empresaTelefono) push(`Tel: ${data.empresaTelefono}`, { center: true })
   push('TICKET DE COMPRA', { bold: true, center: true, space: true })
@@ -94,6 +94,8 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push(line)
   push('¡GRACIAS POR SU COMPRA!', { bold: true, center: true, space: true })
   push('NO VÁLIDO COMO FACTURA', { center: true, size: 'sm' })
+  push('')
+  push('Vendeto', { bold: true, size: 'sm' })
 
   return entries
 }
