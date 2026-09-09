@@ -209,7 +209,11 @@ export default function ConfiguracionPage() {
                         setRestauranteHabilitado(on)
                         api.restaurante.setConfig(on)
                           .then(() => window.location.reload())
-                          .catch(() => setRestauranteHabilitado(!on))
+                          .catch((err: unknown) => {
+                            const msg = err instanceof Error ? err.message : String(err)
+                            notifyError(`No se pudo guardar el módulo restaurante: ${msg}`)
+                            setRestauranteHabilitado(!on)
+                          })
                       }}
                       className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />

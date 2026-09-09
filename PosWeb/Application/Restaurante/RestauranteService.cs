@@ -36,11 +36,10 @@ public class RestauranteService
         var config = _context.EmpresaConfiguracion.FirstOrDefault();
         if (config == null)
         {
+            // Aplicación single-tenant: la configuración usa la primera empresa, o el id 1
+            // como clave si todavía no hay empresa registrada.
             var empresa = _context.Empresa.OrderBy(e => e.ID_EMPRESA).FirstOrDefault();
-            if (empresa == null)
-                throw new InvalidOperationException("No hay empresa configurada para habilitar el módulo");
-
-            config = new EmpresaConfiguracion(empresa.ID_EMPRESA);
+            config = new EmpresaConfiguracion(empresa?.ID_EMPRESA ?? 1);
             _context.EmpresaConfiguracion.Add(config);
         }
 
