@@ -93,6 +93,29 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
+    public void Register_Admin_EmpresaNombreLibre_CreaEmpresaYAsigna()
+    {
+        var context = CrearContexto(nameof(Register_Admin_EmpresaNombreLibre_CreaEmpresaYAsigna));
+        var service = new AuthService(context, CrearJwtTokenService());
+
+        var resultado = service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin3",
+            Password = "123456",
+            Mail = "admin3@test.com",
+            Rol = Roles.Admin,
+            EmpresaNombre = "Mi Empresa Libre 2026"
+        });
+
+        var usuario = context.Usuario.First(u => u.NOMBRE_USUARIO == "admin3");
+        var empresa = context.Empresa.Single();
+
+        Assert.Equal("Mi Empresa Libre 2026", empresa.NOMBRE);
+        Assert.Equal(empresa.ID_EMPRESA, usuario.ID_EMPRESA);
+        Assert.Equal(resultado.Id, usuario.ID_USUARIO);
+    }
+
+    [Fact]
     public void Login_ConSuscripcionSuspendida_LanzaExcepcion()
     {
         var context = CrearContexto(nameof(Login_ConSuscripcionSuspendida_LanzaExcepcion));
