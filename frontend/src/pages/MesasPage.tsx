@@ -461,6 +461,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   const [nota, setNota] = useState('')
   const [cantidad, setCantidad] = useState(1)
 
+  // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
   useEffect(() => {
     if (!sesion) return
     setProductos([])
@@ -468,8 +469,13 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     setQ('')
     setNota('')
     setCantidad(1)
+  }, [sesion])
+
+  // Búsqueda de productos con debounce: depende de q pero no lo resetea.
+  useEffect(() => {
+    if (!sesion) return
     const timer = setTimeout(async () => {
-      if (!q.trim()) return
+      if (!q.trim()) { setProductos([]); return }
       try {
         const res = await api.productos.buscarParaVenta(q.trim(), sucursalId ?? 0)
         setProductos(res)
