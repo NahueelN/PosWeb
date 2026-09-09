@@ -150,7 +150,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
 @page { size: ${ancho}mm auto; margin: 0; }
 html, body { margin: 0; padding: 0; width: ${ancho}mm; }
 .receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.receipt div { font-weight: 900; }
+.receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
 </style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
