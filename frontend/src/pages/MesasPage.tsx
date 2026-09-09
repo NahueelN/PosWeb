@@ -444,6 +444,7 @@ export default function MesasPage() {
         description={confirmar?.tipo === 'cancelar'
           ? `¿Cancelar la cuenta de la mesa ${confirmar?.sesion?.mesaNumero || confirmar?.sesion?.mesaId}? Los items se descartan.`
           : `¿Eliminar la mesa ${confirmar?.mesa?.numero}?`}
+        cancelLabel={confirmar?.tipo === 'cancelar' ? 'No cancelar' : 'Cancelar'}
         confirmLabel={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : 'Eliminar'}
         confirmVariant="destructive"
         onCancel={() => setConfirmar(null)}
