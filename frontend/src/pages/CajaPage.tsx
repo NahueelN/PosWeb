@@ -29,7 +29,7 @@ export default function CajaPage() {
   const [caja, setCaja] = useState<CajaDto | null>(null)
   const [activa, setActiva] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { notifyError, notifySuccess } = useNotification()
+  const { notifyError, notifySuccess, notifyInfo } = useNotification()
   const [reporteCierre, setReporteCierre] = useState<CajaDto | null>(null)
   const [preview, setPreview] = useState<CierrePreviewDto | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)

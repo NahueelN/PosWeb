@@ -77,7 +77,7 @@ describe('buildCierreCajaMessage', () => {
   })
 
   it('no incluye diferencias/cierres ausentes', () => {
-    const msg = buildCierreCajaMessage(makeCaja({ montoContadoEfectivo: null, montoContadoTarjetas: null, diferencia: null, fechaCierre: null }))
+    const msg = buildCierreCajaMessage(makeCaja({ montoContadoEfectivo: undefined, montoContadoTarjetas: undefined, diferencia: undefined, fechaCierre: undefined }))
     expect(msg).not.toContain('Diferencia de caja')
     expect(msg).not.toContain('Fecha cierre:')
   })

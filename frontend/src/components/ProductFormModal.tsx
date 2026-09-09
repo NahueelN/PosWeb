@@ -89,6 +89,7 @@ export default function ProductFormModal({
   const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false)
   const barcodeTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const lastLookedUpRef = useRef<string | null>(null)
 
   const focusAppliedRef = useRef(false)
   const categoriaRefetchRef = useRef<number | null>(null)
@@ -504,9 +505,12 @@ export default function ProductFormModal({
   }
 
   async function buscarCodigoEnCatalogo() {
-    const codigo = codigoBarra.trim()
+    const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
     if (!/^\d{8,14}$/.test(codigo) || isEditing || prefillData?.codigoBarras) return
+    if (lookingUpBarcode || lastLookedUpRef.current === codigo) return
 
+    if (codigoBarra !== codigo) setCodigoBarra(codigo)
+    lastLookedUpRef.current = codigo
     setLookingUpBarcode(true)
     try {
       const resultado = await api.productos.lookupOpenFoodFacts(codigo)
@@ -796,12 +800,21 @@ export default function ProductFormModal({
                     <input
                       type="text"
                       value={codigoBarra}
-                      onChange={e => setCodigoBarra(e.target.value)}
+                      onChange={e => {
+                        setCodigoBarra(e.target.value)
+                        lastLookedUpRef.current = null
+                      }}
                       onKeyDown={e => {
-                        if (e.key !== 'Enter' || !/^\d{8,14}$/.test(e.currentTarget.value.trim())) return
+                        if (e.key !== 'Enter' || !/^\d{8,14}$/.test(e.currentTarget.value.replace(/[\r\n\s]/g, ''))) return
                         e.preventDefault()
                         e.stopPropagation()
                         void buscarCodigoEnCatalogo()
+                      }}
+                      onBlur={() => {
+                        const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
+                        if (/^\d{8,14}$/.test(codigo) && !isEditing && !prefillData?.codigoBarras) {
+                          void buscarCodigoEnCatalogo()
+                        }
                       }}
                       readOnly={isReadonlyCodigo}
                       required
