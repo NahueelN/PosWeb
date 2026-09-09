@@ -95,7 +95,7 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push('¡GRACIAS POR SU COMPRA!', { bold: true, center: true, space: true })
   push('NO VÁLIDO COMO FACTURA', { center: true, size: 'sm' })
   push('')
-  push('Vendeto~'.padStart(cols), { bold: true, size: 'sm' })
+  push('Vendeto~'.padStart(cols), { bold: true, size: 'md' })
 
   return entries
 }
