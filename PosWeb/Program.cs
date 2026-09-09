@@ -1,4 +1,5 @@
 using System.Text;
+using System.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -222,6 +223,11 @@ using (var scope = app.Services.CreateScope())
         ctx.Database.EnsureCreated();
     }
 
+    // Seguridad para instalaciones existentes: si la base se creó con EnsureCreated
+    // (sin historial de migraciones), Migrate() no pudo aplicar AddRestaurante. Se garantiza
+    // el esquema del segmento restaurante de forma idempotente (no-op si ya existe).
+    GarantizarEsquemaRestaurante(ctx);
+
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
@@ -327,6 +333,73 @@ static bool UsuarioTieneAccesoPorSuscripcion(Usuario usuario, PosDbContextLocal 
     }
 
     return titular.SUSCRIPCION_ACTIVA;
+}
+
+/// <summary>
+/// Garantiza el esquema del segmento restaurante en bases locales que hayan sido creadas
+/// con EnsureCreated (sin historial de migraciones). Idempotente: si la migración AddRestaurante
+/// ya se aplicó, no hace nada.
+/// </summary>
+static void GarantizarEsquemaRestaurante(PosDbContextLocal ctx)
+{
+    var connection = ctx.Database.GetDbConnection();
+    if (connection.State != ConnectionState.Open)
+    {
+        connection.Open();
+    }
+
+    using var cmd = connection.CreateCommand();
+    cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS EMPRESA_CONFIGURACION (
+    ID_EMPRESA INTEGER NOT NULL CONSTRAINT PK_EMPRESA_CONFIGURACION PRIMARY KEY,
+    MODULO_RESTAURANTE INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS MESA (
+    ID_MESA INTEGER NOT NULL CONSTRAINT PK_MESA PRIMARY KEY AUTOINCREMENT,
+    ID_SUCURSAL INTEGER NOT NULL,
+    NUMERO_MESA TEXT NOT NULL,
+    DESCRIPCION TEXT NULL,
+    POS_X NUMERIC NOT NULL,
+    POS_Y NUMERIC NOT NULL,
+    ACTIVA INTEGER NOT NULL,
+    CONSTRAINT FK_MESA_SUCURSAL_ID_SUCURSAL FOREIGN KEY (ID_SUCURSAL) REFERENCES SUCURSAL (ID_SUCURSAL) ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS SESION_MESA (
+    ID_SESION_MESA INTEGER NOT NULL CONSTRAINT PK_SESION_MESA PRIMARY KEY AUTOINCREMENT,
+    ID_MESA INTEGER NOT NULL,
+    ID_SUCURSAL INTEGER NOT NULL,
+    ID_USUARIO INTEGER NOT NULL,
+    FECHA_APERTURA TEXT NOT NULL,
+    FECHA_CIERRE TEXT NULL,
+    ESTADO TEXT NOT NULL,
+    ID_VENTA INTEGER NULL,
+    CONSTRAINT FK_SESION_MESA_MESA_ID_MESA FOREIGN KEY (ID_MESA) REFERENCES MESA (ID_MESA) ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
+    ID_ITEM_COMANDA INTEGER NOT NULL CONSTRAINT PK_ITEM_COMANDA PRIMARY KEY AUTOINCREMENT,
+    ID_SESION_MESA INTEGER NOT NULL,
+    ID_PRODUCTO INTEGER NULL,
+    ID_COMBO INTEGER NULL,
+    DESCRIPCION TEXT NOT NULL,
+    CANTIDAD NUMERIC NOT NULL,
+    PRECIO_UNITARIO NUMERIC NOT NULL,
+    NOTA TEXT NULL,
+    ESTADO TEXT NOT NULL,
+    FECHA_ALTA TEXT NOT NULL,
+    FECHA_ESTADO TEXT NULL,
+    CONSTRAINT FK_ITEM_COMANDA_SESION_MESA_ID_SESION_MESA FOREIGN KEY (ID_SESION_MESA) REFERENCES SESION_MESA (ID_SESION_MESA) ON DELETE CASCADE
+);";
+    cmd.ExecuteNonQuery();
+
+    // Columna de trazabilidad en VENTA (solo si falta).
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('VENTA') WHERE name = 'ID_SESION_MESA'";
+    var exists = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!exists)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE VENTA ADD COLUMN ID_SESION_MESA INTEGER NULL";
+        alter.ExecuteNonQuery();
+    }
 }
 
 
