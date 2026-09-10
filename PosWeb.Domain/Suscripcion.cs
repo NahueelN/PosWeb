@@ -5,10 +5,9 @@ namespace PosWeb.Domain;
 public static class NivelesSuscripcion
 {
     public const string Basica = "Basica";
-    public const string Media = "Media";
     public const string Maxima = "Maxima";
 
-    public static readonly string[] Todos = { Basica, Media, Maxima };
+    public static readonly string[] Todos = { Basica, Maxima };
 }
 
 public static class EstadosSuscripcion
@@ -95,17 +94,31 @@ public class Suscripcion
 
     public static Suscripcion CrearBasica(int usuarioTitularId, decimal costoMensual = 0m)
     {
-        return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Basica, costoMensual, 1, 1, 1);
-    }
-
-    public static Suscripcion CrearMedia(int usuarioTitularId, decimal costoMensual = 0m)
-    {
-        return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Media, costoMensual, 3, 1, 5);
+        return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Basica, costoMensual, 1, null, 3);
     }
 
     public static Suscripcion CrearMaxima(int usuarioTitularId, decimal costoMensual = 0m)
     {
         return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Maxima, costoMensual, null, null, null);
+    }
+
+    /// <summary>
+    /// Aplica los límites por nivel según la tabla canónica (<c>PlanLimits</c>).
+    /// Usado para centralizar sync, degradación y normalización de instalaciones existentes.
+    /// <c>MAX_USUARIOS</c> significa tope de cuentas totales (admins + usuarios) bajo el titular;
+    /// <c>MAX_ADMIN</c> deja de ser un tope separado (null = sin tope propio).
+    /// </summary>
+    public void AplicarLimitesPorNivel()
+    {
+        if (!NivelesSuscripcion.Todos.Contains(NIVEL))
+        {
+            NIVEL = NivelesSuscripcion.Basica;
+        }
+
+        var limites = PlanLimits.Get(NIVEL);
+        MAX_SUCURSALES = limites.maxSucursales == int.MaxValue ? (int?)null : limites.maxSucursales;
+        MAX_ADMIN = limites.maxAdmins == int.MaxValue ? (int?)null : limites.maxAdmins;
+        MAX_USUARIOS = limites.maxUsuarios == int.MaxValue ? (int?)null : limites.maxUsuarios;
     }
 
     public void CambiarNivel(string nivel, decimal costoMensual, int? maxSucursales, int? maxAdmin, int? maxUsuarios)

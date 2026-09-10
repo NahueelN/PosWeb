@@ -319,44 +319,27 @@ public class AuthService
             return;
         }
 
-        if (rol == Roles.Admin)
+        // Tope de cuentas totales bajo el titular (admins activos + usuarios comunes activos).
+        // MAX_USUARIOS null = ilimitado (Maxima o prueba).
+        if (!suscripcion.MAX_USUARIOS.HasValue)
         {
-            if (!suscripcion.MAX_ADMIN.HasValue)
-            {
-                return;
-            }
-
-            var adminsExistentes = _context.Usuario.Count(u =>
-                u.ROL == Roles.Admin && u.ACTIVO &&
-                (u.ID_USUARIO == titular.ID_USUARIO || u.ID_USUARIO_RESPONSABLE == titular.ID_USUARIO));
-
-            if (adminsExistentes >= suscripcion.MAX_ADMIN.Value)
-            {
-                throw new SuscripcionSinCupoException("administradores", suscripcion.NIVEL);
-            }
+            return;
         }
-        else if (rol == Roles.UsuarioComun)
+
+        var adminIdsBajoTitular = _context.Usuario
+            .Where(u => u.ROL == Roles.Admin && u.ACTIVO &&
+                (u.ID_USUARIO == titular.ID_USUARIO || u.ID_USUARIO_RESPONSABLE == titular.ID_USUARIO))
+            .Select(u => u.ID_USUARIO)
+            .ToList();
+
+        var cuentasExistentes = adminIdsBajoTitular.Count + _context.Usuario.Count(u =>
+            u.ROL == Roles.UsuarioComun && u.ACTIVO &&
+            u.ID_USUARIO_RESPONSABLE.HasValue &&
+            adminIdsBajoTitular.Contains(u.ID_USUARIO_RESPONSABLE.Value));
+
+        if (cuentasExistentes >= suscripcion.MAX_USUARIOS.Value)
         {
-            if (!suscripcion.MAX_USUARIOS.HasValue)
-            {
-                return;
-            }
-
-            var adminIdsBajoTitular = _context.Usuario
-                .Where(u => u.ROL == Roles.Admin &&
-                    (u.ID_USUARIO == titular.ID_USUARIO || u.ID_USUARIO_RESPONSABLE == titular.ID_USUARIO))
-                .Select(u => u.ID_USUARIO)
-                .ToList();
-
-            var usuariosExistentes = _context.Usuario.Count(u =>
-                u.ROL == Roles.UsuarioComun && u.ACTIVO &&
-                u.ID_USUARIO_RESPONSABLE.HasValue &&
-                adminIdsBajoTitular.Contains(u.ID_USUARIO_RESPONSABLE.Value));
-
-            if (usuariosExistentes >= suscripcion.MAX_USUARIOS.Value)
-            {
-                throw new SuscripcionSinCupoException("usuarios", suscripcion.NIVEL);
-            }
+            throw new SuscripcionSinCupoException("usuarios", suscripcion.NIVEL);
         }
     }
 

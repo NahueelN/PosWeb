@@ -260,7 +260,7 @@ export default function AltaUsuarioPage() {
                 </p>
               </div>
               <div className="bg-slate-50 rounded-lg p-3">
-                <label className="text-xs font-medium text-slate-400 uppercase">Usuarios</label>
+                <label className="text-xs font-medium text-slate-400 uppercase">Cuentas (total)</label>
                 <p className="text-sm text-slate-700 mt-0.5">
                   {licencia.maxUsuarios >= 2000000000 ? 'Ilimitados' : licencia.maxUsuarios}
                 </p>

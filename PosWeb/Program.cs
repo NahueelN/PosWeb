@@ -288,6 +288,14 @@ using (var scope = app.Services.CreateScope())
             ctx.SaveChanges();
         }
     }
+
+    // Normalizar los límites de suscripciones existentes al esquema de planes nuevo
+    // (Basica = 3 cuentas totales; Maxima = ilimitado; sin plan Media).
+    foreach (var s in ctx.Suscripcion.ToList())
+    {
+        s.AplicarLimitesPorNivel();
+    }
+    ctx.SaveChanges();
 }
 
 // Log application startup

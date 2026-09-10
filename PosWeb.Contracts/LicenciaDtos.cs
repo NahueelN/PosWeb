@@ -17,7 +17,7 @@ public class LicenciaEstadoDto
     /// <summary>Indica si la licencia permite operar (estado active o grace).</summary>
     public bool Activa { get; set; }
 
-    /// <summary>Plan contratado: Basica, Media o Maxima.</summary>
+    /// <summary>Plan contratado: Basica o Maxima.</summary>
     public string Plan { get; set; } = string.Empty;
 
     /// <summary>Estado actual: active, grace, paused, cancelled, pending.</summary>

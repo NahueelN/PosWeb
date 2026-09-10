@@ -315,10 +315,29 @@ public class LicenciaService
 
         return licencia.Plan switch
         {
-            NivelesSuscripcion.Media => (3, 1, 5),
             NivelesSuscripcion.Maxima => (int.MaxValue, int.MaxValue, int.MaxValue),
-            _ => (1, 1, 1)
+            _ => (1, int.MaxValue, 3)
         };
+    }
+
+    /// <summary>
+    /// MercadoPago (vincular, QR, cobrar/verificar pagos) está disponible solo para el plan
+    /// Maxima (incluye la prueba gratuita, que opera como Maxima). Si el plan no es Maxima,
+    /// se bloquea la operación pero NO se desvincula la cuenta ni se borran tokens.
+    /// </summary>
+    public bool PermiteMercadoPago()
+    {
+        var admin = ObtenerAdminTitular();
+        if (admin != null)
+        {
+            var suscripcion = _context.Suscripcion
+                .FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+            if (suscripcion != null)
+                return suscripcion.NIVEL == NivelesSuscripcion.Maxima;
+        }
+
+        var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
+        return licencia?.Plan == NivelesSuscripcion.Maxima;
     }
 
     public async Task<string> ObtenerOCrearMachineId()
@@ -359,7 +378,7 @@ public class LicenciaService
         if (suscripcion == null)
             return;
 
-        suscripcion.CambiarNivel(NivelesSuscripcion.Basica, 0m, 1, 1, 1);
+        suscripcion.CambiarNivel(NivelesSuscripcion.Basica, 0m, 1, null, 3);
     }
 
     private async Task SincronizarSuscripcionConLicencia(LicenciaConfig licencia)
@@ -389,7 +408,6 @@ public class LicenciaService
 
     private static string NormalizarPlan(string plan) => plan.ToLowerInvariant() switch
     {
-        "media" => NivelesSuscripcion.Media,
         "maxima" => NivelesSuscripcion.Maxima,
         _ => NivelesSuscripcion.Basica
     };

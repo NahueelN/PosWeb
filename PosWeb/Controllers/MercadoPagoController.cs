@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PosWeb.Application.Licensing;
 using PosWeb.Application.MercadoPago;
 using System.Security.Claims;
 
@@ -10,10 +11,23 @@ namespace PosWeb.Controllers;
 public class MercadoPagoController : ControllerBase
 {
     private readonly MercadoPagoService _mpService;
+    private readonly LicenciaService _licenciaService;
 
-    public MercadoPagoController(MercadoPagoService mpService)
+    public MercadoPagoController(MercadoPagoService mpService, LicenciaService licenciaService)
     {
         _mpService = mpService;
+        _licenciaService = licenciaService;
+    }
+
+    /// <summary>MercadoPago está disponible solo en el plan Maxima (incluye la prueba).</summary>
+    private bool BloquearSiNoPermiteMp()
+    {
+        if (_licenciaService.PermiteMercadoPago())
+            return false;
+
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        Response.WriteAsJsonAsync(new { error = "MercadoPago disponible solo en plan Máximo" });
+        return true;
     }
 
     [HttpGet("auth-url")]
@@ -21,6 +35,7 @@ public class MercadoPagoController : ControllerBase
     public IActionResult AuthUrl()
     {
         if (!EsAdmin()) return Forbid();
+        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var url = _mpService.GenerarAuthUrl();
         return Ok(new { url });
@@ -49,6 +64,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Estado()
     {
         if (!EsAdmin()) return Forbid();
+        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var estado = _mpService.ObtenerEstado();
         if (estado == null)
@@ -62,6 +78,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Desvincular()
     {
         if (!EsAdmin()) return Forbid();
+        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         _mpService.Desvincular();
         return Ok(new { vinculado = false });
@@ -74,6 +91,8 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
         if (request.Monto <= 0)
             return BadRequest(new { error = "Monto inválido" });
 
+        if (BloquearSiNoPermiteMp()) return new EmptyResult();
+
         var encontrado = await _mpService.VerificarTransferencia(request.Monto);
         return Ok(new { encontrado });
     }
@@ -83,6 +102,7 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Qr()
     {
         if (!EsAdmin()) return Forbid();
+        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var qrData = _mpService.ObtenerQrDataActivo();
         if (qrData == null)

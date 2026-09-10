@@ -93,8 +93,7 @@ public static class PlanLimits
 {
     public static (int maxSucursales, int maxAdmins, int maxUsuarios) Get(string plan) => plan switch
     {
-        NivelesSuscripcion.Media => (3, 1, 5),
         NivelesSuscripcion.Maxima => (int.MaxValue, int.MaxValue, int.MaxValue),
-        _ => (1, 1, 1)
+        _ => (1, int.MaxValue, 3)
     };
 }

@@ -63,6 +63,14 @@ export default function VentasPage() {
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
   const [recibio, setRecibio] = useState('')
+  // MercadoPago (QR/transferencia) solo en plan Maxima.
+  const [mpPermitido, setMpPermitido] = useState(false)
+
+  useEffect(() => {
+    api.licencia.resumen()
+      .then(r => setMpPermitido(r.plan === 'Maxima'))
+      .catch(() => setMpPermitido(false))
+  }, [])
 
   // Productos / Combos / Ofertas
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -501,7 +509,7 @@ export default function VentasPage() {
             <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
           </div>
         ) : undefined}
-        paymentSlot={<VentaPaymentSlot mediosPago={mediosPago} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} />}
+        paymentSlot={<VentaPaymentSlot mediosPago={mpPermitido ? mediosPago : mediosPago.filter(m => m.id !== 4 && m.id !== 5)} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} />}
         getItemProps={(i: any) => {
           const itemId = i.comboId ?? i.producto.id
           const tieneOferta = i.ofertaId && i.precioOriginal

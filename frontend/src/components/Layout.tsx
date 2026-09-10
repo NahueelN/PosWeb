@@ -266,23 +266,27 @@ export default function Layout() {
       <div className="border-t border-white/[0.08] px-2 py-2.5 space-y-px shrink-0">
         {canCreateUsers && (
           <>
-            <button
-              type="button"
-              onClick={handleVincularMP}
-              disabled={mpVinculando}
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors disabled:opacity-40"
-            >
-              <Link2 size={14} className="shrink-0" />
-              {mpVinculando ? 'Vinculando...' : 'Vincular MP'}
-            </button>
-            <button
-              type="button"
-              onClick={handleVerQr}
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors"
-            >
-              <QrCode size={14} className="shrink-0" />
-              Ver QR
-            </button>
+            {licResumen?.plan === 'Maxima' && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleVincularMP}
+                  disabled={mpVinculando}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors disabled:opacity-40"
+                >
+                  <Link2 size={14} className="shrink-0" />
+                  {mpVinculando ? 'Vinculando...' : 'Vincular MP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerQr}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium text-white/40 hover:bg-white/[0.06] hover:text-white/70 transition-colors"
+                >
+                  <QrCode size={14} className="shrink-0" />
+                  Ver QR
+                </button>
+              </>
+            )}
             <NavLink
               to="/usuarios/alta"
               onClick={closeSidebar}

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PosWeb.Application.Exceptions;
+using PosWeb.Application.Licensing;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Contracts;
@@ -13,12 +14,14 @@ public class VentaService
     private readonly PosDbContextLocal _context;
     private readonly StockSucursalService _stockSucursalService;
     private readonly MercadoPagoService _mpService;
+    private readonly LicenciaService _licenciaService;
 
-    public VentaService(PosDbContextLocal context, StockSucursalService stockSucursalService, MercadoPagoService mpService)
+    public VentaService(PosDbContextLocal context, StockSucursalService stockSucursalService, MercadoPagoService mpService, LicenciaService licenciaService)
     {
         _context = context;
         _stockSucursalService = stockSucursalService;
         _mpService = mpService;
+        _licenciaService = licenciaService;
     }
 
     public async Task<VentaResultadoDto> CrearVenta(VentaDto dto, int? usuarioId = null)
@@ -41,6 +44,13 @@ public class VentaService
         }
 
         bool esTransferenciaPendiente = dto.EsperarTransferencia;
+
+        // Las ventas pendientes (QR / transferencia) se confirman validando el pago por MercadoPago:
+        // solo disponibles en el plan Maxima (incluye la prueba).
+        if (esTransferenciaPendiente && !_licenciaService.PermiteMercadoPago())
+        {
+            throw new InvalidOperationException("MercadoPago disponible solo en plan Máximo");
+        }
 
         // Check active caja — each user has their own caja
         Caja? cajaActiva;

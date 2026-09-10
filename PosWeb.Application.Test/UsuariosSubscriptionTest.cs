@@ -186,15 +186,16 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
-    public async Task Register_ConPlanBasico_NoPermiteMasUsuariosComunes()
+    public async Task Register_ConPlanBasico_AdmiteTresCuentasTotales()
     {
-        var context = CrearContexto(nameof(Register_ConPlanBasico_NoPermiteMasUsuariosComunes));
+        var context = CrearContexto(nameof(Register_ConPlanBasico_AdmiteTresCuentasTotales));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
         context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
 
+        // Titular (1) + 2 cuentas más => 3 totales permitidas.
         await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
             Usuario = "usuario1",
@@ -203,33 +204,95 @@ public class UsuariosSubscriptionTest
             Rol = Roles.UsuarioComun
         }, currentUserId: 1);
 
-        await Assert.ThrowsAsync<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
             Usuario = "usuario2",
             Password = "123456",
             Mail = "u2@test.com",
             Rol = Roles.UsuarioComun
+        }, currentUserId: 1);
+
+        await Assert.ThrowsAsync<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "usuario3",
+            Password = "123456",
+            Mail = "u3@test.com",
+            Rol = Roles.UsuarioComun
         }, currentUserId: 1));
     }
 
     [Fact]
-    public async Task Register_ConPlanMedia_NoPermiteMasAdmins()
+    public async Task Register_ConPlanBasico_TopeTotalDeCuentas()
     {
-        var context = CrearContexto(nameof(Register_ConPlanMedia_NoPermiteMasAdmins));
+        var context = CrearContexto(nameof(Register_ConPlanBasico_TopeTotalDeCuentas));
         var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
-        context.Suscripcion.Add(Suscripcion.CrearMedia(admin.ID_USUARIO));
+        context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
         var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
 
-        await Assert.ThrowsAsync<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
             Usuario = "admin2",
             Password = "123456",
-            Mail = "admin2@test.com",
+            Mail = "a2@test.com",
+            Rol = Roles.Admin,
+            EmpresaId = 1
+        }, currentUserId: 1);
+
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin3",
+            Password = "123456",
+            Mail = "a3@test.com",
+            Rol = Roles.Admin,
+            EmpresaId = 1
+        }, currentUserId: 1);
+
+        await Assert.ThrowsAsync<SuscripcionSinCupoException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin4",
+            Password = "123456",
+            Mail = "a4@test.com",
             Rol = Roles.Admin,
             EmpresaId = 1
         }, currentUserId: 1));
+    }
+
+    [Fact]
+    public async Task Register_ConPlanMaxima_SinLimiteDeCuentas()
+    {
+        var context = CrearContexto(nameof(Register_ConPlanMaxima_SinLimiteDeCuentas));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearMaxima(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "admin2",
+            Password = "123456",
+            Mail = "a2@test.com",
+            Rol = Roles.Admin,
+            EmpresaId = 1
+        }, currentUserId: 1);
+
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "cajero1",
+            Password = "123456",
+            Mail = "c1@test.com",
+            Rol = Roles.UsuarioComun
+        }, currentUserId: 1);
+
+        await service.Register(new PosWeb.Contracts.RegisterRequestDto
+        {
+            Usuario = "cajero2",
+            Password = "123456",
+            Mail = "c2@test.com",
+            Rol = Roles.UsuarioComun
+        }, currentUserId: 1);
     }
 
     [Fact]
@@ -381,7 +444,7 @@ public class UsuariosSubscriptionTest
         context.Set<LicenciaConfig>().Add(new LicenciaConfig
         {
             LicenseKey = "encrypted-key",
-            Plan = NivelesSuscripcion.Media,
+            Plan = NivelesSuscripcion.Basica,
             Estado = EstadosLicencia.Activa,
             MachineId = "maquina",
             NextBilling = DateTime.UtcNow.AddHours(-24),
@@ -474,6 +537,49 @@ public class UsuariosSubscriptionTest
         Assert.Single(context.Usuario.Where(u => u.ROL == Roles.Admin));
         Assert.Single(context.Set<LicenciaConfig>());
         Assert.Equal(machineIdOriginal, context.Set<LicenciaConfig>().Single().MachineId);
+    }
+
+    [Fact]
+    public void PermiteMercadoPago_False_SinPlanMaxima()
+    {
+        var context = CrearContexto(nameof(PermiteMercadoPago_False_SinPlanMaxima));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        Assert.False(licenciaService.PermiteMercadoPago());
+    }
+
+    [Fact]
+    public void PermiteMercadoPago_True_EnPlanMaxima()
+    {
+        var context = CrearContexto(nameof(PermiteMercadoPago_True_EnPlanMaxima));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearMaxima(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        Assert.True(licenciaService.PermiteMercadoPago());
+    }
+
+    [Fact]
+    public void PermiteMercadoPago_True_EnPruebaGratuita()
+    {
+        var context = CrearContexto(nameof(PermiteMercadoPago_True_EnPruebaGratuita));
+        // La prueba gratuita opera como plan Maxima.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "trial",
+            Plan = NivelesSuscripcion.Maxima,
+            Estado = EstadosLicencia.Prueba,
+            MachineId = "maquina",
+            NextBilling = DateTime.UtcNow.AddDays(7),
+        });
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        Assert.True(licenciaService.PermiteMercadoPago());
     }
 
     [Fact]
