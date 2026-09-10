@@ -19,14 +19,14 @@ public class MercadoPagoController : ControllerBase
         _licenciaService = licenciaService;
     }
 
-    /// <summary>MercadoPago está disponible solo en el plan Maxima (incluye la prueba).</summary>
+    /// <summary>Verificación instantánea del pago (consulta a MercadoPago): solo plan Maxima.</summary>
     private bool BloquearSiNoPermiteMp()
     {
         if (_licenciaService.PermiteMercadoPago())
             return false;
 
         Response.StatusCode = StatusCodes.Status403Forbidden;
-        Response.WriteAsJsonAsync(new { error = "MercadoPago disponible solo en plan Máximo" });
+        Response.WriteAsJsonAsync(new { error = "La verificación instantánea de pagos está disponible solo en plan Máximo" });
         return true;
     }
 
@@ -35,7 +35,6 @@ public class MercadoPagoController : ControllerBase
     public IActionResult AuthUrl()
     {
         if (!EsAdmin()) return Forbid();
-        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var url = _mpService.GenerarAuthUrl();
         return Ok(new { url });
@@ -64,7 +63,6 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Estado()
     {
         if (!EsAdmin()) return Forbid();
-        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var estado = _mpService.ObtenerEstado();
         if (estado == null)
@@ -78,7 +76,6 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Desvincular()
     {
         if (!EsAdmin()) return Forbid();
-        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         _mpService.Desvincular();
         return Ok(new { vinculado = false });
@@ -102,7 +99,6 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
     public IActionResult Qr()
     {
         if (!EsAdmin()) return Forbid();
-        if (BloquearSiNoPermiteMp()) return new EmptyResult();
 
         var qrData = _mpService.ObtenerQrDataActivo();
         if (qrData == null)

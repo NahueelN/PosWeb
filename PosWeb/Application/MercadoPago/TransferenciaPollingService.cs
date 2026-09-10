@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PosWeb.Application.Licensing;
 using PosWeb.Data;
 using PosWeb.Domain;
 
@@ -51,6 +52,12 @@ public class TransferenciaPollingService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<PosDbContextLocal>();
         var mpService = scope.ServiceProvider.GetRequiredService<MercadoPagoService>();
+
+        // La confirmación automática (verificación instantánea del pago) es un beneficio del
+        // plan Maxima. Sin Maxima las ventas pendientes se confirman manualmente por el cajero.
+        var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
+        if (!licenciaService.PermiteMercadoPago())
+            return false;
 
         var ventasPendientes = await context.Venta
             .Where(v => v.ESTADO == EstadosVenta.PendientePago && !v.ANULADA)

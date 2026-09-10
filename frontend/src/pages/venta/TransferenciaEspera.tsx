@@ -12,6 +12,8 @@ interface TransferenciaEsperaProps {
   loading: boolean
   modoQr?: boolean
   qrData?: string | null
+  /** Verificación instantánea del pago (beneficio del plan Maxima). Sin esto se confirma manualmente. */
+  verificacionInstantanea?: boolean
 }
 
 export default function TransferenciaEspera({
@@ -23,6 +25,7 @@ export default function TransferenciaEspera({
   loading,
   modoQr = false,
   qrData = null,
+  verificacionInstantanea = false,
 }: TransferenciaEsperaProps) {
   const minutos = Math.floor(tiempoRestante / 60)
   const segundos = tiempoRestante % 60
@@ -97,9 +100,12 @@ export default function TransferenciaEspera({
             )}
             <p className="text-xs text-gray-400 leading-relaxed">
               {modoQr
-                ? 'El cliente debe escanear el QR impreso en el mostrador. La venta se confirmará automáticamente cuando pague.'
-                : 'Transferí el monto a la cuenta de MercadoPago vinculada. Podés verificar si ya llegó o confirmar manualmente.'
+                ? 'El cliente debe escanear el QR impreso en el mostrador.'
+                : 'Transferí el monto a la cuenta de MercadoPago vinculada.'
               }
+              {verificacionInstantanea
+                ? ' La venta se confirmará automáticamente cuando se detecte el pago.'
+                : ' Cuando el cliente confirme el pago, marcá "Confirmar".'}
             </p>
           </div>
 
@@ -130,14 +136,16 @@ export default function TransferenciaEspera({
           >
             Cancelar
           </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={handleVerificar}
-            disabled={verificando || loading}
-          >
-            {verificando ? 'Verificando...' : 'Verificar pago'}
-          </Button>
+          {verificacionInstantanea && (
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleVerificar}
+              disabled={verificando || loading}
+            >
+              {verificando ? 'Verificando...' : 'Verificar pago'}
+            </Button>
+          )}
           <Button
             variant="confirm"
             size="lg"

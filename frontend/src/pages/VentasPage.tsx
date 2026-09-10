@@ -479,6 +479,7 @@ export default function VentasPage() {
             loading={mpConfirmando}
             modoQr={selectedMedio?.id === 5}
             qrData={qrData}
+            verificacionInstantanea={mpPermitido}
           />
         </div>
       </>
@@ -509,7 +510,7 @@ export default function VentasPage() {
             <button onClick={() => setClienteSeleccionado(null)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
           </div>
         ) : undefined}
-        paymentSlot={<VentaPaymentSlot mediosPago={mpPermitido ? mediosPago : mediosPago.filter(m => m.id !== 4 && m.id !== 5)} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} />}
+        paymentSlot={<VentaPaymentSlot mediosPago={mediosPago} selectedMedio={selectedMedio} onSelectMedio={selectMedio} medioRefs={medioRefs} confirmBtnRef={confirmBtnRef} searchInputRef={searchInputRef} />}
         getItemProps={(i: any) => {
           const itemId = i.comboId ?? i.producto.id
           const tieneOferta = i.ofertaId && i.precioOriginal

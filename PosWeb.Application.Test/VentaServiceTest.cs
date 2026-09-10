@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using PosWeb.Application.Exceptions;
-using PosWeb.Application.Licensing;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Ventas;
@@ -30,16 +29,7 @@ public class VentaServiceTest
     private static VentaService CrearService(PosDbContextLocal context)
     {
         StockSucursalService stockService = new StockSucursalService(context);
-        return new VentaService(context, stockService, CrearMercadoPagoService(context), CrearLicenciaService(context));
-    }
-
-    private static LicenciaService CrearLicenciaService(PosDbContextLocal context)
-    {
-        IConfiguration config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
-        var base64Key = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!"));
-        return new LicenciaService(context, config, new EncryptionService(base64Key));
+        return new VentaService(context, stockService, CrearMercadoPagoService(context));
     }
 
     private static MercadoPagoService CrearMercadoPagoService(PosDbContextLocal context)
@@ -366,7 +356,7 @@ public class VentaServiceTest
     }
 
     [Fact]
-    public async Task CrearVenta_Pendiente_SinPlanMaxima_LanzaExcepcion()
+    public async Task CrearVenta_Pendiente_CreaVentaPendiente_SinNecesitarPlanMaxima()
     {
         using PosDbContextLocal context = CrearContexto();
         VentaService service = CrearService(context);
@@ -376,12 +366,16 @@ public class VentaServiceTest
         AgregarStockSucursal(context, 1, 1, 1, 10);
         AgregarCajaActiva(context, 1);
 
-        // Sin suscripción Maxima (ni titular): MercadoPago no está disponible.
+        // QR/transferencia están disponibles para todos los planes; la venta queda pendiente
+        // y se confirma manualmente (la verificación instantánea es del plan Maxima).
         VentaDto dto = CrearVentaDto(1, new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } });
         dto.EsperarTransferencia = true;
         dto.PendienteMedioId = 4;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CrearVenta(dto));
+        VentaResultadoDto resultado = await service.CrearVenta(dto);
+
+        Assert.Equal("PendientePago", resultado.Estado);
+        Assert.Equal(EstadosVenta.PendientePago, context.Venta.Single().ESTADO);
     }
 
     [Fact]
@@ -394,13 +388,6 @@ public class VentaServiceTest
         AgregarProducto(context, 1, 10);
         AgregarStockSucursal(context, 1, 1, 1, 10);
         AgregarCajaActiva(context, 1);
-
-        // Titular Admin con plan Maxima: MercadoPago disponible.
-        var adminMaxima = new Usuario("adminMaxima", BCrypt.Net.BCrypt.HashPassword("123456"), Roles.Admin, "admin@test.com");
-        TestHelpers.SetId(adminMaxima, 2, "ID_USUARIO");
-        context.Usuario.Add(adminMaxima);
-        context.Suscripcion.Add(Suscripcion.CrearMaxima(2));
-        context.SaveChanges();
 
         VentaDto dto = CrearVentaDto(1, new[] { new VentaItemDto { ProductoId = 1, Cantidad = 1 } });
         dto.EsperarTransferencia = true;

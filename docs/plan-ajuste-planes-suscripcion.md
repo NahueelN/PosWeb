@@ -45,15 +45,15 @@ Ajustar los planes para que cumplan estas limitaciones:
    - Agregar método `PermiteMercadoPago()` / exponer nivel actual del titular (para gatear MP).
 5. **`PosWeb/Program.cs`** (seed): normalizar filas `Suscripcion` existentes Basica/Maxima a los límites nuevos al iniciar (idempotente), para instalaciones ya creadas.
 
-### Gating de MercadoPago (solo Maxima / prueba)
+### MercadoPago: uso libre para todos; verificación instantánea solo Maxima
 
-6. **`PosWeb/Controllers/MercadoPagoController.cs`**: en `auth-url`, `estado`, `desvincular`, `qr`, `verificar-pago` → si el plan del titular no es Maxima, responder 403 con motivo "disponible solo en plan Máximo".
-7. **`PosWeb/Application/Ventas/VentaService.cs`** (rama MP/QR y venta pendiente QR/transferencia): rechazar si `!PermiteMercadoPago()`.
-8. **Frontend**: `Layout.tsx` (botones "Vincular MP"/"Ver QR"), `VentasPage.tsx` (oferta de medios QR/transferencia): ocultar MP cuando la licencia no sea Maxima (trial o paga = `plan === 'Maxima'`).
+> **Decisión final (revisada):** **no** se bloquea el uso de QR/transferencia en ningún plan. El beneficio exclusivo de **Maxima** (y la prueba, que opera como Maxima) es la **verificación instantánea del pago** (el sistema chequea MercadoPago y confirma la venta solo/a). Sin Maxima, QR/transferencia funcionan igual pero se confirman **manualmente** por el cajero.
 
-> **Verificado (estado actual):** hoy los botones "Vincular MP" y "Ver QR" se muestran solo según el rol (`canCreateUsers` = Admin/SuperAdmin, `Layout.tsx`), **sin mirar el plan**. Un usuario con suscripción **Basica** puede vincular MP y operar el QR. Requisito: además del rol, ocultar esos botones (y los medios QR/transferencia en ventas) cuando la licencia no sea **Maxima** (o prueba = Maxima), y rechazar con 403 los 5 endpoints de `MercadoPagoController` para planes que no sean Maxima.
->
-> **Política con MP ya vinculado:** si un cliente ya tenía MercadoPago vinculado y su plan no es Maxima (p. ej. bajó de plan o venció la prueba), **solo se bloquea la operación** (no se puede cobrar/verificar QR ni ver el QR). **No se desvincula** su cuenta MP ni se borran sus tokens; si vuelve a Maxima, queda operativo de nuevo.
+- **`MercadoPagoController`**: `verificar-pago` responde 403 si `!PermiteMercadoPago()` (verificación instantánea). `auth-url`, `estado`, `desvincular` y `qr` quedan disponibles para todos.
+- **`TransferenciaPollingService`**: la confirmación automática (polling a MercadoPago) solo corre si `PermiteMercadoPago()`; sin Maxima las ventas pendientes quedan esperando confirmación manual.
+- **`VentaService.CrearVenta`**: **sin** rechazo por plan; la venta pendiente QR/transferencia se puede crear en cualquier plan.
+- **Frontend**: medios QR/transferencia siempre visibles en ventas. `TransferenciaEspera` oculta el botón "Verificar pago" (y ajusta el texto) cuando no hay verificación instantánea; el botón "Confirmar" (manual) queda siempre. Botones "Vincular MP"/"Ver QR" del menú disponibles para Admin/SuperAdmin en todos los planes.
+- `PermiteMercadoPago()` (LicenciaService): true solo si el titular es Maxima (o prueba = Maxima). **No desvincula** MP ni borra tokens si no es Maxima; al volver a Maxima, la verificación instantánea queda operativa.
 
 ### Eliminación de Media (storefront + worker + landing)
 
