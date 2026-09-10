@@ -51,6 +51,10 @@ Ajustar los planes para que cumplan estas limitaciones:
 7. **`PosWeb/Application/Ventas/VentaService.cs`** (rama MP/QR y venta pendiente QR/transferencia): rechazar si `!PermiteMercadoPago()`.
 8. **Frontend**: `Layout.tsx` (botones "Vincular MP"/"Ver QR"), `VentasPage.tsx` (oferta de medios QR/transferencia): ocultar MP cuando la licencia no sea Maxima (trial o paga = `plan === 'Maxima'`).
 
+> **Verificado (estado actual):** hoy los botones "Vincular MP" y "Ver QR" se muestran solo según el rol (`canCreateUsers` = Admin/SuperAdmin, `Layout.tsx`), **sin mirar el plan**. Un usuario con suscripción **Basica** puede vincular MP y operar el QR. Requisito: además del rol, ocultar esos botones (y los medios QR/transferencia en ventas) cuando la licencia no sea **Maxima** (o prueba = Maxima), y rechazar con 403 los 5 endpoints de `MercadoPagoController` para planes que no sean Maxima.
+>
+> **Política con MP ya vinculado:** si un cliente ya tenía MercadoPago vinculado y su plan no es Maxima (p. ej. bajó de plan o venció la prueba), **solo se bloquea la operación** (no se puede cobrar/verificar QR ni ver el QR). **No se desvincula** su cuenta MP ni se borran sus tokens; si vuelve a Maxima, queda operativo de nuevo.
+
 ### Eliminación de Media (storefront + worker + landing)
 
 9. **`licensing-worker/src/index.ts`**: `PLAN_PRICES` (sacar media), `VALID_PLANS`, `LANDING_HTML` (quitar card Media; textos Basica "3 usuarios", Maxima "ilimitados + MercadoPago"; badge a Maxima).
