@@ -74,13 +74,27 @@ const [recibio, setRecibio] = useState<string>(() => {
     try { return sessionStorage.getItem('venta-recibio') ?? '' } catch { return '' }
   })
   // Verificación instantánea del pago (QR/transferencia) solo en plan Maxima.
-  const [mpPermitido, setMpPermitido] = useState(false)
+  // null = todavía no se conoce el plan (evita que el botón "Verificar pago" parpadee).
+  const [mpPermitido, setMpPermitido] = useState<boolean | null>(null)
 
   useEffect(() => {
     api.licencia.resumen()
       .then(r => setMpPermitido(r.plan === 'Maxima'))
       .catch(() => setMpPermitido(false))
   }, [])
+
+  async function resolverMpPermitido(): Promise<boolean> {
+    if (mpPermitido !== null) return mpPermitido
+    try {
+      const r = await api.licencia.resumen()
+      const permitido = r.plan === 'Maxima'
+      setMpPermitido(permitido)
+      return permitido
+    } catch {
+      setMpPermitido(false)
+      return false
+    }
+  }
 
   // Productos / Combos / Ofertas
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -451,6 +465,10 @@ const [recibio, setRecibio] = useState<string>(() => {
   async function crearVentaPendiente(allowSinStock = false) {
     if (!sucursalEfectiva) return
     try {
+      // Resolver el plan antes de entrar a la pantalla de espera: así el botón
+      // "Verificar pago" aparece solo si corresponde (Maxima) y no parpadea.
+      await resolverMpPermitido()
+
       const res = await api.ventas.crear({
         sucursalId: sucursalEfectiva.id,
         items: ventaItems(),
@@ -576,7 +594,7 @@ const [recibio, setRecibio] = useState<string>(() => {
             loading={mpConfirmando}
             modoQr={selectedMedio?.id === 5}
             qrData={qrData}
-            verificacionInstantanea={mpPermitido}
+            verificacionInstantanea={mpPermitido === true}
           />
         </div>
       </>
