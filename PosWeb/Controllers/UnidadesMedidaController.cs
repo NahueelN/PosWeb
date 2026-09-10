@@ -20,15 +20,22 @@ public class UnidadesMedidaController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<List<UnidadMedidaDto>> Listar()
+    public async Task<List<UnidadMedidaDto>> Listar([FromQuery] bool todas = false)
     {
-        return await _context.UnidadMedida
+        var query = _context.UnidadMedida.AsQueryable();
+        if (!todas)
+        {
+            query = query.Where(u => u.ACTIVO);
+        }
+
+        return await query
             .OrderBy(u => u.DESC_UNIDAD_MEDIDA)
             .Select(u => new UnidadMedidaDto
             {
                 Id = u.ID_UNIDAD_MEDIDA,
                 Codigo = u.COD_UNIDAD_MEDIDA,
-                Descripcion = u.DESC_UNIDAD_MEDIDA
+                Descripcion = u.DESC_UNIDAD_MEDIDA,
+                Activo = u.ACTIVO
             })
             .ToListAsync();
     }
@@ -82,16 +89,39 @@ public class UnidadesMedidaController : ControllerBase
         if (unidad == null)
             return NotFound(new { error = "Unidad de medida no encontrada" });
 
-        _context.UnidadMedida.Remove(unidad);
+        if (!unidad.ACTIVO)
+            return NoContent();
+
+        bool enUso = await _context.Producto
+            .AnyAsync(p => p.ID_UNIDAD_MEDIDA == id && p.ACTIVO);
+        if (enUso)
+        {
+            return BadRequest(new { error = "No se puede desactivar la unidad: hay productos activos que la utilizan" });
+        }
+
+        unidad.Desactivar();
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("{id}/activar")]
+    public async Task<IActionResult> Activar(int id)
+    {
+        var unidad = await _context.UnidadMedida.FindAsync(id);
+        if (unidad == null)
+            return NotFound(new { error = "Unidad de medida no encontrada" });
+
+        unidad.Activar();
+        await _context.SaveChangesAsync();
+        return Ok(MapDto(unidad));
     }
 
     private static UnidadMedidaDto MapDto(UnidadMedida u) => new()
     {
         Id = u.ID_UNIDAD_MEDIDA,
         Codigo = u.COD_UNIDAD_MEDIDA,
-        Descripcion = u.DESC_UNIDAD_MEDIDA
+        Descripcion = u.DESC_UNIDAD_MEDIDA,
+        Activo = u.ACTIVO
     };
 }
 

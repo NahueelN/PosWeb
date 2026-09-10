@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Imprimir ticket</title>
+  <style>
+    @page { margin: 0; }
+    html, body { margin: 0; padding: 0; background: white; }
+    #ticket { box-sizing: border-box; padding: 2mm; overflow-x: hidden; font-family: "Courier New", monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #ticket div { font-weight: 900; }
+    .center { text-align: center; }
+    .bold { font-weight: 900; }
+    .space { margin-top: 2mm; margin-bottom: 1mm; }
+  </style>
+</head>
+<body>
+  <main id="ticket"></main>
+  <script>
+    const closePrintWindow = async () => {
+      const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke
+      if (invoke) await invoke('cerrar_ventana_impresion')
+      else window.close()
+    }
+    const data = JSON.parse(localStorage.getItem('posweb-ticket-print') || 'null')
+    if (!data) closePrintWindow()
+    else {
+      document.getElementById('ticket').style.width = `${data.ancho}mm`
+      const LETRA_PX = {
+        chica: { 58: { base: 11, lg: 14, md: 12, sm: 10 }, 80: { base: 12, lg: 16, md: 14, sm: 10 } },
+        mediana: { 58: { base: 13, lg: 17, md: 14, sm: 12 }, 80: { base: 14, lg: 19, md: 17, sm: 12 } },
+        grande: { 58: { base: 15, lg: 20, md: 17, sm: 14 }, 80: { base: 17, lg: 22, md: 20, sm: 14 } },
+      }
+      const lt = LETRA_PX[data.letra] && LETRA_PX[data.letra][data.ancho] ? LETRA_PX[data.letra][data.ancho] : LETRA_PX.chica[data.ancho]
+      data.lines.forEach(line => {
+        const row = document.createElement('div')
+        row.textContent = line.text
+        row.className = `${line.center ? 'center' : ''} ${line.bold ? 'bold' : ''} ${line.space ? 'space' : ''}`
+        row.style.fontSize = line.size === 'lg' ? lt.lg + 'px' : line.size === 'md' ? lt.md + 'px' : line.size === 'sm' ? lt.sm + 'px' : lt.base + 'px'
+        document.getElementById('ticket').appendChild(row)
+      })
+      setTimeout(async () => {
+        window.focus()
+        window.print()
+        await closePrintWindow()
+      }, 100)
+    }
+  </script>
+</body>
+</html>

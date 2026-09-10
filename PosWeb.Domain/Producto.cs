@@ -30,6 +30,8 @@ public class Producto
 
     public decimal? MARGEN_GANANCIA { get; private set; }
 
+    public decimal? CANTIDAD_IDEAL { get; private set; }
+
     public bool SEGUIR_STOCK { get; private set; } = true;
 
     public bool ES_PESABLE { get; private set; }
@@ -106,8 +108,23 @@ public class Producto
             }
         }
 
-        CODIGO_BARRAS = (codigoBarras ?? string.Empty).Trim();
+        CODIGO_BARRAS = NormalizarCodigoBarra(codigoBarras);
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Normaliza un código de barras: recorta espacios y, si es 100% numérico,
+    /// rellena con ceros a la izquierda hasta 13 dígitos (EAN-13). No trunca
+    /// códigos de más de 13 dígitos ni modifica los que contienen letras.
+    /// </summary>
+    public static string NormalizarCodigoBarra(string? codigoBarras)
+    {
+        var valor = (codigoBarras ?? string.Empty).Trim();
+        if (valor.Length > 0 && valor.All(char.IsDigit))
+        {
+            return valor.PadLeft(13, '0');
+        }
+        return valor;
     }
 
     public void CambiarDescripcion(string descProducto)
@@ -186,6 +203,12 @@ public class Producto
     public void CambiarMargen(decimal? margen)
     {
         MARGEN_GANANCIA = margen;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarCantidadIdeal(decimal? cantidadIdeal)
+    {
+        CANTIDAD_IDEAL = cantidadIdeal;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
     }
 

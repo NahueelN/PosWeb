@@ -350,6 +350,10 @@ namespace PosWeb.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_DEUDA"));
 
+                    b.Property<bool>("ANULADA")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ANULADA");
+
                     b.Property<DateTime>("FECHA_DEUDA")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("FECHA_DEUDA");
@@ -645,6 +649,10 @@ namespace PosWeb.Migrations
                         .HasColumnName("ID_PAGO_DEUDA");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ID_PAGO_DEUDA"));
+
+                    b.Property<bool>("ANULADO")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ANULADO");
 
                     b.Property<DateTime>("FECHA")
                         .HasColumnType("datetime(6)")

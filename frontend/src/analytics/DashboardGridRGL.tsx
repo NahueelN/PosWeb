@@ -6,7 +6,7 @@ import 'react-resizable/css/styles.css'
 import './grid/dashboard-grid.css'
 import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import type { LayoutInstance } from './grid/types'
-import { GRID_ROWS } from './grid/types'
+import { ROW_HEIGHT_PX } from './grid/types'
 import WidgetRenderer from './WidgetRenderer'
 import type { Widget, WidgetDefinition } from './types'
 import { Trash2, Maximize2, GripVertical } from 'lucide-react'
@@ -63,7 +63,6 @@ export default function DashboardGridRGL({
   onRemove, onEdit, onLayoutChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [containerHeight, setContainerHeight] = useState(0)
   const [containerWidth, setContainerWidth] = useState(0)
   const onLayoutChangeRef = useRef(onLayoutChange)
   onLayoutChangeRef.current = onLayoutChange
@@ -79,9 +78,7 @@ export default function DashboardGridRGL({
     if (!el) return
     function measure() {
       if (containerRef.current) {
-        const rect = containerRef.current!.getBoundingClientRect()
-        setContainerHeight(rect.height)
-        setContainerWidth(rect.width)
+        setContainerWidth(containerRef.current.getBoundingClientRect().width)
       }
     }
     measure()
@@ -92,12 +89,14 @@ export default function DashboardGridRGL({
   }, [])
 
   const MARGIN_Y = 8
-  const rowHeight = useMemo(
-    () => (containerHeight > 0
-      ? Math.floor((containerHeight - (GRID_ROWS - 1) * MARGIN_Y) / GRID_ROWS)
-      : 80),
-    [containerHeight],
-  )
+  const rowHeight = ROW_HEIGHT_PX
+
+  // Altura del contenedor según el contenido real del layout, crece para permitir scroll.
+  const contentHeight = useMemo(() => {
+    const maxRow = layout.reduce((m, i) => Math.max(m, (i.y ?? 1) + i.h - 1), 1)
+    const capped = Math.max(1, Math.min(maxRow, rows))
+    return capped * (rowHeight + MARGIN_Y) + MARGIN_Y
+  }, [layout, rows])
 
   const defMap = useMemo(() => {
     const m = new Map<string, WidgetDefinition>()
@@ -176,7 +175,7 @@ export default function DashboardGridRGL({
   }, [widgets])
 
   return (
-    <div ref={containerRef} className={`relative w-full h-full min-h-0 ${rows > GRID_ROWS ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+    <div ref={containerRef} className="relative w-full" style={{ height: contentHeight }}>
       <ReactGridLayout
         autoSize={false}
         style={{ height: '100%' }}

@@ -162,6 +162,11 @@ public class Usuario
         SUSCRIPCION_ACTIVA = true;
     }
 
+    public void AsignarEmpresa(int empresaId)
+    {
+        ID_EMPRESA = empresaId;
+    }
+
     public void SuspenderSuscripcion()
     {
         SUSCRIPCION_ACTIVA = false;

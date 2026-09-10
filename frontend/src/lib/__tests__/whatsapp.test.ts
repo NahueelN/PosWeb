@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const openMock = vi.fn()
+const commandExecuteMock = vi.fn()
 
 vi.mock('@tauri-apps/plugin-shell', () => ({
   open: (...args: unknown[]) => openMock(...args),
+  Command: {
+    create: () => ({
+      execute: () => commandExecuteMock(),
+    }),
+  },
 }))
 
-import { sanitizePhone, buildWhatsAppUrl, buildPedidoWhatsAppMessage, openWhatsApp } from '../whatsapp'
+import { sanitizePhone, buildWhatsAppUrl, buildWhatsAppDesktopUrl, buildPedidoWhatsAppMessage, openWhatsApp } from '../whatsapp'
 import type { PedidoDetailDto } from '../../types'
 
 function makePedido(overrides: Partial<PedidoDetailDto> = {}): PedidoDetailDto {
@@ -28,6 +34,8 @@ function makePedido(overrides: Partial<PedidoDetailDto> = {}): PedidoDetailDto {
 describe('whatsapp lib', () => {
   beforeEach(() => {
     openMock.mockReset()
+    commandExecuteMock.mockReset()
+    commandExecuteMock.mockResolvedValue({ code: 0, stdout: '', stderr: '' })
   })
 
   describe('sanitizePhone', () => {
@@ -54,6 +62,13 @@ describe('whatsapp lib', () => {
     it('encodes special chars in message', () => {
       const url = buildWhatsAppUrl('123', 'a&b=c? x')
       expect(url).toBe('https://web.whatsapp.com/send?phone=123&text=' + encodeURIComponent('a&b=c? x'))
+    })
+  })
+
+  describe('buildWhatsAppDesktopUrl', () => {
+    it('builds whatsapp:// deep link with digits-only phone and encoded text', () => {
+      const url = buildWhatsAppDesktopUrl('+54 11 5555-1234', 'Hola\n*Pedido*')
+      expect(url).toBe('whatsapp://send?phone=541155551234&text=' + encodeURIComponent('Hola\n*Pedido*'))
     })
   })
 
@@ -107,6 +122,39 @@ describe('whatsapp lib', () => {
       expect(openMock).not.toHaveBeenCalled()
       expect(winOpen).not.toHaveBeenCalled()
       winOpen.mockRestore()
+    })
+
+    it('in tauri, opens whatsapp desktop deep link when installed', async () => {
+      ;(window as any).__TAURI_INTERNALS__ = {}
+      commandExecuteMock.mockResolvedValue({ code: 0, stdout: '', stderr: '' }) // instalado
+      openMock.mockResolvedValueOnce(undefined)
+      await openWhatsApp(makePedido(), 'desktop')
+      expect(openMock).toHaveBeenCalledTimes(1)
+      const url = openMock.mock.calls[0][0] as string
+      expect(url.startsWith('whatsapp://send?phone=541155551234&text=')).toBe(true)
+      delete (window as any).__TAURI_INTERNALS__
+    })
+
+    it('in tauri, falls back to web when desktop is not installed', async () => {
+      ;(window as any).__TAURI_INTERNALS__ = {}
+      commandExecuteMock.mockResolvedValue({ code: 1, stdout: '', stderr: '' }) // no instalado
+      openMock.mockResolvedValueOnce(undefined) // web ok
+      await openWhatsApp(makePedido(), 'desktop')
+      expect(openMock).toHaveBeenCalledTimes(1)
+      expect((openMock.mock.calls[0][0] as string).startsWith('https://web.whatsapp.com/send')).toBe(true)
+      delete (window as any).__TAURI_INTERNALS__
+    })
+
+    it('falls back to web if desktop open throws despite being installed', async () => {
+      ;(window as any).__TAURI_INTERNALS__ = {}
+      commandExecuteMock.mockResolvedValue({ code: 0, stdout: '', stderr: '' }) // instalado
+      openMock.mockRejectedValueOnce(new Error('open failed')) // whatsapp:// falla
+      openMock.mockResolvedValueOnce(undefined) // web ok
+      await openWhatsApp(makePedido(), 'desktop')
+      expect(openMock).toHaveBeenCalledTimes(2)
+      expect((openMock.mock.calls[0][0] as string).startsWith('whatsapp://send')).toBe(true)
+      expect((openMock.mock.calls[1][0] as string).startsWith('https://web.whatsapp.com/send')).toBe(true)
+      delete (window as any).__TAURI_INTERNALS__
     })
   })
 })

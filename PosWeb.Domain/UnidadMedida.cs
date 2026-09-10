@@ -12,10 +12,13 @@ public class UnidadMedida
 
     public string DESC_UNIDAD_MEDIDA { get; private set; } = null!;
 
+    public bool ACTIVO { get; private set; }
+
     public UnidadMedida(string codUnidadMedida, string descUnidadMedida)
     {
         CambiarCodigo(codUnidadMedida);
         CambiarDescripcion(descUnidadMedida);
+        ACTIVO = true;
     }
 
     protected UnidadMedida()
@@ -40,5 +43,15 @@ public class UnidadMedida
         }
 
         DESC_UNIDAD_MEDIDA = descripcion.Trim();
+    }
+
+    public void Desactivar()
+    {
+        ACTIVO = false;
+    }
+
+    public void Activar()
+    {
+        ACTIVO = true;
     }
 }

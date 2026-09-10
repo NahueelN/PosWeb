@@ -43,6 +43,8 @@ public class ClienteService
                 IvaCondicion = c.IVA_CONDICION,
                 Telefono = c.TELEFONO,
                 Domicilio = c.DOMICILIO,
+                CodCliente = c.COD_CLIENTE,
+                Mail = c.MAIL,
                 Activo = c.ACTIVO
             })
             .ToList();

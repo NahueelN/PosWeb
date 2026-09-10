@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Cajas;
+using PosWeb.Application.Categorias;
 using PosWeb.Application.CategoriasGasto;
 using PosWeb.Application.Clientes;
 using PosWeb.Application.Compras;
@@ -14,6 +15,7 @@ using PosWeb.Application.Estadisticas;
 using PosWeb.Application.Gastos;
 using PosWeb.Application.Pedidos;
 using PosWeb.Application.Proveedores;
+using PosWeb.Application.UnidadesMedida;
 using PosWeb.Application.MediosPago;
 using PosWeb.Application.OpenFoodFacts;
 using PosWeb.Application.Catalogo;
@@ -24,6 +26,7 @@ using PosWeb.Application.Ventas;
 using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.Preferencias;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Data;
 using PosWeb.Middlewares;
@@ -127,6 +130,9 @@ builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ComboService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<CategoriaGastoService>();
+builder.Services.AddScoped<PreferenciaService>();
+builder.Services.AddScoped<CategoriaSugeridaService>();
+builder.Services.AddScoped<UnidadSugeridaService>();
 
 builder.Services.AddSingleton<IEncryptionService>(sp =>
 {
@@ -281,6 +287,10 @@ using (var scope = app.Services.CreateScope())
 
             var empresa = new Empresa("PosWeb", "00000000000", suscripcion.ID_SUSCRIPCION);
             ctx.Empresa.Add(empresa);
+            ctx.SaveChanges();
+
+            // Asignar empresa al admin
+            admin.AsignarEmpresa(empresa.ID_EMPRESA);
             ctx.SaveChanges();
 
             var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);

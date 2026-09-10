@@ -57,7 +57,7 @@ public class PedidoService
 
         _context.SaveChanges();
 
-        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO, proveedor.MAIL);
     }
 
     public PedidoDetailDto RecibirPedido(int pedidoId, RecibirPedidoRequestDto request, int userId)
@@ -209,7 +209,7 @@ public class PedidoService
         pedido.Completar();
         _context.SaveChanges();
 
-        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO, proveedor.MAIL);
     }
 
     public List<PedidoListDto> Listar(string? proveedorSearch = null, string? estado = null)
@@ -261,7 +261,7 @@ public class PedidoService
             throw new ArgumentException("Pedido no encontrado");
 
         Proveedor? proveedor = _context.Proveedor.Find(pedido.ID_PROVEEDOR);
-        return MapToDetail(pedido, proveedor?.NOMBRE ?? "—", proveedor?.TELEFONO);
+        return MapToDetail(pedido, proveedor?.NOMBRE ?? "—", proveedor?.TELEFONO, proveedor?.MAIL);
     }
 
     public void Cancelar(int pedidoId)
@@ -316,16 +316,17 @@ public class PedidoService
 
         _context.SaveChanges();
 
-        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO);
+        return MapToDetail(pedido, proveedor.NOMBRE, proveedor.TELEFONO, proveedor.MAIL);
     }
 
-    private PedidoDetailDto MapToDetail(Pedido pedido, string proveedorNombre, string? proveedorTelefono = null)
+    private PedidoDetailDto MapToDetail(Pedido pedido, string proveedorNombre, string? proveedorTelefono = null, string? proveedorMail = null)
     {
         return new PedidoDetailDto
         {
             Id = pedido.ID_PEDIDO,
             ProveedorNombre = proveedorNombre,
             ProveedorTelefono = proveedorTelefono,
+            ProveedorMail = proveedorMail,
             Fecha = pedido.FECHA_PEDIDO,
             FechaEsperada = pedido.FECHA_ESPERADA,
             Total = pedido.TOTAL,

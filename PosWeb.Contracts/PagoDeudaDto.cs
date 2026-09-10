@@ -9,4 +9,5 @@ public class PagoDeudaDto
     public string? ClienteNombre { get; set; }
     public string? ProveedorNombre { get; set; }
     public string? UsuarioNombre { get; set; }
+    public bool Anulado { get; set; }
 }

@@ -110,7 +110,9 @@ public class DashboardBuilderService
             "TABLE" => _factory.CreateTable(instance.Id, title, dataset),
             "LIST" => _factory.CreateList(instance.Id, title, dataset),
             "ALERTS" => _factory.CreateAlerts(instance.Id, title, dataset),
-            "PROGRESS" => _factory.CreateProgress(instance.Id, title, dataset),
+            "PROGRESS" => instance.DefinitionId == "meta"
+                ? _factory.CreateProgress(instance.Id, title, dataset, valueFormat: "currency")
+                : _factory.CreateProgress(instance.Id, title, dataset),
             "GAUGE" => _factory.CreateGauge(instance.Id, title, dataset),
             _ => _factory.CreateKpi(instance.Id, title, dataset), // Fallback a KPI
         };
@@ -127,7 +129,12 @@ public class DashboardBuilderService
         {
             var periodStr = period?.ToString();
             if (int.TryParse(periodStr, out var periodDays))
-                p.ChartPeriodDays = periodDays;
+            {
+                if (definitionId == "top-productos")
+                    p.TopProductosPeriodDays = periodDays;
+                else
+                    p.ChartPeriodDays = periodDays;
+            }
         }
 
         if (config.TryGetValue("limit", out var limit) && TryGetInt(limit, out var limitVal))
@@ -138,6 +145,11 @@ public class DashboardBuilderService
                 case "actividad": p.ActivityLimit = limitVal; break;
                 case "ultimas-ventas": p.SalesLimit = limitVal; break;
             }
+        }
+
+        if (definitionId == "meta" && config.TryGetValue("max", out var max) && TryGetInt(max, out var maxVal) && maxVal > 0)
+        {
+            p.MetaMax = maxVal;
         }
 
         return p;

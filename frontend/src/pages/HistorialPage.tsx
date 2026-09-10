@@ -3,8 +3,11 @@ import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import type { VentaHistorialDto, VentaDetalleDto, CompraHistorialDto, CompraDetalleDto, PagedResult, SucursalDto } from '../types'
-import { Clock, ChevronDown } from 'lucide-react'
+import type { TicketData } from '../lib/ticket'
+import { Clock, ChevronDown, Printer } from 'lucide-react'
 import Button from '../components/ui/Button'
+import TicketModal from '../components/ticket/TicketModal'
+import CompraResumenModal from '../components/compra/CompraResumenModal'
 import { PageShell } from '../components/shared'
 
 type ModoHistorial = 'ventas' | 'compras'
@@ -60,6 +63,10 @@ export default function HistorialPage() {
   // Undo venta
   const [undoVentaId, setUndoVentaId] = useState<number | null>(null)
   const [undoLoading, setUndoLoading] = useState(false)
+
+  // Ticket printing
+  const [ticketData, setTicketData] = useState<TicketData | null>(null)
+  const [compraResumenData, setCompraResumenData] = useState<CompraDetalleDto | null>(null)
 
   // Load sucursales on mount
   useEffect(() => {
@@ -193,6 +200,28 @@ export default function HistorialPage() {
     }
   }
 
+  function abrirVentaTicket(ventaId: number) {
+    const detalle = ventaDetailCache.get(ventaId)
+    if (!detalle) return
+    const venta = ventaData?.items.find(v => v.ventaId === ventaId)
+    setTicketData({
+      empresaNombre: detalle.empresaNombre,
+      ventaId: detalle.ventaId,
+      fecha: detalle.fecha,
+      vendedor: detalle.vendedor ?? venta?.usuarioNombre,
+      items: detalle.items.map(i => ({ nombre: i.productoNombre, cantidad: i.cantidad, precio: i.precioUnitario })),
+      total: detalle.total,
+      pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre })),
+      cambio: detalle.cambio,
+    })
+  }
+
+  function abrirCompraResumen(compraId: number) {
+    const detalle = compraDetailCache.get(compraId)
+    if (!detalle) return
+    setCompraResumenData(detalle)
+  }
+
   const totalVentaPages = ventaData ? Math.ceil(ventaData.totalCount / ventaData.pageSize) : 0
   const totalCompraPages = compraData ? Math.ceil(compraData.totalCount / compraData.pageSize) : 0
 
@@ -285,7 +314,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {[...Array(5)].map((_, i) => (
                       <tr key={i}>
                         <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-100 rounded animate-pulse" /></td>
@@ -330,7 +359,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {ventaData.items.map((venta) => (
                       <Fragment key={venta.ventaId}>
                         <tr
@@ -393,12 +422,21 @@ export default function HistorialPage() {
                                     <h4 className="text-sm font-semibold text-gray-700">
                                       Detalle de Venta #{venta.ventaId}
                                     </h4>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setExpandedVentaId(null) }}
-                                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                      Cerrar
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); abrirVentaTicket(venta.ventaId) }}
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                                      >
+                                        <Printer size={14} />
+                                        Imprimir ticket
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setExpandedVentaId(null) }}
+                                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                      >
+                                        Cerrar
+                                      </button>
+                                    </div>
                                   </div>
 
                                   <div className="overflow-x-auto">
@@ -412,7 +450,7 @@ export default function HistorialPage() {
                                           <th className="px-2 py-1.5 font-medium text-right">Subtotal</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100">
+                                      <tbody className="divide-y-2 divide-gray-300">
                                         {ventaDetailCache.get(venta.ventaId)!.items.map((item, idx) => (
                                           <tr key={idx} className="hover:bg-gray-100/50">
                                             <td className="px-2 py-1.5 font-mono text-gray-500">{item.codigoBarra}</td>
@@ -493,7 +531,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {[...Array(5)].map((_, i) => (
                       <tr key={i}>
                         <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-100 rounded animate-pulse" /></td>
@@ -538,7 +576,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {compraData.items.map((compra) => (
                       <Fragment key={compra.compraId}>
                         <tr
@@ -589,12 +627,21 @@ export default function HistorialPage() {
                                     <h4 className="text-sm font-semibold text-gray-700">
                                       Detalle de Compra #{compra.compraId}
                                     </h4>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setExpandedCompraId(null) }}
-                                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                      Cerrar
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); abrirCompraResumen(compra.compraId) }}
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                                      >
+                                        <Printer size={14} />
+                                        Imprimir resumen
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setExpandedCompraId(null) }}
+                                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                      >
+                                        Cerrar
+                                      </button>
+                                    </div>
                                   </div>
 
                                   <div className="overflow-x-auto">
@@ -608,7 +655,7 @@ export default function HistorialPage() {
                                           <th className="px-2 py-1.5 font-medium text-right">Subtotal</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100">
+                                      <tbody className="divide-y-2 divide-gray-300">
                                         {compraDetailCache.get(compra.compraId)!.items.map((item, idx) => (
                                           <tr key={idx} className="hover:bg-gray-100/50">
                                             <td className="px-2 py-1.5 font-mono text-gray-500">{item.codigoBarra}</td>
@@ -700,6 +747,16 @@ export default function HistorialPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Ticket print modal */}
+      {ticketData && (
+        <TicketModal data={ticketData} onClose={() => setTicketData(null)} />
+      )}
+
+      {/* Compra resumen modal */}
+      {compraResumenData && (
+        <CompraResumenModal data={compraResumenData} onClose={() => setCompraResumenData(null)} />
       )}
     </PageShell>
   )

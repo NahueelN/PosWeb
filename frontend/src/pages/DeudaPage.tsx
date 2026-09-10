@@ -1,10 +1,17 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto } from '../types';
+import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto, CrearDeudaRequestDto, VentaDetalleDto, CompraDetalleDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { PageShell } from '../components/shared';
+import EntidadContactoForm from '../components/shared/EntidadContactoForm';
+import DetalleVentaCompraModal from '../components/DetalleVentaCompraModal';
+import CompartirMenu from '../components/CompartirMenu';
+import Dialog from '../components/ui/Dialog';
+import Button from '../components/ui/Button';
 import { formatCurrency } from '../formats';
+import { buildDeudaMessage } from '../lib/deuda';
+import { Plus } from 'lucide-react';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -37,22 +44,37 @@ export default function DeudaPage() {
   const [fechaHasta, setFechaHasta] = useState('');
   const [periodoActivo, setPeriodoActivo] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
-  const { notifyError } = useNotification();
+  const { notifyError, notifySuccess } = useNotification();
   const { user } = useAuth();
 
   // Detail view
   const [cuenta, setCuenta] = useState<CuentaCorrienteDto | null>(null);
   const [cuentaLoading, setCuentaLoading] = useState(false);
+  const [detalleOrigen, setDetalleOrigen] = useState<{ tipo: 'venta' | 'compra'; detalle: VentaDetalleDto | CompraDetalleDto } | null>(null);
   const [entidadSeleccionada, setEntidadSeleccionada] = useState<EntidadResumen | null>(null);
   const [paying, setPaying] = useState(false);
   const [payMonto, setPayMonto] = useState('');
   const [confirmPay, setConfirmPay] = useState(false);
   const [undoPagoId, setUndoPagoId] = useState<number | null>(null);
+  const [anularDeudaId, setAnularDeudaId] = useState<number | null>(null);
   const [histSort, setHistSort] = useState<'fecha' | 'concepto' | 'cargo' | 'pago' | 'saldo' | null>(null);
   const [histDir, setHistDir] = useState<'asc' | 'desc'>('desc');
 
   const busquedaRef = useRef<HTMLInputElement>(null);
   const payInputRef = useRef<HTMLInputElement>(null);
+  const ndBusquedaRef = useRef<HTMLInputElement>(null);
+  const ndMontoRef = useRef<HTMLInputElement>(null);
+
+  const [showNuevaDeuda, setShowNuevaDeuda] = useState(false);
+  const [ndBusqueda, setNdBusqueda] = useState('');
+  const [ndEntidadId, setNdEntidadId] = useState<number | null>(null);
+  const [ndMonto, setNdMonto] = useState('');
+  const [creandoDeuda, setCreandoDeuda] = useState(false);
+  const [ndDropdownAbierto, setNdDropdownAbierto] = useState(false);
+  const [ndHighIdx, setNdHighIdx] = useState(-1);
+  const [showNuevaEntidad, setShowNuevaEntidad] = useState(false);
+  const [nuevaEntidadForm, setNuevaEntidadForm] = useState({ nombre: '', tipoDocumento: '', documento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', mail: '', domicilio: '' });
+  const [creandoEntidad, setCreandoEntidad] = useState(false);
 
   useEffect(() => { busquedaRef.current?.focus(); }, []);
 
@@ -110,6 +132,28 @@ export default function DeudaPage() {
   }, [modo, proveedores, clientes, deudas, busqueda, soloPendientes]);
 
   const totalGlobal = entidades.reduce((s, e) => s + e.total, 0);
+
+  const deudasPendientes = useMemo(() => {
+    if (!entidadSeleccionada) return [];
+    return deudas
+      .filter(d => (modo === 'proveedores' ? d.proveedorId : d.clienteId) === entidadSeleccionada.id && d.saldoPendiente > 0)
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [deudas, entidadSeleccionada, modo]);
+
+  const entidadContacto = useMemo(() => {
+    if (!entidadSeleccionada) return { mail: null as string | null, telefono: null as string | null };
+    if (modo === 'proveedores') {
+      const p = proveedores.find(x => x.id === entidadSeleccionada.id);
+      return { mail: p?.mail ?? null, telefono: p?.telefono ?? null };
+    }
+    const c = clientes.find(x => x.id === entidadSeleccionada.id);
+    return { mail: c?.mail ?? null, telefono: c?.telefono ?? null };
+  }, [entidadSeleccionada, modo, proveedores, clientes]);
+
+  const deudaMensaje = useMemo(
+    () => buildDeudaMessage(deudasPendientes.map(d => ({ saldoPendiente: d.saldoPendiente, fecha: d.fecha }))),
+    [deudasPendientes]
+  );
 
   function aplicarPeriodo(p: string) {
     const hoy = new Date();
@@ -192,6 +236,94 @@ export default function DeudaPage() {
     }
   }
 
+  async function handleAnularDeuda() {
+    if (anularDeudaId === null || !entidadSeleccionada) return;
+    try {
+      await api.deudas.anular(anularDeudaId);
+      setAnularDeudaId(null);
+      openCuenta(entidadSeleccionada);
+      loadDeudas();
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al cancelar deuda');
+    }
+  }
+
+  const ndResultados = useMemo(() => {
+    const lista = modo === 'proveedores' ? proveedores : clientes;
+    const q = ndBusqueda.trim().toLowerCase();
+    if (!q) return [];
+    return lista.filter(e => e.nombre.toLowerCase().includes(q)).slice(0, 20);
+  }, [modo, clientes, proveedores, ndBusqueda]);
+
+  async function handleCrearDeuda() {
+    if (ndEntidadId == null) return;
+    const monto = parseFloat(ndMonto);
+    if (!monto || monto <= 0) return;
+    setCreandoDeuda(true);
+    try {
+      const payload: CrearDeudaRequestDto = { monto };
+      if (modo === 'clientes') payload.clienteId = ndEntidadId;
+      else payload.proveedorId = ndEntidadId;
+      await api.deudas.crear(payload);
+      notifySuccess('Deuda creada');
+      setShowNuevaDeuda(false);
+      setNdBusqueda(''); setNdEntidadId(null); setNdMonto('');
+      if (entidadSeleccionada) openCuenta(entidadSeleccionada);
+      loadDeudas();
+    } catch (err: any) {
+      notifyError(err instanceof Error ? err.message : 'Error al crear la deuda');
+    } finally {
+      setCreandoDeuda(false);
+    }
+  }
+
+  function resetNuevaEntidad() {
+    setShowNuevaEntidad(false);
+    setNuevaEntidadForm({ nombre: '', tipoDocumento: '', documento: '', ivaCondicion: 'ConsumidorFinal', telefono: '', mail: '', domicilio: '' });
+  }
+
+  async function handleCrearEntidad(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nuevaEntidadForm.nombre.trim()) return;
+    setCreandoEntidad(true);
+    try {
+      if (modo === 'clientes') {
+        const nueva = await api.clientes.crear({
+          nombre: nuevaEntidadForm.nombre.trim(),
+          tipoDocumento: nuevaEntidadForm.tipoDocumento,
+          numeroDocumento: nuevaEntidadForm.documento,
+          ivaCondicion: nuevaEntidadForm.ivaCondicion,
+          telefono: nuevaEntidadForm.telefono || undefined,
+          mail: nuevaEntidadForm.mail || undefined,
+          domicilio: nuevaEntidadForm.domicilio || undefined,
+        });
+        setClientes(prev => [...prev, nueva]);
+        setNdEntidadId(nueva.id!);
+        setNdBusqueda(nueva.nombre);
+      } else {
+        const nueva = await api.proveedores.crear({
+          nombre: nuevaEntidadForm.nombre.trim(),
+          tipoDocumento: nuevaEntidadForm.tipoDocumento || undefined,
+          nroDocumento: nuevaEntidadForm.documento || undefined,
+          ivaCondicion: nuevaEntidadForm.ivaCondicion,
+          telefono: nuevaEntidadForm.telefono || undefined,
+          mail: nuevaEntidadForm.mail || undefined,
+          domicilio: nuevaEntidadForm.domicilio || undefined,
+        });
+        setProveedores(prev => [...prev, nueva]);
+        setNdEntidadId(nueva.id);
+        setNdBusqueda(nueva.nombre);
+      }
+      setNdDropdownAbierto(false);
+      resetNuevaEntidad();
+      setTimeout(() => ndMontoRef.current?.focus(), 50);
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : `Error al crear ${modo === 'clientes' ? 'cliente' : 'proveedor'}`);
+    } finally {
+      setCreandoEntidad(false);
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────
 
   const ledgerDesc = useMemo(() => {
@@ -231,8 +363,8 @@ export default function DeudaPage() {
     const crono = [...cuenta.movimientos].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
     let running = 0;
     return crono.map(m => {
-      if (m.tipo === 'deuda') running += m.monto;
-      else running -= m.monto;
+      if (m.tipo === 'deuda' && !m.anulado) running += m.monto;
+      else if (!m.anulado) running -= m.monto;
       return { ...m, saldo: running };
     });
   }, [cuenta]);
@@ -244,17 +376,69 @@ export default function DeudaPage() {
     return found ? found.saldo : 0;
   }
 
+  async function abrirDetalleOrigen(m: { ventaId?: number; compraId?: number }) {
+    try {
+      if (m.ventaId) {
+        const detalle = await api.ventas.detalle(m.ventaId);
+        setDetalleOrigen({ tipo: 'venta', detalle });
+      } else if (m.compraId) {
+        const detalle = await api.compras.detalle(m.compraId);
+        setDetalleOrigen({ tipo: 'compra', detalle });
+      }
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al cargar el detalle');
+    }
+  }
+
+  const renderTabs = (onSwitch: (m: ModoDeuda) => void) => (
+    <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
+      <button onClick={() => onSwitch('clientes')}
+        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+        Clientes
+      </button>
+      {user?.rol !== 'UsuarioComun' && (
+        <button onClick={() => onSwitch('proveedores')}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
+          Proveedores
+        </button>
+      )}
+    </div>
+  );
+
+  const handleTabSwitch = (m: ModoDeuda) => {
+    if (m === modo) return;
+    closeCuenta();
+    setModo(m);
+  };
+
   if (cuenta && entidadSeleccionada) {
     const saldo = cuenta.saldoActual;
 
     return (
       <PageShell
         title="Deudas"
-        subtitle={modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}
-        actions={
-          <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1">
+        tabs={renderTabs(handleTabSwitch)}
+        backButton={
+          <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 mt-2">
             ← Volver
           </button>
+        }
+        actions={
+          <div className="flex items-center gap-3">
+            <CompartirMenu
+              mail={entidadContacto.mail}
+              telefono={entidadContacto.telefono}
+              mailSubject={`Deuda de ${entidadSeleccionada.nombre}`}
+              mensaje={deudaMensaje}
+              className="relative"
+              buttonClassName="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-white text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+              dropdownUp={false}
+            />
+            <button onClick={() => { setNdEntidadId(entidadSeleccionada.id); setNdBusqueda(entidadSeleccionada.nombre); setNdMonto(''); setShowNuevaDeuda(true); }}
+              className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+              + Nueva deuda
+            </button>
+          </div>
         }
       >
         <div className="flex flex-col flex-1 min-h-0">
@@ -263,7 +447,6 @@ export default function DeudaPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-2 sm:mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">{entidadSeleccionada.nombre}</h2>
-              <p className="text-xs sm:text-sm text-gray-500">{modo === 'proveedores' ? 'Cuenta de proveedor' : 'Cuenta de cliente'}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider">Saldo pendiente</p>
@@ -337,16 +520,33 @@ export default function DeudaPage() {
                       <th className="px-4 py-2.5 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleHistSort('saldo')}>Saldo{histSort === 'saldo' ? (histDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y-2 divide-gray-300">
                     {ledgerDesc.map((m, i) => {
                       const saldoMov = getSaldo(m);
                       return (
-                        <tr key={i} className={m.tipo === 'pago' ? 'bg-emerald-50/30' : ''}>
+                        <tr key={i} className={m.anulado ? 'bg-gray-50 text-gray-400 line-through' : m.tipo === 'pago' ? 'bg-emerald-50/30' : ''}>
                           <td className="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">{formatDateTime(m.fecha)}</td>
                           <td className="px-4 py-2.5 text-gray-700">
-                            {m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')}
+                            {(m.ventaId || m.compraId) ? (
+                              <button
+                                onClick={() => abrirDetalleOrigen(m)}
+                                className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium text-left"
+                                title={m.ventaId ? 'Ver venta' : 'Ver compra'}
+                              >
+                                {m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')}
+                              </button>
+                            ) : (
+                              m.descripcion || (m.tipo === 'pago' ? 'Pago' : 'Deuda')
+                            )}
                             {m.usuario && m.tipo === 'pago' && <span className="text-[10px] text-gray-400 ml-1">({m.usuario})</span>}
-                            {m.tipo === 'pago' && m.pagoId && (
+                            {m.anulado && <span className="ml-2 text-[10px] font-semibold text-red-500 no-underline">Anulado</span>}
+                            {m.tipo === 'deuda' && m.deudaId && !m.anulado && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setAnularDeudaId(m.deudaId!); }}
+                                className="ml-2 text-[10px] text-red-400 hover:text-red-600 hover:underline"
+                              >Cancelar</button>
+                            )}
+                            {m.tipo === 'pago' && m.pagoId && !m.anulado && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setUndoPagoId(m.pagoId!); }}
                                 className="ml-2 text-[10px] text-red-400 hover:text-red-600 hover:underline"
@@ -355,7 +555,7 @@ export default function DeudaPage() {
                           </td>
                           <td className="px-4 py-2.5 text-right font-mono text-xs">{m.tipo === 'deuda' ? <span className="text-red-600 font-medium">-{formatCurrency(m.monto)}</span> : ''}</td>
                           <td className="px-4 py-2.5 text-right font-mono text-xs">{m.tipo === 'pago' ? <span className="text-emerald-600 font-medium">{formatCurrency(m.monto)}</span> : ''}</td>
-                          <td className="px-4 py-2.5 text-right font-mono text-xs font-bold text-gray-900">{formatCurrency(saldoMov)}</td>
+                          <td className="px-4 py-2.5 text-right font-mono text-xs font-bold text-gray-900">{m.anulado ? '' : formatCurrency(saldoMov)}</td>
                         </tr>
                       );
                     })}
@@ -425,6 +625,46 @@ export default function DeudaPage() {
               </div>
             </div>
           )}
+
+          {anularDeudaId !== null && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAnularDeudaId(null)}>
+              <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Cancelar deuda</h3>
+                <p className="text-sm text-gray-600 mb-6">¿Cancelar esta deuda? Quedará registrada como anulada y no se incluirá en el saldo pendiente.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setAnularDeudaId(null)} className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200">Volver</button>
+                  <button onClick={handleAnularDeuda} autoFocus className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 text-sm">Cancelar deuda</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showNuevaDeuda && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowNuevaDeuda(false)}>
+              <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Nueva deuda</h3>
+                <p className="text-sm text-gray-600 mb-4">Registrar una deuda para <strong>{entidadSeleccionada.nombre}</strong>.</p>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Monto de la deuda</label>
+                <input ref={ndMontoRef} type="number" min={0} step="0.01" value={ndMonto} onChange={e => setNdMonto(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCrearDeuda(); } }}
+                  placeholder="0.00" autoFocus
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowNuevaDeuda(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200">Cancelar</button>
+                  <button onClick={handleCrearDeuda} disabled={!ndMonto || parseFloat(ndMonto) <= 0 || creandoDeuda}
+                    className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 text-sm disabled:opacity-50">{creandoDeuda ? 'Creando...' : 'Crear'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {detalleOrigen && (
+            <DetalleVentaCompraModal
+              tipo={detalleOrigen.tipo}
+              detalle={detalleOrigen.detalle}
+              onClose={() => setDetalleOrigen(null)}
+            />
+          )}
         </div>
       </PageShell>
     );
@@ -436,20 +676,13 @@ export default function DeudaPage() {
       title="Deudas"
       subtitle="Administre las cuentas pendientes y registre los pagos."
       loading={loading}
-      tabs={
-        <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
-          <button onClick={() => setModo('clientes')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'clientes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Clientes
-          </button>
-          {user?.rol !== 'UsuarioComun' && (
-          <button onClick={() => setModo('proveedores')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${modo === 'proveedores' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}>
-            Proveedores
-          </button>
-          )}
-        </div>
+      actions={
+        <button onClick={() => { setNdBusqueda(''); setNdEntidadId(null); setNdMonto(''); setShowNuevaDeuda(true) }}
+          className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shrink-0">
+          + Nueva deuda
+        </button>
       }
+      tabs={renderTabs(setModo)}
     >
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
@@ -509,7 +742,7 @@ export default function DeudaPage() {
                   <th className="px-4 py-3 text-right">Total deuda</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y-2 divide-gray-300">
                 {entidades.map(e => (
                   <tr key={e.id} onClick={() => openCuenta(e)}
                     className="hover:bg-indigo-50 cursor-pointer transition-colors">
@@ -527,6 +760,104 @@ export default function DeudaPage() {
             </table>
           </div>
         )}
-    </PageShell>
-  );
-}
+
+        {/* Nueva deuda modal */}
+        {showNuevaDeuda && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowNuevaDeuda(false)}>
+            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setShowNuevaDeuda(false) }
+                if (e.key === 'Enter') { e.preventDefault(); handleCrearDeuda() }
+              }}>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Nueva deuda</h3>
+              <p className="text-sm text-gray-600 mb-4">Creá una deuda para {modo === 'clientes' ? 'un cliente' : 'un proveedor'} sin atarla a una venta o compra.</p>
+
+              {/* Buscador de entidad */}
+              <div className="relative mb-4">
+                <input ref={ndBusquedaRef} type="text" value={ndBusqueda} onChange={e => { setNdBusqueda(e.target.value); setNdEntidadId(null); setNdDropdownAbierto(true); setNdHighIdx(-1) }}
+                  onFocus={() => setNdDropdownAbierto(true)}
+                  onBlur={() => setTimeout(() => setNdDropdownAbierto(false), 150)}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (!ndDropdownAbierto) { setNdDropdownAbierto(true); setNdHighIdx(-1); return; }
+                      setNdHighIdx(prev => Math.min(prev + 1, ndResultados.length - 1));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setNdHighIdx(prev => Math.max(prev - 1, -1));
+                    } else if (e.key === 'Enter' && ndHighIdx >= 0 && ndResultados[ndHighIdx]) {
+                      e.preventDefault();
+                      const entidad = ndResultados[ndHighIdx];
+                      setNdEntidadId(entidad.id!); setNdBusqueda(entidad.nombre); setNdDropdownAbierto(false);
+                      setTimeout(() => ndMontoRef.current?.focus(), 0);
+                    }
+                  }}
+                  placeholder={`Buscar ${modo === 'clientes' ? 'cliente' : 'proveedor'}...`}
+                  autoFocus
+                  className="w-full pl-3 pr-16 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button type="button" onClick={() => setShowNuevaEntidad(true)}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg text-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.08)] transition-all flex items-center justify-center"
+                  title={`Nuevo ${modo === 'clientes' ? 'cliente' : 'proveedor'}`}>
+                  <Plus size={16} strokeWidth={2.5} />
+                </button>
+                {ndBusqueda && (
+                  <button type="button" onClick={() => { setNdBusqueda(''); setNdEntidadId(null); setNdDropdownAbierto(false); ndBusquedaRef.current?.focus() }}
+                    className="absolute right-10 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                    <span className="text-xs">✕</span>
+                  </button>
+                )}
+                {ndDropdownAbierto && ndResultados.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                    {ndResultados.map(ent => (
+                      <button key={ent.id} type="button"
+                        onMouseDown={() => { setNdEntidadId(ent.id!); setNdBusqueda(ent.nombre); setNdDropdownAbierto(false); ndMontoRef.current?.focus() }}
+                        onMouseEnter={() => setNdHighIdx(ndResultados.indexOf(ent))}
+                        className={`w-full text-left px-3 py-2 text-sm ${ndHighIdx === ndResultados.indexOf(ent) ? 'bg-[oklch(0.52_0.255_278_/_0.10)] text-[oklch(0.52_0.255_278)]' : 'hover:bg-gray-50'} ${ndEntidadId === ent.id ? 'font-semibold' : 'text-gray-700'}`}>
+                        {ent.nombre}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Monto */}
+              <label className="block text-xs font-medium text-gray-700 mb-1">Monto de la deuda</label>
+              <input ref={ndMontoRef} type="number" min={0} step="0.01" value={ndMonto} onChange={e => setNdMonto(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCrearDeuda() } }}
+                placeholder="0.00" disabled={ndEntidadId == null}
+                className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none disabled:bg-gray-100 disabled:text-gray-400" />
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowNuevaDeuda(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200">Cancelar</button>
+                <button onClick={handleCrearDeuda} disabled={ndEntidadId == null || !ndMonto || parseFloat(ndMonto) <= 0 || creandoDeuda}
+                  className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 text-sm disabled:opacity-50">{creandoDeuda ? 'Creando...' : 'Crear'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Dialog
+          open={showNuevaEntidad}
+          onClose={resetNuevaEntidad}
+          title={`Nuevo ${modo === 'clientes' ? 'cliente' : 'proveedor'}`}
+          width="md"
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={resetNuevaEntidad}>Cancelar</Button>
+              <Button variant="primary" size="sm" onClick={handleCrearEntidad} loading={creandoEntidad} disabled={!nuevaEntidadForm.nombre.trim()}>Crear</Button>
+            </>
+          }
+        >
+          <form onSubmit={handleCrearEntidad}>
+            <EntidadContactoForm
+              {...nuevaEntidadForm}
+              onChange={(campo, valor) => setNuevaEntidadForm(prev => ({ ...prev, [campo]: valor }))}
+              tiposDocumento={['', 'CUIT', 'CUIL', 'DNI']}
+              ivaCondiciones={['ConsumidorFinal', 'ResponsableInscripto', 'Monotributista', 'Exento']}
+            />
+          </form>
+        </Dialog>
+
+      </PageShell>
+    );
+  }

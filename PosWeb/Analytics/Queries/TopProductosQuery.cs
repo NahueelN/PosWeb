@@ -12,12 +12,14 @@ public class TopProductosQuery : IAnalyticsQuery
     public async Task<Dataset> ExecuteAsync(int sucursalId, PosDbContextLocal db, DashboardQueryParams? p = null)
     {
         var hoy = DateTime.Today;
+        var dias = p?.TopProductosPeriodDays ?? 0;
+        var inicio = hoy.AddDays(-dias);
         var fin = hoy.AddDays(1);
         var limit = p?.ProductLimit ?? 5;
 
         var ventaIds = await db.Venta
             .Where(v => v.ID_SUCURSAL == sucursalId
-                        && v.FECHA_VENTA >= hoy
+                        && v.FECHA_VENTA >= inicio
                         && v.FECHA_VENTA < fin
                         && !v.ANULADA)
             .Select(v => v.ID_VENTA)

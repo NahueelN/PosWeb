@@ -8,6 +8,10 @@ public class MovimientoCuentaDto
     public string? Descripcion { get; set; }
     public string? Usuario { get; set; }
     public int? PagoId { get; set; }
+    public int? DeudaId { get; set; }
+    public int? VentaId { get; set; }
+    public int? CompraId { get; set; }
+    public bool Anulado { get; set; }
 }
 
 public class CuentaCorrienteDto

@@ -15,6 +15,8 @@ public class PagoDeuda
 
     public int? ID_USUARIO { get; private set; }
 
+    public bool ANULADO { get; private set; }
+
     public Deuda Deuda { get; private set; } = null!;
 
     protected PagoDeuda() { }
@@ -25,5 +27,11 @@ public class PagoDeuda
         MONTO = monto;
         FECHA = DateTime.UtcNow;
         ID_USUARIO = idUsuario;
+        ANULADO = false;
+    }
+
+    public void Anular()
+    {
+        ANULADO = true;
     }
 }

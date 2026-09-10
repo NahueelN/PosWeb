@@ -186,7 +186,7 @@ export default function EstadisticasPage() {
                   </thead>
                   <tbody>
                     {data.topProductos.map((p, i) => (
-                      <tr key={p.productoId} className="border-b border-gray-50">
+                      <tr key={p.productoId} className="border-b-2 border-gray-300">
                         <td className="py-2.5 pr-4 font-bold text-gray-400">{i + 1}</td>
                         <td className="py-2.5 pr-4 font-medium text-gray-900">{p.productoNombre}</td>
                         <td className="py-2.5 pr-4 text-gray-500 font-mono text-xs">{p.codigoBarra}</td>

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, UserPlus, Link2, QrCode } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -127,18 +127,21 @@ function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; 
 }
 
 export default function Layout() {
-  const location = useLocation()
   const navigate = useNavigate()
   const { sucursal, limpiar } = useSucursalActiva()
   const { user, logout } = useAuth()
   const { notifyError } = useNotification()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebarCollapsed') === '1' } catch { return false }
+  })
   const [lookupOpen, setLookupOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [licResumen, setLicResumen] = useState<LicenciaResumen | null>(null)
   const [mpVinculando, setMpVinculando] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrData, setQrData] = useState('')
+  const [qrRevinculacion, setQrRevinculacion] = useState(false)
 
   useEffect(() => {
     const v = getCurrentVersion()
@@ -213,6 +216,9 @@ export default function Layout() {
 
   async function handleVerQr() {
     try {
+      api.mercadopago.estado()
+        .then(e => setQrRevinculacion(Boolean(e?.requiereRevincular)))
+        .catch(() => setQrRevinculacion(false))
       const res = await api.mercadopago.qr()
       setQrData(res.qrData || '')
       setQrModalOpen(true)
@@ -223,6 +229,18 @@ export default function Layout() {
 
   function closeSidebar() {
     setSidebarOpen(false)
+  }
+
+  function toggleSidebar() {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      setSidebarCollapsed(c => {
+        const next = !c
+        try { localStorage.setItem('sidebarCollapsed', next ? '1' : '0') } catch { /* ignore */ }
+        return next
+      })
+    } else {
+      setSidebarOpen(true)
+    }
   }
 
   const sidebarContent = (
@@ -283,23 +301,8 @@ export default function Layout() {
               <QrCode size={14} className="shrink-0" />
               Ver QR
             </button>
-            <NavLink
-              to="/usuarios/alta"
-              onClick={closeSidebar}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[12px] font-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
-                }`
-              }
-            >
-              <UserPlus size={14} className="shrink-0" />
-              Alta usuario
-            </NavLink>
           </>
         )}
-        {/* Configuración */}
         <NavLink
           to="/configuracion"
           onClick={closeSidebar}
@@ -330,16 +333,31 @@ export default function Layout() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 w-[196px] bg-[oklch(0.15_0.016_262)] flex flex-col
-          transition-transform duration-200 ease-in-out
+          border-r border-[oklch(0.255_0.016_262)]
+          transition-[width,transform] duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:static lg:translate-x-0 lg:z-auto lg:shrink-0
+          ${sidebarCollapsed ? 'lg:w-0 lg:overflow-hidden lg:border-r-0' : ''}
         `}
-        style={{ borderRight: '1px solid oklch(0.255 0.016 262)' }}
       >
         {sidebarContent}
       </aside>
 
       <main className="flex-1 flex flex-col overflow-auto min-w-0 min-h-0">
+        <button
+          onClick={toggleSidebar}
+          className={`
+            hidden lg:flex fixed top-1/2 -translate-y-1/2 z-40 w-7 h-16
+            items-center justify-center rounded-r-lg
+            bg-[oklch(0.15_0.016_262)] text-white/60 hover:text-white
+            border border-l-0 border-[oklch(0.255_0.016_262)]
+            transition-all duration-200 ease-in-out cursor-pointer
+            ${sidebarCollapsed ? 'left-0' : 'left-[196px]'}
+          `}
+          aria-label={sidebarCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
+        >
+          {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
         <header className="h-[48px] bg-white border-b border-gray-200 flex items-center justify-between px-5 gap-4 shrink-0"
           style={{ boxShadow: '0 1px 0 0 oklch(0.91 0.008 265)' }}>
           <div className="flex items-center gap-3 min-w-0">
@@ -375,14 +393,15 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {sucursal && location.pathname !== '/sucursales' && (
-              <button
-                onClick={() => { limpiar(); window.location.reload() }}
-                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors font-medium"
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-400 font-medium select-none shrink-0">
+              <kbd
+                className="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1 rounded border border-gray-300 bg-gray-50 text-[10px] font-semibold text-gray-600"
+                style={{ boxShadow: '0 1px 0 0 oklch(0.82 0.01 262)' }}
               >
-                Cambiar sucursal
-              </button>
-            )}
+                F2
+              </kbd>
+              <span>búsqueda rápida</span>
+            </div>
 
             {user && (
               <div className="flex items-center gap-3">
@@ -416,7 +435,7 @@ export default function Layout() {
         </div>
       </main>
 
-      <ProductLookupModal open={lookupOpen} onClose={() => setLookupOpen(false)} />
+      {lookupOpen && <ProductLookupModal onClose={() => setLookupOpen(false)} />}
 
 
       {qrModalOpen && (
@@ -429,6 +448,14 @@ export default function Layout() {
             <p className="text-sm text-gray-500">
               Imprimí este QR y pegalo en el mostrador. Es siempre el mismo para todos los cobros.
             </p>
+            {qrRevinculacion && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-0.5">
+                <p className="text-xs font-bold text-amber-800">MercadoPago requiere volver a vincularse</p>
+                <p className="text-xs leading-relaxed text-amber-700">
+                  El QR puede no confirmar los pagos automáticamente. Actualizá la vinculación desde el panel lateral.
+                </p>
+              </div>
+            )}
             {qrData ? (
               <div className="flex justify-center">
                 <img

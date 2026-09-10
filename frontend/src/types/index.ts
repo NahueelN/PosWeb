@@ -14,6 +14,7 @@ export interface ProductoDto {
   descAdicional?: string | null
   codigoProducto?: string | null
   margenGanancia?: number | null
+  cantidadIdeal?: number | null
   seguirStock?: boolean
   esPesable?: boolean
   esBulto?: boolean
@@ -60,6 +61,7 @@ export interface UnidadMedidaDto {
   id: number
   codigo: string
   descripcion: string
+  activo?: boolean
 }
 
 export interface CrearUnidadMedidaRequest {
@@ -100,6 +102,7 @@ export interface OpenFoodFactsResultDto {
   contenido?: number | null
   unidad?: string | null
   categoriaIdSugerido?: number | null
+  unidadIdSugerido?: number | null
 }
 
 export interface ProductoLookupResponseDto {
@@ -122,6 +125,8 @@ export interface VentaItemDto {
   cantidad: number
   comboId?: number
   ofertaId?: number
+  descripcionManual?: string
+  precioManual?: number
 }
 
 export interface VentaDto {
@@ -141,6 +146,9 @@ export interface VentaResultadoDto {
   pagos: PagoVentaResultDto[]
   cambio: number
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   estado?: string
   qrData?: string | null
 }
@@ -178,6 +186,10 @@ export interface VentaDetalleDto {
   sucursalNombre: string
   total: number
   items: RenglonHistorialDto[]
+  empresaNombre?: string
+  vendedor?: string
+  pagos: PagoVentaResultDto[]
+  cambio: number
 }
 
 export interface RenglonHistorialDto {
@@ -225,6 +237,7 @@ export interface RegisterRequest {
   mail: string
   rol: string
   empresaId?: number | null
+  empresaNombre?: string | null
 }
 
 export interface RegisterResponse {
@@ -417,6 +430,7 @@ export interface CompraItemDto {
    sucursalId: number
    sucursalNombre: string
    proveedorNombre?: string
+   empresaNombre?: string
    total: number
    items: RenglonHistorialDto[]
  }
@@ -505,10 +519,17 @@ export interface DeudaDto {
   saldoPendiente: number
   proveedorId?: number
   clienteId?: number
+  anulada: boolean
 }
 
 export interface PagarDeudaRequestDto {
   monto?: number
+}
+
+export interface CrearDeudaRequestDto {
+  clienteId?: number
+  proveedorId?: number
+  monto: number
 }
 
 export interface ProximoCodigoResponse {
@@ -616,6 +637,7 @@ export interface PedidoDetailDto {
   id: number
   proveedorNombre: string
   proveedorTelefono?: string
+  proveedorMail?: string
   fecha: string
   fechaEsperada?: string
   total: number
@@ -726,6 +748,7 @@ export interface PagoDeudaDto {
   deudaId: number
   monto: number
   fecha: string
+  anulado?: boolean
 }
 
 // --- CuentaCorriente types ---
@@ -743,8 +766,12 @@ export interface MovimientoCuentaDto {
   tipo: string
   monto: number
   descripcion?: string
-  usuario?: string
   pagoId?: number
+  deudaId?: number
+  ventaId?: number
+  compraId?: number
+  usuario?: string
+  anulado?: boolean
 }
 
 export interface ActivarLicenciaPorEmailRequest {
@@ -776,4 +803,59 @@ export interface LicenciaResumen {
 export interface MercadoPagoEstadoDto {
   vinculado: boolean
   nombreTitular?: string
+  qrData?: string | null
+  requiereRevincular?: boolean
 }
+
+// --- Importación de productos desde Excel ---
+export interface ProductoImportFilaDto {
+  codigoBarras: string
+  descripcion: string
+  marca?: string | null
+  rubro?: string | null
+  stock?: number | null
+  costo?: number | null
+  precio?: number | null
+  seguirStock?: boolean | null
+}
+
+export interface ProductoImportErrorDto {
+  fila: number
+  motivo: string
+  datos: ProductoImportFilaDto
+}
+
+export interface ProductoImportResponseDto {
+  total: number
+  creados: number
+  saltados: number
+  errores: ProductoImportErrorDto[]
+}
+
+// --- Empresa ---
+export interface EmpresaDto {
+  id: number
+  nombre: string
+  documento: string
+  direccion: string
+  telefono: string
+  mostrarTelefonoTicket: boolean
+}
+
+// --- Preferencias de usuario ---
+export interface PreferenciasResponse {
+  preferencias: Record<string, Record<string, string>>
+}
+
+export interface EnvioCierreCajaConfig {
+  envioAutomatico: boolean
+  whatsapp: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
+  email: {
+    habilitado: boolean
+    destinatarios: string[]
+  }
+}
+

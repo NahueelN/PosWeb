@@ -2,11 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "windows": ["*"],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
     "shell:default",
     {
       "identifier": "shell:allow-execute",
@@ -19,6 +18,11 @@
           "name": "taskkill",
           "cmd": "taskkill",
           "args": true
+        },
+        {
+          "name": "reg",
+          "cmd": "reg",
+          "args": true
         }
       ]
     },
@@ -27,7 +31,8 @@
       "identifier": "shell:allow-open",
       "allow": [
         { "url": "https://**" },
-        { "url": "http://**" }
+        { "url": "http://**" },
+        { "url": "whatsapp://**" }
       ]
     }
   ]

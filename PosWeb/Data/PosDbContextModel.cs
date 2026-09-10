@@ -63,6 +63,10 @@ public partial class PosDbContext
             entity.Property(p => p.SEGUIR_STOCK)
                 .HasColumnName("SEGUIR_STOCK");
 
+            entity.Property(p => p.CANTIDAD_IDEAL)
+                .HasColumnName("CANTIDAD_IDEAL")
+                .HasColumnType("decimal(18,2)");
+
             entity.Property(p => p.ES_PESABLE)
                 .HasColumnName("ES_PESABLE");
 
@@ -326,6 +330,10 @@ public partial class PosDbContext
 
             entity.Property(r => r.ID_COMBO)
                 .HasColumnName("ID_COMBO");
+
+            entity.Property(r => r.DESCRIPCION_MANUAL)
+                .HasColumnName("DESCRIPCION_MANUAL")
+                .HasMaxLength(250);
 
             entity.Property(r => r.CANTIDAD)
                 .HasColumnName("CANTIDAD")
@@ -826,6 +834,20 @@ public partial class PosDbContext
                 .HasMaxLength(20)
                 .IsRequired();
 
+            entity.Property(e => e.DIRECCION)
+                .HasColumnName("DIRECCION")
+                .HasMaxLength(250)
+                .IsRequired();
+
+            entity.Property(e => e.TELEFONO)
+                .HasColumnName("TELEFONO")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.MOSTRAR_TELEFONO_TICKET)
+                .HasColumnName("MOSTRAR_TELEFONO_TICKET")
+                .IsRequired();
+
             entity.Property(e => e.ID_SUSCRIPCION)
                 .HasColumnName("ID_SUSCRIPCION");
 
@@ -1024,6 +1046,9 @@ public partial class PosDbContext
             entity.Property(d => d.PAGO)
                 .HasColumnName("PAGO");
 
+            entity.Property(d => d.ANULADA)
+                .HasColumnName("ANULADA");
+
             entity.Property(d => d.ID_VENTA)
                 .HasColumnName("ID_VENTA");
 
@@ -1073,6 +1098,9 @@ public partial class PosDbContext
 
             entity.Property(p => p.ID_USUARIO)
                 .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.ANULADO)
+                .HasColumnName("ANULADO");
 
             entity.HasOne(p => p.Deuda)
                 .WithMany()
@@ -1194,6 +1222,38 @@ public partial class PosDbContext
                 .HasForeignKey(r => r.ID_PRODUCTO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ---- USUARIO PREFERENCIA ----
+        modelBuilder.Entity<UsuarioPreferencia>(entity =>
+        {
+            entity.ToTable("USUARIO_PREFERENCIA");
+
+            entity.HasKey(p => p.ID_USUARIO_PREFERENCIA);
+
+            entity.Property(p => p.ID_USUARIO_PREFERENCIA)
+                .HasColumnName("ID_USUARIO_PREFERENCIA");
+
+            entity.Property(p => p.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(p => p.CLAVE)
+                .HasColumnName("CLAVE")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(p => p.VALOR)
+                .HasColumnName("VALOR")
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            entity.HasIndex(p => new { p.ID_USUARIO, p.CLAVE })
+                .IsUnique();
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(p => p.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     internal static void SeedLocalData(ModelBuilder modelBuilder)
@@ -1209,11 +1269,11 @@ public partial class PosDbContext
 
         // Seed Unidades de Medida
         modelBuilder.Entity<UnidadMedida>().HasData(
-            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidades" },
-            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramos" },
-            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "L", DESC_UNIDAD_MEDIDA = "Litros" },
-            new { ID_UNIDAD_MEDIDA = 4, COD_UNIDAD_MEDIDA = "ML", DESC_UNIDAD_MEDIDA = "Mililitros" },
-            new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos" }
+            new { ID_UNIDAD_MEDIDA = 1, COD_UNIDAD_MEDIDA = "UNIDAD", DESC_UNIDAD_MEDIDA = "Unidades", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 2, COD_UNIDAD_MEDIDA = "KILO", DESC_UNIDAD_MEDIDA = "Kilogramos", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 3, COD_UNIDAD_MEDIDA = "L", DESC_UNIDAD_MEDIDA = "Litros", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 4, COD_UNIDAD_MEDIDA = "ML", DESC_UNIDAD_MEDIDA = "Mililitros", ACTIVO = true },
+            new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos", ACTIVO = true }
         );
 
         // Seed admin user (password: admin123)

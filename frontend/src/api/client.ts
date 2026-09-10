@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaPorEmailRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaPorEmailRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse } from '../types'
 
 // Determine API base URL at runtime based on deployment context
 let BASE: string;
@@ -43,6 +43,37 @@ export async function esperarBackend(maxRetries = 30, delayMs = 500): Promise<vo
   throw new Error('El backend no está disponible')
 }
 
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('La sesión venció. Iniciá sesión nuevamente.')
+    this.name = 'SessionExpiredError'
+  }
+}
+
+export function isSessionExpiredError(error: unknown): error is SessionExpiredError {
+  return error instanceof SessionExpiredError
+}
+
+export function clearStoredSession(): void {
+  localStorage.removeItem('jwt_token')
+  localStorage.removeItem('jwt_expires')
+  localStorage.removeItem('user_info')
+}
+
+export function expireSession(): void {
+  clearStoredSession()
+  window.dispatchEvent(new CustomEvent('auth:expired'))
+}
+
+export function isSessionExpired(): boolean {
+  const token = localStorage.getItem('jwt_token')
+  const expiresAt = localStorage.getItem('jwt_expires')
+  if (!token) return false
+
+  const expirationTime = expiresAt ? Date.parse(expiresAt) : Number.NaN
+  return !Number.isFinite(expirationTime) || expirationTime <= Date.now()
+}
+
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('jwt_token')
   if (token) {
@@ -52,6 +83,14 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  // Do not send a known-expired token. Authentication endpoints must still work
+  // so a user can sign in again after returning to the login page.
+  if (isSessionExpired()) {
+    expireSession()
+    if (!url.startsWith('/auth/')) throw new SessionExpiredError()
+  }
+
+  const hasAuthToken = localStorage.getItem('jwt_token') !== null
   const startTime = Date.now()
   console.log(`[API Request] ${options?.method ?? 'GET'} ${url}`)
 
@@ -74,19 +113,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   
   if (!res.ok) {
     const text = await res.text()
-    // If 401, clear token (session expired)
-    if (res.status === 401) {
-      localStorage.removeItem('jwt_token')
-      localStorage.removeItem('jwt_expires')
-      localStorage.removeItem('user_info')
-      window.dispatchEvent(new CustomEvent('auth:expired'))
-    }
+    if (res.status === 401 && hasAuthToken) expireSession()
     let message = text
     try {
       const parsed = JSON.parse(text)
       message = parsed.error || parsed.title || parsed.message || text
     } catch {}
-    const err = new Error(message)
+    const err = res.status === 401 && hasAuthToken
+      ? new SessionExpiredError()
+      : new Error(message)
     console.error(`[API] ${res.status} ${res.statusText} — ${options?.method ?? 'GET'} ${url} (${duration}ms)`, {
       status: res.status,
       statusText: res.statusText,
@@ -119,6 +154,20 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     me: () => request<UsuarioListadoDto>('/auth/me'),
+  },
+
+  // Empresa
+  empresas: {
+    obtener: () => request<EmpresaDto>('/empresa'),
+    actualizar: (dto: { nombre?: string; documento?: string; direccion?: string; telefono?: string; mostrarTelefonoTicket?: boolean }) =>
+      request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
+  },
+
+  // Preferencias de usuario (clave-valor JSON por sección)
+  preferencias: {
+    obtener: () => request<PreferenciasResponse>('/preferencias'),
+    guardar: (preferencias: Record<string, unknown>) =>
+      request<PreferenciasResponse>('/preferencias', { method: 'PUT', body: JSON.stringify(preferencias) }),
   },
 
   // Productos
@@ -162,12 +211,42 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ seguirStock }),
       }),
+    actualizarCantidadIdeal: (id: number, cantidadIdeal: number | null) =>
+      request<ProductoDto>(`/productos/${id}/cantidad-ideal`, {
+        method: 'PUT',
+        body: JSON.stringify({ cantidadIdeal }),
+      }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(dto),
     }),
     lookupOpenFoodFacts: (codigo: string) =>
       request<ProductoLookupResponseDto>(`/productos/openfoodfacts/${encodeURIComponent(codigo)}`),
+    // Multipart: NO usa el helper request<T> (que fija Content-Type: application/json).
+    // Usa fetch directo reutilizando BASE + getAuthHeaders (el browser setea el boundary).
+    importar: async (archivo: File, sucursalId?: number, importarSinCodigo?: boolean): Promise<ProductoImportResponseDto> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      if (sucursalId) form.append('sucursalId', String(sucursalId))
+      if (importarSinCodigo) form.append('importarSinCodigo', 'true')
+      const res = await fetch(`${BASE}/productos/importar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: form,
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg)
+      }
+      return res.json()
+    },
+    importarFilas: (filas: ProductoImportFilaDto[], sucursalId?: number, importarSinCodigo?: boolean) =>
+      request<ProductoImportResponseDto>('/productos/importar-filas', {
+        method: 'POST',
+        body: JSON.stringify({ filas, sucursalId, importarSinCodigo }),
+      }),
   },
 
   // Sucursales
@@ -375,6 +454,11 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ clienteId, ventaId, monto, montoPagado }),
         }),
+      crear: (dto: CrearDeudaRequestDto) =>
+        request<DeudaDto>('/deudas/crear', {
+          method: 'POST',
+          body: JSON.stringify(dto),
+        }),
       obtener: (id: number) => request<DeudaDto>(`/deudas/${id}`),
       pagar: (id: number, monto?: number) => {
         const body: PagarDeudaRequestDto = monto !== undefined ? { monto } : {};
@@ -406,6 +490,7 @@ export const api = {
         return request<CuentaCorrienteDto>(`/deudas/cuenta-corriente?${q}`);
       },
       deshacerPago: (pagoId: number) => request<{ success: boolean }>(`/deudas/pagos/${pagoId}`, { method: 'DELETE' }),
+      anular: (deudaId: number) => request<{ success: boolean }>(`/deudas/${deudaId}`, { method: 'DELETE' }),
     },
 
   // Pedidos
@@ -458,7 +543,7 @@ export const api = {
         }),
     },
     unidadesMedida: {
-      listar: () => request<UnidadMedidaDto[]>('/unidades-medida'),
+      listar: (todas = false) => request<UnidadMedidaDto[]>(`/unidades-medida${todas ? '?todas=true' : ''}`),
       crear: (dto: CrearUnidadMedidaRequest) =>
         request<UnidadMedidaDto>('/unidades-medida', {
           method: 'POST',
@@ -471,6 +556,9 @@ export const api = {
         }),
       eliminar: (id: number) => request<void>(`/unidades-medida/${id}`, {
         method: 'DELETE',
+      }),
+      activar: (id: number) => request<UnidadMedidaDto>(`/unidades-medida/${id}/activar`, {
+        method: 'POST',
       }),
     },
 

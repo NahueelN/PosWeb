@@ -329,7 +329,6 @@ function WidgetCard({
   }
 
   function handleCardClick() {
-    if (isUsed) return
     if (isExpanded) { onCollapse(); return }
     if (simple) {
       const size = def.defaultSize ?? def.supportedSizes?.[0] ?? { w: 3, h: 1 }
@@ -342,7 +341,6 @@ function WidgetCard({
 
   function handleAddClick(e: React.MouseEvent) {
     e.stopPropagation()
-    if (isUsed) return
     if (simple || isExpanded) {
       const size = def.defaultSize ?? def.supportedSizes?.[0] ?? { w: 3, h: 1 }
       onAdd(def.id, selectedViz.type as WidgetType, size, config)
@@ -403,7 +401,7 @@ function WidgetCard({
           )}
         </div>
 
-        {(simple && !isUsed) && (
+        {(simple) && (
           <div className="mt-3">
             <Button
               variant="primary"
@@ -411,13 +409,13 @@ function WidgetCard({
               fullWidth
               onClick={handleAddClick}
             >
-              Agregar
+              {isUsed ? 'Agregar otra' : 'Agregar'}
             </Button>
           </div>
         )}
 
         <AnimatePresence>
-          {isExpanded && !isUsed && (
+          {isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}

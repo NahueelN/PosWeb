@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api/client'
 import type { UnidadMedidaDto } from '../types'
-import { Ruler, Pencil, Trash2 } from 'lucide-react'
+import { Ruler, Pencil, Power, PowerOff } from 'lucide-react'
 import ABMTable from './shared/ABMTable'
 import Dialog from './ui/Dialog'
 import Button from './ui/Button'
@@ -16,12 +16,13 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
   const [descripcion, setDescripcion] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [activandoId, setActivandoId] = useState<number | null>(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
-    try { setItems(await api.unidadesMedida.listar()) }
+    try { setItems(await api.unidadesMedida.listar(true)) }
     catch { notifyError('Error al cargar unidades de medida') }
     finally { setLoading(false) }
   }
@@ -69,7 +70,17 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
     try {
       await api.unidadesMedida.eliminar(confirmDeleteId)
       setConfirmDeleteId(null); await load()
-    } catch (err: any) { notifyError(err.message || 'Error al eliminar') }
+    } catch (err: any) { notifyError(err.message || 'Error al desactivar') }
+  }
+
+  async function activar(id: number) {
+    if (activandoId === id) return
+    setActivandoId(id)
+    try {
+      await api.unidadesMedida.activar(id)
+      await load()
+    } catch (err: any) { notifyError(err.message || 'Error al activar') }
+    finally { setActivandoId(null) }
   }
 
   return (
@@ -94,7 +105,7 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
           <>
             <th className="pl-4 pr-4 w-28">Código</th>
             <th className="pr-4">Descripción</th>
-            <th className="pr-4 w-28 text-right">Productos</th>
+            <th className="pr-4 w-24">Estado</th>
             <th className="pr-4 w-24 text-right">Acciones</th>
           </>
         }
@@ -107,8 +118,10 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
             <td className="py-3 pr-4">
               <span className="font-medium text-gray-800">{item.descripcion}</span>
             </td>
-            <td className="py-3 pr-4 text-right">
-              <span className="text-gray-300">—</span>
+            <td className="py-3 pr-4">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.activo !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {item.activo !== false ? 'Activo' : 'Inactivo'}
+              </span>
             </td>
             <td className="py-3 pr-4 text-right">
               <div className="flex items-center justify-end gap-1">
@@ -117,11 +130,19 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
                   title="Editar unidad">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => setConfirmDeleteId(item.id)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  title="Eliminar unidad">
-                  <Trash2 size={14} />
-                </button>
+                {item.activo !== false ? (
+                  <button onClick={() => setConfirmDeleteId(item.id)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Desactivar unidad">
+                    <PowerOff size={14} />
+                  </button>
+                ) : (
+                  <button onClick={() => activar(item.id)} disabled={activandoId === item.id}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                    title="Activar unidad">
+                    <Power size={14} />
+                  </button>
+                )}
               </div>
             </td>
           </tr>
@@ -166,12 +187,12 @@ export default function UnidadesMedidaTab({ notifyError }: { notifyError: (msg: 
       <Dialog
         open={confirmDeleteId != null}
         onClose={() => setConfirmDeleteId(null)}
-        title="Eliminar unidad de medida"
-        description="¿Estás seguro? Los productos que usen esta unidad no se verán afectados."
+        title="Desactivar unidad de medida"
+        description="¿Estás seguro? No se podrá desactivar si hay productos activos que la utilizan."
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={confirmarEliminar}>Eliminar</Button>
+            <Button variant="primary" size="sm" onClick={confirmarEliminar}>Desactivar</Button>
           </>
         }>
         <></>

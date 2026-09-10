@@ -7,7 +7,8 @@ import { useCart } from '../hooks/useCart'
 import { useItemSnapshot } from '../hooks/useItemSnapshot'
 import CartHost from '../components/hosts/CartHost'
 import { formatCodigoBarra } from '../components/shared/ProductCard'
-import { Undo2 } from 'lucide-react'
+import { normalizarCodigoBarra } from '../lib/codigoBarra'
+import { PackagePlus, Undo2 } from 'lucide-react'
 import { estaVigenteHoy } from '../lib/recurrencia'
 import SucursalSelector from './venta/SucursalSelector'
 import TicketResultado from './venta/TicketResultado'
@@ -15,6 +16,7 @@ import VentaProductGrid from './venta/VentaProductGrid'
 import VentaPaymentSlot from './venta/VentaPaymentSlot'
 import VentaDialogs, { type StockConflictItem } from './venta/VentaDialogs'
 import TransferenciaEspera from './venta/TransferenciaEspera'
+import Dialog from '../components/ui/Dialog'
 import type { ProductoDto, ComboDto, OfertaDto, UnidadMedidaDto, SucursalDto, VentaResultadoDto, MedioPagoDto, ClienteDto, PagoVentaDto, MercadoPagoEstadoDto } from '../types'
 
 interface Item {
@@ -26,9 +28,15 @@ interface Item {
   ofertaId?: number
   descuentoAplicado?: number
   precioOriginal?: number
+  manual?: boolean
 }
 
 type Step = 'sucursal' | 'venta' | 'esperando_transferencia' | 'resultado'
+
+// Espera a que el código asentado deje de escribirse antes de auto-agregar por
+// match exacto. Sin este delay, cada tecla del escáner disparaba el match sobre
+// fragmentos parciales y agregaba productos equivocados a mitad de escaneo.
+const SCAN_DEBOUNCE_MS = 220
 
 export default function VentasPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -62,8 +70,10 @@ export default function VentasPage() {
   // Payments
   const [mediosPago, setMediosPago] = useState<MedioPagoDto[]>([])
   const [selectedMedio, setSelectedMedio] = useState<MedioPagoDto | null>(null)
-  const [recibio, setRecibio] = useState('')
-  // MercadoPago (QR/transferencia) solo en plan Maxima.
+const [recibio, setRecibio] = useState<string>(() => {
+    try { return sessionStorage.getItem('venta-recibio') ?? '' } catch { return '' }
+  })
+  // Verificación instantánea del pago (QR/transferencia) solo en plan Maxima.
   const [mpPermitido, setMpPermitido] = useState(false)
 
   useEffect(() => {
@@ -103,10 +113,11 @@ export default function VentasPage() {
     domicilio: '',
     mail: '',
   })
+  const [showProductoRapido, setShowProductoRapido] = useState(false)
+  const [productoRapido, setProductoRapido] = useState({ nombre: '', cantidad: '1', precio: '' })
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null!)
-  const productGridRef = useRef<HTMLDivElement>(null!)
   const cartListRef = useRef<HTMLDivElement>(null!)
   const confirmBtnRef = useRef<HTMLButtonElement>(null!)
   const medioRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -114,7 +125,11 @@ export default function VentasPage() {
   const cantidadRefs = useRef<Map<number, HTMLInputElement>>(new Map())
   const stockCancelarRef = useRef<HTMLButtonElement>(null!)
   const clientesResultsRef = useRef<HTMLDivElement | null>(null)
+  const productoManualNombreRef = useRef<HTMLInputElement>(null)
+  const productoManualCantidadRef = useRef<HTMLInputElement>(null)
+  const productoManualPrecioRef = useRef<HTMLInputElement>(null)
   const pendingAllowSinStock = useRef(false)
+  const scanEnterRef = useRef(false)
   const [_cantidadDrafts, setCantidadDrafts] = useState<Record<number, string>>({})
   const { markAdded, onFocusQty, onEscape } = useItemSnapshot()
 
@@ -122,7 +137,7 @@ export default function VentasPage() {
   const unidadesMap = useMemo(() => { const m = new Map<number, string>(); for (const u of unidades) m.set(u.id, u.codigo); return m }, [unidades])
   const ofertasMap = useMemo(() => { const m = new Map<number, OfertaDto>(); for (const o of ofertas) { if (estaVigenteHoy(o.fechaInicio, o.fechaFin, o.diasSemana, o.activo)) m.set(o.productoId, o) } return m }, [ofertas])
   const combosVigentes = useMemo(() => combos.filter(c => estaVigenteHoy(c.fechaInicio, c.fechaFin, c.diasSemana, c.activo)), [combos])
-  const filteredProductos = useMemo(() => { if (!searchQuery.trim()) return productos; const q = searchQuery.toLowerCase(); return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q)) }, [productos, searchQuery])
+  const filteredProductos = useMemo(() => { if (!searchQuery.trim()) return productos; const q = searchQuery.toLowerCase(); return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q) || p.codigoProducto?.toLowerCase().includes(q)) }, [productos, searchQuery])
   const filteredCombos = useMemo(() => { if (!searchQuery.trim()) return combosVigentes; const q = searchQuery.toLowerCase(); return combosVigentes.filter(c => c.descCombo.toLowerCase().includes(q) || c.codCombo.toLowerCase().includes(q)) }, [combosVigentes, searchQuery])
 
   // Effects
@@ -132,6 +147,12 @@ export default function VentasPage() {
     setRecibio(total.toFixed(2))
   }
   useEffect(() => { if (step === 'venta') { const id = setTimeout(() => searchInputRef.current?.focus(), 150); return () => clearTimeout(id) } }, [step])
+  useEffect(() => {
+    try {
+      if (recibio) sessionStorage.setItem('venta-recibio', recibio)
+      else sessionStorage.removeItem('venta-recibio')
+    } catch { /* ignore */ }
+  }, [recibio])
   const [sucursalActiva, setSucursalActiva] = useState<SucursalDto | null>(null)
 
   // Derivar sucursal: contexto > auto-cargada > null
@@ -160,7 +181,7 @@ export default function VentasPage() {
     if (step !== 'venta' || !sucursalEfectiva) return
     setCajaLoading(true)
     api.cajas.activa(sucursalEfectiva.id).then(res => setCajaActiva(res.activa)).catch(() => setCajaActiva(false)).finally(() => setCajaLoading(false))
-    api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp) }).catch(() => {})
+    api.mediosPago.listar().then(mp => { mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id }); setMediosPago(mp); const efectivo = mp.find(m => m.id === 1); if (efectivo) setSelectedMedio(efectivo) }).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
     setProductosLoading(true)
     api.productos.listar(sucursalEfectiva.id).then(ps => setProductos(ps.filter(p => !p.esBulto))).catch(() => {}).finally(() => setProductosLoading(false))
@@ -168,7 +189,15 @@ export default function VentasPage() {
     api.ofertas.listar().then(setOfertas).catch(() => {})
   }, [step, sucursalEfectiva])
 
-  useEffect(() => { const q = searchQuery.trim(); if (!q) return; const match = productos.find(p => p.codigoBarra.toLowerCase() === q.toLowerCase()); if (match) agregarProducto(match) }, [searchQuery, productos])
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) return
+    const timer = setTimeout(() => {
+      const match = productos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase())
+      if (match) agregarProducto(match, true)
+    }, SCAN_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [searchQuery, productos])
 
   useEffect(() => {
     if (step !== 'esperando_transferencia') return
@@ -224,16 +253,27 @@ export default function VentasPage() {
         return next.size === prev.size ? prev : next
       })
     }
-    const match = combosVigentes.find(combo => {
-      if (cart.items.some(i => i.comboId === combo.id)) return false
+    const hasMatch = combosVigentes.some(combo => {
       if (dismissedCombos.has(combo.id)) return false
       return combo.items.every(ci => { const cartItem = cart.items.find(i => !i.comboId && i.producto.id === ci.productoId); return cartItem && cartItem.cantidad >= ci.cantidad })
     })
-    if (!match) return
+    if (!hasMatch) return
     autoComboRef.current = true
     cart.setItems(prev => {
-      const filtered = prev.map(i => { if (i.comboId) return i; const ci = match.items.find(c => c.productoId === i.producto.id); if (!ci) return i; const rest = i.cantidad - ci.cantidad; if (rest <= 0) return null; return { ...i, cantidad: rest } }).filter(Boolean) as Item[]
-      return [...filtered, { producto: { id: 0, codigoBarra: match.codCombo, nombre: match.descCombo, precio: match.precio, costo: 0, stock: 999, activo: true }, cantidad: 1, comboId: match.id, comboNombre: match.descCombo, comboPrecio: match.precio } as Item]
+      let next = prev
+      while (true) {
+        const match = combosVigentes.find(combo => {
+          if (dismissedCombos.has(combo.id)) return false
+          return combo.items.every(ci => { const cartItem = next.find(i => !i.comboId && i.producto.id === ci.productoId); return cartItem && cartItem.cantidad >= ci.cantidad })
+        })
+        if (!match) return next
+
+        const filtered = next.map(i => { if (i.comboId) return i; const ci = match.items.find(c => c.productoId === i.producto.id); if (!ci) return i; const rest = i.cantidad - ci.cantidad; if (rest <= 0) return null; return { ...i, cantidad: rest } }).filter(Boolean) as Item[]
+        const comboExistente = filtered.find(i => i.comboId === match.id)
+        next = comboExistente
+          ? filtered.map(i => i.comboId === match.id ? { ...i, cantidad: i.cantidad + 1 } : i)
+          : [...filtered, { producto: { id: 0, codigoBarra: match.codCombo, nombre: match.descCombo, precio: match.precio, costo: 0, stock: 999, activo: true }, cantidad: 1, comboId: match.id, comboNombre: match.descCombo, comboPrecio: match.precio } as Item]
+      }
     })
   }, [cart.items, combos])
 
@@ -286,7 +326,7 @@ export default function VentasPage() {
   function seleccionarSucursal(s: SucursalDto) { localStorage.setItem('sucursalActiva', JSON.stringify(s)); setStep('venta'); window.location.reload() }
   function nuevaVenta() { setResultado(null); setUltimosItems([]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('venta'); setTimeout(() => searchInputRef.current?.focus(), 100) }
 
-  function agregarProducto(producto: ProductoDto) {
+  function agregarProducto(producto: ProductoDto, mantenerFoco = false) {
     const oferta = ofertasMap.get(producto.id)
     markAdded(producto.id, cart.items.find(i => !i.comboId && i.producto.id === producto.id)?.cantidad)
     const cantidadInicial = producto.esPesable ? 0 : 1
@@ -297,7 +337,11 @@ export default function VentasPage() {
     setSearchQuery('')
     const el = searchInputRef.current; if (el) { el.classList.remove('animate-barcode-flash'); void el.offsetWidth; el.classList.add('animate-barcode-flash') }
     setCantidadDrafts(prev => { const next = { ...prev }; delete next[producto.id]; return next })
-    setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    if (!mantenerFoco) {
+      setTimeout(() => { const input = cantidadRefs.current.get(producto.id); if (input) { input.focus(); input.select() } }, 0)
+    } else {
+      scanEnterRef.current = true
+    }
   }
 
   function agregarCombo(combo: ComboDto) {
@@ -307,8 +351,73 @@ export default function VentasPage() {
     setTimeout(() => { const input = cantidadRefs.current.get(combo.id); if (input) { input.focus(); input.select() } }, 0)
   }
 
+  function agregarProductoRapido() {
+    const nombre = productoRapido.nombre.trim()
+    const cantidad = Number(productoRapido.cantidad)
+    const precio = Number(productoRapido.precio)
+    if (!nombre) {
+      notifyError('Ingresá el nombre del producto manual')
+      productoManualNombreRef.current?.focus()
+      return
+    }
+    if (!Number.isFinite(precio) || precio <= 0) {
+      notifyError('Ingresá un precio unitario válido')
+      productoManualPrecioRef.current?.focus()
+      productoManualPrecioRef.current?.select()
+      return
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      notifyError('Ingresá una cantidad válida')
+      productoManualCantidadRef.current?.focus()
+      productoManualCantidadRef.current?.select()
+      return
+    }
+
+    const producto: ProductoDto = {
+      id: -Date.now(),
+      codigoBarra: '',
+      nombre,
+      precio,
+      costo: 0,
+      stock: 0,
+      activo: true,
+      seguirStock: false,
+      esPesable: false,
+      esBulto: false,
+    }
+    cart.addItem({ producto, cantidad, manual: true })
+    setProductoRapido({ nombre: '', cantidad: '1', precio: '' })
+    setShowProductoRapido(false)
+  }
+
+  const ventaItems = () => cart.items.map(i => i.manual
+    ? { productoId: 0, cantidad: i.cantidad, descripcionManual: i.producto.nombre, precioManual: i.producto.precio }
+    : { productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })
+
+  // Agrego por código exacto desde el Enter del buscador: mantiene el foco ahí.
+  // El Enter ya fue consumido por VentaProductGrid, así que no marcamos scanEnterRef.
+  function agregarProductoPorCodigo(producto: ProductoDto) {
+    agregarProducto(producto, true)
+    scanEnterRef.current = false
+  }
   function selectMedio(mp: MedioPagoDto) { setSelectedMedio(mp); setTimeout(() => recibioInputRef.current?.focus(), 0) }
   function handleCambiarCantidad(id: number, c: number) { cart.updateQuantity(id, Math.max(0, c)) }
+
+  function enfocarPrimeraCantidad() {
+    const firstItem = cart.items[0]
+    if (!firstItem) return
+    const id = firstItem.comboId ?? firstItem.producto.id
+    const input = cantidadRefs.current.get(id)
+    if (input) { input.focus(); input.select() }
+  }
+
+  function consumeScanEnter(): boolean {
+    if (scanEnterRef.current) {
+      scanEnterRef.current = false
+      return true
+    }
+    return false
+  }
 
   async function deshacerCombo(comboId: number) {
     const combo = combos.find(c => c.id === comboId); if (!combo) return
@@ -326,26 +435,28 @@ export default function VentasPage() {
     if (!cajaActiva) { try { const res = await api.cajas.activa(sucursalEfectiva.id); if (!res.activa) { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return }; setCajaActiva(true) } catch { notifyError('No hay caja abierta. Andá a Caja y abrí una primero.'); return } }
     if (!selectedMedio) { notifyError('Seleccioná un medio de pago antes de confirmar.'); return }
 
+    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (selectedMedio.id === 4 || selectedMedio.id === 5) {
-      await crearVentaPendiente()
+      await crearVentaPendiente(pendingAllowSinStock.current)
+      pendingAllowSinStock.current = false
       return
     }
 
     const r = parseFloat(recibio) || 0
-    if (!pendingAllowSinStock.current) { const sinStock = cart.items.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock); if (sinStock.length > 0) { setStockConflictItems(sinStock.map(i => ({ producto: { id: i.producto.id, nombre: i.producto.nombre, stock: i.producto.stock }, cantidad: i.cantidad }))); setShowStockConfirm(true); return } }
     if (r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
     await ejecutarVenta(r, pendingAllowSinStock.current)
     pendingAllowSinStock.current = false
   }
 
-  async function crearVentaPendiente() {
+  async function crearVentaPendiente(allowSinStock = false) {
     if (!sucursalEfectiva) return
     try {
       const res = await api.ventas.crear({
         sucursalId: sucursalEfectiva.id,
-        items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })),
+        items: ventaItems(),
         esperarTransferencia: true,
         pendienteMedioId: selectedMedio?.id,
+        allowSinStock,
       })
       setVentaPendienteId(res.ventaId)
       setMpTimeout(300)
@@ -412,7 +523,17 @@ export default function VentasPage() {
     setStep('venta')
   }
 
-  function continuarVenta() { const r = parseFloat(recibio) || 0; if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }; ejecutarVenta(r, pendingAllowSinStock.current); pendingAllowSinStock.current = false }
+  async function continuarVenta() {
+    const r = parseFloat(recibio) || 0
+    if (selectedMedio?.id === 4 || selectedMedio?.id === 5) {
+      await crearVentaPendiente(pendingAllowSinStock.current)
+      pendingAllowSinStock.current = false
+      return
+    }
+    if (selectedMedio && r < total && !clienteSeleccionado) { setShowClientPopup(true); return }
+    await ejecutarVenta(r, pendingAllowSinStock.current)
+    pendingAllowSinStock.current = false
+  }
 
   async function ejecutarVenta(recibioValor: number, allowSinStock = false, cliente?: ClienteDto) {
     if (!sucursalEfectiva) return
@@ -423,7 +544,7 @@ export default function VentasPage() {
         pagosDto.push({ medioPagoId: selectedMedio.id, monto })
         if (selectedMedio.pagaVuelto && recibioValor > total) pagosDto[0].conCambio = recibioValor
       }
-      const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: cart.items.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad, comboId: i.comboId, ofertaId: i.ofertaId })), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
+      const res = await api.ventas.crear({ sucursalId: sucursalEfectiva.id, items: ventaItems(), pagos: pagosDto.length > 0 ? pagosDto : undefined, clienteId: (cliente ?? clienteSeleccionado)?.id, allowSinStock })
       setResultado(res); setUltimosItems([...cart.items]); cart.clearCart(); setSelectedMedio(null); setRecibio(''); setClienteSeleccionado(null); setShowClientPopup(false); setStep('resultado')
     } catch (e: any) { notifyError(e.message) }
   }
@@ -433,34 +554,10 @@ export default function VentasPage() {
     if (firstItem) { const input = cantidadRefs.current.get(firstItem.producto.id); if (input) { cartListRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); input.focus(); input.select() } }
   }
 
-  function handleStockContinue() { setShowStockConfirm(false); setStockConflictItems([]); pendingAllowSinStock.current = true; continuarVenta() }
+  function handleStockContinue() { setShowStockConfirm(false); setStockConflictItems([]); pendingAllowSinStock.current = true; void continuarVenta() }
 
   function handleClientSelect(cl: ClienteDto) { setClienteSeleccionado(cl); setShowClientPopup(false); setClientesBusqueda(''); setClientesResultados([]); ejecutarVenta(parseFloat(recibio) || 0, pendingAllowSinStock.current, cl); pendingAllowSinStock.current = false }
   function handleAbrirNuevoCliente() { setShowNuevoCliente(true); setShowClientPopup(false); setEsOcasional(true) }
-
-  async function handleClienteOcasional() {
-    setBuscandoClientes(true)
-    try {
-      const res = await api.clientes.listar('ocasional')
-      let cliente = (res.items ?? []).find(c => c.nombre.toLowerCase() === 'cliente ocasional')
-      if (!cliente) {
-        cliente = await api.clientes.crear({
-          nombre: 'Cliente ocasional',
-          tipoDocumento: 'ConsumidorFinal',
-          numeroDocumento: '',
-          ivaCondicion: 'ConsumidorFinal',
-          telefono: '',
-          mail: '',
-          domicilio: '',
-        })
-      }
-      handleClientSelect(cliente)
-    } catch (e: any) {
-      notifyError(e.message || 'Error')
-    } finally {
-      setBuscandoClientes(false)
-    }
-  }
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
@@ -528,12 +625,14 @@ export default function VentasPage() {
             decimales: dec,
             onCantidadChange: (c: number) => { setCantidadDrafts(prev => { const next = { ...prev }; delete next[itemId]; return next }); handleCambiarCantidad(itemId, c) },
             onEnter: () => searchInputRef.current?.focus(),
+            onScan: (code) => { setSearchQuery(''); setSearchQuery(code); searchInputRef.current?.focus(); searchInputRef.current?.select() },
             onFocusQty: () => onFocusQty(itemId, i.cantidad),
             onEscape: () => onEscape(itemId, i.cantidad, (qty) => handleCambiarCantidad(itemId, qty), () => cart.removeItem(itemId)),
             inputRef: (el: HTMLInputElement | null) => { if (el) cantidadRefs.current.set(itemId, el); else cantidadRefs.current.delete(itemId) },
             stockWarning: i.producto.seguirStock !== false && i.cantidad > i.producto.stock ? `Stock insuficiente: ${i.producto.stock} disponible${i.producto.stock !== 1 ? 's' : ''}` : undefined,
             badge: (
               <>
+                {i.manual && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold mr-1">MANUAL</span>}
                 {i.comboId && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mr-1">COMBO</span>}
                 {i.ofertaId && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold mr-1">{i.descuentoAplicado}% OFF</span>}
               </>
@@ -570,16 +669,20 @@ export default function VentasPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchInputRef={searchInputRef}
-          productGridRef={productGridRef}
           filteredProductos={filteredProductos}
           filteredCombos={filteredCombos}
-          unidadesMap={unidadesMap}
           ofertasMap={ofertasMap}
           onAgregarProducto={agregarProducto}
+          onAgregarPorCodigo={agregarProductoPorCodigo}
           onAgregarCombo={agregarCombo}
+          onAgregarProductoRapido={() => setShowProductoRapido(true)}
           combos={combos}
           medioRefs={medioRefs}
+          onTabFromSearch={enfocarPrimeraCantidad}
+          consumeScanEnter={consumeScanEnter}
           cartItemsLength={cart.items.length}
+          confirmBtnRef={confirmBtnRef}
+          pagoExacto={recibio !== '' && Math.abs(parseFloat(recibio) - total) < 0.005}
         />
       </CartHost>
 
@@ -609,8 +712,65 @@ export default function VentasPage() {
         onFormClienteChange={setFormCliente}
         onCrearCliente={crearClienteYRevertir}
         onAbrirNuevoCliente={handleAbrirNuevoCliente}
-        onClienteOcasional={handleClienteOcasional}
       />
+      <Dialog
+        open={showProductoRapido}
+        onClose={() => setShowProductoRapido(false)}
+        title="Producto manual"
+        icon={PackagePlus}
+        description="Se agrega a esta venta sin crear un producto de catálogo ni afectar stock."
+        footer={
+          <>
+            <button type="button" onClick={() => setShowProductoRapido(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Cancelar</button>
+            <button type="button" onClick={agregarProductoRapido} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Agregar al carrito</button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+            <input
+              autoFocus
+              ref={productoManualNombreRef}
+              value={productoRapido.nombre}
+              onChange={e => setProductoRapido(prev => ({ ...prev, nombre: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); productoManualPrecioRef.current?.focus() } }}
+              placeholder="Nombre del producto"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Precio unitario</label>
+              <input
+                type="number"
+                ref={productoManualPrecioRef}
+                min="0.01"
+                step="0.01"
+                value={productoRapido.precio}
+                onChange={e => setProductoRapido(prev => ({ ...prev, precio: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); productoManualCantidadRef.current?.focus() } }}
+                placeholder="$ 0,00"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
+              <input
+                type="number"
+                ref={productoManualCantidadRef}
+                min="0.001"
+                step="1"
+                value={productoRapido.cantidad}
+                onChange={e => setProductoRapido(prev => ({ ...prev, cantidad: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarProductoRapido() } }}
+                placeholder="Cantidad"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </>
   )
 }

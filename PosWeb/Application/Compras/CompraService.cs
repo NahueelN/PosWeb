@@ -286,6 +286,10 @@ public class CompraService
             .Select(p => p.NOMBRE)
             .FirstOrDefaultAsync();
 
+        string? empresaNombre = await _context.Empresa
+            .Select(e => e.NOMBRE)
+            .FirstOrDefaultAsync();
+
         var items = await (
             from r in _context.RenglonCompra
             where r.ID_COMPRA == compraId
@@ -315,6 +319,7 @@ public class CompraService
             SucursalId = compra.ID_SUCURSAL,
             SucursalNombre = sucursalNombre,
             ProveedorNombre = proveedorNombre,
+            EmpresaNombre = empresaNombre,
             Total = compra.TOTAL,
             Items = items
         };

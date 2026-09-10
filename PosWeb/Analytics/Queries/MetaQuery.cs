@@ -12,25 +12,33 @@ public class MetaQuery : IAnalyticsQuery
     public async Task<Dataset> ExecuteAsync(int sucursalId, PosDbContextLocal db, DashboardQueryParams? p = null)
     {
         var hoy = DateTime.Today;
-        var hace30Dias = hoy.AddDays(-30);
 
-        // Promedio diario de ventas últimos 30 días
-        var ventas = await db.Venta
-            .Where(v => v.ID_SUCURSAL == sucursalId
-                        && v.FECHA_VENTA >= hace30Dias
-                        && v.FECHA_VENTA < hoy.AddDays(1)
-                        && !v.ANULADA)
-            .Select(v => new { v.FECHA_VENTA.Date, v.TOTAL })
-            .ToListAsync();
-
-        var metaDiaria = 0m;
-        if (ventas.Any())
+        // Meta del día: si el usuario la configuró, se usa esa; si no, se calcula
+        // como el promedio diario de ventas de los últimos 30 días.
+        decimal metaDiaria = 0m;
+        if (p?.MetaMax is > 0)
         {
-            var promedio = ventas
-                .GroupBy(v => v.Date)
-                .Select(g => g.Sum(v => v.TOTAL))
-                .Average();
-            metaDiaria = Math.Round(promedio, 2);
+            metaDiaria = Math.Round(p.MetaMax.Value, 2);
+        }
+        else
+        {
+            var hace30Dias = hoy.AddDays(-30);
+            var ventas = await db.Venta
+                .Where(v => v.ID_SUCURSAL == sucursalId
+                            && v.FECHA_VENTA >= hace30Dias
+                            && v.FECHA_VENTA < hoy.AddDays(1)
+                            && !v.ANULADA)
+                .Select(v => new { v.FECHA_VENTA.Date, v.TOTAL })
+                .ToListAsync();
+
+            if (ventas.Any())
+            {
+                var promedio = ventas
+                    .GroupBy(v => v.Date)
+                    .Select(g => g.Sum(v => v.TOTAL))
+                    .Average();
+                metaDiaria = Math.Round(promedio, 2);
+            }
         }
 
         // Ventas de hoy para calcular porcentaje
@@ -54,6 +62,8 @@ public class MetaQuery : IAnalyticsQuery
                 new() { Name = "metaDiaria", Type = "currency", Label = "Meta Diaria", Format = "currency" },
                 new() { Name = "porcentaje", Type = "percentage", Label = "Porcentaje" },
                 new() { Name = "ventasHoy", Type = "currency", Label = "Ventas Hoy", Format = "currency" },
+                new() { Name = "value", Type = "currency", Label = "Ventas Hoy", Format = "currency" },
+                new() { Name = "max", Type = "currency", Label = "Meta", Format = "currency" },
             },
             Rows = new List<Dictionary<string, object?>>
             {
@@ -62,6 +72,8 @@ public class MetaQuery : IAnalyticsQuery
                     ["metaDiaria"] = metaDiaria,
                     ["porcentaje"] = porcentaje,
                     ["ventasHoy"] = ventasHoy,
+                    ["value"] = ventasHoy,
+                    ["max"] = metaDiaria,
                 }
             },
             Summary = new DatasetSummary

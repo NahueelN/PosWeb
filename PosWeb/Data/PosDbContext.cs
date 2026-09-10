@@ -35,6 +35,7 @@ public partial class PosDbContext : DbContext
     public DbSet<ComboItem> ComboItem { get; set; }
     public DbSet<Oferta> Oferta { get; set; }
     public DbSet<PagoDeuda> PagoDeuda { get; set; }
+    public DbSet<UsuarioPreferencia> UsuarioPreferencia { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

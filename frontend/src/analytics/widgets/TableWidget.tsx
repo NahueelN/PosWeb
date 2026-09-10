@@ -11,6 +11,10 @@ export default function TableWidget({ widget }: Props) {
   const data = widget.dataset.rows
   const maxCant = Math.max(...data.map((p) => (p['cantidad'] as number) ?? 0), 1)
 
+  const period = widget.config?.period
+  const periodoTexto = period === '7' ? 'la última semana' : period === '30' ? 'el último mes' : 'hoy'
+  const sinVentasTexto = period === '7' ? 'esta semana' : period === '30' ? 'este mes' : 'hoy'
+
   const rankColors = [
     'bg-teal-500 text-white',
     'bg-teal-400 text-white',
@@ -25,7 +29,7 @@ export default function TableWidget({ widget }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">Los más vendidos hoy</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">Los más vendidos de {periodoTexto}</p>
         </div>
       </div>
 
@@ -35,7 +39,7 @@ export default function TableWidget({ widget }: Props) {
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-50 to-emerald-50 flex items-center justify-center mx-auto mb-2 ring-1 ring-black/[0.02]">
               <Package size={16} className="text-teal-300" />
             </div>
-            <p className="text-xs text-gray-400 font-medium">Sin ventas hoy</p>
+            <p className="text-xs text-gray-400 font-medium">Sin ventas {sinVentasTexto}</p>
           </div>
         </div>
       ) : (

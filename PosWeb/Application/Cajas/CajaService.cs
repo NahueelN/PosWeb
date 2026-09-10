@@ -37,6 +37,19 @@ public class CajaService
             throw new SucursalInactivaException(request.SucursalId);
         }
 
+        // Con modo "horario", la apertura debe caer dentro de un turno configurado.
+        string? pref = _context.UsuarioPreferencia
+            .Where(p => p.ID_USUARIO == userId && p.CLAVE == CajaPeriodoHelper.Clave)
+            .Select(p => p.VALOR)
+            .FirstOrDefault();
+
+        if (CajaPeriodoHelper.TryDeserializar(pref, out var config)
+            && config is { Modo: "horario" }
+            && CajaPeriodoHelper.Encontrar(config.Periodos, TimeOnly.FromDateTime(DateTime.Now)) == null)
+        {
+            throw new CajaFueraDePeriodoException();
+        }
+
         var caja = new Caja(request.SucursalId, request.MontoInicial, userId);
         _context.Caja.Add(caja);
         _context.SaveChanges();

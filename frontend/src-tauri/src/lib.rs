@@ -1,4 +1,6 @@
 use std::sync::Mutex;
+use serde::Serialize;
+use keyring::Entry;
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
@@ -12,6 +14,66 @@ impl Drop for SidecarProcess {
             }
         }
     }
+}
+
+const CRED_SERVICE: &str = "posweb";
+const CRED_USER_SLOT: &str = "login_usuario";
+const CRED_PASS_SLOT: &str = "login_password";
+
+#[derive(Serialize)]
+struct CredencialesGuardadas {
+    usuario: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    password: Option<String>,
+}
+
+fn cred_entry(slot: &str) -> Result<Entry, String> {
+    Entry::new(CRED_SERVICE, slot).map_err(|e| e.to_string())
+}
+
+/// Guarda usuario + contraseña (opción "Recordarme").
+#[tauri::command]
+fn guardar_credenciales(usuario: String, password: String) -> Result<(), String> {
+    cred_entry(CRED_USER_SLOT)?.set_password(&usuario).map_err(|e| e.to_string())?;
+    cred_entry(CRED_PASS_SLOT)?.set_password(&password).map_err(|e| e.to_string())
+}
+
+/// Guarda solo el usuario (sin recordar contraseña) y borra la contraseña previa.
+#[tauri::command]
+fn guardar_usuario(usuario: String) -> Result<(), String> {
+    cred_entry(CRED_USER_SLOT)?.set_password(&usuario).map_err(|e| e.to_string())?;
+    let _ = cred_entry(CRED_PASS_SLOT)?.delete_credential();
+    Ok(())
+}
+
+/// Devuelve las credenciales guardadas (usuario y contraseña si existe).
+#[tauri::command]
+fn obtener_credenciales() -> Result<Option<CredencialesGuardadas>, String> {
+    let usuario = match cred_entry(CRED_USER_SLOT).and_then(|e| e.get_password().map_err(|e| e.to_string())) {
+        Ok(u) => u,
+        Err(_) => return Ok(None),
+    };
+    let password = cred_entry(CRED_PASS_SLOT)
+        .and_then(|e| e.get_password().map_err(|e| e.to_string()))
+        .ok();
+    Ok(Some(CredencialesGuardadas { usuario, password }))
+}
+
+/// Borra usuario y contraseña guardados.
+#[tauri::command]
+fn borrar_credenciales() -> Result<(), String> {
+    let _ = cred_entry(CRED_USER_SLOT)?.delete_credential();
+    let _ = cred_entry(CRED_PASS_SLOT)?.delete_credential();
+    Ok(())
+}
+
+#[tauri::command]
+fn cerrar_ventana_impresion(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    if webview_window.label() == "main" {
+        return Err("La ventana principal no puede cerrarse como ventana de impresión".to_string());
+    }
+
+    webview_window.destroy().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -34,7 +96,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![kill_sidecar])
+        .invoke_handler(tauri::generate_handler![
+            kill_sidecar,
+            guardar_credenciales,
+            guardar_usuario,
+            obtener_credenciales,
+            borrar_credenciales,
+            cerrar_ventana_impresion
+        ])
         .setup(|app| {
             // Log plugin only in debug
             if cfg!(debug_assertions) {

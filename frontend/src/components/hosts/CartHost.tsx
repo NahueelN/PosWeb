@@ -161,7 +161,7 @@ export default function CartHost<T extends CartItemBase>({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 flex flex-col pb-14 lg:mr-[33.333vw] min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:mr-[33.333vw] min-h-0 overflow-hidden">
         {leftContent}
       </div>
 

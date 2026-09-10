@@ -12,6 +12,15 @@ interface Props {
   onBarcodeLookup?: (codigo: string) => void
 }
 
+function isEan(codigo: string): boolean {
+  if (!/^\d{8}(\d{5})?$/.test(codigo)) return false
+
+  return codigo
+    .split('')
+    .reverse()
+    .reduce((total, digit, index) => total + Number(digit) * (index % 2 === 0 ? 1 : 3), 0) % 10 === 0
+}
+
 /**
  * Panel reutilizable de búsqueda + grilla de productos con navegación por teclado.
  *
@@ -40,7 +49,7 @@ export default function ProductCardPanel({
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' && searchQuery.trim() && onBarcodeLookup) {
+    if (e.key === 'Enter' && isEan(searchQuery.trim()) && onBarcodeLookup) {
       e.preventDefault()
       onBarcodeLookup(searchQuery.trim())
       return
@@ -154,9 +163,7 @@ export default function ProductCardPanel({
       {showHints && (
         <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
           <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">←</kbd>
             <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↑</kbd>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">→</kbd>
             <kbd className="px-1.5 py-0.5 bg-gray-100 rounded-[4px] text-[10px] font-mono border border-gray-200 shadow-[0_1px_0_0_#e5e7eb]">↓</kbd>
             <span>Productos</span>
           </span>

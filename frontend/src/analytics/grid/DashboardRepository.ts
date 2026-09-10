@@ -21,7 +21,9 @@ export function createLocalStorageRepository(
       try {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return []
-        return JSON.parse(raw) as LayoutInstance[]
+        const parsed = JSON.parse(raw) as LayoutInstance[]
+        // Migration: "meta del día" ya no viene por defecto; se puede volver a agregar desde el picker.
+        return parsed.filter((i) => !(i.id === 'v3' && i.definitionId === 'meta'))
       } catch {
         return []
       }
