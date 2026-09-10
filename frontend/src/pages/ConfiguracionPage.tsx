@@ -6,8 +6,9 @@ import type { EmpresaDto } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 import AltaUsuarioTab from '../components/AltaUsuarioTab'
+import RespaldoTab from '../components/RespaldoTab'
 
-type Tab = 'usuarios' | 'perfil' | 'compartir'
+type Tab = 'usuarios' | 'perfil' | 'compartir' | 'respaldo'
 
 const tabStyle = (active: boolean) =>
   `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -114,9 +115,16 @@ export default function ConfiguracionPage() {
         <button type="button" onClick={() => setTab('compartir')} className={tabStyle(tab === 'compartir')}>
           Compartir
         </button>
+        {canManageUsers && (
+          <button type="button" onClick={() => setTab('respaldo')} className={tabStyle(tab === 'respaldo')}>
+            Datos y respaldo
+          </button>
+        )}
       </div>
 
       {tab === 'usuarios' && canManageUsers && <AltaUsuarioTab />}
+
+      {tab === 'respaldo' && canManageUsers && <RespaldoTab />}
 
       {tab === 'perfil' && (
         <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">

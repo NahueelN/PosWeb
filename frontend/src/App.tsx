@@ -71,32 +71,43 @@ function HomePage() {
 export default function App() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
   const [updater, setUpdater] = useState<UpdaterState>({ status: 'idle' })
 
   useEffect(() => onUpdaterChange(setUpdater), [])
 
   useEffect(() => {
+    let active = true
+    let retryTimer: number | undefined
     initVersionCheck()
     esperarBackend()
       .then(() => {
+        if (!active) return
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
+        setError(null)
         if (!import.meta.env.DEV) {
           runUpdateCheck(getCurrentVersion())
         }
       })
       .catch(e => {
+        if (!active) return
         console.error('[Startup] Backend connection failed:', e.message)
         setError(e.message)
+        retryTimer = window.setTimeout(() => setConnectionAttempt(attempt => attempt + 1), 2000)
       })
-  }, [])
+    return () => {
+      active = false
+      if (retryTimer) window.clearTimeout(retryTimer)
+    }
+  }, [connectionAttempt])
 
   if (error) {
     return (
       <div className="grid h-screen place-items-center bg-slate-900">
         <div className="rounded-xl bg-white/10 p-8 text-center text-white">
           <p className="mb-2 text-lg font-medium">Error de conexión</p>
-          <p className="mb-4 text-sm text-gray-400">{error}</p>
+          <p className="mb-4 text-sm text-gray-400">{error}. Reintentando automáticamente…</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
