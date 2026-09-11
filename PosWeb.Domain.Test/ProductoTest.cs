@@ -40,18 +40,23 @@ public class ProductoTest
     }
 
     [Fact]
-    public void CambiarCodigoBarra_CodigoInvalido_LanzaExcepcion()
+    public void CambiarCodigoBarra_NumeroSeNormalizaA13Digitos()
     {
-        Assert.Throws<CodigoBarraInvalidoException>(() =>
-        {
-            new Producto(
-                "PROD001",
-                "",
-                "Producto Test",
-                100m,
-                80m
-            );
-        });
+        Producto producto = CrearProductoValido();
+
+        producto.CambiarCodigoBarras("123");
+
+        Assert.Equal("0000000000123", producto.CODIGO_BARRAS);
+    }
+
+    [Fact]
+    public void CambiarCodigoBarra_VacioSePermite()
+    {
+        Producto producto = CrearProductoValido();
+
+        producto.CambiarCodigoBarras("");
+
+        Assert.Equal("", producto.CODIGO_BARRAS);
     }
 
     [Fact]

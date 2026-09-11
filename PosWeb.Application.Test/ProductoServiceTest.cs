@@ -100,7 +100,7 @@ public class ProductoServiceTest
 
         ProductoDto resultado = service.Crear(dto);
 
-        Assert.Equal("123", resultado.CodigoBarra);
+        Assert.Equal("0000000000123", resultado.CodigoBarra);
         Assert.Equal("Producto Test", resultado.Nombre);
         Assert.True(resultado.Activo);
         Assert.Equal(0, resultado.Stock);
