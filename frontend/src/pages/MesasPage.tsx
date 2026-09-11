@@ -584,10 +584,19 @@ interface CocinaViewProps {
 }
 
 function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: CocinaViewProps) {
+  const hora = (iso: string) =>
+    new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+
   const conPendientes = sesiones
-    .map(s => ({ sesion: s, items: s.items.filter(i => i.estado === 'Pendiente' || i.estado === 'EnCocina') }))
+    .map(s => ({
+      sesion: s,
+      items: s.items
+        .filter(i => i.estado === 'Pendiente' || i.estado === 'EnCocina')
+        .sort((a, b) => a.fechaAlta.localeCompare(b.fechaAlta)),
+    }))
     .filter(x => x.items.length > 0)
-    .sort((a, b) => a.sesion.fechaApertura.localeCompare(b.sesion.fechaApertura))
+    // Las mesas con la comanda más antigua primero.
+    .sort((a, b) => a.items[0].fechaAlta.localeCompare(b.items[0].fechaAlta))
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 h-[70vh] overflow-y-auto">
@@ -605,7 +614,7 @@ function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: Coci
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-gray-800">Mesa {sesion.mesaNumero || sesion.mesaId}</span>
                 <span className="text-[11px] text-gray-400">
-                  {new Date(sesion.fechaApertura).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                  comanda desde {hora(items[0].fechaAlta)}
                 </span>
                 <Button size="sm" variant="secondary" icon={<Printer size={13} />} onClick={() => onImprimir(sesion.mesaNumero || String(sesion.mesaId), items)}>
                   Imprimir
@@ -618,7 +627,8 @@ function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: Coci
                       <span className="text-sm text-gray-800">{item.cantidad} x {item.descripcion}</span>
                       {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-mono text-gray-400" title="Hora de la comanda">{hora(item.fechaAlta)}</span>
                       <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
                       {item.estado === 'Pendiente' && (
                         <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
