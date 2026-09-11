@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { api, clearStoredSession, expireSession, isSessionExpired } from '../api/client'
+import { api, clearStoredSession, esperarBackend, expireSession, isSessionExpired } from '../api/client'
 import type { LoginRequest, LoginResponse, UsuarioInfo } from '../types'
 
 interface AuthContextType {
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (dto: LoginRequest) => {
+    await esperarBackend(10, 500)
     const res = await api.auth.login(dto)
     handleLoginResponse(res)
   }, [handleLoginResponse])

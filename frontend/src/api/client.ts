@@ -1,16 +1,15 @@
 import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse } from '../types'
 
-// Determine API base URL at runtime based on deployment context
-let BASE: string;
-if (typeof window !== 'undefined' && window.location) {
-  if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
-    BASE = '/api';
-  } else {
-    BASE = 'http://localhost:5196/api';
-  }
-} else {
-  BASE = 'http://localhost:5196/api';
+export function resolveApiBase(isTauri: boolean, protocol?: string, hostname?: string): string {
+  if (!isTauri && protocol === 'http:' && hostname === 'localhost') return '/api'
+  return 'http://localhost:5196/api'
 }
+
+// Tauri can load the development frontend from localhost without Vite running.
+// In that case requests must still bypass the Vite proxy and reach the sidecar directly.
+const BASE = typeof window !== 'undefined' && window.location
+  ? resolveApiBase('__TAURI__' in window || '__TAURI_INTERNALS__' in window, window.location.protocol, window.location.hostname)
+  : 'http://localhost:5196/api'
 
 /**
  * Wait for the backend to become available.
@@ -161,6 +160,40 @@ export const api = {
     obtener: () => request<EmpresaDto>('/empresa'),
     actualizar: (dto: { nombre?: string; documento?: string; direccion?: string; telefono?: string; mostrarTelefonoTicket?: boolean }) =>
       request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
+  },
+
+  respaldos: {
+    exportar: async (): Promise<{ blob: Blob; fileName: string }> => {
+      const res = await fetch(`${BASE}/respaldo/exportar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await responseError(res))
+      const disposition = res.headers.get('content-disposition') ?? ''
+      const fileName = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'posweb-respaldo.posweb-backup'
+      return { blob: await res.blob(), fileName }
+    },
+    exportarAArchivo: (ruta: string) => request<void>('/respaldo/exportar-a-archivo', {
+      method: 'POST',
+      body: JSON.stringify({ ruta }),
+    }),
+    importar: async (archivo: File): Promise<{ empresaNombre: string }> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      // Keeps the new one-click UI compatible with a running backend from before
+      // the confirmation field was removed from the restore endpoint.
+      form.append('confirmacion', 'REEMPLAZAR')
+      const res = await fetch(`${BASE}/respaldo/importar`, { method: 'POST', headers: getAuthHeaders(), body: form })
+      if (!res.ok) throw new Error(await responseError(res))
+      return res.json()
+    },
+    validar: async (archivo: File): Promise<{ nombre: string; documento: string; direccion: string }> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      const res = await fetch(`${BASE}/respaldo/validar`, { method: 'POST', headers: getAuthHeaders(), body: form })
+      if (!res.ok) throw new Error(await responseError(res))
+      return res.json()
+    },
   },
 
   // Preferencias de usuario (clave-valor JSON por sección)
@@ -639,4 +672,14 @@ export const api = {
     }),
     qr: () => request<{ qrData?: string }>('/mercadopago/qr'),
   },
+}
+
+async function responseError(res: Response): Promise<string> {
+  const text = await res.text()
+  try {
+    const body = JSON.parse(text)
+    return body.error || body.title || body.message || text
+  } catch {
+    return text || 'La operación no pudo completarse.'
+  }
 }

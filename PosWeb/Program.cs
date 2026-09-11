@@ -27,6 +27,7 @@ using PosWeb.Application.Combos;
 using PosWeb.Application.Ofertas;
 using PosWeb.Application.Preferencias;
 using PosWeb.Application.MercadoPago;
+using PosWeb.Application.Respaldos;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -132,6 +133,7 @@ builder.Services.AddScoped<CategoriaGastoService>();
 builder.Services.AddScoped<PreferenciaService>();
 builder.Services.AddScoped<CategoriaSugeridaService>();
 builder.Services.AddScoped<UnidadSugeridaService>();
+builder.Services.AddScoped<RespaldoService>();
 
 // MercadoPago
 var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
