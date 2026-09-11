@@ -762,6 +762,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   const [nota, setNota] = useState('')
   const [cantidad, setCantidad] = useState(1)
   const [notas, setNotas] = useState<string[]>([])
+  const [seleccionado, setSeleccionado] = useState<{ productoId?: number; comboId?: number; descripcion: string; precio: number } | null>(null)
 
   // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
   useEffect(() => {
@@ -772,6 +773,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     setNota('')
     setCantidad(1)
     setNotas([])
+    setSeleccionado(null)
   }, [sesion])
 
   // Búsqueda de productos con debounce: depende de q pero no lo resetea.
@@ -792,14 +794,26 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     api.combos.listar().then(setCombos).catch(() => {})
   }, [tab, sesion])
 
-  async function agregar(productoId?: number, comboId?: number) {
-    if (!sesion) return
+  function seleccionarProducto(p: ProductoDto) {
+    setSeleccionado({ productoId: p.id, comboId: undefined, descripcion: p.nombre, precio: p.precio })
+    setNota('')
+    setNotas(Array.from({ length: Math.max(1, Math.round(cantidad)) }, () => ''))
+  }
+
+  function seleccionarCombo(c: ComboDto) {
+    setSeleccionado({ productoId: undefined, comboId: c.id, descripcion: c.descCombo, precio: c.precio })
+    setNota('')
+    setNotas(Array.from({ length: Math.max(1, Math.round(cantidad)) }, () => ''))
+  }
+
+  async function agregar() {
+    if (!sesion || !seleccionado) return
     try {
       const unidades = Math.max(1, Math.round(cantidad))
       if (unidades > 1) {
-        await api.restaurante.agregarItem(sesion.id, { productoId, comboId, cantidad: unidades, notas })
+        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: unidades, notas })
       } else {
-        await api.restaurante.agregarItem(sesion.id, { productoId, comboId, cantidad: 1, nota })
+        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: 1, nota })
       }
       await onAdded()
     } catch (e: any) {
@@ -807,14 +821,30 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     }
   }
 
+  function handleEnter() {
+    if (seleccionado) { void agregar(); return }
+    if (tab === 'productos' && productos.length > 0) seleccionarProducto(productos[0])
+    else if (tab === 'combos' && combos.filter(c => c.activo).length > 0) seleccionarCombo(combos.filter(c => c.activo)[0])
+  }
+
+  const estaSeleccionado = (productoId?: number, comboId?: number) =>
+    seleccionado != null &&
+    seleccionado.productoId === (productoId ?? undefined) &&
+    seleccionado.comboId === (comboId ?? undefined)
+
   return (
     <Dialog open={!!sesion} onClose={onClose} title="Agregar a la comanda" width="lg"
-      footer={<Button variant="secondary" onClick={onClose}>Cerrar</Button>}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+          <Button onClick={agregar} disabled={!seleccionado}>Agregar</Button>
+        </>
+      }
     >
       <div className="space-y-3">
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {(['productos', 'combos'] as const).map(t => (
-            <button key={t} type="button" onClick={() => setTab(t)}
+            <button key={t} type="button" onClick={() => { setTab(t); setSeleccionado(null) }}
               className={`flex-1 rounded-md py-1.5 text-xs font-bold uppercase tracking-wide ${tab === t ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500'}`}>
               {t}
             </button>
@@ -825,6 +855,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input autoFocus value={q} onChange={e => setQ(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
               placeholder="Buscar por nombre o código…"
               className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 text-sm" />
           </div>
@@ -832,21 +863,28 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
 
         <div className="max-h-56 space-y-1 overflow-y-auto">
           {tab === 'productos' && q.trim() && productos.map(p => (
-            <button key={p.id} type="button" onClick={() => agregar(p.id)}
-              className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]">
+            <button key={p.id} type="button" onClick={() => seleccionarProducto(p)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(p.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
               <span className="text-gray-800">{p.nombre}</span>
               <span className="font-semibold text-gray-600">{fmt(p.precio)}</span>
             </button>
           ))}
           {tab === 'productos' && !q.trim() && <p className="text-xs text-gray-400">Escribí para buscar.</p>}
           {tab === 'combos' && combos.filter(c => c.activo).map(c => (
-            <button key={c.id} type="button" onClick={() => agregar(undefined, c.id)}
-              className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]">
+            <button key={c.id} type="button" onClick={() => seleccionarCombo(c)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(undefined, c.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
               <span className="text-gray-800">{c.descCombo}</span>
               <span className="font-semibold text-gray-600">{fmt(c.precio)}</span>
             </button>
           ))}
         </div>
+
+        {seleccionado && (
+          <div className="flex items-center justify-between rounded-lg border border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] px-3 py-2">
+            <span className="text-sm font-semibold text-gray-800">{seleccionado.descripcion}</span>
+            <span className="text-sm font-semibold text-[oklch(0.52_0.255_278)]">{fmt(seleccionado.precio)}</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold text-gray-600">
@@ -857,12 +895,14 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
                 setCantidad(n)
                 setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
               }}
+              onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
           </label>
           {cantidad === 1 ? (
             <label className="text-xs font-semibold text-gray-600">
               Nota (opcional)
               <input value={nota} onChange={e => setNota(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
                 placeholder="Ej: sin cebolla"
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
             </label>
@@ -873,6 +913,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
                 {notas.map((n, i) => (
                   <input key={i} value={n}
                     onChange={e => setNotas(prev => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                    onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
                     placeholder={`Nota unidad ${i + 1}`}
                     className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
                 ))}
@@ -880,6 +921,10 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
             </div>
           )}
         </div>
+
+        {!seleccionado && (
+          <p className="text-xs text-gray-400">Tocá un producto para seleccionarlo y después confirmá con Enter o "Agregar".</p>
+        )}
       </div>
     </Dialog>
   )
