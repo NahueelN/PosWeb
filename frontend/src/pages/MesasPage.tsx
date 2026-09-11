@@ -760,9 +760,15 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [combos, setCombos] = useState<ComboDto[]>([])
   const [nota, setNota] = useState('')
-  const [cantidad, setCantidad] = useState(1)
+  const [cantidad, setCantidad] = useState('1')
   const [notas, setNotas] = useState<string[]>([])
   const [seleccionado, setSeleccionado] = useState<{ productoId?: number; comboId?: number; descripcion: string; precio: number } | null>(null)
+
+  // Cantidad parseada y válida (>= 1); 0 si está vacío o mal escrito (se valida al agregar).
+  const unidadesValidas = (() => {
+    const n = Math.round(Number(cantidad))
+    return Number.isFinite(n) && n >= 1 ? n : 0
+  })()
 
   // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
   useEffect(() => {
@@ -771,7 +777,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     setCombos([])
     setQ('')
     setNota('')
-    setCantidad(1)
+    setCantidad('1')
     setNotas([])
     setSeleccionado(null)
   }, [sesion])
@@ -797,19 +803,23 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   function seleccionarProducto(p: ProductoDto) {
     setSeleccionado({ productoId: p.id, comboId: undefined, descripcion: p.nombre, precio: p.precio })
     setNota('')
-    setNotas(Array.from({ length: Math.max(1, Math.round(cantidad)) }, () => ''))
+    setNotas(Array.from({ length: unidadesValidas || 1 }, () => ''))
   }
 
   function seleccionarCombo(c: ComboDto) {
     setSeleccionado({ productoId: undefined, comboId: c.id, descripcion: c.descCombo, precio: c.precio })
     setNota('')
-    setNotas(Array.from({ length: Math.max(1, Math.round(cantidad)) }, () => ''))
+    setNotas(Array.from({ length: unidadesValidas || 1 }, () => ''))
   }
 
   async function agregar() {
     if (!sesion || !seleccionado) return
+    const unidades = unidadesValidas
+    if (unidades < 1) {
+      notifyError('Ingresá una cantidad válida (mayor a 0)')
+      return
+    }
     try {
-      const unidades = Math.max(1, Math.round(cantidad))
       if (unidades > 1) {
         await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: unidades, notas })
       } else {
@@ -879,34 +889,21 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
           ))}
         </div>
 
-        {seleccionado && (
-          <div className="flex items-center justify-between rounded-lg border border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] px-3 py-2">
-            <span className="text-sm font-semibold text-gray-800">{seleccionado.descripcion}</span>
-            <span className="text-sm font-semibold text-[oklch(0.52_0.255_278)]">{fmt(seleccionado.precio)}</span>
-          </div>
-        )}
-
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold text-gray-600">
             Cantidad
             <input type="number" min={1} step={1} value={cantidad}
               onChange={e => {
-                const n = Math.max(1, Math.round(Number(e.target.value)) || 1)
-                setCantidad(n)
-                setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
+                setCantidad(e.target.value)
+                const n = Math.round(Number(e.target.value))
+                if (Number.isFinite(n) && n >= 1) {
+                  setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
+                }
               }}
               onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
           </label>
-          {cantidad === 1 ? (
-            <label className="text-xs font-semibold text-gray-600">
-              Nota (opcional)
-              <input value={nota} onChange={e => setNota(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-                placeholder="Ej: sin cebolla"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-            </label>
-          ) : (
+          {unidadesValidas > 1 ? (
             <div className="text-xs font-semibold text-gray-600">
               Nota por unidad
               <div className="mt-1 space-y-1">
@@ -919,6 +916,14 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
                 ))}
               </div>
             </div>
+          ) : (
+            <label className="text-xs font-semibold text-gray-600">
+              Nota (opcional)
+              <input value={nota} onChange={e => setNota(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
+                placeholder="Ej: sin cebolla"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+            </label>
           )}
         </div>
 
