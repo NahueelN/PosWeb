@@ -7,7 +7,7 @@ import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import TicketResultado from './venta/TicketResultado'
-import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw } from 'lucide-react'
+import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto } from '../types'
 
 function fmt(n: number): string {
@@ -70,6 +70,7 @@ export default function MesasPage() {
   const [dragId, setDragId] = useState<number | null>(null)
 
   const [editarItem, setEditarItem] = useState<ItemComandaDto | null>(null)
+  const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null)
 
   const [agregarItemSesion, setAgregarItemSesion] = useState<SesionMesaDto | null>(null)
   const [cobrarSesion, setCobrarSesion] = useState<SesionMesaDto | null>(null)
@@ -373,43 +374,47 @@ export default function MesasPage() {
               </div>
 
               <div className="space-y-1.5">
-                {sesionSeleccionada.items.length === 0 && (
-                  <p className="text-sm text-gray-400">Cuenta vacía. Agregá los primeros items.</p>
-                )}
-                {sesionSeleccionada.items.map(item => (
-                  <div key={item.id} className={`rounded-lg border p-2 ${item.estado === 'Cancelado' || item.estado === 'Devuelto' ? 'border-gray-100 opacity-50' : 'border-gray-200'}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-gray-800">{item.cantidad} x {item.descripcion}</span>
-                      <span className="text-sm font-semibold text-gray-600">{fmt(item.subtotal)}</span>
-                    </div>
-                    {item.nota && <p className="text-[11px] text-gray-500 mt-0.5">📝 {item.nota}</p>}
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className={`text-[10px] font-bold uppercase tracking-wide ${estadoColor(item.estado)}`}>{item.estado}</span>
-                      <div className="flex items-center gap-1">
-                        {(item.estado === 'Pendiente' || item.estado === 'EnCocina') && (
-                          <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => cambiarEstadoItem(item.id, 'Servido')}>
-                            <Check size={14} />
-                          </button>
-                        )}
-                        {item.estado !== 'Cancelado' && item.estado !== 'Devuelto' && (
-                          <button type="button" title="Editar" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={() => setEditarItem(item)}>
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        {item.estado !== 'Cancelado' && item.estado !== 'Devuelto' && (
-                          <button type="button" title="Devolver" className="p-1 text-amber-600 hover:bg-amber-50 rounded" onClick={() => cambiarEstadoItem(item.id, 'Devuelto')}>
-                            <Undo2 size={14} />
-                          </button>
-                        )}
-                        {item.estado !== 'Cancelado' && (
-                          <button type="button" title="Cancelar item" className="p-1 text-red-500 hover:bg-red-50 rounded" onClick={() => cambiarEstadoItem(item.id, 'Cancelado')}>
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  const grupos = agruparItems(sesionSeleccionada.items)
+                  if (grupos.length === 0) return <p className="text-sm text-gray-400">Cuenta vacía. Agregá los primeros items.</p>
+                  return (
+                    <>
+                      {grupos.map(g => {
+                        const expandido = grupoExpandido === g.key
+                        const totalUnidades = g.unidades.reduce((s, i) => s + i.cantidad, 0)
+                        const subtotal = g.unidades.reduce((s, i) => s + i.subtotal, 0)
+                        return (
+                          <div key={g.key} className="rounded-lg border border-gray-200 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setGrupoExpandido(expandido ? null : g.key)}
+                              className="flex w-full items-center justify-between gap-2 p-2 hover:bg-gray-50 transition-colors"
+                            >
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${expandido ? 'rotate-90' : ''}`} />
+                                <span className="text-sm font-medium text-gray-800 truncate">{g.descripcion}</span>
+                                <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">x{totalUnidades}</span>
+                              </span>
+                              <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(subtotal)}</span>
+                            </button>
+                            {expandido && (
+                              <div className="border-t border-gray-100 divide-y divide-gray-50">
+                                {g.unidades.map(item => (
+                                  <ItemUnidadRow
+                                    key={item.id}
+                                    item={item}
+                                    onCambiarEstado={cambiarEstadoItem}
+                                    onEditar={() => setEditarItem(item)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </>
+                  )
+                })()}
               </div>
             </div>
           )}
@@ -511,6 +516,64 @@ function estadoColor(estado: string): string {
     case 'Cancelado': return 'text-red-500'
     default: return 'text-gray-500'
   }
+}
+
+interface ItemUnidadRowProps {
+  item: ItemComandaDto
+  onCambiarEstado: (itemId: number, estado: string) => void
+  onEditar: () => void
+}
+
+function ItemUnidadRow({ item, onCambiarEstado, onEditar }: ItemUnidadRowProps) {
+  const esTerminal = item.estado === 'Cancelado' || item.estado === 'Devuelto'
+  return (
+    <div className={`p-2 ${esTerminal ? 'opacity-50' : ''}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-gray-800">
+          {item.cantidad > 1 ? `${item.cantidad} x ` : ''}{item.descripcion}
+        </span>
+        <span className="text-sm font-semibold text-gray-600">{fmt(item.subtotal)}</span>
+      </div>
+      {item.nota && <p className="text-[11px] text-gray-500 mt-0.5">📝 {item.nota}</p>}
+      <div className="mt-1 flex items-center justify-between">
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${estadoColor(item.estado)}`}>{item.estado}</span>
+        <div className="flex items-center gap-1">
+          {(item.estado === 'Pendiente' || item.estado === 'EnCocina') && (
+            <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
+              <Check size={14} />
+            </button>
+          )}
+          {!esTerminal && (
+            <button type="button" title="Editar" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={onEditar}>
+              <Pencil size={14} />
+            </button>
+          )}
+          {!esTerminal && (
+            <button type="button" title="Devolver" className="p-1 text-amber-600 hover:bg-amber-50 rounded" onClick={() => onCambiarEstado(item.id, 'Devuelto')}>
+              <Undo2 size={14} />
+            </button>
+          )}
+          {item.estado !== 'Cancelado' && (
+            <button type="button" title="Cancelar item" className="p-1 text-red-500 hover:bg-red-50 rounded" onClick={() => onCambiarEstado(item.id, 'Cancelado')}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Agrupa las unidades individuales (CANTIDAD=1) por producto/combo para mostrar una línea colapsable. */
+function agruparItems(items: ItemComandaDto[]): { key: string; descripcion: string; unidades: ItemComandaDto[] }[] {
+  const map = new Map<string, { key: string; descripcion: string; unidades: ItemComandaDto[] }>()
+  for (const item of items) {
+    const key = String(item.productoId ?? item.comboId ?? 0)
+    const existente = map.get(key)
+    if (existente) existente.unidades.push(item)
+    else map.set(key, { key, descripcion: item.descripcion, unidades: [item] })
+  }
+  return [...map.values()]
 }
 
 interface CocinaViewProps {
