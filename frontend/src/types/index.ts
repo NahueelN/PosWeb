@@ -198,6 +198,8 @@ export interface UpsertMesaRequest {
 
 export type EstadoItemComanda = 'Pendiente' | 'EnCocina' | 'Servido' | 'Devuelto' | 'Cancelado'
 
+export type GrupoComanda = 'Entrada' | 'Principal' | 'Postre' | 'Otros'
+
 export interface ItemComandaDto {
   id: number
   sesionMesaId: number
@@ -209,6 +211,7 @@ export interface ItemComandaDto {
   subtotal: number
   nota?: string | null
   estado: EstadoItemComanda
+  grupo: GrupoComanda
   fechaAlta: string
   fechaEstado?: string | null
 }
@@ -220,11 +223,14 @@ export interface AgregarItemComandaRequest {
   nota?: string
   /** Nota individual por unidad (una por cada unidad). Si viene, tiene prioridad sobre nota. */
   notas?: (string | null)[]
+  /** Grupo/ronda de la comanda. */
+  grupo?: GrupoComanda
 }
 
 export interface ActualizarItemComandaRequest {
   cantidad: number
   nota?: string
+  grupo?: GrupoComanda
 }
 
 export interface SesionMesaDto {

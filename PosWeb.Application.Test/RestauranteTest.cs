@@ -339,4 +339,40 @@ public class RestauranteTest
         var sesionActualizada = service.ObtenerSesion(sesion.Id);
         Assert.Equal(p1.PRECIO * 3, sesionActualizada.Total);
     }
+
+    [Fact]
+    public void AgregarItem_AsignaGrupoPorDefecto_YElIndicado()
+    {
+        var context = CrearContexto(nameof(AgregarItem_AsignaGrupoPorDefecto_YElIndicado));
+        var service = CrearServicio(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "8" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+
+        var entrada = service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 1, Grupo = GruposComanda.Entrada }).Single();
+        Assert.Equal(GruposComanda.Entrada, entrada.Grupo);
+    }
+
+    [Fact]
+    public void ActualizarItem_CambiaGrupo()
+    {
+        var context = CrearContexto(nameof(ActualizarItem_CambiaGrupo));
+        var service = CrearServicio(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "9" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+        var item = service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 1 }).Single();
+        Assert.Equal(GruposComanda.Principal, item.Grupo);
+
+        var actualizado = service.ActualizarItem(item.Id, new ActualizarItemComandaRequest { Cantidad = item.Cantidad, Nota = item.Nota, Grupo = GruposComanda.Postre });
+        Assert.Equal(GruposComanda.Postre, actualizado.Grupo);
+    }
 }

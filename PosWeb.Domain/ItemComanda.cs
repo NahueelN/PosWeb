@@ -14,6 +14,20 @@ public static class EstadosItemComanda
 }
 
 /// <summary>
+/// Grupos de la comanda: rondas/batches que se envían juntos a cocina.
+/// Se eligen al agregar (cualquier producto/combo puede ir a cualquier grupo).
+/// </summary>
+public static class GruposComanda
+{
+    public const string Entrada = "Entrada";
+    public const string Principal = "Principal";
+    public const string Postre = "Postre";
+    public const string Otros = "Otros";
+
+    public static readonly string[] Todos = { Entrada, Principal, Postre, Otros };
+}
+
+/// <summary>
 /// Item de una comanda de mesa. Captura descripción y precio en el momento del alta,
 /// y registra el estado del plato (pendiente → en cocina → servido / devuelto / cancelado).
 /// No maneja stock: la venta de mesa se cobra sin descontar stock.
@@ -39,6 +53,9 @@ public class ItemComanda
 
     public string ESTADO { get; private set; } = EstadosItemComanda.Pendiente;
 
+    /// <summary>Grupo/ronda de la comanda al que pertenece (se envía junto a cocina).</summary>
+    public string GRUPO { get; private set; } = GruposComanda.Principal;
+
     public DateTime FECHA_ALTA { get; private set; } = DateTime.Now;
 
     public DateTime? FECHA_ESTADO { get; private set; }
@@ -50,7 +67,7 @@ public class ItemComanda
 
     public decimal SUBTOTAL => CANTIDAD * PRECIO_UNITARIO;
 
-    public ItemComanda(int sesionMesaId, int? productoId, int? comboId, string descripcion, decimal cantidad, decimal precioUnitario, string? nota = null)
+    public ItemComanda(int sesionMesaId, int? productoId, int? comboId, string descripcion, decimal cantidad, decimal precioUnitario, string? nota = null, string grupo = GruposComanda.Principal)
     {
         if (sesionMesaId <= 0)
             throw new ArgumentException("Sesión inválida");
@@ -68,6 +85,7 @@ public class ItemComanda
         CANTIDAD = cantidad;
         PRECIO_UNITARIO = precioUnitario;
         NOTA = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
+        CambiarGrupo(grupo);
         FECHA_ALTA = DateTime.Now;
     }
 
@@ -98,6 +116,15 @@ public class ItemComanda
     public void CambiarNota(string? nota)
     {
         NOTA = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
+    }
+
+    /// <summary>Reasigna el item a otro grupo de la comanda (drag &amp; drop).</summary>
+    public void CambiarGrupo(string grupo)
+    {
+        if (!GruposComanda.Todos.Contains(grupo))
+            throw new ArgumentException($"Grupo de comanda inválido: {grupo}");
+
+        GRUPO = grupo;
     }
 
     /// <summary>Reasigna el item a otra sesión (unificación de mesas).</summary>

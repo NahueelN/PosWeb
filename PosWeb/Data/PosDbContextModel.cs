@@ -1426,6 +1426,11 @@ public partial class PosDbContext
                 .HasMaxLength(20)
                 .IsRequired();
 
+            entity.Property(i => i.GRUPO)
+                .HasColumnName("GRUPO")
+                .HasMaxLength(20)
+                .IsRequired();
+
             entity.Property(i => i.FECHA_ALTA)
                 .HasColumnName("FECHA_ALTA");
 

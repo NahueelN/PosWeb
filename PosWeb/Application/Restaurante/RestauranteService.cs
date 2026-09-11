@@ -219,7 +219,7 @@ public class RestauranteService
         for (var i = 0; i < unidades; i++)
         {
             var nota = i < notas.Count ? notas[i] : req.Nota;
-            var item = new ItemComanda(sesionId, productoId, comboId, descripcion, 1, precio, nota);
+            var item = new ItemComanda(sesionId, productoId, comboId, descripcion, 1, precio, nota, req.Grupo ?? GruposComanda.Principal);
             sesion.AgregarItem(item);
             creados.Add(item);
         }
@@ -242,6 +242,8 @@ public class RestauranteService
 
         item.CambiarCantidad(req.Cantidad);
         item.CambiarNota(req.Nota);
+        if (!string.IsNullOrWhiteSpace(req.Grupo))
+            item.CambiarGrupo(req.Grupo);
         _context.SaveChanges();
 
         return MapItem(item);
@@ -374,6 +376,7 @@ public class RestauranteService
             Subtotal = item.SUBTOTAL,
             Nota = item.NOTA,
             Estado = item.ESTADO,
+            Grupo = item.GRUPO,
             FechaAlta = item.FECHA_ALTA,
             FechaEstado = item.FECHA_ESTADO
         };

@@ -12,6 +12,8 @@ public class ItemComandaDto
     public decimal Subtotal { get; set; }
     public string? Nota { get; set; }
     public string Estado { get; set; } = "";
+    /// <summary>Grupo/ronda de la comanda (Entrada | Principal | Postre | Otros).</summary>
+    public string Grupo { get; set; } = "Principal";
     public DateTime FechaAlta { get; set; }
     public DateTime? FechaEstado { get; set; }
 }

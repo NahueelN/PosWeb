@@ -7,8 +7,16 @@ import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import TicketResultado from './venta/TicketResultado'
-import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight } from 'lucide-react'
-import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto } from '../types'
+import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical } from 'lucide-react'
+import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda } from '../types'
+
+const GRUPOS_COMANDA: GrupoComanda[] = ['Entrada', 'Principal', 'Postre', 'Otros']
+const GRUPO_LABEL: Record<GrupoComanda, string> = {
+  Entrada: 'Entradas',
+  Principal: 'Platos principales',
+  Postre: 'Postres',
+  Otros: 'Otros',
+}
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -19,13 +27,14 @@ interface ItemEmitido {
   cantidad: number
 }
 
-async function imprimirComanda(mesa: string, items: ItemComandaDto[]) {
+async function imprimirComanda(mesa: string, items: ItemComandaDto[], grupo?: string) {
   const line = (text: string, o?: { center?: boolean; bold?: boolean; space?: boolean; size?: string }) => ({
     text, center: !!o?.center, bold: !!o?.bold, space: !!o?.space, size: o?.size ?? 'base'
   })
   const lines: { text: string; center: boolean; bold: boolean; space: boolean; size: string }[] = [
     line('COMANDA', { center: true, bold: true, size: 'lg' }),
     line('MESA ' + mesa, { center: true, bold: true, size: 'md' }),
+    ...(grupo ? [line(GRUPO_LABEL[grupo as GrupoComanda]?.toUpperCase() ?? grupo.toUpperCase(), { center: true, bold: true, size: 'md' })] : []),
     line('', { space: true }),
     ...items.map(it => line(`${it.cantidad} x ${it.descripcion}`, {})),
     ...items.filter(it => it.nota).map(it => line(`    . ${it.nota}`, {})),
@@ -73,6 +82,8 @@ export default function MesasPage() {
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null)
 
   const [agregarItemSesion, setAgregarItemSesion] = useState<SesionMesaDto | null>(null)
+  const [agregarItemGrupo, setAgregarItemGrupo] = useState<GrupoComanda>('Principal')
+  const [dragOverGrupo, setDragOverGrupo] = useState<GrupoComanda | null>(null)
   const [cobrarSesion, setCobrarSesion] = useState<SesionMesaDto | null>(null)
   const [unificarDe, setUnificarDe] = useState<SesionMesaDto | null>(null)
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
@@ -142,6 +153,32 @@ export default function MesasPage() {
       await cargar()
     } catch (e: any) {
       notifyError(e.message || 'Error al enviar a cocina')
+    }
+  }
+
+  async function enviarCocinaGrupo(sesion: SesionMesaDto, grupo: GrupoComanda) {
+    const pendientes = sesion.items.filter(i => i.grupo === grupo && i.estado === 'Pendiente')
+    if (pendientes.length === 0) { notifyError('No hay items pendientes en este grupo'); return }
+    try {
+      for (const it of pendientes) await api.restaurante.cambiarEstadoItem(it.id, 'EnCocina')
+      await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), pendientes, grupo)
+      await cargar()
+    } catch (e: any) {
+      notifyError(e.message || 'Error al enviar a cocina')
+    }
+  }
+
+  async function moverItemGrupo(itemId: number, grupo: GrupoComanda) {
+    const item = sesionSeleccionada?.items.find(i => i.id === itemId)
+    if (!item || item.grupo === grupo) return
+    try {
+      await api.restaurante.actualizarItem(itemId, { cantidad: item.cantidad, nota: item.nota ?? undefined, grupo })
+      setSesiones(prev => prev.map(s => {
+        if (s.id !== sesionSeleccionada?.id) return s
+        return { ...s, items: s.items.map(i => i.id === itemId ? { ...i, grupo } : i) }
+      }))
+    } catch (e: any) {
+      notifyError(e.message || 'No se pudo mover el item de grupo')
     }
   }
 
@@ -385,49 +422,83 @@ export default function MesasPage() {
                 </Button>
               </div>
 
-              <div className="space-y-1.5">
-                {(() => {
-                  const grupos = agruparItems(sesionSeleccionada.items)
-                  if (grupos.length === 0) return <p className="text-sm text-gray-400">Cuenta vacía. Agregá los primeros items.</p>
+              <div className="space-y-3">
+                {sesionSeleccionada.items.length === 0 && (
+                  <p className="text-sm text-gray-400">Cuenta vacía. Agregá los primeros items.</p>
+                )}
+                {GRUPOS_COMANDA.map(grupo => {
+                  const itemsGrupo = sesionSeleccionada.items.filter(i => i.grupo === grupo)
+                  if (itemsGrupo.length === 0) return null
+                  const pendientes = itemsGrupo.filter(i => i.estado === 'Pendiente').length
+                  const productos = agruparItems(itemsGrupo)
+                  const esDragOver = dragOverGrupo === grupo
                   return (
-                    <>
-                      {grupos.map(g => {
-                        const expandido = grupoExpandido === g.key
-                        const totalUnidades = g.unidades.reduce((s, i) => s + i.cantidad, 0)
-                        const subtotal = g.unidades.reduce((s, i) => s + i.subtotal, 0)
-                        return (
-                          <div key={g.key} className="rounded-lg border border-gray-200 overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => setGrupoExpandido(expandido ? null : g.key)}
-                              className="flex w-full items-center justify-between gap-2 p-2 hover:bg-gray-50 transition-colors"
-                            >
-                              <span className="flex items-center gap-1.5 min-w-0">
-                                <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${expandido ? 'rotate-90' : ''}`} />
-                                <span className="text-sm font-medium text-gray-800 truncate">{g.descripcion}</span>
-                                <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">x{totalUnidades}</span>
-                              </span>
-                              <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(subtotal)}</span>
-                            </button>
-                            {expandido && (
-                              <div className="border-t border-gray-100 divide-y divide-gray-50">
-                                {g.unidades.map(item => (
-                                  <ItemUnidadRow
-                                    key={item.id}
-                                    item={item}
-                                    onCambiarEstado={cambiarEstadoItem}
-                                    onEditar={() => setEditarItem(item)}
-                                    onGuardarNota={guardarNotaUnidad}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </>
+                    <div
+                      key={grupo}
+                      onDragOver={e => { e.preventDefault(); setDragOverGrupo(grupo) }}
+                      onDragLeave={() => setDragOverGrupo(g => (g === grupo ? null : g))}
+                      onDrop={e => {
+                        e.preventDefault()
+                        const id = Number(e.dataTransfer.getData('text/plain'))
+                        setDragOverGrupo(null)
+                        if (id) void moverItemGrupo(id, grupo)
+                      }}
+                      className={`rounded-lg border p-2 transition-colors ${esDragOver ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.05)]' : 'border-gray-200'}`}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wide text-gray-600">
+                          {GRUPO_LABEL[grupo]}
+                          {pendientes > 0 && <span className="ml-1.5 text-amber-600 normal-case">({pendientes} sin enviar)</span>}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
+                            Agregar
+                          </Button>
+                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
+                            Enviar
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {productos.map(g => {
+                          const expandKey = `${grupo}-${g.key}`
+                          const expandido = grupoExpandido === expandKey
+                          const totalUnidades = g.unidades.reduce((s, i) => s + i.cantidad, 0)
+                          const subtotal = g.unidades.reduce((s, i) => s + i.subtotal, 0)
+                          return (
+                            <div key={g.key} className="rounded-lg border border-gray-200 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setGrupoExpandido(expandido ? null : expandKey)}
+                                className="flex w-full items-center justify-between gap-2 p-2 hover:bg-gray-50 transition-colors"
+                              >
+                                <span className="flex items-center gap-1.5 min-w-0">
+                                  <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${expandido ? 'rotate-90' : ''}`} />
+                                  <span className="text-sm font-medium text-gray-800 truncate">{g.descripcion}</span>
+                                  <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">x{totalUnidades}</span>
+                                </span>
+                                <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(subtotal)}</span>
+                              </button>
+                              {expandido && (
+                                <div className="border-t border-gray-100 divide-y divide-gray-50">
+                                  {g.unidades.map(item => (
+                                    <ItemUnidadRow
+                                      key={item.id}
+                                      item={item}
+                                      onCambiarEstado={cambiarEstadoItem}
+                                      onEditar={() => setEditarItem(item)}
+                                      onGuardarNota={guardarNotaUnidad}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
                   )
-                })()}
+                })}
               </div>
             </div>
           )}
@@ -437,6 +508,7 @@ export default function MesasPage() {
 
       <AgregarItemDialog
         sesion={agregarItemSesion}
+        grupo={agregarItemGrupo}
         sucursalId={sucursal?.id}
         onClose={() => setAgregarItemSesion(null)}
         onAdded={async () => {
@@ -555,10 +627,22 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
   return (
     <div className={`p-2 ${esTerminal ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-gray-800">
-          {item.cantidad > 1 ? `${item.cantidad} x ` : ''}{item.descripcion}
+        <span className="flex items-center gap-1.5 min-w-0">
+          {!esTerminal && (
+            <span
+              draggable
+              onDragStart={e => { e.dataTransfer.setData('text/plain', String(item.id)); e.dataTransfer.effectAllowed = 'move' }}
+              className="shrink-0 cursor-grab text-gray-300 hover:text-gray-500"
+              title="Arrastrar a otro grupo"
+            >
+              <GripVertical size={14} />
+            </span>
+          )}
+          <span className="text-sm font-medium text-gray-800 truncate">
+            {item.cantidad > 1 ? `${item.cantidad} x ` : ''}{item.descripcion}
+          </span>
         </span>
-        <span className="text-sm font-semibold text-gray-600">{fmt(item.subtotal)}</span>
+        <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(item.subtotal)}</span>
       </div>
       {esTerminal ? (
         item.nota && <p className="text-[11px] text-gray-400 mt-0.5">📝 {item.nota}</p>
@@ -660,50 +744,60 @@ function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: Coci
                   Imprimir
                 </Button>
               </div>
-              <div className="mt-2 space-y-1">
-                {agruparItems(items).map(g => {
-                  const abierto = expandido === g.key
-                  const masAntigua = g.unidades[0]
+              <div className="mt-2 space-y-2">
+                {GRUPOS_COMANDA.map(grupo => {
+                  const itemsGrupo = items.filter(i => i.grupo === grupo)
+                  if (itemsGrupo.length === 0) return null
                   return (
-                    <div key={g.key} className="rounded-md border border-gray-200 overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setExpandido(abierto ? null : g.key)}
-                        className="flex w-full items-center justify-between gap-2 px-2 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <span className="flex items-center gap-1.5 min-w-0">
-                          <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${abierto ? 'rotate-90' : ''}`} />
-                          <span className="text-sm text-gray-800 truncate">{g.descripcion}</span>
-                          <span className="text-xs font-bold text-gray-500 bg-white rounded-full px-1.5 py-0.5 shrink-0">x{g.unidades.length}</span>
-                        </span>
-                        <span className="text-[10px] font-mono text-gray-400 shrink-0">desde {hora(masAntigua.fechaAlta)}</span>
-                      </button>
-                      {abierto && (
-                        <div className="divide-y divide-gray-50">
-                          {g.unidades.map(item => (
-                            <div key={item.id} className="flex items-center justify-between gap-2 px-2 py-1">
-                              <div className="min-w-0">
-                                <span className="text-sm text-gray-800">{item.descripcion}</span>
-                                {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
+                    <div key={grupo} className="space-y-1">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{GRUPO_LABEL[grupo]}</div>
+                      {agruparItems(itemsGrupo).map(g => {
+                        const key = `${sesion.id}-${grupo}-${g.key}`
+                        const abierto = expandido === key
+                        const masAntigua = g.unidades[0]
+                        return (
+                          <div key={g.key} className="rounded-md border border-gray-200 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setExpandido(abierto ? null : key)}
+                              className="flex w-full items-center justify-between gap-2 px-2 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            >
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${abierto ? 'rotate-90' : ''}`} />
+                                <span className="text-sm text-gray-800 truncate">{g.descripcion}</span>
+                                <span className="text-xs font-bold text-gray-500 bg-white rounded-full px-1.5 py-0.5 shrink-0">x{g.unidades.length}</span>
+                              </span>
+                              <span className="text-[10px] font-mono text-gray-400 shrink-0">desde {hora(masAntigua.fechaAlta)}</span>
+                            </button>
+                            {abierto && (
+                              <div className="divide-y divide-gray-50">
+                                {g.unidades.map(item => (
+                                  <div key={item.id} className="flex items-center justify-between gap-2 px-2 py-1">
+                                    <div className="min-w-0">
+                                      <span className="text-sm text-gray-800">{item.descripcion}</span>
+                                      {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <span className="text-[10px] font-mono text-gray-400" title="Hora de la comanda">{hora(item.fechaAlta)}</span>
+                                      <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
+                                      {item.estado === 'Pendiente' && (
+                                        <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
+                                          <UtensilsCrossed size={14} />
+                                        </button>
+                                      )}
+                                      {item.estado !== 'Servido' && (
+                                        <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
+                                          <Check size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[10px] font-mono text-gray-400" title="Hora de la comanda">{hora(item.fechaAlta)}</span>
-                                <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
-                                {item.estado === 'Pendiente' && (
-                                  <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
-                                    <UtensilsCrossed size={14} />
-                                  </button>
-                                )}
-                                {item.estado !== 'Servido' && (
-                                  <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
-                                    <Check size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}
@@ -773,12 +867,13 @@ function EditarItemDialog({ item, onClose, onGuardado }: EditarItemDialogProps) 
 
 interface AgregarItemDialogProps {
   sesion: SesionMesaDto | null
+  grupo: GrupoComanda
   sucursalId?: number
   onClose: () => void
   onAdded: () => Promise<void>
 }
 
-function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItemDialogProps) {
+function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: AgregarItemDialogProps) {
   const { notifyError } = useNotification()
   const [tab, setTab] = useState<'productos' | 'combos'>('productos')
   const [q, setQ] = useState('')
@@ -846,9 +941,9 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     }
     try {
       if (unidades > 1) {
-        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: unidades, notas })
+        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: unidades, notas, grupo })
       } else {
-        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: 1, nota })
+        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: 1, nota, grupo })
       }
       await onAdded()
     } catch (e: any) {

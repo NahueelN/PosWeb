@@ -385,6 +385,7 @@ CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
     PRECIO_UNITARIO NUMERIC NOT NULL,
     NOTA TEXT NULL,
     ESTADO TEXT NOT NULL,
+    GRUPO TEXT NOT NULL DEFAULT 'Principal',
     FECHA_ALTA TEXT NOT NULL,
     FECHA_ESTADO TEXT NULL,
     CONSTRAINT FK_ITEM_COMANDA_SESION_MESA_ID_SESION_MESA FOREIGN KEY (ID_SESION_MESA) REFERENCES SESION_MESA (ID_SESION_MESA) ON DELETE CASCADE
@@ -399,6 +400,16 @@ CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE VENTA ADD COLUMN ID_SESION_MESA INTEGER NULL";
         alter.ExecuteNonQuery();
+    }
+
+    // Columna GRUPO en ITEM_COMANDA (solo si falta).
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ITEM_COMANDA') WHERE name = 'GRUPO'";
+    var grupoExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!grupoExiste)
+    {
+        using var alterGrupo = connection.CreateCommand();
+        alterGrupo.CommandText = "ALTER TABLE ITEM_COMANDA ADD COLUMN GRUPO TEXT NOT NULL DEFAULT 'Principal'";
+        alterGrupo.ExecuteNonQuery();
     }
 }
 
