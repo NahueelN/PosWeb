@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { api, isSessionExpiredError } from '../client'
+import { api, isSessionExpiredError, resolveApiBase } from '../client'
 
 function createStorage(): Storage {
   const values = new Map<string, string>()
@@ -46,5 +46,11 @@ describe('API client session expiry', () => {
     await expect(api.cajas.activa(1)).rejects.toSatisfy(isSessionExpiredError)
 
     expect(localStorage.getItem('jwt_token')).toBeNull()
+  })
+})
+
+describe('API client Tauri base URL', () => {
+  it('uses the direct backend URL when Tauri loads the frontend from localhost', async () => {
+    expect(resolveApiBase(true, 'http:', 'localhost')).toBe('http://localhost:5196/api')
   })
 })
