@@ -157,6 +157,18 @@ export default function MesasPage() {
     }
   }
 
+  async function guardarNotaUnidad(item: ItemComandaDto, nota: string) {
+    try {
+      await api.restaurante.actualizarItem(item.id, { cantidad: item.cantidad, nota })
+      setSesiones(prev => prev.map(s => {
+        if (s.id !== item.sesionMesaId) return s
+        return { ...s, items: s.items.map(i => i.id === item.id ? { ...i, nota } : i) }
+      }))
+    } catch (e: any) {
+      notifyError(e.message || 'No se pudo guardar la nota')
+    }
+  }
+
   async function crearMesa() {
     if (!sucursal || !nuevaMesaNumero.trim()) return
     try {
@@ -405,6 +417,7 @@ export default function MesasPage() {
                                     item={item}
                                     onCambiarEstado={cambiarEstadoItem}
                                     onEditar={() => setEditarItem(item)}
+                                    onGuardarNota={guardarNotaUnidad}
                                   />
                                 ))}
                               </div>
@@ -522,10 +535,23 @@ interface ItemUnidadRowProps {
   item: ItemComandaDto
   onCambiarEstado: (itemId: number, estado: string) => void
   onEditar: () => void
+  onGuardarNota: (item: ItemComandaDto, nota: string) => void
 }
 
-function ItemUnidadRow({ item, onCambiarEstado, onEditar }: ItemUnidadRowProps) {
+function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemUnidadRowProps) {
   const esTerminal = item.estado === 'Cancelado' || item.estado === 'Devuelto'
+  const [nota, setNota] = useState(item.nota ?? '')
+
+  useEffect(() => {
+    setNota(item.nota ?? '')
+  }, [item.id, item.nota])
+
+  function commitNota() {
+    const valor = nota.trim()
+    if (valor === (item.nota ?? '')) return
+    onGuardarNota(item, valor)
+  }
+
   return (
     <div className={`p-2 ${esTerminal ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
@@ -534,7 +560,20 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar }: ItemUnidadRowProps) 
         </span>
         <span className="text-sm font-semibold text-gray-600">{fmt(item.subtotal)}</span>
       </div>
-      {item.nota && <p className="text-[11px] text-gray-500 mt-0.5">📝 {item.nota}</p>}
+      {esTerminal ? (
+        item.nota && <p className="text-[11px] text-gray-400 mt-0.5">📝 {item.nota}</p>
+      ) : (
+        <input
+          value={nota}
+          onChange={e => setNota(e.target.value)}
+          onBlur={commitNota}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { commitNota(); (e.target as HTMLInputElement).blur() }
+          }}
+          placeholder="Nota de esta unidad (ej: sin cebolla)"
+          className="mt-1 w-full rounded-md border border-gray-200 px-2 py-1 text-[11px] outline-none transition-colors focus:border-[oklch(0.52_0.255_278)]"
+        />
+      )}
       <div className="mt-1 flex items-center justify-between">
         <span className={`text-[10px] font-bold uppercase tracking-wide ${estadoColor(item.estado)}`}>{item.estado}</span>
         <div className="flex items-center gap-1">
@@ -544,7 +583,7 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar }: ItemUnidadRowProps) 
             </button>
           )}
           {!esTerminal && (
-            <button type="button" title="Editar" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={onEditar}>
+            <button type="button" title="Editar cantidad" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={onEditar}>
               <Pencil size={14} />
             </button>
           )}
