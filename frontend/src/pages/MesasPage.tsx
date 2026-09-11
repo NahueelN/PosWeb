@@ -423,12 +423,8 @@ export default function MesasPage() {
               </div>
 
               <div className="space-y-3">
-                {sesionSeleccionada.items.length === 0 && (
-                  <p className="text-sm text-gray-400">Cuenta vacía. Agregá los primeros items.</p>
-                )}
                 {GRUPOS_COMANDA.map(grupo => {
                   const itemsGrupo = sesionSeleccionada.items.filter(i => i.grupo === grupo)
-                  if (itemsGrupo.length === 0) return null
                   const pendientes = itemsGrupo.filter(i => i.estado === 'Pendiente').length
                   const productos = agruparItems(itemsGrupo)
                   const esDragOver = dragOverGrupo === grupo
@@ -454,12 +450,15 @@ export default function MesasPage() {
                           <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
                             Agregar
                           </Button>
-                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
+                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
                             Enviar
                           </Button>
                         </div>
                       </div>
                       <div className="space-y-1.5">
+                        {productos.length === 0 && (
+                          <p className="px-1 text-[11px] text-gray-300">Sin items en este grupo</p>
+                        )}
                         {productos.map(g => {
                           const expandKey = `${grupo}-${g.key}`
                           const expandido = grupoExpandido === expandKey
