@@ -55,6 +55,11 @@ public class Venta
 
     public void AgregarRenglon(Producto producto, decimal cantidad, int? ofertaId = null)
     {
+        if (producto == null)
+        {
+            throw new ProductoInvalidoException(0);
+        }
+
         AgregarRenglon(producto, cantidad, producto.PRECIO, ofertaId);
     }
 
