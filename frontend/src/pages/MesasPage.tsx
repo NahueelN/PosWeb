@@ -625,6 +625,7 @@ interface CocinaViewProps {
 function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: CocinaViewProps) {
   const hora = (iso: string) =>
     new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const [expandido, setExpandido] = useState<string | null>(null)
 
   const conPendientes = sesiones
     .map(s => ({
@@ -660,28 +661,52 @@ function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: Coci
                 </Button>
               </div>
               <div className="mt-2 space-y-1">
-                {items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1 bg-gray-50">
-                    <div className="min-w-0">
-                      <span className="text-sm text-gray-800">{item.cantidad} x {item.descripcion}</span>
-                      {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] font-mono text-gray-400" title="Hora de la comanda">{hora(item.fechaAlta)}</span>
-                      <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
-                      {item.estado === 'Pendiente' && (
-                        <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
-                          <UtensilsCrossed size={14} />
-                        </button>
+                {agruparItems(items).map(g => {
+                  const abierto = expandido === g.key
+                  const masAntigua = g.unidades[0]
+                  return (
+                    <div key={g.key} className="rounded-md border border-gray-200 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setExpandido(abierto ? null : g.key)}
+                        className="flex w-full items-center justify-between gap-2 px-2 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${abierto ? 'rotate-90' : ''}`} />
+                          <span className="text-sm text-gray-800 truncate">{g.descripcion}</span>
+                          <span className="text-xs font-bold text-gray-500 bg-white rounded-full px-1.5 py-0.5 shrink-0">x{g.unidades.length}</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-gray-400 shrink-0">desde {hora(masAntigua.fechaAlta)}</span>
+                      </button>
+                      {abierto && (
+                        <div className="divide-y divide-gray-50">
+                          {g.unidades.map(item => (
+                            <div key={item.id} className="flex items-center justify-between gap-2 px-2 py-1">
+                              <div className="min-w-0">
+                                <span className="text-sm text-gray-800">{item.descripcion}</span>
+                                {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] font-mono text-gray-400" title="Hora de la comanda">{hora(item.fechaAlta)}</span>
+                                <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
+                                {item.estado === 'Pendiente' && (
+                                  <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
+                                    <UtensilsCrossed size={14} />
+                                  </button>
+                                )}
+                                {item.estado !== 'Servido' && (
+                                  <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
+                                    <Check size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                      {item.estado !== 'Servido' && (
-                        <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
-                          <Check size={14} />
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ))}
