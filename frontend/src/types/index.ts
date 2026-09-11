@@ -154,6 +154,7 @@ export interface VentaResultadoDto {
   mostrarTelefonoTicket?: boolean
   estado?: string
   qrData?: string | null
+  mesa?: string | null
 }
 
 export interface StockSucursalDto {
@@ -217,6 +218,13 @@ export interface AgregarItemComandaRequest {
   comboId?: number
   cantidad: number
   nota?: string
+  /** Nota individual por unidad (una por cada unidad). Si viene, tiene prioridad sobre nota. */
+  notas?: (string | null)[]
+}
+
+export interface ActualizarItemComandaRequest {
+  cantidad: number
+  nota?: string
 }
 
 export interface SesionMesaDto {
@@ -249,6 +257,7 @@ export interface VentaHistorialDto {
   cantidadItems: number
   anulada: boolean
   estado?: string
+  mesa?: string | null
 }
 
 export interface VentaDetalleDto {
@@ -260,6 +269,7 @@ export interface VentaDetalleDto {
   items: RenglonHistorialDto[]
   empresaNombre?: string
   vendedor?: string
+  mesa?: string | null
   pagos: PagoVentaResultDto[]
   cambio: number
 }

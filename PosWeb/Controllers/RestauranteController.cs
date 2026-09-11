@@ -96,6 +96,12 @@ public class RestauranteController : ControllerBase
         return Ok(_restauranteService.AgregarItem(id, req));
     }
 
+    [HttpPut("items/{itemId:int}")]
+    public IActionResult ActualizarItem(int itemId, [FromBody] ActualizarItemComandaRequest req)
+    {
+        return Ok(_restauranteService.ActualizarItem(itemId, req));
+    }
+
     [HttpPut("items/{itemId:int}/estado")]
     public IActionResult CambiarEstadoItem(int itemId, [FromBody] CambiarEstadoItemRequest req)
     {

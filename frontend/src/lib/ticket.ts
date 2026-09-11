@@ -22,6 +22,7 @@ export interface TicketData {
   ventaId: number
   fecha: string
   vendedor?: string
+  mesa?: string
   items: TicketItem[]
   total: number
   pagos: { nombre: string }[]
@@ -70,6 +71,7 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push(line)
   push(fmtFecha(data.fecha))
   push(`Ticket N° ${String(data.ventaId).padStart(6, '0')}`)
+  if (data.mesa) push(`MESA ${data.mesa}`, { bold: true })
   push(`Vendedor: ${data.vendedor ?? '—'}`)
   push(line)
 

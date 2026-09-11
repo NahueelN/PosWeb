@@ -144,10 +144,11 @@ public class RestauranteTest
         var sesion = service.AbrirSesion(mesa.Id, usuarioId);
 
         service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 2, Nota = "sin cebolla" });
-        var itemPizza = service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p2.ID_PRODUCTO, Cantidad = 1 });
+        var itemPizza = service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p2.ID_PRODUCTO, Cantidad = 1 }).Single();
 
         sesion = service.ObtenerSesion(sesion.Id);
-        Assert.Equal(2, sesion.Items.Count);
+        // Cantidad 2 => 2 unidades individuales + 1 pizza.
+        Assert.Equal(3, sesion.Items.Count);
         Assert.Equal(p1.PRECIO * 2 + p2.PRECIO, sesion.Total);
 
         service.CambiarEstadoItem(itemPizza.Id, EstadosItemComanda.Servido);
@@ -286,5 +287,56 @@ public class RestauranteTest
         Assert.Equal(stockAntes, context.StockSucursal.Single().STOCK);
         // La sesión queda abierta para reintentar el cobro.
         Assert.Equal("Abierta", service.ObtenerSesion(sesion.Id).Estado);
+    }
+
+    [Fact]
+    public void AgregarItem_ConNotasPorUnidad_CreaUnidadesIndividuales()
+    {
+        var context = CrearContexto(nameof(AgregarItem_ConNotasPorUnidad_CreaUnidadesIndividuales));
+        var service = CrearServicio(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "6" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+
+        service.AgregarItem(sesion.Id, new AgregarItemComandaRequest
+        {
+            ProductoId = p1.ID_PRODUCTO,
+            Cantidad = 2,
+            Notas = new List<string?> { "sin cebolla", "con queso" }
+        });
+
+        var items = service.ObtenerSesion(sesion.Id).Items;
+        Assert.Equal(2, items.Count);
+        Assert.All(items, i => Assert.Equal(1m, i.Cantidad));
+        Assert.Equal("sin cebolla", items[0].Nota);
+        Assert.Equal("con queso", items[1].Nota);
+    }
+
+    [Fact]
+    public void ActualizarItem_EditaCantidadYNota()
+    {
+        var context = CrearContexto(nameof(ActualizarItem_EditaCantidadYNota));
+        var service = CrearServicio(context);
+        SeedBasico(context);
+        var sucursalId = context.Sucursal.Single().ID_SUCURSAL;
+        var usuarioId = context.Usuario.Single().ID_USUARIO;
+        var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
+
+        var mesa = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "7" });
+        var sesion = service.AbrirSesion(mesa.Id, usuarioId);
+
+        var item = service.AgregarItem(sesion.Id, new AgregarItemComandaRequest { ProductoId = p1.ID_PRODUCTO, Cantidad = 1 }).Single();
+
+        var actualizado = service.ActualizarItem(item.Id, new ActualizarItemComandaRequest { Cantidad = 3, Nota = "sin cebolla" });
+
+        Assert.Equal(3m, actualizado.Cantidad);
+        Assert.Equal("sin cebolla", actualizado.Nota);
+
+        var sesionActualizada = service.ObtenerSesion(sesion.Id);
+        Assert.Equal(p1.PRECIO * 3, sesionActualizada.Total);
     }
 }

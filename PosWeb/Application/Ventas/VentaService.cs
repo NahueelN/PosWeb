@@ -584,7 +584,14 @@ public class VentaService
                 Total = v.TOTAL,
                 CantidadItems = v.RENGLONES.Count,
                 Anulada = v.ANULADA,
-                Estado = v.ESTADO
+                Estado = v.ESTADO,
+                Mesa = v.ID_SESION_MESA == null ? null : _context.SesionMesa
+                    .Where(s => s.ID_SESION_MESA == v.ID_SESION_MESA)
+                    .Select(s => _context.Mesa
+                        .Where(m => m.ID_MESA == s.ID_MESA)
+                        .Select(m => m.NUMERO_MESA)
+                        .FirstOrDefault())
+                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -651,6 +658,16 @@ public class VentaService
                 .FirstOrDefaultAsync()
             : null;
 
+        string? mesa = venta.ID_SESION_MESA.HasValue
+            ? await _context.SesionMesa
+                .Where(s => s.ID_SESION_MESA == venta.ID_SESION_MESA.Value)
+                .Select(s => _context.Mesa
+                    .Where(m => m.ID_MESA == s.ID_MESA)
+                    .Select(m => m.NUMERO_MESA)
+                    .FirstOrDefault())
+                .FirstOrDefaultAsync()
+            : null;
+
         return new VentaDetalleDto
         {
             VentaId = venta.ID_VENTA,
@@ -661,6 +678,7 @@ public class VentaService
             Items = items,
             EmpresaNombre = empresaNombre,
             Vendedor = vendedor,
+            Mesa = mesa,
             Pagos = pagos,
             Cambio = pagos.Sum(p => p.Cambio)
         };

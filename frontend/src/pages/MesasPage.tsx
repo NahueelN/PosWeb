@@ -7,7 +7,7 @@ import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import TicketResultado from './venta/TicketResultado'
-import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft } from 'lucide-react'
+import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto } from '../types'
 
 function fmt(n: number): string {
@@ -65,8 +65,11 @@ export default function MesasPage() {
   const [cargando, setCargando] = useState(false)
 
   const [editarMapa, setEditarMapa] = useState(false)
+  const [vista, setVista] = useState<'mapa' | 'cocina'>('mapa')
   const [mesaSeleccionada, setMesaSeleccionada] = useState<MesaDto | null>(null)
   const [dragId, setDragId] = useState<number | null>(null)
+
+  const [editarItem, setEditarItem] = useState<ItemComandaDto | null>(null)
 
   const [agregarItemSesion, setAgregarItemSesion] = useState<SesionMesaDto | null>(null)
   const [cobrarSesion, setCobrarSesion] = useState<SesionMesaDto | null>(null)
@@ -226,6 +229,22 @@ export default function MesasPage() {
             <span className="text-sm text-gray-500">Elegí una sucursal para operar</span>
           ) : (
             <>
+              <div className="flex rounded-lg bg-gray-100 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setVista('mapa')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'mapa' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Mapa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVista('cocina')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'cocina' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Cocina
+                </button>
+              </div>
               <Button
                 size="sm"
                 variant={editarMapa ? 'primary' : 'secondary'}
@@ -242,6 +261,14 @@ export default function MesasPage() {
         </div>
       </div>
 
+      {vista === 'cocina' ? (
+        <CocinaView
+          sesiones={sesiones}
+          onRefrescar={() => cargar()}
+          onImprimir={imprimirComanda}
+          onCambiarEstado={cambiarEstadoItem}
+        />
+      ) : (
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-3">
         {/* Mapa */}
         <div
@@ -273,6 +300,11 @@ export default function MesasPage() {
                   <span className="font-bold text-gray-800">{mesa.numero}</span>
                   {sesion && (
                     <span className="text-xs font-semibold text-orange-600">{sesion.items.length} items</span>
+                  )}
+                  {sesion && sesion.items.some(i => i.estado === 'Pendiente') && (
+                    <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5" title="Comanda sin enviar a cocina">
+                      🕐 {sesion.items.filter(i => i.estado === 'Pendiente').length}
+                    </span>
                   )}
                   {editarMapa && (
                     <button
@@ -360,6 +392,11 @@ export default function MesasPage() {
                           </button>
                         )}
                         {item.estado !== 'Cancelado' && item.estado !== 'Devuelto' && (
+                          <button type="button" title="Editar" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={() => setEditarItem(item)}>
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        {item.estado !== 'Cancelado' && item.estado !== 'Devuelto' && (
                           <button type="button" title="Devolver" className="p-1 text-amber-600 hover:bg-amber-50 rounded" onClick={() => cambiarEstadoItem(item.id, 'Devuelto')}>
                             <Undo2 size={14} />
                           </button>
@@ -378,6 +415,7 @@ export default function MesasPage() {
           )}
         </div>
       </div>
+      )}
 
       <AgregarItemDialog
         sesion={agregarItemSesion}
@@ -394,6 +432,15 @@ export default function MesasPage() {
         sesiones={sesiones.filter(s => s.id !== unificarDe?.id)}
         onClose={() => setUnificarDe(null)}
         onDone={async () => { setUnificarDe(null); await cargar() }}
+      />
+
+      <EditarItemDialog
+        item={editarItem}
+        onClose={() => setEditarItem(null)}
+        onGuardado={async () => {
+          setEditarItem(null)
+          await cargar()
+        }}
       />
 
       <CobrarDialog
@@ -415,6 +462,7 @@ export default function MesasPage() {
             resultado={resultado}
             ultimosItems={resultadoItems}
             user={user}
+            mesa={resultado.mesa ?? undefined}
             onNuevaVenta={() => setResultado(null)}
           />
         </Dialog>
@@ -465,6 +513,127 @@ function estadoColor(estado: string): string {
   }
 }
 
+interface CocinaViewProps {
+  sesiones: SesionMesaDto[]
+  onRefrescar: () => void
+  onImprimir: (mesa: string, items: ItemComandaDto[]) => void
+  onCambiarEstado: (itemId: number, estado: string) => void
+}
+
+function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: CocinaViewProps) {
+  const conPendientes = sesiones
+    .map(s => ({ sesion: s, items: s.items.filter(i => i.estado === 'Pendiente' || i.estado === 'EnCocina') }))
+    .filter(x => x.items.length > 0)
+    .sort((a, b) => a.sesion.fechaApertura.localeCompare(b.sesion.fechaApertura))
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 h-[70vh] overflow-y-auto">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-gray-800">Cocina — pendientes</h2>
+        <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={onRefrescar}>Refrescar</Button>
+      </div>
+
+      {conPendientes.length === 0 ? (
+        <p className="text-sm text-gray-400">No hay comandas pendientes en cocina.</p>
+      ) : (
+        <div className="space-y-3">
+          {conPendientes.map(({ sesion, items }) => (
+            <div key={sesion.id} className="rounded-lg border border-gray-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-gray-800">Mesa {sesion.mesaNumero || sesion.mesaId}</span>
+                <span className="text-[11px] text-gray-400">
+                  {new Date(sesion.fechaApertura).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <Button size="sm" variant="secondary" icon={<Printer size={13} />} onClick={() => onImprimir(sesion.mesaNumero || String(sesion.mesaId), items)}>
+                  Imprimir
+                </Button>
+              </div>
+              <div className="mt-2 space-y-1">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1 bg-gray-50">
+                    <div className="min-w-0">
+                      <span className="text-sm text-gray-800">{item.cantidad} x {item.descripcion}</span>
+                      {item.nota && <p className="text-[11px] text-gray-500 truncate">📝 {item.nota}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`text-[10px] font-bold uppercase ${estadoColor(item.estado)}`}>{item.estado}</span>
+                      {item.estado === 'Pendiente' && (
+                        <button type="button" title="En cocina" className="p-1 text-orange-600 hover:bg-orange-50 rounded" onClick={() => onCambiarEstado(item.id, 'EnCocina')}>
+                          <UtensilsCrossed size={14} />
+                        </button>
+                      )}
+                      {item.estado !== 'Servido' && (
+                        <button type="button" title="Servido" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => onCambiarEstado(item.id, 'Servido')}>
+                          <Check size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface EditarItemDialogProps {
+  item: ItemComandaDto | null
+  onClose: () => void
+  onGuardado: () => Promise<void>
+}
+
+function EditarItemDialog({ item, onClose, onGuardado }: EditarItemDialogProps) {
+  const { notifyError } = useNotification()
+  const [cantidad, setCantidad] = useState(1)
+  const [nota, setNota] = useState('')
+
+  useEffect(() => {
+    if (!item) return
+    setCantidad(item.cantidad)
+    setNota(item.nota ?? '')
+  }, [item])
+
+  async function guardar() {
+    if (!item) return
+    try {
+      await api.restaurante.actualizarItem(item.id, { cantidad, nota })
+      await onGuardado()
+    } catch (e: any) {
+      notifyError(e.message || 'No se pudo actualizar el item')
+    }
+  }
+
+  return (
+    <Dialog open={!!item} onClose={onClose} title="Editar item" width="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={guardar}>Guardar</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-gray-800">{item?.descripcion}</p>
+        <label className="block text-xs font-semibold text-gray-600">
+          Cantidad
+          <input type="number" min={1} step={1} value={cantidad}
+            onChange={e => setCantidad(Number(e.target.value))}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+        </label>
+        <label className="block text-xs font-semibold text-gray-600">
+          Nota
+          <input value={nota} onChange={e => setNota(e.target.value)}
+            placeholder="Ej: sin cebolla"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+        </label>
+      </div>
+    </Dialog>
+  )
+}
+
 interface AgregarItemDialogProps {
   sesion: SesionMesaDto | null
   sucursalId?: number
@@ -480,6 +649,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   const [combos, setCombos] = useState<ComboDto[]>([])
   const [nota, setNota] = useState('')
   const [cantidad, setCantidad] = useState(1)
+  const [notas, setNotas] = useState<string[]>([])
 
   // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
   useEffect(() => {
@@ -489,6 +659,7 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
     setQ('')
     setNota('')
     setCantidad(1)
+    setNotas([])
   }, [sesion])
 
   // Búsqueda de productos con debounce: depende de q pero no lo resetea.
@@ -512,7 +683,12 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
   async function agregar(productoId?: number, comboId?: number) {
     if (!sesion) return
     try {
-      await api.restaurante.agregarItem(sesion.id, { productoId, comboId, cantidad, nota })
+      const unidades = Math.max(1, Math.round(cantidad))
+      if (unidades > 1) {
+        await api.restaurante.agregarItem(sesion.id, { productoId, comboId, cantidad: unidades, notas })
+      } else {
+        await api.restaurante.agregarItem(sesion.id, { productoId, comboId, cantidad: 1, nota })
+      }
       await onAdded()
     } catch (e: any) {
       notifyError(e.message || 'No se pudo agregar el item')
@@ -563,16 +739,34 @@ function AgregarItemDialog({ sesion, sucursalId, onClose, onAdded }: AgregarItem
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold text-gray-600">
             Cantidad
-            <input type="number" min={1} step={0.5} value={cantidad}
-              onChange={e => setCantidad(Number(e.target.value))}
+            <input type="number" min={1} step={1} value={cantidad}
+              onChange={e => {
+                const n = Math.max(1, Math.round(Number(e.target.value)) || 1)
+                setCantidad(n)
+                setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
+              }}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
           </label>
-          <label className="text-xs font-semibold text-gray-600">
-            Nota (opcional)
-            <input value={nota} onChange={e => setNota(e.target.value)}
-              placeholder="Ej: sin cebolla"
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-          </label>
+          {cantidad === 1 ? (
+            <label className="text-xs font-semibold text-gray-600">
+              Nota (opcional)
+              <input value={nota} onChange={e => setNota(e.target.value)}
+                placeholder="Ej: sin cebolla"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+            </label>
+          ) : (
+            <div className="text-xs font-semibold text-gray-600">
+              Nota por unidad
+              <div className="mt-1 space-y-1">
+                {notas.map((n, i) => (
+                  <input key={i} value={n}
+                    onChange={e => setNotas(prev => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                    placeholder={`Nota unidad ${i + 1}`}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Dialog>

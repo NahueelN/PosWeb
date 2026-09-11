@@ -10,6 +10,8 @@ public class VentaDetalleDto
     public List<RenglonHistorialDto> Items { get; set; } = [];
     public string? EmpresaNombre { get; set; }
     public string? Vendedor { get; set; }
+    /// <summary>Número de mesa (restaurante) si la venta proviene de una cuenta de mesa.</summary>
+    public string? Mesa { get; set; }
     public List<PagoVentaResultDto> Pagos { get; set; } = [];
     public decimal Cambio { get; set; }
 }

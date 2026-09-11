@@ -169,7 +169,7 @@ public class RestauranteService
             .ToList();
     }
 
-    public ItemComandaDto AgregarItem(int sesionId, AgregarItemComandaRequest req)
+    public List<ItemComandaDto> AgregarItem(int sesionId, AgregarItemComandaRequest req)
     {
         var sesion = CargarSesion(sesionId);
         if (!sesion.EstadoAbierta)
@@ -209,8 +209,39 @@ public class RestauranteService
             throw new ArgumentException("Debe indicar un producto o combo");
         }
 
-        var item = new ItemComanda(sesionId, productoId, comboId, descripcion, req.Cantidad, precio, req.Nota);
-        sesion.AgregarItem(item);
+        // Cada unidad es su propia fila ItemComanda (CANTIDAD = 1) para poder ponerle
+        // nota individual a cada una. Si vienen Notas por unidad se usan; si no, la Nota
+        // simple se aplica a todas las unidades.
+        var unidades = (int)Math.Max(1, Math.Round(req.Cantidad, 0, MidpointRounding.AwayFromZero));
+        var notas = req.Notas ?? Enumerable.Repeat<string?>(req.Nota, unidades).ToList();
+
+        var creados = new List<ItemComanda>();
+        for (var i = 0; i < unidades; i++)
+        {
+            var nota = i < notas.Count ? notas[i] : req.Nota;
+            var item = new ItemComanda(sesionId, productoId, comboId, descripcion, 1, precio, nota);
+            sesion.AgregarItem(item);
+            creados.Add(item);
+        }
+
+        _context.SaveChanges();
+
+        return creados.Select(MapItem).ToList();
+    }
+
+    public ItemComandaDto ActualizarItem(int itemId, ActualizarItemComandaRequest req)
+    {
+        var item = _context.ItemComanda.Find(itemId)
+            ?? throw new ItemComandaNoEncontradaException(itemId);
+
+        if (item.ESTADO is EstadosItemComanda.Devuelto or EstadosItemComanda.Cancelado)
+            throw new InvalidOperationException("No se puede editar un item devuelto o cancelado");
+
+        if (req.Cantidad <= 0)
+            throw new ArgumentException("La cantidad debe ser mayor a cero");
+
+        item.CambiarCantidad(req.Cantidad);
+        item.CambiarNota(req.Nota);
         _context.SaveChanges();
 
         return MapItem(item);
@@ -279,6 +310,7 @@ public class RestauranteService
         };
 
         var resultado = await _ventaService.CrearVenta(dto, usuarioId);
+        resultado.Mesa = ObtenerNumeroMesa(sesion.ID_MESA);
 
         // Con pago pendiente (QR/transferencia) la mesa queda ocupada hasta confirmar el pago,
         // así se evita marcar como cobrada una venta que puede cancelarse.

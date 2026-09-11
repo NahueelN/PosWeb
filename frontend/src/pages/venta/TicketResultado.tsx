@@ -16,6 +16,7 @@ interface TicketResultadoProps {
   ultimosItems: ItemEmitido[]
   user: UsuarioInfo | null
   onNuevaVenta: () => void
+  mesa?: string
 }
 
 type Letra = 'chica' | 'mediana' | 'grande'
@@ -55,7 +56,7 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
+export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta, mesa }: TicketResultadoProps) {
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -111,6 +112,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     ventaId: resultado.ventaId,
     fecha: resultado.fecha,
     vendedor: user?.nombre,
+    mesa,
     items: ultimosItems.map(i => ({ nombre: i.producto.nombre, cantidad: i.cantidad, precio: i.producto.precio })),
     total: resultado.total,
     pagos: resultado.pagos.map(p => ({ nombre: p.medioPagoNombre })),
