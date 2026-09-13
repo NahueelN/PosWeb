@@ -17,4 +17,6 @@
 | COMP-Card | Generic card container | Active | Project | High | `../frontend/src/components/ui/Card.tsx` |
 | COMP-Button | Button with variants and sizes | Active | Project | Critical | `../frontend/src/components/ui/Button.tsx` |
 | COMP-Checkbox | Control Checkbox Reutilizable | Active | Project | Medium | `knowledge/projects/posweb/COMP-Checkbox.md` |
-| COMP-SelectAltaCruzada | Lookup select with cross-registration (+) | Active | Project | High | `../frontend/src/components/ui/SelectAltaCruzada.tsx` |
+| COMP-PrefixedCodeInput | Input de Código con Prefijo | Active | Project | Medium | `knowledge/projects/posweb/COMP-PrefixedCodeInput.md` |
+| COMP-LabelPrintDialog | Diálogo de Impresión de Etiquetas | Active | Project | High | `knowledge/projects/posweb/COMP-LabelPrintDialog.md` |
+| COMP-SelectAltaCruzada | Lookup select with cross-registration (+) | Active | Project | High | `knowledge/projects/posweb/COMP-SelectAltaCruzada.md` |
