@@ -1,19 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CategoriasTab from './CategoriasTab'
 import UnidadesMedidaTab from './UnidadesMedidaTab'
 import StockTab from './StockTab'
-import { Folder, Ruler, Package, Settings } from 'lucide-react'
+import VencimientosTab from './VencimientosTab'
+import { Folder, Ruler, Package, Settings, CalendarClock } from 'lucide-react'
 
-type Section = 'categorias' | 'unidades' | 'stock'
+export type ProductConfigSection = 'categorias' | 'unidades' | 'stock' | 'vencimientos'
 
-const sections: { id: Section; icon: typeof Folder; label: string }[] = [
+const sections: { id: ProductConfigSection; icon: typeof Folder; label: string }[] = [
   { id: 'categorias', icon: Folder, label: 'Categorías' },
   { id: 'unidades', icon: Ruler, label: 'Unidades' },
   { id: 'stock', icon: Package, label: 'Stock' },
+  { id: 'vencimientos', icon: CalendarClock, label: 'Vencimientos' },
 ]
 
-export default function ConfiguracionProductosTab({ notifyError }: { notifyError: (msg: string) => void }) {
-  const [section, setSection] = useState<Section>('categorias')
+export default function ConfiguracionProductosTab({ notifyError, initialSection }: { notifyError: (msg: string) => void; initialSection?: ProductConfigSection }) {
+  const [section, setSection] = useState<ProductConfigSection>(initialSection ?? 'categorias')
+
+  useEffect(() => {
+    if (initialSection) setSection(initialSection)
+  }, [initialSection])
 
   return (
     <div className="space-y-6">
@@ -51,6 +57,7 @@ export default function ConfiguracionProductosTab({ notifyError }: { notifyError
         {section === 'categorias' && <CategoriasTab notifyError={notifyError} />}
         {section === 'unidades' && <UnidadesMedidaTab notifyError={notifyError} />}
         {section === 'stock' && <StockTab notifyError={notifyError} />}
+        {section === 'vencimientos' && <VencimientosTab notifyError={notifyError} />}
       </div>
     </div>
   )

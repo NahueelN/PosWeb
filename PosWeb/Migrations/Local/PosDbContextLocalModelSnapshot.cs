@@ -911,6 +911,18 @@ namespace PosWeb.Migrations.Local
                     b.Property<DateTime>("FECHA_ULTIMA_MOD")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_1")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_1");
+
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_2")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_2");
+
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_3")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_3");
+
                     b.Property<int?>("ID_CATEGORIA")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_CATEGORIA");
@@ -938,6 +950,10 @@ namespace PosWeb.Migrations.Local
                     b.Property<bool>("SEGUIR_STOCK")
                         .HasColumnType("INTEGER")
                         .HasColumnName("SEGUIR_STOCK");
+
+                    b.Property<bool>("SEGUIR_VENCIMIENTOS")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SEGUIR_VENCIMIENTOS");
 
                     b.HasKey("ID_PRODUCTO");
 

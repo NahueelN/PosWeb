@@ -108,6 +108,44 @@ public class ProductoServiceTest
     }
 
     [Fact]
+    public void Crear_ConControlVencimientos_ConservaLaPreferencia()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(Crear_ConControlVencimientos_ConservaLaPreferencia));
+        ProductoService service = CrearService(context);
+
+        ProductoDto resultado = service.Crear(new ProductoUpsertDto
+        {
+            CodigoBarra = "123",
+            Nombre = "Producto Test",
+            Precio = 100m,
+            Costo = 80m,
+            SeguirVencimientos = true
+        });
+
+        Assert.True(resultado.SeguirVencimientos);
+    }
+
+    [Fact]
+    public void Modificar_ConControlVencimientos_ActualizaLaPreferencia()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(Modificar_ConControlVencimientos_ActualizaLaPreferencia));
+        Producto producto = CrearProducto(context, 1, "123", "Producto Test");
+        ProductoService service = CrearService(context);
+
+        ProductoDto resultado = service.Modificar(producto.ID_PRODUCTO, new ProductoUpsertDto
+        {
+            CodigoBarra = "123",
+            Nombre = "Producto Test",
+            Precio = 100m,
+            Costo = 80m,
+            SeguirVencimientos = true
+        });
+
+        Assert.True(resultado.SeguirVencimientos);
+        Assert.True(context.Producto.Single().SEGUIR_VENCIMIENTOS);
+    }
+
+    [Fact]
     public void Crear_CodigoDuplicado_LanzaExcepcion()
     {
         PosDbContextLocal context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));
@@ -226,5 +264,52 @@ public class ProductoServiceTest
         {
             service.Eliminar(999);
         });
+    }
+
+    [Fact]
+    public void Crear_OrdenaYEliminaFechasVencimientoRepetidas()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(Crear_OrdenaYEliminaFechasVencimientoRepetidas));
+        ProductoService service = CrearService(context);
+
+        ProductoDto resultado = service.Crear(new ProductoUpsertDto
+        {
+            CodigoBarra = "123",
+            Nombre = "Producto",
+            Precio = 100m,
+            Costo = 80m,
+            FechasVencimiento = new List<DateTime>
+            {
+                new DateTime(2027, 3, 1), new DateTime(2027, 1, 1),
+                new DateTime(2027, 1, 1), new DateTime(2027, 2, 1)
+            }
+        });
+
+        Assert.Equal(new[]
+        {
+            new DateTime(2027, 1, 1),
+            new DateTime(2027, 2, 1),
+            new DateTime(2027, 3, 1)
+        }, resultado.FechasVencimiento);
+    }
+
+    [Fact]
+    public void Crear_MasDeTresFechasVencimiento_LanzaExcepcion()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(Crear_MasDeTresFechasVencimiento_LanzaExcepcion));
+        ProductoService service = CrearService(context);
+
+        Assert.Throws<ArgumentException>(() => service.Crear(new ProductoUpsertDto
+        {
+            CodigoBarra = "123",
+            Nombre = "Producto",
+            Precio = 100m,
+            Costo = 80m,
+            FechasVencimiento = new List<DateTime>
+            {
+                new DateTime(2027, 1, 1), new DateTime(2027, 2, 1),
+                new DateTime(2027, 3, 1), new DateTime(2027, 4, 1)
+            }
+        }));
     }
 }
