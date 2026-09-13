@@ -16,9 +16,11 @@ export interface ProductoDto {
   margenGanancia?: number | null
   cantidadIdeal?: number | null
   seguirStock?: boolean
+  seguirVencimientos?: boolean
   esPesable?: boolean
   esBulto?: boolean
   productoBultoId?: number | null
+  fechasVencimiento?: string[]
 }
 
 export interface ProductoDetailDto {
@@ -88,9 +90,11 @@ export interface ProductoUpsertDto {
   codigoProducto?: string | null
   margenGanancia?: number | null
   seguirStock?: boolean
+  seguirVencimientos?: boolean
   esPesable?: boolean
   esBulto?: boolean
   productoBultoId?: number | null
+  fechasVencimiento?: string[]
 }
 
 // --- Open Food Facts ---

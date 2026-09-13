@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight, BellRing } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -141,11 +141,54 @@ export default function Layout() {
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrData, setQrData] = useState('')
   const [qrRevinculacion, setQrRevinculacion] = useState(false)
+  const [avisoVencimientosHabilitado, setAvisoVencimientosHabilitado] = useState(false)
+  const [productosPorVencer, setProductosPorVencer] = useState(0)
+  const [versionVencimientos, setVersionVencimientos] = useState(0)
 
   useEffect(() => {
     const v = getCurrentVersion()
     if (v) setAppVersion(`v${v}`)
   }, [])
+
+  useEffect(() => {
+    const refrescar = () => setVersionVencimientos(version => version + 1)
+    window.addEventListener('vencimientos:configuracion', refrescar)
+    return () => window.removeEventListener('vencimientos:configuracion', refrescar)
+  }, [])
+
+  useEffect(() => {
+    if (user?.rol !== 'SuperAdmin' && user?.rol !== 'Admin') {
+      setAvisoVencimientosHabilitado(false)
+      setProductosPorVencer(0)
+      return
+    }
+
+    Promise.all([api.productos.listar(), api.preferencias.obtener()])
+      .then(([productos, preferencias]) => {
+        const habilitado = preferencias.preferencias?.vencimientos?.habilitado === 'true'
+        setAvisoVencimientosHabilitado(habilitado)
+        if (!habilitado) {
+          setProductosPorVencer(0)
+          return
+        }
+        const dias = Math.max(1, Number(preferencias.preferencias?.vencimientos?.diasAnticipacion) || 7)
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
+        const limite = new Date(hoy)
+        limite.setDate(limite.getDate() + dias)
+
+        const afectados = productos.filter(producto => producto.seguirVencimientos && (producto.fechasVencimiento ?? []).some(fecha => {
+          const vencimiento = new Date(`${fecha.slice(0, 10)}T00:00:00`)
+          return vencimiento <= limite
+        }))
+
+        setProductosPorVencer(afectados.length)
+      })
+      .catch(() => {
+        setAvisoVencimientosHabilitado(false)
+        setProductosPorVencer(0)
+      })
+  }, [user, versionVencimientos])
 
   // F2 global: quick product lookup
   useEffect(() => {
@@ -357,6 +400,16 @@ export default function Layout() {
               </kbd>
               <span>búsqueda rápida</span>
             </div>
+
+            {avisoVencimientosHabilitado && productosPorVencer > 0 && (
+              <button type="button" onClick={() => navigate('/productos', { state: { openVencimientos: true } })}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                aria-label="Ver productos próximos a vencer">
+                <BellRing size={14} />
+                <span>Vencimientos</span>
+                <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] leading-none text-amber-900">{productosPorVencer}</span>
+              </button>
+            )}
 
             {user && (
               <div className="flex items-center gap-3">

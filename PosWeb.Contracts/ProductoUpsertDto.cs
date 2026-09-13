@@ -17,6 +17,7 @@ public class ProductoUpsertDto
     public decimal? MargenGanancia { get; set; }
 
     public bool? SeguirStock { get; set; }
+    public bool? SeguirVencimientos { get; set; }
 
     /// <summary>
     /// Código interno del producto (opcional). Si no se envía, se auto-genera.
@@ -31,4 +32,6 @@ public class ProductoUpsertDto
     /// ID del producto que representa la unidad del bulto (solo cuando EsBulto = true).
     /// </summary>
     public int? ProductoBultoId { get; set; }
+
+    public List<DateTime> FechasVencimiento { get; set; } = new();
 }

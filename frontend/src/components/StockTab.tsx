@@ -4,6 +4,7 @@ import type { ProductoDto } from '../types'
 import { Package, ChevronRight, Search } from 'lucide-react'
 import Card from './ui/Card'
 import Button from './ui/Button'
+import Checkbox from './ui/Checkbox'
 
 export default function StockTab({ notifyError }: { notifyError: (msg: string) => void }) {
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -139,33 +140,18 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
           </div>
         </div>
 
-        <div className="flex items-center justify-between bg-slate-50 rounded-xl p-4">
-          <div>
-            <p className="text-sm font-medium text-slate-800">Seguimiento de stock</p>
-            <p className="text-xs text-slate-500">
-              {productos.length > 0 && conStock === productos.length
-                ? 'Todos los productos controlan inventario'
-                : sinStock === productos.length
-                  ? 'Ningún producto controla inventario'
-                  : `${conStock} de ${productos.length} productos con seguimiento`}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={todosActivos}
-            onClick={() => abrirConfirmacion(!todosActivos)}
+        <div className="rounded-xl bg-slate-50 p-4">
+          <Checkbox
+            checked={todosActivos}
             disabled={saving || productos.length === 0}
-            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${
-              todosActivos ? 'bg-emerald-500' : 'bg-slate-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                todosActivos ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+            onChange={seguir => abrirConfirmacion(seguir)}
+            label="Seguimiento de stock"
+            description={productos.length > 0 && conStock === productos.length
+              ? 'Todos los productos controlan inventario'
+              : sinStock === productos.length
+                ? 'Ningún producto controla inventario'
+                : `${conStock} de ${productos.length} productos con seguimiento`}
+          />
         </div>
 
         <div className="mt-5">
@@ -215,22 +201,12 @@ export default function StockTab({ notifyError }: { notifyError: (msg: string) =
                           className="w-16 px-2 py-1 border border-slate-300 rounded-lg text-sm text-center font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none disabled:opacity-50"
                         />
                       </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={p.seguirStock !== false}
+                      <Checkbox
+                        checked={p.seguirStock !== false}
                         disabled={savingProducto === p.id}
-                        onClick={() => toggleProducto(p.id, p.seguirStock === false)}
-                        className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${
-                          p.seguirStock !== false ? 'bg-emerald-500' : 'bg-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                            p.seguirStock !== false ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                          }`}
-                        />
-                      </button>
+                        onChange={seguir => toggleProducto(p.id, seguir)}
+                        className="shrink-0"
+                      />
                     </div>
                   ))
                 )}

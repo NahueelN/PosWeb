@@ -10,6 +10,10 @@ import { useNotification } from '../context/NotificationContext'
 import BarcodePrintDialog from './BarcodePrintDialog'
 import { renderBarcode } from '../lib/barcode'
 
+function ordenarFechasVencimiento(fechas: string[]) {
+  return [...fechas.filter(Boolean)].sort().concat(['', '', '']).slice(0, 3)
+}
+
 function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
     <div className={`min-w-0 ${className}`}>
@@ -59,9 +63,11 @@ export default function ProductFormModal({
   const [margen, setMargen] = useState('')
   const [bloquearMargen, setBloquearMargen] = useState(false)
   const [seguirStock, setSeguirStock] = useState(true)
+  const [seguirVencimientos, setSeguirVencimientos] = useState(false)
   const [esPesable, setEsPesable] = useState(false)
   const [esBulto, setEsBulto] = useState(false)
   const [productoBultoId, setProductoBultoId] = useState('')
+  const [fechasVencimiento, setFechasVencimiento] = useState(['', '', ''])
   const [productosBulto, setProductosBulto] = useState<ProductoDto[]>([])
   const [loading, setLoading] = useState(false)
   const { notifyError } = useNotification()
@@ -302,9 +308,11 @@ export default function ProductFormModal({
         setUnidadMedidaId(editingProduct.unidadMedidaId?.toString() || '')
         setStock(editingProduct.stock?.toString() || '')
         setSeguirStock(editingProduct.seguirStock ?? true)
+        setSeguirVencimientos(editingProduct.seguirVencimientos ?? false)
         setEsPesable(editingProduct.esPesable ?? false)
         setEsBulto(editingProduct.esBulto ?? false)
         setProductoBultoId(editingProduct.productoBultoId?.toString() || '')
+        setFechasVencimiento(ordenarFechasVencimiento((editingProduct.fechasVencimiento ?? []).map(fecha => fecha.slice(0, 10))))
         setDescripcion(editingProduct.descAdicional || '')
         setMargen(editingProduct.margenGanancia?.toString() || '')
         setBloquearMargen(false)
@@ -321,9 +329,11 @@ export default function ProductFormModal({
         setDescripcion('')
         setStock('')
         setSeguirStock(true)
+        setSeguirVencimientos(false)
         setEsPesable(defaultEsPesable ?? false)
         setEsBulto(false)
         setProductoBultoId('')
+        setFechasVencimiento(['', '', ''])
         setMargen('')
         setBloquearMargen(false)
         setBarcodeStatus('idle')
@@ -603,6 +613,12 @@ export default function ProductFormModal({
       return
     }
 
+    const vencimientos = fechasVencimiento.filter(Boolean)
+    if (new Set(vencimientos).size !== vencimientos.length) {
+      notifyError('No repitas fechas de vencimiento para el mismo producto')
+      return
+    }
+
     setLoading(true)
     try {
       const dto = {
@@ -618,9 +634,11 @@ export default function ProductFormModal({
         codigoProducto: codigoProducto.startsWith('PROD') && codigoProducto.length > 4 ? codigoProducto.trim() : undefined,
         margenGanancia: margen ? Number(margen) : undefined,
         seguirStock,
+        seguirVencimientos,
         esPesable,
         esBulto,
         productoBultoId: esBulto && productoBultoId ? Number(productoBultoId) : undefined,
+        fechasVencimiento: vencimientos,
       }
       const result = isEditing
         ? await api.productos.actualizar(editingProduct!.id, dto)
@@ -643,6 +661,7 @@ export default function ProductFormModal({
         result.stock = editingProduct!.stock
       }
 
+      window.dispatchEvent(new Event('vencimientos:configuracion'))
       onCreated(result)
     } catch (e: any) {
       notifyError(e.message || (isEditing ? 'Error al actualizar producto' : 'Error al crear producto'))
@@ -1096,6 +1115,50 @@ export default function ProductFormModal({
                   }`}
                   placeholder={seguirStock ? '0' : 'Sin control'} />
               </div>
+              <div className="mt-2 flex items-center gap-2">
+                <label className={`flex items-center gap-1.5 select-none group ${esBulto ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={seguirVencimientos}
+                    onChange={event => setSeguirVencimientos(event.target.checked)}
+                    disabled={esBulto}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
+                  />
+                  <span className={`text-sm font-medium transition-colors ${esBulto ? 'text-gray-400' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Controlar vencimientos</span>
+                </label>
+                <span className="text-[11px] text-gray-400 font-normal">— muestra avisos</span>
+              </div>
+              {!esBulto && (
+                <div className="mt-2">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-700">Vencimientos</p>
+                    <span className="text-[10px] text-gray-400">Hasta tres fechas</span>
+                  </div>
+                  <div className="space-y-1">
+                    {[0, 1, 2].map(index => (
+                      <label key={index} className="flex items-center gap-2 text-[11px] font-medium text-gray-600">
+                        <span className="w-20 shrink-0">Fecha {index + 1}</span>
+                        <input
+                          type="date"
+                          value={fechasVencimiento[index] ?? ''}
+                          onChange={event => setFechasVencimiento(actuales => ordenarFechasVencimiento([0, 1, 2].map(currentIndex => currentIndex === index ? event.target.value : actuales[currentIndex] ?? '')))}
+                          disabled={!seguirVencimientos}
+                          className="h-6 min-w-0 flex-1 rounded-md border border-gray-300 px-1.5 text-xs outline-none transition-all duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-ring)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFechasVencimiento(actuales => ordenarFechasVencimiento(actuales.filter((_, currentIndex) => currentIndex !== index)))}
+                          disabled={!seguirVencimientos || !fechasVencimiento[index]}
+                          aria-label={`Eliminar fecha ${index + 1}`}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <X size={14} />
+                        </button>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </FieldSection>
           </div>
         </div>

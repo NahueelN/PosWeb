@@ -33,6 +33,7 @@ public class Producto
     public decimal? CANTIDAD_IDEAL { get; private set; }
 
     public bool SEGUIR_STOCK { get; private set; } = true;
+    public bool SEGUIR_VENCIMIENTOS { get; private set; }
 
     public bool ES_PESABLE { get; private set; }
 
@@ -47,6 +48,10 @@ public class Producto
     public DateTime? FECHA_BAJA { get; private set; }
 
     public bool ACTIVO { get; private set; }
+
+    public DateTime? FECHA_VENCIMIENTO_1 { get; private set; }
+    public DateTime? FECHA_VENCIMIENTO_2 { get; private set; }
+    public DateTime? FECHA_VENCIMIENTO_3 { get; private set; }
 
     public Producto(
         string codProducto,
@@ -235,6 +240,42 @@ public class Producto
     {
         ID_PRODUCTO_BULTO = idProductoBulto;
         FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarSeguirVencimientos(bool seguir)
+    {
+        SEGUIR_VENCIMIENTOS = seguir;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public void CambiarFechasVencimiento(IEnumerable<DateTime> fechas)
+    {
+        var ordenadas = fechas
+            .Select(fecha => fecha.Date)
+            .Distinct()
+            .OrderBy(fecha => fecha)
+            .ToArray();
+
+        if (ordenadas.Length > 3)
+            throw new ArgumentException("Un producto admite hasta tres fechas de vencimiento.", nameof(fechas));
+
+        FECHA_VENCIMIENTO_1 = ordenadas.Length > 0 ? ordenadas[0] : null;
+        FECHA_VENCIMIENTO_2 = ordenadas.Length > 1 ? ordenadas[1] : null;
+        FECHA_VENCIMIENTO_3 = ordenadas.Length > 2 ? ordenadas[2] : null;
+        FECHA_ULTIMA_MOD = DateTime.UtcNow;
+    }
+
+    public IReadOnlyList<DateTime> ObtenerFechasVencimiento()
+    {
+        return new[]
+            {
+                FECHA_VENCIMIENTO_1,
+                FECHA_VENCIMIENTO_2,
+                FECHA_VENCIMIENTO_3
+            }
+            .Where(fecha => fecha.HasValue)
+            .Select(fecha => fecha!.Value)
+            .ToArray();
     }
 
     public void Activar()
