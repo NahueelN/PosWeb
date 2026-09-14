@@ -553,7 +553,6 @@ export default function VentasPage() {
 
   // ===== Render =====
   if (step === 'sucursal') return <SucursalSelector sucursales={sucursales} onSelect={seleccionarSucursal} />
-  if (step === 'resultado' && resultado) return <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
 
   if (step === 'esperando_transferencia') {
     return (
@@ -762,6 +761,10 @@ export default function VentasPage() {
           </div>
         </div>
       </Dialog>
+
+      {step === 'resultado' && resultado && (
+        <TicketResultado resultado={resultado} ultimosItems={ultimosItems} user={user} onNuevaVenta={nuevaVenta} />
+      )}
     </>
   )
 }
