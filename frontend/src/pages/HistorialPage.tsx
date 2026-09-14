@@ -206,13 +206,17 @@ export default function HistorialPage() {
     const venta = ventaData?.items.find(v => v.ventaId === ventaId)
     setTicketData({
       empresaNombre: detalle.empresaNombre,
+      empresaDireccion: detalle.empresaDireccion,
+      empresaDocumento: detalle.empresaDocumento,
+      empresaTelefono: detalle.empresaTelefono,
+      mostrarTelefonoTicket: detalle.mostrarTelefonoTicket,
       ventaId: detalle.ventaId,
       fecha: detalle.fecha,
       vendedor: detalle.vendedor ?? venta?.usuarioNombre,
       mesa: detalle.mesa ?? undefined,
       items: detalle.items.map(i => ({ nombre: i.productoNombre, cantidad: i.cantidad, precio: i.precioUnitario })),
       total: detalle.total,
-      pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre })),
+      pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre, monto: p.monto })),
       cambio: detalle.cambio,
     })
   }

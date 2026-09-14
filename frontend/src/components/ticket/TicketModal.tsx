@@ -3,7 +3,9 @@ import { Printer, X } from 'lucide-react'
 import { buildTicketLines, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
 
 interface TicketModalProps {
-  data: TicketData
+  data?: TicketData
+  buildLines?: (width: TicketWidth) => TicketLine[]
+  title?: string
   onClose: () => void
 }
 
@@ -44,7 +46,7 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketModal({ data, onClose }: TicketModalProps) {
+export default function TicketModal({ data, buildLines, title = 'Ticket', onClose }: TicketModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
   const [ancho, setAncho] = useState<TicketWidth>(80)
   const [letra, setLetra] = useState<Letra>(() => {
@@ -52,7 +54,7 @@ export default function TicketModal({ data, onClose }: TicketModalProps) {
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
 
-  const lines = buildTicketLines(data, ancho)
+  const lines = buildLines ? buildLines(ancho) : buildTicketLines(data as TicketData, ancho)
 
   const sizeClsFor = (l: TicketLine) => {
     const px = LETRA_PX[letra][ancho]
@@ -109,7 +111,7 @@ ${pxCss}
     <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-800">Ticket</h3>
+          <h3 className="font-semibold text-gray-800">{title}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
             <X size={16} />
           </button>

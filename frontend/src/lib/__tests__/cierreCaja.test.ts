@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildCierreCajaMessage, normalizarEnvioCierre, normalizarTelefonoWhatsApp, ENVIO_CIERRE_SUBJECT } from '../cierreCaja'
-import type { CajaDto, EnvioCierreCajaConfig } from '../../types'
+import { buildCierreCajaMessage, ENVIO_CIERRE_SUBJECT } from '../cierreCaja'
+import type { CajaDto } from '../../types'
 
 function makeCaja(overrides: Partial<CajaDto> = {}): CajaDto {
   return {
@@ -25,40 +25,6 @@ function makeCaja(overrides: Partial<CajaDto> = {}): CajaDto {
     ...overrides,
   }
 }
-
-describe('normalizarTelefonoWhatsApp', () => {
-  it('devuelve el número ya normalizado +549 si viene completo', () => {
-    expect(normalizarTelefonoWhatsApp('+54 9 11 1234-5678')).toBe('+5491112345678')
-  })
-
-  it('agrega +549 a un número local sin código de país', () => {
-    expect(normalizarTelefonoWhatsApp('11 1234-5678')).toBe('+5491112345678')
-  })
-
-  it('devuelve vacío si no hay dígitos', () => {
-    expect(normalizarTelefonoWhatsApp('abc')).toBe('')
-  })
-})
-
-describe('normalizarEnvioCierre', () => {
-  it('aplica defaults cuando la preferencia no existe', () => {
-    const cfg = normalizarEnvioCierre(undefined)
-    expect(cfg).toEqual({ envioAutomatico: false, whatsapp: { habilitado: false, destinatarios: [] }, email: { habilitado: false, destinatarios: [] } })
-  })
-
-  it('lee la configuración persistida y descarta destinatarios inválidos', () => {
-    const raw = {
-      envioAutomatico: true,
-      whatsapp: { habilitado: true, destinatarios: ['+5491112345678', '   ', 42] },
-      email: { habilitado: true, destinatarios: ['admin@empresa.com', null] },
-    }
-    const cfg: EnvioCierreCajaConfig = normalizarEnvioCierre(raw)
-    expect(cfg.envioAutomatico).toBe(true)
-    expect(cfg.whatsapp.habilitado).toBe(true)
-    expect(cfg.whatsapp.destinatarios).toEqual(['+5491112345678'])
-    expect(cfg.email.destinatarios).toEqual(['admin@empresa.com'])
-  })
-})
 
 describe('buildCierreCajaMessage', () => {
   it('arma el resumen con los datos del cierre', () => {

@@ -154,6 +154,7 @@ export interface VentaResultadoDto {
   cambio: number
   empresaNombre?: string
   empresaDireccion?: string
+  empresaDocumento?: string
   empresaTelefono?: string
   mostrarTelefonoTicket?: boolean
   estado?: string
@@ -281,6 +282,10 @@ export interface VentaDetalleDto {
   total: number
   items: RenglonHistorialDto[]
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaDocumento?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   vendedor?: string
   mesa?: string | null
   pagos: PagoVentaResultDto[]
@@ -552,6 +557,15 @@ export interface CajaDto {
   desglosePagos: PagoPorMedioDto[]
   usuarioApertura: string
   usuarioCierre?: string
+}
+
+export interface MovimientoCajaDto {
+  tipo: 'Venta' | 'Gasto'
+  referenciaId: number
+  fecha: string
+  descripcion: string
+  monto: number
+  anulado: boolean
 }
 
 export interface AbrirCajaRequest {
@@ -912,17 +926,5 @@ export interface EmpresaDto {
 // --- Preferencias de usuario ---
 export interface PreferenciasResponse {
   preferencias: Record<string, Record<string, string>>
-}
-
-export interface EnvioCierreCajaConfig {
-  envioAutomatico: boolean
-  whatsapp: {
-    habilitado: boolean
-    destinatarios: string[]
-  }
-  email: {
-    habilitado: boolean
-    destinatarios: string[]
-  }
 }
 

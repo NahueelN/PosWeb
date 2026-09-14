@@ -57,6 +57,13 @@ public class CajasController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{cajaId}/movimientos")]
+    public IActionResult ObtenerMovimientos(int cajaId)
+    {
+        var items = _cajaService.ObtenerMovimientos(cajaId);
+        return Ok(new { items });
+    }
+
     [HttpGet("historial")]
     public IActionResult ObtenerHistorial(
         [FromQuery] int sucursalId,

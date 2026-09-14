@@ -1,3 +1,5 @@
+import type { CajaDto } from '../types'
+
 export type TicketWidth = 58 | 80
 
 export interface TicketLine {
@@ -17,6 +19,7 @@ export interface TicketItem {
 export interface TicketData {
   empresaNombre?: string
   empresaDireccion?: string
+  empresaDocumento?: string
   empresaTelefono?: string
   mostrarTelefonoTicket?: boolean
   ventaId: number
@@ -25,7 +28,7 @@ export interface TicketData {
   mesa?: string
   items: TicketItem[]
   total: number
-  pagos: { nombre: string }[]
+  pagos: { nombre: string; monto?: number }[]
   cambio: number
 }
 
@@ -43,9 +46,37 @@ export function fmtFecha(iso: string): string {
   return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function fmtHoraCorta(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+}
+
 function buildLine(width: TicketWidth): { line: string; dline: string } {
   const cols = TICKET_COLS[width]
   return { line: '─'.repeat(cols), dline: '═'.repeat(cols) }
+}
+
+export function wrapText(text: string, maxWidth: number): string[] {
+  if (maxWidth <= 0) return [text]
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return ['']
+
+  const lines: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    let rest = word
+    while (rest.length > maxWidth) {
+      if (current) { lines.push(current); current = '' }
+      lines.push(rest.slice(0, maxWidth))
+      rest = rest.slice(maxWidth)
+    }
+    if (!current) current = rest
+    else if (current.length + 1 + rest.length <= maxWidth) current += ' ' + rest
+    else { lines.push(current); current = rest }
+  }
+
+  if (current) lines.push(current)
+  return lines
 }
 
 export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLine[] {
@@ -76,8 +107,7 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push(line)
 
   data.items.forEach(item => {
-    const name = item.nombre.length > nameMax ? item.nombre.slice(0, nameMax - 3) + '...' : item.nombre
-    push(name)
+    wrapText(item.nombre, nameMax).forEach(linea => push(linea))
     push(LR(`${item.cantidad} x ${fmtPeso(item.precio)}`, padFmt(item.precio * item.cantidad)))
   })
 
@@ -98,6 +128,60 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push('NO VÁLIDO COMO FACTURA', { center: true, size: 'sm' })
   push('')
   push('Vendeto~'.padStart(cols), { bold: true, size: 'sm' })
+
+  return entries
+}
+
+export function buildCierreTicketLines(caja: CajaDto, width: TicketWidth): TicketLine[] {
+  const cols = TICKET_COLS[width]
+  const priceW = TICKET_PRICE_W[width]
+  const { line, dline } = buildLine(width)
+
+  const padFmt = (n: number) => fmtPeso(n).padStart(priceW)
+  const signedFmt = (n: number) => ((n >= 0 ? '+' : '-') + fmtPeso(Math.abs(n))).padStart(priceW)
+  const LR = (left: string, right: string) => {
+    const avail = cols - left.length
+    return left + (avail > 0 ? right.padStart(avail) : ' ' + right)
+  }
+
+  const entries: TicketLine[] = []
+  const push = (text: string, opts: { bold?: boolean; center?: boolean; size?: 'sm' | 'md' | 'lg'; space?: boolean } = {}) =>
+    entries.push({ text, bold: opts.bold ?? false, center: opts.center ?? false, size: opts.size, space: opts.space })
+
+  push('CIERRE DE CAJA', { bold: true, center: true, size: 'md' })
+  push(line)
+  push(fmtFecha(caja.fechaCierre ?? caja.fechaApertura))
+  push(LR('Apertura:', fmtHoraCorta(caja.fechaApertura)))
+  if (caja.fechaCierre) push(LR('Cierre:', fmtHoraCorta(caja.fechaCierre)))
+  push(LR('Usuario:', caja.usuarioCierre ?? caja.usuarioApertura ?? '—'))
+  push(line)
+
+  push(LR('Saldo inicial', padFmt(caja.montoInicial)))
+  push(LR('Ventas', padFmt(caja.totalVentas)))
+  push(LR('Gastos', caja.gastos > 0 ? ('-' + fmtPeso(caja.gastos)).padStart(priceW) : padFmt(0)))
+  push(dline)
+  push(LR('GANANCIA', padFmt(caja.totalVentas - caja.gastos)), { bold: true, size: 'lg', space: true })
+  push(dline)
+
+  const pagos = caja.desglosePagos ?? []
+  if (pagos.length > 0) {
+    push('MEDIOS DE PAGO', { bold: true, center: true, space: true })
+    pagos.forEach(p => push(LR(p.medioPago, padFmt(p.monto))))
+    push(line)
+  }
+
+  if (caja.montoContadoEfectivo != null) {
+    const efectivoVentas = pagos.find(p => p.medioPago.toLowerCase().includes('efectivo'))?.monto ?? 0
+    const esperado = caja.montoInicial + efectivoVentas - caja.gastos
+    push('CONTEO DE EFECTIVO', { bold: true, center: true, space: true })
+    push(LR('Esperado', padFmt(esperado)))
+    push(LR('Contado', padFmt(caja.montoContadoEfectivo)))
+    push(LR('Diferencia de caja', signedFmt(caja.montoContadoEfectivo - esperado)))
+    push(line)
+  }
+
+  push('')
+  push('FIN DEL CIERRE', { bold: true, center: true, size: 'sm' })
 
   return entries
 }

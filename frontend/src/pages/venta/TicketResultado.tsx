@@ -69,6 +69,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
   const [empresaDireccion, setEmpresaDireccion] = useState(resultado.empresaDireccion)
+  const [empresaDocumento, setEmpresaDocumento] = useState(resultado.empresaDocumento)
   const [empresaTelefono, setEmpresaTelefono] = useState(resultado.empresaTelefono)
   const [mostrarTelefonoTicket, setMostrarTelefonoTicket] = useState(resultado.mostrarTelefonoTicket ?? false)
 
@@ -98,6 +99,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     api.empresas.obtener()
       .then(empresa => {
         setEmpresaDireccion(empresa.direccion)
+        setEmpresaDocumento(empresa.documento)
         setEmpresaTelefono(empresa.telefono)
         setMostrarTelefonoTicket(empresa.mostrarTelefonoTicket)
       })
@@ -107,6 +109,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
   const lines = buildTicketLines({
     empresaNombre: resultado.empresaNombre,
     empresaDireccion,
+    empresaDocumento,
     empresaTelefono,
     mostrarTelefonoTicket,
     ventaId: resultado.ventaId,
@@ -115,7 +118,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     mesa,
     items: ultimosItems.map(i => ({ nombre: i.producto.nombre, cantidad: i.cantidad, precio: i.producto.precio })),
     total: resultado.total,
-    pagos: resultado.pagos.map(p => ({ nombre: p.medioPagoNombre })),
+    pagos: resultado.pagos.map(p => ({ nombre: p.medioPagoNombre, monto: p.monto })),
     cambio: resultado.cambio,
   }, ancho)
 

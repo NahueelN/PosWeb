@@ -27,6 +27,8 @@ public class VentaResultadoDto
 
     public string? EmpresaDireccion { get; set; }
 
+    public string? EmpresaDocumento { get; set; }
+
     public string? EmpresaTelefono { get; set; }
 
     public bool MostrarTelefonoTicket { get; set; }
