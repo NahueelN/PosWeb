@@ -186,6 +186,50 @@ public class CajaService
         };
     }
 
+    public List<MovimientoCajaDto> ObtenerMovimientos(int cajaId)
+    {
+        // Ventas cobradas en la caja — vínculo vía Pago.ID_CAJA
+        var ventaIds = _context.Pago
+            .Where(p => p.ID_CAJA == cajaId)
+            .Select(p => p.ID_VENTA)
+            .Distinct()
+            .ToList();
+
+        var ventas = _context.Venta
+            .Where(v => ventaIds.Contains(v.ID_VENTA))
+            .Select(v => new { v.ID_VENTA, v.FECHA_VENTA, v.TOTAL, v.ANULADA })
+            .ToList();
+
+        var gastos = _context.Gasto
+            .Where(g => g.ID_CAJA == cajaId)
+            .Select(g => new { g.ID_GASTO, g.FECHA_GASTO, g.MONTO, g.DETALLE, g.ANULADO })
+            .ToList();
+
+        var movimientos = new List<MovimientoCajaDto>();
+
+        movimientos.AddRange(ventas.Select(v => new MovimientoCajaDto
+        {
+            Tipo = "Venta",
+            ReferenciaId = v.ID_VENTA,
+            Fecha = v.FECHA_VENTA,
+            Descripcion = $"Venta #{v.ID_VENTA}",
+            Monto = v.TOTAL,
+            Anulado = v.ANULADA,
+        }));
+
+        movimientos.AddRange(gastos.Select(g => new MovimientoCajaDto
+        {
+            Tipo = "Gasto",
+            ReferenciaId = g.ID_GASTO,
+            Fecha = g.FECHA_GASTO,
+            Descripcion = string.IsNullOrWhiteSpace(g.DETALLE) ? $"Gasto #{g.ID_GASTO}" : g.DETALLE,
+            Monto = g.MONTO,
+            Anulado = g.ANULADO,
+        }));
+
+        return movimientos.OrderBy(m => m.Fecha).ToList();
+    }
+
     public CajaDto? ObtenerActiva(int sucursalId, int userId)
     {
         Caja? caja = _context.Caja

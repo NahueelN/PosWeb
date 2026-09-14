@@ -9,6 +9,10 @@ public class VentaDetalleDto
     public decimal Total { get; set; }
     public List<RenglonHistorialDto> Items { get; set; } = [];
     public string? EmpresaNombre { get; set; }
+    public string? EmpresaDireccion { get; set; }
+    public string? EmpresaDocumento { get; set; }
+    public string? EmpresaTelefono { get; set; }
+    public bool MostrarTelefonoTicket { get; set; }
     public string? Vendedor { get; set; }
     public List<PagoVentaResultDto> Pagos { get; set; } = [];
     public decimal Cambio { get; set; }

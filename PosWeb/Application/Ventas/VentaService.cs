@@ -341,7 +341,7 @@ public class VentaService
 
         var empresa = _context.Empresa
             .Where(e => e.ID_EMPRESA == sucursal.ID_EMPRESA)
-            .Select(e => new { e.NOMBRE, e.DIRECCION, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
+            .Select(e => new { e.NOMBRE, e.DIRECCION, e.DOCUMENTO, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
             .FirstOrDefault();
 
         return new VentaResultadoDto
@@ -358,6 +358,7 @@ public class VentaService
             CajaId = cajaActiva.ID_CAJA,
             EmpresaNombre = empresa?.NOMBRE,
             EmpresaDireccion = empresa?.DIRECCION,
+            EmpresaDocumento = empresa?.DOCUMENTO,
             EmpresaTelefono = empresa?.TELEFONO,
             MostrarTelefonoTicket = empresa?.MOSTRAR_TELEFONO_TICKET ?? false,
             Estado = venta.ESTADO
@@ -417,7 +418,7 @@ public class VentaService
 
         var sucursalId = venta.ID_SUCURSAL;
         var empresa = _context.Empresa
-            .Select(e => new { e.NOMBRE, e.DIRECCION, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
+            .Select(e => new { e.NOMBRE, e.DIRECCION, e.DOCUMENTO, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
             .FirstOrDefault();
 
         int? cajaId = _context.Caja
@@ -462,6 +463,7 @@ public class VentaService
             CajaId = cajaId,
             EmpresaNombre = empresa?.NOMBRE,
             EmpresaDireccion = empresa?.DIRECCION,
+            EmpresaDocumento = empresa?.DOCUMENTO,
             EmpresaTelefono = empresa?.TELEFONO,
             MostrarTelefonoTicket = empresa?.MOSTRAR_TELEFONO_TICKET ?? false,
             Estado = venta.ESTADO
@@ -605,8 +607,8 @@ public class VentaService
             })
             .ToListAsync();
 
-        string? empresaNombre = await _context.Empresa
-            .Select(e => e.NOMBRE)
+        var empresa = await _context.Empresa
+            .Select(e => new { e.NOMBRE, e.DIRECCION, e.DOCUMENTO, e.TELEFONO, e.MOSTRAR_TELEFONO_TICKET })
             .FirstOrDefaultAsync();
 
         string? vendedor = venta.ID_USUARIO.HasValue
@@ -624,7 +626,11 @@ public class VentaService
             SucursalNombre = sucursalNombre,
             Total = venta.TOTAL,
             Items = items,
-            EmpresaNombre = empresaNombre,
+            EmpresaNombre = empresa?.NOMBRE,
+            EmpresaDireccion = empresa?.DIRECCION,
+            EmpresaDocumento = empresa?.DOCUMENTO,
+            EmpresaTelefono = empresa?.TELEFONO,
+            MostrarTelefonoTicket = empresa?.MOSTRAR_TELEFONO_TICKET ?? false,
             Vendedor = vendedor,
             Pagos = pagos,
             Cambio = pagos.Sum(p => p.Cambio)
