@@ -40,8 +40,10 @@ async function imprimirComanda(mesa: string, items: ItemComandaDto[], grupo?: st
   ]
 
   const volcarItems = (itms: ItemComandaDto[]) => {
-    lines.push(...itms.map(it => line(`${it.cantidad} x ${it.descripcion}`, {})))
-    lines.push(...itms.filter(it => it.nota).map(it => line(`    . ${it.nota}`, {})))
+    itms.forEach(it => {
+      lines.push(line(`${it.cantidad} x ${it.descripcion}`, {}))
+      if (it.nota) lines.push(line(`    . ${it.nota}`, {}))
+    })
   }
 
   if (grupo) {
@@ -539,9 +541,6 @@ export default function MesasPage() {
               </div>
 
               <div className="flex flex-wrap gap-1.5">
-                <Button size="sm" icon={<Plus size={13} />} onClick={() => setAgregarItemSesion(sesionSeleccionada)}>
-                  Agregar
-                </Button>
                 <Button size="sm" variant="secondary" icon={<Printer size={13} />} onClick={() => enviarCocina(sesionSeleccionada)}>
                   Enviar a cocina
                 </Button>
@@ -582,7 +581,7 @@ export default function MesasPage() {
                           {pendientes > 0 && <span className="ml-1.5 text-amber-600 normal-case">({pendientes} sin enviar)</span>}
                         </span>
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
+                          <Button size="sm" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
                             Agregar
                           </Button>
                           <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0 && enCocina === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
@@ -1043,6 +1042,51 @@ function EditarItemDialog({ item, onClose, onGuardado }: EditarItemDialogProps) 
   )
 }
 
+interface CantidadStepperProps {
+  value: number
+  onChange: (n: number) => void
+  min?: number
+  onEnter?: () => void
+  onMinusAtMin?: () => void
+}
+
+function CantidadStepper({ value, onChange, min = 1, onEnter, onMinusAtMin }: CantidadStepperProps) {
+  const atMin = value <= min
+  return (
+    <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-300 bg-white shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+      <button
+        type="button"
+        title="Reducir cantidad"
+        disabled={atMin && !onMinusAtMin}
+        onClick={() => (atMin ? onMinusAtMin?.() : onChange(value - 1))}
+        className="flex h-7 w-7 shrink-0 items-center justify-center text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus size={13} strokeWidth={2.5} />
+      </button>
+      <input
+        type="number"
+        min={min}
+        step={1}
+        value={value}
+        onChange={e => {
+          const n = Math.round(Number(e.target.value))
+          if (Number.isFinite(n) && n >= min) onChange(n)
+        }}
+        onKeyDown={e => { if (e.key === 'Enter') onEnter?.() }}
+        className="h-7 w-9 border-x border-gray-200 bg-white text-center text-[13px] font-bold tabular-nums text-gray-800 outline-none focus:bg-[oklch(0.52_0.255_278_/_0.06)]"
+      />
+      <button
+        type="button"
+        title="Aumentar cantidad"
+        onClick={() => onChange(value + 1)}
+        className="flex h-7 w-7 shrink-0 items-center justify-center text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200"
+      >
+        <Plus size={13} strokeWidth={2.5} />
+      </button>
+    </div>
+  )
+}
+
 interface AgregarItemDialogProps {
   sesion: SesionMesaDto | null
   grupo: GrupoComanda
@@ -1071,6 +1115,13 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
   const [seleccionado, setSeleccionado] = useState<{ productoId?: number; comboId?: number; descripcion: string; precio: number } | null>(null)
   const [carrito, setCarrito] = useState<CarritoItem[]>([])
   const [enviando, setEnviando] = useState(false)
+  const [existentes, setExistentes] = useState<ItemComandaDto[]>([])
+  const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [cantidadEdit, setCantidadEdit] = useState('1')
+  const [notaEdit, setNotaEdit] = useState('')
+  const [editandoCarrito, setEditandoCarrito] = useState<number | null>(null)
+  const [cantidadCarritoEdit, setCantidadCarritoEdit] = useState('1')
+  const [notasCarritoEdit, setNotasCarritoEdit] = useState<string[]>([])
 
   // Cantidad parseada y válida (>= 1); 0 si está vacío o mal escrito (se valida al agregar).
   const unidadesValidas = (() => {
@@ -1093,6 +1144,13 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
     setSeleccionado(null)
     setCarrito([])
     setEnviando(false)
+    setExistentes(sesion.items.filter(i => i.estado === 'Pendiente'))
+    setEditandoId(null)
+    setCantidadEdit('1')
+    setNotaEdit('')
+    setEditandoCarrito(null)
+    setCantidadCarritoEdit('1')
+    setNotasCarritoEdit([])
   }, [sesion])
 
   // Búsqueda de productos con debounce: depende de q pero no lo resetea.
@@ -1115,12 +1173,14 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
 
   function seleccionarProducto(p: ProductoDto) {
     setSeleccionado({ productoId: p.id, comboId: undefined, descripcion: p.nombre, precio: p.precio })
+    setQ('')
     setNota('')
     setNotas(Array.from({ length: unidadesValidas || 1 }, () => ''))
   }
 
   function seleccionarCombo(c: ComboDto) {
     setSeleccionado({ productoId: undefined, comboId: c.id, descripcion: c.descCombo, precio: c.precio })
+    setQ('')
     setNota('')
     setNotas(Array.from({ length: unidadesValidas || 1 }, () => ''))
   }
@@ -1157,6 +1217,75 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
 
   function quitarDelCarrito(index: number) {
     setCarrito(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function cambiarCantidadCarrito(index: number, n: number) {
+    if (n < 1) { quitarDelCarrito(index); return }
+    setCarrito(prev => prev.map((item, i) => {
+      if (i !== index) return item
+      const notas: (string | null)[] = Array.from({ length: n }, (_, u) => item.notas[u] ?? '')
+      return { ...item, notas }
+    }))
+  }
+
+  function iniciarEdicionCarrito(index: number) {
+    const c = carrito[index]
+    if (!c) return
+    setEditandoCarrito(index)
+    setCantidadCarritoEdit(String(c.notas.length))
+    setNotasCarritoEdit(c.notas.map(n => n ?? ''))
+  }
+
+  function guardarEdicionCarrito() {
+    if (editandoCarrito == null) return
+    const c = Math.round(Number(cantidadCarritoEdit))
+    if (!Number.isFinite(c) || c < 1) { notifyError('Ingresá una cantidad válida (mayor a 0)'); return }
+    setCarrito(prev => prev.map((item, i) => {
+      if (i !== editandoCarrito) return item
+      const notas: (string | null)[] = Array.from({ length: c }, (_, u) => notasCarritoEdit[u]?.trim() || null)
+      return { ...item, notas }
+    }))
+    setEditandoCarrito(null)
+  }
+
+  function cambiarCantidadEdicionCarrito(n: number) {
+    if (!Number.isFinite(n) || n < 1) return
+    setCantidadCarritoEdit(String(n))
+    setNotasCarritoEdit(prev => Array.from({ length: n }, (_, u) => prev[u] ?? ''))
+  }
+
+  function setCantidadControl(n: number) {
+    if (!Number.isFinite(n) || n < 1) return
+    setCantidad(String(n))
+    setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
+  }
+
+  function iniciarEdicion(item: ItemComandaDto) {
+    setEditandoId(item.id)
+    setCantidadEdit(String(item.cantidad))
+    setNotaEdit(item.nota ?? '')
+  }
+
+  async function guardarEdicion() {
+    if (!editandoId) return
+    const c = Math.round(Number(cantidadEdit))
+    if (!Number.isFinite(c) || c < 1) { notifyError('Ingresá una cantidad válida (mayor a 0)'); return }
+    try {
+      const act = await api.restaurante.actualizarItem(editandoId, { cantidad: c, nota: notaEdit.trim() })
+      setExistentes(prev => prev.map(i => (i.id === editandoId ? act : i)))
+      setEditandoId(null)
+    } catch (e: any) {
+      notifyError(e.message || 'No se pudo actualizar el item')
+    }
+  }
+
+  async function quitarExistente(itemId: number) {
+    try {
+      await api.restaurante.cambiarEstadoItem(itemId, 'Cancelado')
+      setExistentes(prev => prev.filter(i => i.id !== itemId))
+    } catch (e: any) {
+      notifyError(e.message || 'No se pudo quitar el item')
+    }
   }
 
   async function confirmar() {
@@ -1245,24 +1374,24 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
             ))}
           </div>
 
+          {seleccionado && (
+            <div className="mt-2 flex shrink-0 items-center justify-between gap-2 rounded-lg border border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)] px-3 py-2">
+              <span className="min-w-0 truncate text-sm font-semibold text-gray-800">{seleccionado.descripcion}</span>
+              <span className="shrink-0 font-semibold text-gray-600">{fmt(seleccionado.precio)}</span>
+            </div>
+          )}
+
           <div className="mt-2 grid shrink-0 grid-cols-2 gap-2">
             <label className="text-xs font-semibold text-gray-600">
               Cantidad
-              <input type="number" min={1} step={1} value={cantidad}
-                onChange={e => {
-                  setCantidad(e.target.value)
-                  const n = Math.round(Number(e.target.value))
-                  if (Number.isFinite(n) && n >= 1) {
-                    setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
-                  }
-                }}
-                onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+              <div className="mt-1">
+                <CantidadStepper value={unidadesValidas} onChange={setCantidadControl} onEnter={handleEnter} />
+              </div>
             </label>
             {unidadesValidas > 1 ? (
               <div className="text-xs font-semibold text-gray-600">
                 Nota por unidad
-                <div className="mt-1 max-h-20 space-y-1 overflow-y-auto">
+                <div className="mt-1 h-[80px] space-y-1 overflow-y-auto">
                   {notas.map((n, i) => (
                     <input key={i} value={n}
                       onChange={e => setNotas(prev => prev.map((x, j) => (j === i ? e.target.value : x)))}
@@ -1273,13 +1402,15 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
                 </div>
               </div>
             ) : (
-              <label className="text-xs font-semibold text-gray-600">
+              <div className="text-xs font-semibold text-gray-600">
                 Nota (opcional)
-                <input value={nota} onChange={e => setNota(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-                  placeholder="Ej: sin cebolla"
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-              </label>
+                <div className="mt-1 h-[80px] space-y-1 overflow-y-auto">
+                  <input value={nota} onChange={e => setNota(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
+                    placeholder="Ej: sin cebolla"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                </div>
+              </div>
             )}
           </div>
 
@@ -1304,20 +1435,146 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
             )}
           </div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-            {carrito.length === 0 ? (
+            {carrito.length === 0 && existentes.length === 0 ? (
               <p className="text-xs text-gray-400">Todavía no agregaste nada.</p>
             ) : (
-              carrito.map((c, i) => (
-                <div key={`${c.productoId ?? 'c'}-${c.comboId ?? 0}`} className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-2 py-1.5">
-                  <div className="min-w-0">
-                    <span className="block truncate text-sm text-gray-800">{c.descripcion}</span>
-                    <span className="text-[11px] text-gray-500">x{c.notas.length} · {fmt(c.precio * c.notas.length)}</span>
+              <>
+                {carrito.length > 0 && (
+                  <p className="pt-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                    Nuevos · {totalUnidades} unidades
+                  </p>
+                )}
+                {carrito.map((c, i) => (
+                  <div key={`${c.productoId ?? 'c'}-${c.comboId ?? 0}`} className="rounded-md border border-gray-200 bg-white px-2 py-1.5">
+                    {editandoCarrito === i ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-xs font-semibold text-gray-800">{c.descripcion}</p>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <CantidadStepper
+                              value={Math.max(1, Math.round(Number(cantidadCarritoEdit)) || 1)}
+                              onChange={cambiarCantidadEdicionCarrito}
+                              onEnter={guardarEdicionCarrito}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          {notasCarritoEdit.map((n, u) => (
+                            <input key={u} value={n}
+                              onChange={e => setNotasCarritoEdit(prev => prev.map((x, j) => (j === u ? e.target.value : x)))}
+                              onKeyDown={e => { if (e.key === 'Enter') guardarEdicionCarrito() }}
+                              placeholder={Number(cantidadCarritoEdit) > 1 ? `Nota unidad ${u + 1}` : 'Nota (ej: sin cebolla)'}
+                              className="w-full rounded-md border border-gray-300 px-2 py-1 text-[11px] outline-none focus:border-[oklch(0.52_0.255_278)]"
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-end gap-1">
+                          <button type="button" className="px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-gray-700" onClick={() => setEditandoCarrito(null)}>
+                            Cancelar
+                          </button>
+                          <button type="button" className="px-2 py-1 text-[11px] font-semibold text-[oklch(0.52_0.255_278)] hover:opacity-80" onClick={guardarEdicionCarrito}>
+                            Guardar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{c.descripcion}</span>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <CantidadStepper
+                              value={c.notas.length}
+                              onChange={n => cambiarCantidadCarrito(i, n)}
+                              onMinusAtMin={() => quitarDelCarrito(i)}
+                            />
+                          </div>
+                          <span className="shrink-0 text-[11px] font-semibold text-gray-500 tabular-nums">{fmt(c.precio * c.notas.length)}</span>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button type="button" title="Editar" className="p-1 text-gray-400 hover:text-[oklch(0.52_0.255_278)]" onClick={() => iniciarEdicionCarrito(i)}>
+                              <Pencil size={12} />
+                            </button>
+                            <button type="button" className="p-1 text-gray-400 hover:text-red-500" title="Quitar del resumen" onClick={() => quitarDelCarrito(i)}>
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        {c.notas.some(n => n?.trim()) && (
+                          <div className="mt-1 space-y-0.5">
+                            {c.notas.map((n, u) => (n?.trim() ? (
+                              <p key={u} className="truncate text-[11px] text-gray-400">📝 {n}</p>
+                            ) : null))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                  <button type="button" className="shrink-0 p-1 text-gray-400 hover:text-red-500" title="Quitar del resumen" onClick={() => quitarDelCarrito(i)}>
-                    <X size={14} />
-                  </button>
-                </div>
-              ))
+                ))}
+
+                {existentes.length > 0 && (
+                  <>
+                    <p className="pt-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                      En la mesa · {existentes.length} sin enviar
+                    </p>
+                    {existentes.map(item => (
+                      <div key={item.id} className="rounded-md border border-gray-200 bg-white px-2 py-1.5">
+                        {editandoId === item.id ? (
+                          <div className="space-y-1">
+                            <p className="truncate text-xs font-semibold text-gray-800">{item.descripcion}</p>
+                            <div className="grid grid-cols-2 gap-1">
+                              <label className="text-[10px] font-semibold text-gray-500">
+                                Cantidad
+                                <div className="mt-0.5">
+                                  <CantidadStepper
+                                    value={Math.max(1, Math.round(Number(cantidadEdit)) || 1)}
+                                    onChange={n => setCantidadEdit(String(n))}
+                                    onEnter={guardarEdicion}
+                                  />
+                                </div>
+                              </label>
+                              <label className="text-[10px] font-semibold text-gray-500">
+                                Nota
+                                <input
+                                  value={notaEdit}
+                                  onChange={e => setNotaEdit(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') guardarEdicion() }}
+                                  placeholder="Sin cebolla"
+                                  className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1 text-[11px] outline-none focus:border-[oklch(0.52_0.255_278)]"
+                                />
+                              </label>
+                            </div>
+                            <div className="flex items-center justify-end gap-1">
+                              <button type="button" className="px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-gray-700" onClick={() => setEditandoId(null)}>
+                                Cancelar
+                              </button>
+                              <button type="button" className="px-2 py-1 text-[11px] font-semibold text-[oklch(0.52_0.255_278)] hover:opacity-80" onClick={guardarEdicion}>
+                                Guardar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 truncate text-sm text-gray-800">
+                                {item.cantidad > 1 ? `${item.cantidad} x ` : ''}{item.descripcion}
+                              </span>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <span className="text-[11px] font-semibold text-gray-500">{fmt(item.subtotal)}</span>
+                                <button type="button" title="Editar" className="p-1 text-gray-400 hover:text-[oklch(0.52_0.255_278)]" onClick={() => iniciarEdicion(item)}>
+                                  <Pencil size={12} />
+                                </button>
+                                <button type="button" title="Quitar de la mesa" className="p-1 text-gray-400 hover:text-red-500" onClick={() => quitarExistente(item.id)}>
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            </div>
+                            {item.nota && <p className="text-[11px] text-gray-400">📝 {item.nota}</p>}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
             )}
           </div>
           {carrito.length > 0 && (
