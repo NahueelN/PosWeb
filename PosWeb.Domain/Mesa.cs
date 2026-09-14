@@ -8,6 +8,8 @@ namespace PosWeb.Domain;
 /// </summary>
 public class Mesa
 {
+    public const string SalonPrincipal = "Principal";
+
     [Key]
     public int ID_MESA { get; private set; }
 
@@ -17,17 +19,21 @@ public class Mesa
 
     public string? DESCRIPCION { get; private set; }
 
+    /// <summary>Salón/área del local al que pertenece la mesa (ej: Principal, Terraza).</summary>
+    public string SALON { get; private set; } = SalonPrincipal;
+
     public decimal POS_X { get; private set; }
 
     public decimal POS_Y { get; private set; }
 
     public bool ACTIVA { get; private set; }
 
-    public Mesa(int sucursalId, string numeroMesa, decimal posX, decimal posY, string? descripcion = null)
+    public Mesa(int sucursalId, string numeroMesa, decimal posX, decimal posY, string? descripcion = null, string? salon = null)
     {
         ID_SUCURSAL = sucursalId;
         CambiarNumero(numeroMesa);
         CambiarDescripcion(descripcion);
+        CambiarSalon(salon);
         Mover(posX, posY);
         ACTIVA = true;
     }
@@ -47,6 +53,11 @@ public class Mesa
     public void CambiarDescripcion(string? descripcion)
     {
         DESCRIPCION = string.IsNullOrWhiteSpace(descripcion) ? null : descripcion.Trim();
+    }
+
+    public void CambiarSalon(string? salon)
+    {
+        SALON = string.IsNullOrWhiteSpace(salon) ? SalonPrincipal : salon.Trim();
     }
 
     public void Mover(decimal posX, decimal posY)

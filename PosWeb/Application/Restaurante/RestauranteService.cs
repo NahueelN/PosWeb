@@ -65,6 +65,7 @@ public class RestauranteService
                 SucursalId = m.ID_SUCURSAL,
                 Numero = m.NUMERO_MESA,
                 Descripcion = m.DESCRIPCION,
+                Salon = m.SALON,
                 PosX = m.POS_X,
                 PosY = m.POS_Y,
                 Activa = m.ACTIVA,
@@ -90,7 +91,10 @@ public class RestauranteService
         if (!sucursal.ACTIVO)
             throw new SucursalInactivaException(req.SucursalId);
 
-        var mesa = new Mesa(req.SucursalId, req.Numero, req.PosX, req.PosY, req.Descripcion);
+        if (_context.Mesa.Any(m => m.ID_SUCURSAL == req.SucursalId && m.NUMERO_MESA == req.Numero.Trim() && m.ACTIVA))
+            throw new MesaDuplicadaException(req.Numero);
+
+        var mesa = new Mesa(req.SucursalId, req.Numero, req.PosX, req.PosY, req.Descripcion, req.Salon);
         _context.Mesa.Add(mesa);
         _context.SaveChanges();
 
@@ -105,11 +109,15 @@ public class RestauranteService
         if (_context.SesionMesa.Any(s => s.ID_MESA == mesaId && s.ESTADO == EstadosSesionMesa.Abierta))
             throw new MesaOcupadaException();
 
+        if (_context.Mesa.Any(m => m.ID_MESA != mesaId && m.ID_SUCURSAL == mesa.ID_SUCURSAL && m.NUMERO_MESA == req.Numero.Trim() && m.ACTIVA))
+            throw new MesaDuplicadaException(req.Numero);
+
         if (req.SucursalId > 0)
             mesa.CambiarSucursal(req.SucursalId);
 
         mesa.CambiarNumero(req.Numero);
         mesa.CambiarDescripcion(req.Descripcion);
+        mesa.CambiarSalon(req.Salon);
         mesa.Mover(req.PosX, req.PosY);
         _context.SaveChanges();
 
@@ -234,8 +242,8 @@ public class RestauranteService
         var item = _context.ItemComanda.Find(itemId)
             ?? throw new ItemComandaNoEncontradaException(itemId);
 
-        if (item.ESTADO is EstadosItemComanda.Devuelto or EstadosItemComanda.Cancelado)
-            throw new InvalidOperationException("No se puede editar un item devuelto o cancelado");
+        if (item.ESTADO != EstadosItemComanda.Pendiente)
+            throw new InvalidOperationException("Solo se puede editar un item que aún no se envió a cocina");
 
         if (req.Cantidad <= 0)
             throw new ArgumentException("La cantidad debe ser mayor a cero");
@@ -355,6 +363,7 @@ public class RestauranteService
             SucursalId = mesa.ID_SUCURSAL,
             Numero = mesa.NUMERO_MESA,
             Descripcion = mesa.DESCRIPCION,
+            Salon = mesa.SALON,
             PosX = mesa.POS_X,
             PosY = mesa.POS_Y,
             Activa = mesa.ACTIVA,

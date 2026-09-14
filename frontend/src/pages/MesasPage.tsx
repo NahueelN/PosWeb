@@ -6,8 +6,9 @@ import { useSucursalActiva } from '../components/Layout'
 import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import MontoInput from '../components/shared/MontoInput'
 import TicketResultado from './venta/TicketResultado'
-import { Search, Plus, X, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical } from 'lucide-react'
+import { Search, Plus, X, Minus, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical, CreditCard, Smartphone, QrCode } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda } from '../types'
 
 const GRUPOS_COMANDA: GrupoComanda[] = ['Entrada', 'Principal', 'Postre', 'Otros']
@@ -36,11 +37,26 @@ async function imprimirComanda(mesa: string, items: ItemComandaDto[], grupo?: st
     line('MESA ' + mesa, { center: true, bold: true, size: 'md' }),
     ...(grupo ? [line(GRUPO_LABEL[grupo as GrupoComanda]?.toUpperCase() ?? grupo.toUpperCase(), { center: true, bold: true, size: 'md' })] : []),
     line('', { space: true }),
-    ...items.map(it => line(`${it.cantidad} x ${it.descripcion}`, {})),
-    ...items.filter(it => it.nota).map(it => line(`    . ${it.nota}`, {})),
-    line('', { space: true }),
-    line(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), { center: true }),
   ]
+
+  const volcarItems = (itms: ItemComandaDto[]) => {
+    lines.push(...itms.map(it => line(`${it.cantidad} x ${it.descripcion}`, {})))
+    lines.push(...itms.filter(it => it.nota).map(it => line(`    . ${it.nota}`, {})))
+  }
+
+  if (grupo) {
+    volcarItems(items)
+  } else {
+    GRUPOS_COMANDA.forEach(g => {
+      const itemsGrupo = items.filter(i => i.grupo === g)
+      if (itemsGrupo.length === 0) return
+      lines.push(line(GRUPO_LABEL[g].toUpperCase(), { bold: true, size: 'md' }))
+      volcarItems(itemsGrupo)
+      lines.push(line('', { space: true }))
+    })
+  }
+
+  lines.push(line(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), { center: true }))
   const data = { ancho: 80, letra: 'chica', lines }
   if ('__TAURI_INTERNALS__' in window) {
     localStorage.setItem('posweb-ticket-print', JSON.stringify(data))
@@ -90,8 +106,14 @@ export default function MesasPage() {
   const [resultadoItems, setResultadoItems] = useState<ItemEmitido[]>([])
 
   const [nuevaMesaNumero, setNuevaMesaNumero] = useState('')
+  const [nuevoSalon, setNuevoSalon] = useState('Principal')
+  const [nuevoSalonLibre, setNuevoSalonLibre] = useState(false)
+  const [salon, setSalon] = useState('Principal')
+  const [salonNombre, setSalonNombre] = useState('')
+  const [agregarSalonOpen, setAgregarSalonOpen] = useState(false)
   const [mostrarNuevaMesa, setMostrarNuevaMesa] = useState(false)
-  const [confirmar, setConfirmar] = useState<{ tipo: 'cancelar' | 'eliminar'; sesion?: SesionMesaDto; mesa?: MesaDto } | null>(null)
+  const [confirmar, setConfirmar] = useState<{ tipo: 'cancelar' | 'eliminar' | 'reenviar'; sesion?: SesionMesaDto; mesa?: MesaDto; grupo?: GrupoComanda } | null>(null)
+  const [tamanoMesa, setTamanoMesa] = useState(112)
 
   const sesionPorMesa = useMemo(() => {
     const map = new Map<number, SesionMesaDto>()
@@ -100,6 +122,28 @@ export default function MesasPage() {
   }, [sesiones])
 
   const sesionSeleccionada = mesaSeleccionada ? sesionPorMesa.get(mesaSeleccionada.id) : undefined
+
+  const salones = useMemo(() => {
+    const set = new Set(mesas.map(m => m.salon || 'Principal'))
+    set.add('Principal')
+    set.add(salon)
+    return [...set]
+  }, [mesas, salon])
+
+  const mesasSalon = useMemo(
+    () => mesas.filter(m => (m.salon || 'Principal') === salon),
+    [mesas, salon]
+  )
+
+  function agregarSalon() {
+    const nombre = salonNombre.trim()
+    if (!nombre) { notifyError('Indicá el nombre del salón'); return }
+    setSalon(nombre)
+    setMesaSeleccionada(null)
+    setSalonNombre('')
+    setAgregarSalonOpen(false)
+    notifySuccess(`Salón "${nombre}" creado`)
+  }
 
   const cargar = async () => {
     if (!sucursal) return
@@ -110,6 +154,7 @@ export default function MesasPage() {
         api.restaurante.sesionesAbiertas(sucursal.id),
         api.mediosPago.listar(),
       ])
+      mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id })
       setMesas(m)
       setSesiones(s)
       setMediosPago(mp)
@@ -122,6 +167,18 @@ export default function MesasPage() {
   }
 
   useEffect(() => { cargar() }, [sucursal?.id])
+
+  useEffect(() => {
+    api.preferencias.obtener().then(res => {
+      const ancho = Number(res.preferencias?.mesaMapa?.ancho)
+      if (Number.isFinite(ancho) && ancho >= 80 && ancho <= 200) setTamanoMesa(ancho)
+    }).catch(() => {})
+  }, [])
+
+  function cambiarTamanoMesa(nuevo: number) {
+    setTamanoMesa(nuevo)
+    api.preferencias.guardar({ mesaMapa: { ancho: String(nuevo) } }).catch(() => {})
+  }
 
   async function abrirMesa(mesa: MesaDto) {
     try {
@@ -144,7 +201,15 @@ export default function MesasPage() {
     }
   }
 
-  async function enviarCocina(sesion: SesionMesaDto) {
+  function enviarCocina(sesion: SesionMesaDto) {
+    const pendientes = sesion.items.filter(i => i.estado === 'Pendiente')
+    if (pendientes.length > 0) { void enviarCocinaDirecta(sesion); return }
+    const enCocina = sesion.items.filter(i => i.estado === 'EnCocina')
+    if (enCocina.length === 0) { notifyError('No hay items para enviar a cocina'); return }
+    setConfirmar({ tipo: 'reenviar', sesion })
+  }
+
+  async function enviarCocinaDirecta(sesion: SesionMesaDto) {
     const pendientes = sesion.items.filter(i => i.estado === 'Pendiente')
     if (pendientes.length === 0) { notifyError('No hay items pendientes para enviar'); return }
     try {
@@ -156,7 +221,15 @@ export default function MesasPage() {
     }
   }
 
-  async function enviarCocinaGrupo(sesion: SesionMesaDto, grupo: GrupoComanda) {
+  function enviarCocinaGrupo(sesion: SesionMesaDto, grupo: GrupoComanda) {
+    const pendientes = sesion.items.filter(i => i.grupo === grupo && i.estado === 'Pendiente')
+    if (pendientes.length > 0) { void enviarCocinaGrupoDirecta(sesion, grupo); return }
+    const enCocina = sesion.items.filter(i => i.grupo === grupo && i.estado === 'EnCocina')
+    if (enCocina.length === 0) { notifyError('No hay items pendientes en este grupo'); return }
+    setConfirmar({ tipo: 'reenviar', sesion, grupo })
+  }
+
+  async function enviarCocinaGrupoDirecta(sesion: SesionMesaDto, grupo: GrupoComanda) {
     const pendientes = sesion.items.filter(i => i.grupo === grupo && i.estado === 'Pendiente')
     if (pendientes.length === 0) { notifyError('No hay items pendientes en este grupo'); return }
     try {
@@ -165,6 +238,17 @@ export default function MesasPage() {
       await cargar()
     } catch (e: any) {
       notifyError(e.message || 'Error al enviar a cocina')
+    }
+  }
+
+  async function reenviarCocina(sesion: SesionMesaDto, grupo?: GrupoComanda) {
+    const enCocina = sesion.items.filter(i => (grupo ? i.grupo === grupo : true) && i.estado === 'EnCocina')
+    if (enCocina.length === 0) return
+    try {
+      await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), enCocina, grupo)
+      await cargar()
+    } catch (e: any) {
+      notifyError(e.message || 'Error al reenviar a cocina')
     }
   }
 
@@ -208,12 +292,15 @@ export default function MesasPage() {
 
   async function crearMesa() {
     if (!sucursal || !nuevaMesaNumero.trim()) return
+    const salonMesa = nuevoSalonLibre ? nuevoSalon.trim() : nuevoSalon
+    if (!salonMesa) { notifyError('Indicá el salón'); return }
     try {
       await api.restaurante.crearMesa({
         sucursalId: sucursal.id,
         numero: nuevaMesaNumero.trim(),
         posX: 50,
         posY: 50,
+        salon: salonMesa,
       })
       setNuevaMesaNumero('')
       setMostrarNuevaMesa(false)
@@ -236,6 +323,7 @@ export default function MesasPage() {
     if (!confirmar) return
     if (confirmar.tipo === 'cancelar' && confirmar.sesion) void cancelarSesion(confirmar.sesion)
     else if (confirmar.tipo === 'eliminar' && confirmar.mesa) void eliminarMesa(confirmar.mesa)
+    else if (confirmar.tipo === 'reenviar' && confirmar.sesion) void reenviarCocina(confirmar.sesion, confirmar.grupo)
     setConfirmar(null)
   }
 
@@ -245,6 +333,7 @@ export default function MesasPage() {
         sucursalId: mesa.sucursalId,
         numero: mesa.numero,
         descripcion: mesa.descripcion,
+        salon: mesa.salon,
         posX: x,
         posY: y,
       })
@@ -264,52 +353,95 @@ export default function MesasPage() {
     setDragId(null)
   }
 
-  const ultimosItems = (s: SesionMesaDto): ItemEmitido[] =>
-    s.items.filter(i => i.estado !== 'Devuelto' && i.estado !== 'Cancelado').map(i => ({
-      producto: { id: i.productoId ?? i.comboId ?? 0, nombre: i.descripcion, precio: i.precioUnitario },
-      cantidad: i.cantidad,
-    }))
+  const ultimosItems = (s: SesionMesaDto): ItemEmitido[] => {
+    const map = new Map<number, ItemEmitido>()
+    s.items
+      .filter(i => i.estado !== 'Devuelto' && i.estado !== 'Cancelado')
+      .forEach(i => {
+        const id = i.productoId ?? i.comboId ?? 0
+        const existente = map.get(id)
+        if (existente) existente.cantidad += i.cantidad
+        else map.set(id, { producto: { id, nombre: i.descripcion, precio: i.precioUnitario }, cantidad: i.cantidad })
+      })
+    return [...map.values()]
+  }
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="p-4 space-y-2 flex flex-col flex-1 min-h-0">
+      <div className="flex items-center justify-between shrink-0">
         <h1 className="text-lg font-bold text-gray-800">Mesas — {sucursal?.nombre || 'Sin sucursal'}</h1>
-        <div className="flex items-center gap-2">
-          {!sucursal ? (
-            <span className="text-sm text-gray-500">Elegí una sucursal para operar</span>
-          ) : (
-            <>
-              <div className="flex rounded-lg bg-gray-100 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setVista('mapa')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'mapa' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  Mapa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVista('cocina')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'cocina' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  Cocina
-                </button>
-              </div>
-              <Button
-                size="sm"
-                variant={editarMapa ? 'primary' : 'secondary'}
-                icon={<Pencil size={14} />}
-                onClick={() => setEditarMapa(v => !v)}
-              >
-                {editarMapa ? 'Listo' : 'Editar mapa'}
-              </Button>
-              <Button size="sm" icon={<Plus size={14} />} onClick={() => { setNuevaMesaNumero(''); setMostrarNuevaMesa(true) }}>
-                Agregar mesa
-              </Button>
-            </>
-          )}
-        </div>
+        {!sucursal && <span className="text-sm text-gray-500">Elegí una sucursal para operar</span>}
       </div>
+
+      {sucursal && (
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {vista === 'mapa' && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Salón</span>
+              <select
+                value={salon}
+                onChange={e => { setSalon(e.target.value); setMesaSeleccionada(null) }}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 outline-none focus:border-[oklch(0.52_0.255_278)]"
+              >
+                {salones.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => { setSalonNombre(''); setAgregarSalonOpen(true) }}>
+                Agregar salón
+              </Button>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 px-1 py-0.5">
+            <button
+              type="button"
+              className="p-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+              disabled={tamanoMesa <= 80}
+              onClick={() => cambiarTamanoMesa(tamanoMesa - 16)}
+              title="Disminuir tamaño de las mesas"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="w-10 text-center text-[10px] font-bold text-gray-600">{tamanoMesa}px</span>
+            <button
+              type="button"
+              className="p-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+              disabled={tamanoMesa >= 200}
+              onClick={() => cambiarTamanoMesa(tamanoMesa + 16)}
+              title="Aumentar tamaño de las mesas"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+          <div className="flex rounded-lg bg-gray-100 p-0.5">
+            <button
+              type="button"
+              onClick={() => setVista('mapa')}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'mapa' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Mapa
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista('cocina')}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${vista === 'cocina' ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Cocina
+            </button>
+          </div>
+          <Button
+            size="sm"
+            variant={editarMapa ? 'primary' : 'secondary'}
+            icon={<Pencil size={14} />}
+            onClick={() => setEditarMapa(v => !v)}
+          >
+            {editarMapa ? 'Listo' : 'Editar mapa'}
+          </Button>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => { setNuevaMesaNumero(''); setNuevoSalon(salon); setNuevoSalonLibre(false); setMostrarNuevaMesa(true) }}>
+            Agregar mesa
+          </Button>
+          </div>
+        </div>
+      )}
 
       {vista === 'cocina' ? (
         <CocinaView
@@ -319,22 +451,22 @@ export default function MesasPage() {
           onCambiarEstado={cambiarEstadoItem}
         />
       ) : (
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-3 flex-1 min-h-0">
         {/* Mapa */}
         <div
-          className="relative h-[70vh] rounded-xl border border-gray-200 bg-[radial-gradient(circle_at_1px_1px,#e5e7eb_1px,transparent_0)] bg-[size:22px_22px] overflow-hidden select-none"
+          className="relative h-full rounded-xl border border-gray-200 bg-[radial-gradient(circle_at_1px_1px,#e5e7eb_1px,transparent_0)] bg-[size:22px_22px] overflow-hidden select-none min-w-0"
           onPointerUp={onMapPointerUp}
         >
-          {mesas.map(mesa => {
+          {mesasSalon.map(mesa => {
             const sesion = sesionPorMesa.get(mesa.id)
             const seleccionada = mesaSeleccionada?.id === mesa.id
             return (
               <div
                 key={mesa.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 px-3 py-2 shadow-md cursor-pointer transition-colors ${
+                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-1.5 shadow-md cursor-pointer transition-colors ${
                   seleccionada ? 'ring-2 ring-[oklch(0.52_0.255_278)]' : ''
                 } ${sesion ? 'border-orange-400 bg-orange-50' : 'border-emerald-400 bg-emerald-50'}`}
-                style={{ left: `${mesa.posX}%`, top: `${mesa.posY}%`, touchAction: 'none' }}
+                style={{ left: `${mesa.posX}%`, top: `${mesa.posY}%`, width: tamanoMesa, minHeight: Math.round(tamanoMesa * 0.5), touchAction: 'none' }}
                 onPointerDown={e => { if (editarMapa) { setDragId(mesa.id); (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId) } }}
                 onPointerMove={e => {
                   if (!editarMapa || dragId !== mesa.id) return
@@ -345,42 +477,44 @@ export default function MesasPage() {
                 }}
                 onClick={() => setMesaSeleccionada(mesa)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center gap-1.5">
                   <UtensilsCrossed size={16} className={sesion ? 'text-orange-500' : 'text-emerald-500'} />
-                  <span className="font-bold text-gray-800">{mesa.numero}</span>
-                  {sesion && (
-                    <span className="text-xs font-semibold text-orange-600">{sesion.items.length} items</span>
-                  )}
-                  {sesion && sesion.items.some(i => i.estado === 'Pendiente') && (
-                    <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5" title="Comanda sin enviar a cocina">
-                      🕐 {sesion.items.filter(i => i.estado === 'Pendiente').length}
-                    </span>
-                  )}
+                  <span className="font-bold text-gray-800 truncate">{mesa.numero}</span>
                   {editarMapa && (
                     <button
                       type="button"
-                      className="ml-1 text-red-500 hover:text-red-700"
+                      className="text-red-500 hover:text-red-700"
                       onClick={e => { e.stopPropagation(); setConfirmar({ tipo: 'eliminar', mesa }) }}
                     >
                       <Trash2 size={13} />
                     </button>
                   )}
                 </div>
-                <div className={`text-[11px] font-semibold ${sesion ? 'text-orange-600' : 'text-emerald-600'}`}>
-                  {sesion ? fmt(sesion.total) : 'Libre'}
+                <div className="mt-1 flex items-center justify-center">
+                  {sesion ? (
+                    sesion.items.some(i => i.estado === 'Pendiente') ? (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5" title="Comanda sin enviar a cocina">
+                        🕐 {sesion.items.filter(i => i.estado === 'Pendiente').length} sin enviar
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-orange-600">Ocupada</span>
+                    )
+                  ) : (
+                    <span className="text-[11px] font-semibold text-emerald-600">Libre</span>
+                  )}
                 </div>
               </div>
             )
           })}
-          {mesas.length === 0 && !cargando && (
+          {mesasSalon.length === 0 && !cargando && (
             <div className="absolute inset-0 grid place-items-center text-sm text-gray-400">
-              No hay mesas. Agregá la primera con el botón "Agregar mesa".
+              No hay mesas en este salón. Agregá la primera con el botón "Agregar mesa".
             </div>
           )}
         </div>
 
         {/* Panel comanda / selección */}
-        <div className="rounded-xl border border-gray-200 bg-white p-3 h-[70vh] overflow-y-auto">
+        <div className="rounded-xl border border-gray-200 bg-white p-3 h-full overflow-y-auto min-w-0">
           {!mesaSeleccionada && (
             <p className="text-sm text-gray-500">Seleccioná una mesa para ver su comanda.</p>
           )}
@@ -426,6 +560,7 @@ export default function MesasPage() {
                 {GRUPOS_COMANDA.map(grupo => {
                   const itemsGrupo = sesionSeleccionada.items.filter(i => i.grupo === grupo)
                   const pendientes = itemsGrupo.filter(i => i.estado === 'Pendiente').length
+                  const enCocina = itemsGrupo.filter(i => i.estado === 'EnCocina').length
                   const productos = agruparItems(itemsGrupo)
                   const esDragOver = dragOverGrupo === grupo
                   return (
@@ -450,7 +585,7 @@ export default function MesasPage() {
                           <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
                             Agregar
                           </Button>
-                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
+                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0 && enCocina === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
                             Enviar
                           </Button>
                         </div>
@@ -573,17 +708,60 @@ export default function MesasPage() {
           placeholder="Número / nombre (ej. 1, A-3)"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
+        <div className="mt-2">
+          <label className="text-xs font-semibold text-gray-600">Salón</label>
+          <select
+            value={nuevoSalonLibre ? '__libre__' : nuevoSalon}
+            onChange={e => {
+              if (e.target.value === '__libre__') { setNuevoSalonLibre(true); setNuevoSalon('') }
+              else { setNuevoSalonLibre(false); setNuevoSalon(e.target.value) }
+            }}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            {salones.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="__libre__">＋ Nuevo salón…</option>
+          </select>
+          {nuevoSalonLibre && (
+            <input
+              value={nuevoSalon}
+              onChange={e => setNuevoSalon(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') crearMesa() }}
+              placeholder="Nombre del salón (ej: Terraza)"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          )}
+        </div>
+      </Dialog>
+
+      <Dialog open={agregarSalonOpen} onClose={() => setAgregarSalonOpen(false)} title="Nuevo salón" width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAgregarSalonOpen(false)}>Cancelar</Button>
+            <Button onClick={agregarSalon} disabled={!salonNombre.trim()}>Crear salón</Button>
+          </>
+        }
+      >
+        <input
+          autoFocus
+          value={salonNombre}
+          onChange={e => setSalonNombre(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') agregarSalon() }}
+          placeholder="Nombre del salón (ej: Terraza)"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
       </Dialog>
 
       <ConfirmDialog
         open={confirmar != null}
-        title={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : 'Eliminar mesa'}
+        title={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : confirmar?.tipo === 'eliminar' ? 'Eliminar mesa' : 'Reenviar a cocina'}
         description={confirmar?.tipo === 'cancelar'
           ? `¿Cancelar la cuenta de la mesa ${confirmar?.sesion?.mesaNumero || confirmar?.sesion?.mesaId}? Los items se descartan.`
-          : `¿Eliminar la mesa ${confirmar?.mesa?.numero}?`}
-        cancelLabel={confirmar?.tipo === 'cancelar' ? 'No cancelar' : 'Cancelar'}
-        confirmLabel={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : 'Eliminar'}
-        confirmVariant="destructive"
+          : confirmar?.tipo === 'eliminar'
+            ? `¿Eliminar la mesa ${confirmar?.mesa?.numero}?`
+            : `La orden de la mesa ${confirmar?.sesion?.mesaNumero || confirmar?.sesion?.mesaId} ya está en cocina. ¿Volver a enviar?`}
+        cancelLabel={confirmar?.tipo === 'cancelar' ? 'No cancelar' : confirmar?.tipo === 'eliminar' ? 'Cancelar' : 'No enviar'}
+        confirmLabel={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : confirmar?.tipo === 'eliminar' ? 'Eliminar' : 'Volver a enviar'}
+        confirmVariant={confirmar?.tipo === 'reenviar' ? 'primary' : 'destructive'}
         onCancel={() => setConfirmar(null)}
         onConfirm={handleConfirmar}
       />
@@ -611,6 +789,7 @@ interface ItemUnidadRowProps {
 
 function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemUnidadRowProps) {
   const esTerminal = item.estado === 'Cancelado' || item.estado === 'Devuelto'
+  const editable = item.estado === 'Pendiente'
   const [nota, setNota] = useState(item.nota ?? '')
 
   useEffect(() => {
@@ -627,7 +806,7 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
     <div className={`p-2 ${esTerminal ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 min-w-0">
-          {!esTerminal && (
+          {editable && (
             <span
               draggable
               onDragStart={e => { e.dataTransfer.setData('text/plain', String(item.id)); e.dataTransfer.effectAllowed = 'move' }}
@@ -643,9 +822,7 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
         </span>
         <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(item.subtotal)}</span>
       </div>
-      {esTerminal ? (
-        item.nota && <p className="text-[11px] text-gray-400 mt-0.5">📝 {item.nota}</p>
-      ) : (
+      {editable ? (
         <input
           value={nota}
           onChange={e => setNota(e.target.value)}
@@ -656,6 +833,8 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
           placeholder="Nota de esta unidad (ej: sin cebolla)"
           className="mt-1 w-full rounded-md border border-gray-200 px-2 py-1 text-[11px] outline-none transition-colors focus:border-[oklch(0.52_0.255_278)]"
         />
+      ) : (
+        item.nota && <p className="text-[11px] text-gray-400 mt-0.5">📝 {item.nota}</p>
       )}
       <div className="mt-1 flex items-center justify-between">
         <span className={`text-[10px] font-bold uppercase tracking-wide ${estadoColor(item.estado)}`}>{item.estado}</span>
@@ -665,7 +844,7 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
               <Check size={14} />
             </button>
           )}
-          {!esTerminal && (
+          {editable && (
             <button type="button" title="Editar cantidad" className="p-1 text-gray-500 hover:bg-gray-100 rounded" onClick={onEditar}>
               <Pencil size={14} />
             </button>
@@ -722,8 +901,8 @@ function CocinaView({ sesiones, onRefrescar, onImprimir, onCambiarEstado }: Coci
     .sort((a, b) => a.items[0].fechaAlta.localeCompare(b.items[0].fechaAlta))
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 h-[70vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-xl border border-gray-200 bg-white p-3 flex-1 min-h-0 overflow-y-auto">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <h2 className="font-bold text-gray-800">Cocina — pendientes</h2>
         <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={onRefrescar}>Refrescar</Button>
       </div>
@@ -872,6 +1051,14 @@ interface AgregarItemDialogProps {
   onAdded: () => Promise<void>
 }
 
+interface CarritoItem {
+  productoId?: number
+  comboId?: number
+  descripcion: string
+  precio: number
+  notas: (string | null)[]
+}
+
 function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: AgregarItemDialogProps) {
   const { notifyError } = useNotification()
   const [tab, setTab] = useState<'productos' | 'combos'>('productos')
@@ -882,12 +1069,17 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
   const [cantidad, setCantidad] = useState('1')
   const [notas, setNotas] = useState<string[]>([])
   const [seleccionado, setSeleccionado] = useState<{ productoId?: number; comboId?: number; descripcion: string; precio: number } | null>(null)
+  const [carrito, setCarrito] = useState<CarritoItem[]>([])
+  const [enviando, setEnviando] = useState(false)
 
   // Cantidad parseada y válida (>= 1); 0 si está vacío o mal escrito (se valida al agregar).
   const unidadesValidas = (() => {
     const n = Math.round(Number(cantidad))
     return Number.isFinite(n) && n >= 1 ? n : 0
   })()
+
+  const totalUnidades = carrito.reduce((s, c) => s + c.notas.length, 0)
+  const totalCarrito = carrito.reduce((s, c) => s + c.precio * c.notas.length, 0)
 
   // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
   useEffect(() => {
@@ -899,6 +1091,8 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
     setCantidad('1')
     setNotas([])
     setSeleccionado(null)
+    setCarrito([])
+    setEnviando(false)
   }, [sesion])
 
   // Búsqueda de productos con debounce: depende de q pero no lo resetea.
@@ -931,27 +1125,65 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
     setNotas(Array.from({ length: unidadesValidas || 1 }, () => ''))
   }
 
-  async function agregar() {
-    if (!sesion || !seleccionado) return
+  function agregar() {
+    if (!seleccionado) return
     const unidades = unidadesValidas
     if (unidades < 1) {
       notifyError('Ingresá una cantidad válida (mayor a 0)')
       return
     }
-    try {
-      if (unidades > 1) {
-        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: unidades, notas, grupo })
-      } else {
-        await api.restaurante.agregarItem(sesion.id, { productoId: seleccionado.productoId, comboId: seleccionado.comboId, cantidad: 1, nota, grupo })
+    const notasUnidades: (string | null)[] = unidades > 1
+      ? notas.map(n => n.trim() || null)
+      : Array.from({ length: unidades }, () => nota.trim() || null)
+
+    setCarrito(prev => {
+      const existente = prev.find(c =>
+        c.productoId === seleccionado.productoId && c.comboId === seleccionado.comboId)
+      if (existente) {
+        return prev.map(c => (c === existente ? { ...c, notas: [...c.notas, ...notasUnidades] } : c))
       }
+      return [...prev, {
+        productoId: seleccionado.productoId,
+        comboId: seleccionado.comboId,
+        descripcion: seleccionado.descripcion,
+        precio: seleccionado.precio,
+        notas: notasUnidades,
+      }]
+    })
+    setCantidad('1')
+    setNota('')
+    setNotas([])
+  }
+
+  function quitarDelCarrito(index: number) {
+    setCarrito(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function confirmar() {
+    if (!sesion) return
+    if (carrito.length === 0) return
+    setEnviando(true)
+    try {
+      for (const c of carrito) {
+        await api.restaurante.agregarItem(sesion.id, {
+          productoId: c.productoId,
+          comboId: c.comboId,
+          cantidad: c.notas.length,
+          notas: c.notas,
+          grupo,
+        })
+      }
+      setCarrito([])
       await onAdded()
     } catch (e: any) {
-      notifyError(e.message || 'No se pudo agregar el item')
+      notifyError(e.message || 'No se pudieron agregar los items')
+    } finally {
+      setEnviando(false)
     }
   }
 
   function handleEnter() {
-    if (seleccionado) { void agregar(); return }
+    if (seleccionado) { agregar(); return }
     if (tab === 'productos' && productos.length > 0) seleccionarProducto(productos[0])
     else if (tab === 'combos' && combos.filter(c => c.activo).length > 0) seleccionarCombo(combos.filter(c => c.activo)[0])
   }
@@ -962,93 +1194,139 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
     seleccionado.comboId === (comboId ?? undefined)
 
   return (
-    <Dialog open={!!sesion} onClose={onClose} title="Agregar a la comanda" width="lg"
+    <Dialog open={!!sesion} onClose={onClose} title="Agregar a la comanda" width="xl"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={agregar} disabled={!seleccionado}>Agregar</Button>
+          <Button variant="confirm" onClick={confirmar} disabled={carrito.length === 0} loading={enviando}>
+            {totalUnidades > 0 ? `Confirmar (${totalUnidades})` : 'Confirmar'}
+          </Button>
         </>
       }
     >
-      <div className="space-y-3">
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {(['productos', 'combos'] as const).map(t => (
-            <button key={t} type="button" onClick={() => { setTab(t); setSeleccionado(null) }}
-              className={`flex-1 rounded-md py-1.5 text-xs font-bold uppercase tracking-wide ${tab === t ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'productos' && (
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input autoFocus value={q} onChange={e => setQ(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-              placeholder="Buscar por nombre o código…"
-              className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 text-sm" />
+      <div className="grid h-[60vh] grid-cols-[1fr_320px] gap-4">
+        {/* Columna principal: elegir productos */}
+        <div className="flex min-h-0 flex-col">
+          <div className="flex shrink-0 gap-1 rounded-lg bg-gray-100 p-1">
+            {(['productos', 'combos'] as const).map(t => (
+              <button key={t} type="button" onClick={() => { setTab(t); setSeleccionado(null) }}
+                className={`flex-1 rounded-md py-1.5 text-xs font-bold uppercase tracking-wide ${tab === t ? 'bg-white shadow text-[oklch(0.52_0.255_278)]' : 'text-gray-500'}`}>
+                {t}
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className="max-h-56 space-y-1 overflow-y-auto">
-          {tab === 'productos' && q.trim() && productos.map(p => (
-            <button key={p.id} type="button" onClick={() => seleccionarProducto(p)}
-              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(p.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
-              <span className="text-gray-800">{p.nombre}</span>
-              <span className="font-semibold text-gray-600">{fmt(p.precio)}</span>
-            </button>
-          ))}
-          {tab === 'productos' && !q.trim() && <p className="text-xs text-gray-400">Escribí para buscar.</p>}
-          {tab === 'combos' && combos.filter(c => c.activo).map(c => (
-            <button key={c.id} type="button" onClick={() => seleccionarCombo(c)}
-              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(undefined, c.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
-              <span className="text-gray-800">{c.descCombo}</span>
-              <span className="font-semibold text-gray-600">{fmt(c.precio)}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs font-semibold text-gray-600">
-            Cantidad
-            <input type="number" min={1} step={1} value={cantidad}
-              onChange={e => {
-                setCantidad(e.target.value)
-                const n = Math.round(Number(e.target.value))
-                if (Number.isFinite(n) && n >= 1) {
-                  setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
-                }
-              }}
-              onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-          </label>
-          {unidadesValidas > 1 ? (
-            <div className="text-xs font-semibold text-gray-600">
-              Nota por unidad
-              <div className="mt-1 space-y-1">
-                {notas.map((n, i) => (
-                  <input key={i} value={n}
-                    onChange={e => setNotas(prev => prev.map((x, j) => (j === i ? e.target.value : x)))}
-                    onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-                    placeholder={`Nota unidad ${i + 1}`}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <label className="text-xs font-semibold text-gray-600">
-              Nota (opcional)
-              <input value={nota} onChange={e => setNota(e.target.value)}
+          {tab === 'productos' && (
+            <div className="relative mt-2 shrink-0">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
-                placeholder="Ej: sin cebolla"
+                placeholder="Buscar por nombre o código…"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 text-sm" />
+            </div>
+          )}
+
+          <div className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+            {tab === 'productos' && q.trim() && productos.map(p => (
+              <button key={p.id} type="button" onClick={() => seleccionarProducto(p)}
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(p.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
+                <span className="text-gray-800">{p.nombre}</span>
+                <span className="font-semibold text-gray-600">{fmt(p.precio)}</span>
+              </button>
+            ))}
+            {tab === 'productos' && !q.trim() && <p className="text-xs text-gray-400">Escribí para buscar.</p>}
+            {tab === 'combos' && combos.filter(c => c.activo).map(c => (
+              <button key={c.id} type="button" onClick={() => seleccionarCombo(c)}
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${estaSeleccionado(undefined, c.id) ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.06)]' : 'border-gray-200 hover:border-[oklch(0.52_0.255_278)] hover:bg-[oklch(0.52_0.255_278_/_0.05)]'}`}>
+                <span className="text-gray-800">{c.descCombo}</span>
+                <span className="font-semibold text-gray-600">{fmt(c.precio)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-2 grid shrink-0 grid-cols-2 gap-2">
+            <label className="text-xs font-semibold text-gray-600">
+              Cantidad
+              <input type="number" min={1} step={1} value={cantidad}
+                onChange={e => {
+                  setCantidad(e.target.value)
+                  const n = Math.round(Number(e.target.value))
+                  if (Number.isFinite(n) && n >= 1) {
+                    setNotas(prev => Array.from({ length: n }, (_, i) => prev[i] ?? ''))
+                  }
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
             </label>
+            {unidadesValidas > 1 ? (
+              <div className="text-xs font-semibold text-gray-600">
+                Nota por unidad
+                <div className="mt-1 max-h-20 space-y-1 overflow-y-auto">
+                  {notas.map((n, i) => (
+                    <input key={i} value={n}
+                      onChange={e => setNotas(prev => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                      onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
+                      placeholder={`Nota unidad ${i + 1}`}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <label className="text-xs font-semibold text-gray-600">
+                Nota (opcional)
+                <input value={nota} onChange={e => setNota(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleEnter() }}
+                  placeholder="Ej: sin cebolla"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+              </label>
+            )}
+          </div>
+
+          {!seleccionado && (
+            <p className="mt-2 shrink-0 text-xs text-gray-400">Tocá un producto para seleccionarlo y después confirmá con Enter o "Agregar".</p>
+          )}
+          {seleccionado && (
+            <p className="mt-2 shrink-0 text-xs text-gray-400">Tocá "Agregar" para sumarlo al resumen. Podés seguir agregando otros y confirmás todo junto.</p>
           )}
         </div>
 
-        {!seleccionado && (
-          <p className="text-xs text-gray-400">Tocá un producto para seleccionarlo y después confirmá con Enter o "Agregar".</p>
-        )}
+        {/* Anexo derecho: resumen */}
+        <div className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-gray-50 p-2">
+          <div className="mb-1.5 flex shrink-0 items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-600">
+              Resumen{totalUnidades > 0 && ` · ${totalUnidades} unidades`}
+            </span>
+            {carrito.length > 0 && (
+              <button type="button" className="text-[11px] font-semibold text-red-500 hover:text-red-700" onClick={() => setCarrito([])}>
+                Vaciar
+              </button>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+            {carrito.length === 0 ? (
+              <p className="text-xs text-gray-400">Todavía no agregaste nada.</p>
+            ) : (
+              carrito.map((c, i) => (
+                <div key={`${c.productoId ?? 'c'}-${c.comboId ?? 0}`} className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-2 py-1.5">
+                  <div className="min-w-0">
+                    <span className="block truncate text-sm text-gray-800">{c.descripcion}</span>
+                    <span className="text-[11px] text-gray-500">x{c.notas.length} · {fmt(c.precio * c.notas.length)}</span>
+                  </div>
+                  <button type="button" className="shrink-0 p-1 text-gray-400 hover:text-red-500" title="Quitar del resumen" onClick={() => quitarDelCarrito(i)}>
+                    <X size={14} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          {carrito.length > 0 && (
+            <div className="mt-2 flex shrink-0 items-center justify-between border-t border-gray-200 pt-2">
+              <span className="text-xs font-semibold text-gray-600">Total</span>
+              <span className="font-bold text-[oklch(0.52_0.255_278)]">{fmt(totalCarrito)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </Dialog>
   )
@@ -1114,13 +1392,14 @@ interface CobrarDialogProps {
 function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogProps) {
   const { notifyError } = useNotification()
   const [medioId, setMedioId] = useState<number>(1)
-  const [monto, setMonto] = useState<number>(sesion?.total ?? 0)
+  const [monto, setMonto] = useState<string>(() => (sesion?.total ?? 0).toFixed(2))
+  const montoNum = parseFloat(monto) || 0
   const [clienteId, setClienteId] = useState<number | null>(null)
   const [clientes, setClientes] = useState<ClienteDto[]>([])
   const [cobrando, setCobrando] = useState(false)
 
   useEffect(() => {
-    setMonto(sesion?.total ?? 0)
+    setMonto((sesion?.total ?? 0).toFixed(2))
   }, [sesion])
 
   useEffect(() => {
@@ -1130,14 +1409,22 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
 
   const medio = mediosPago.find(m => m.id === medioId)
 
+  const iconMap: Record<number, React.ReactNode> = {
+    1: <Banknote size={16} strokeWidth={1.75} />,
+    2: <ArrowRightLeft size={16} strokeWidth={1.75} />,
+    3: <CreditCard size={16} strokeWidth={1.75} />,
+    4: <Smartphone size={16} strokeWidth={1.75} />,
+    5: <QrCode size={16} strokeWidth={1.75} />,
+  }
+
   async function cobrar() {
     if (!sesion) return
-    if (monto <= 0) { notifyError('Monto inválido'); return }
-    if (monto < sesion.total && !clienteId) { notifyError('Si el pago es menor al total, elegí un cliente (genera deuda)'); return }
+    if (montoNum <= 0) { notifyError('Monto inválido'); return }
+    if (montoNum < sesion.total && !clienteId) { notifyError('Si el pago es menor al total, elegí un cliente (genera deuda)'); return }
     setCobrando(true)
     try {
-      const pago: { medioPagoId: number; monto: number; conCambio?: number } = { medioPagoId: medioId, monto }
-      if (medio?.pagaVuelto && monto > sesion.total) pago.conCambio = monto
+      const pago: { medioPagoId: number; monto: number; conCambio?: number } = { medioPagoId: medioId, monto: montoNum }
+      if (medio?.pagaVuelto && montoNum > sesion.total) pago.conCambio = montoNum
       const res = await api.restaurante.cobrar(sesion.id, { pagos: [pago], clienteId: clienteId ?? undefined })
       onCobrado(res)
     } catch (e: any) {
@@ -1148,11 +1435,11 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
   }
 
   return (
-    <Dialog open={!!sesion} onClose={onClose} title="Cobrar cuenta" width="sm"
+    <Dialog open={!!sesion} onClose={onClose} title="Cobrar cuenta" width="md"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button variant="confirm" onClick={cobrar} loading={cobrando}>Cobrar {fmt(monto)}</Button>
+          <Button variant="confirm" onClick={cobrar} loading={cobrando}>Cobrar {fmt(montoNum)}</Button>
         </>
       }
     >
@@ -1162,21 +1449,29 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
           <span className="font-bold text-[oklch(0.52_0.255_278)]">{fmt(sesion?.total ?? 0)}</span>
         </div>
 
-        <div className="grid grid-cols-5 gap-1.5">
-          {mediosPago.map(mp => (
-            <button key={mp.id} type="button"
-              onClick={() => setMedioId(mp.id)}
-              className={`rounded-lg border py-2 text-[10px] font-bold uppercase tracking-wide ${medioId === mp.id ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278)] text-white' : 'border-gray-200 text-gray-500 hover:border-[oklch(0.52_0.255_278)]'}`}>
-              {mp.nombre}
-            </button>
-          ))}
+        <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Medio de pago">
+          {mediosPago.map(mp => {
+            const estaSeleccionado = medioId === mp.id
+            return (
+              <button key={mp.id} type="button" title={mp.nombre}
+                onClick={() => setMedioId(mp.id)}
+                className={`flex flex-col items-center justify-center gap-[3px] rounded-xl border py-2.5 px-1 transition-all duration-150 select-none ${estaSeleccionado ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278)] text-white shadow-[0_2px_8px_-2px_oklch(0.52_0.255_278_/_0.40)]' : 'border-gray-200 bg-white text-gray-400 hover:border-[oklch(0.52_0.255_278_/_0.35)] hover:bg-[oklch(0.52_0.255_278_/_0.05)] hover:text-[oklch(0.52_0.255_278)]'}`}
+                aria-pressed={estaSeleccionado}
+              >
+                {iconMap[mp.id] ?? <Banknote size={16} strokeWidth={1.75} />}
+                <span className="w-full truncate text-center text-[9px] font-bold uppercase tracking-wide leading-none">{mp.nombre}</span>
+              </button>
+            )
+          })}
         </div>
 
-        <label className="block text-xs font-semibold text-gray-600">
-          Monto recibido
-          <input type="number" value={monto} min={0} onChange={e => setMonto(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-        </label>
+        <MontoInput
+          label="Monto recibido"
+          value={monto}
+          onChange={setMonto}
+          warning={montoNum < (sesion?.total ?? 0) && !clienteId}
+          hint={montoNum < (sesion?.total ?? 0) && !clienteId ? 'El pago es menor al total: elegí un cliente (genera deuda)' : undefined}
+        />
 
         <label className="block text-xs font-semibold text-gray-600">
           Cliente (solo si queda saldo a favor / deuda)

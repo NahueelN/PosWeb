@@ -1320,6 +1320,12 @@ public partial class PosDbContext
                 .HasColumnName("DESCRIPCION")
                 .HasMaxLength(200);
 
+            entity.Property(m => m.SALON)
+                .HasColumnName("SALON")
+                .HasMaxLength(60)
+                .IsRequired()
+                .HasDefaultValue(Mesa.SalonPrincipal);
+
             entity.Property(m => m.POS_X)
                 .HasColumnName("POS_X")
                 .HasColumnType("decimal(5,2)");

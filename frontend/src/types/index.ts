@@ -182,6 +182,8 @@ export interface MesaDto {
   sucursalId: number
   numero: string
   descripcion?: string | null
+  /** Salón/área del local (ej: Principal, Terraza) */
+  salon: string
   posX: number
   posY: number
   activa: boolean
@@ -192,6 +194,7 @@ export interface UpsertMesaRequest {
   sucursalId: number
   numero: string
   descripcion?: string | null
+  salon?: string
   posX: number
   posY: number
 }
