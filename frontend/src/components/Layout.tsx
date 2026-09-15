@@ -33,6 +33,7 @@ const menuGroups = [
     label: 'Gestión',
     links: [
       { to: '/productos', label: 'Productos', icon: '📦' },
+      { to: '/vencimientos', label: 'Vencimientos', icon: '📅' },
       { to: '/combos', label: 'Ofertas', icon: '🎁' },  
       { to: '/historial', label: 'Historial', icon: '📋' },
     ],
@@ -46,7 +47,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/sucursales'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/vencimientos'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
@@ -402,7 +403,7 @@ export default function Layout() {
             </div>
 
             {avisoVencimientosHabilitado && productosPorVencer > 0 && (
-              <button type="button" onClick={() => navigate('/productos', { state: { openVencimientos: true } })}
+              <button type="button" onClick={() => navigate('/vencimientos')}
                 className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 aria-label="Ver productos próximos a vencer">
                 <BellRing size={14} />
@@ -438,7 +439,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto min-h-0 flex flex-col p-4 sm:p-5">
+        <div className="flex-1 overflow-auto min-h-0 flex flex-col p-4 sm:p-5 [scrollbar-gutter:stable]">
           <Outlet context={{ sucursal }} />
         </div>
       </main>

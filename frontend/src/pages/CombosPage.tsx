@@ -570,13 +570,15 @@ function ComboFormModal({
     [productos])
 
   const productosLista = useMemo(() => {
+    const seleccionados = new Set(form.items.map(i => i.productoId))
+    const base = productosDisponibles.filter(p => !seleccionados.has(p.id))
     const q = prodSearch.trim().toLowerCase()
-    if (!q) return productosDisponibles
-    return productosDisponibles.filter(p =>
+    if (!q) return base
+    return base.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
       (p.codigoBarra ?? '').toLowerCase().includes(q)
     )
-  }, [productosDisponibles, prodSearch])
+  }, [productosDisponibles, prodSearch, form.items])
 
   const totalVenta = useMemo(() => form.items.reduce((t, i) => {
     const p = productos.find(x => x.id === i.productoId)
@@ -608,20 +610,6 @@ function ComboFormModal({
 
   function quitarProducto(productoId: number) {
     setForm(prev => ({ ...prev, items: prev.items.filter(i => i.productoId !== productoId) }))
-  }
-
-  function toggleProducto(p: ProductoDto) {
-    setForm(prev => prev.items.some(i => i.productoId === p.id)
-      ? { ...prev, items: prev.items.filter(i => i.productoId !== p.id) }
-      : {
-          ...prev,
-          items: [...prev.items, {
-            productoId: p.id,
-            cantidad: 1,
-            productoNombre: p.nombre,
-            codigoBarra: p.codigoBarra,
-          }],
-        })
   }
 
   function setCantidad(productoId: number, cantidad: number) {
@@ -761,25 +749,19 @@ function ComboFormModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {productosLista.map(p => {
-                      const yaEsta = form.items.some(i => i.productoId === p.id)
-                      return (
-                        <tr key={p.id} onClick={() => toggleProducto(p)}
-                          className={`cursor-pointer border-b border-gray-200 last:border-0 ${yaEsta ? 'bg-[var(--color-primary-light)]' : 'hover:bg-gray-50'}`}>
-                          <td className="px-2 py-1.5">
-                            <span className="flex items-center gap-1.5">
-                              {yaEsta && <Check size={13} className="shrink-0 text-[var(--color-primary)]" />}
-                              <span className="text-black">{p.nombre}</span>
-                            </span>
-                            <span className="block font-mono text-[11px] text-black">{p.codigoBarra || p.codigoProducto || ''}</span>
-                          </td>
-                          <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${p.precio.toFixed(2)}</td>
-                          <td className="px-1 py-1.5 text-right tabular-nums whitespace-nowrap">
-                            <span className={p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}>●</span> {p.stock}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {productosLista.map(p => (
+                      <tr key={p.id} onClick={() => agregarProducto(p)}
+                        className="cursor-pointer border-b border-gray-200 last:border-0 hover:bg-gray-50">
+                        <td className="px-2 py-1.5">
+                          <span className="text-black">{p.nombre}</span>
+                          <span className="block font-mono text-[11px] text-black">{p.codigoBarra || p.codigoProducto || ''}</span>
+                        </td>
+                        <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${p.precio.toFixed(2)}</td>
+                        <td className="px-1 py-1.5 text-right tabular-nums whitespace-nowrap">
+                          <span className={p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}>●</span> {p.stock}
+                        </td>
+                      </tr>
+                    ))}
                     {productosLista.length === 0 && (
                       <tr>
                         <td colSpan={3} className="px-3 py-10 text-center text-sm text-black">Sin productos para mostrar</td>

@@ -350,6 +350,12 @@ public class ProductosController : ControllerBase
         return Ok(_productoService.ActualizarCantidadIdeal(id, request.CantidadIdeal));
     }
 
+    [HttpPut("{id}/vencimientos")]
+    public IActionResult ActualizarVencimientos(int id, [FromBody] VencimientosProductoRequest request)
+    {
+        return Ok(_productoService.ActualizarVencimientos(id, request.SeguirVencimientos, request.Fechas));
+    }
+
     [HttpPut("ajuste-marca")]
     public IActionResult AjustarPorMarca([FromBody] AjusteMarcaRequest request)
     {
@@ -374,6 +380,12 @@ public class SeguirStockRequest
 public class CantidadIdealRequest
 {
     public decimal? CantidadIdeal { get; set; }
+}
+
+public class VencimientosProductoRequest
+{
+    public bool SeguirVencimientos { get; set; }
+    public List<DateTime> Fechas { get; set; } = new();
 }
 
 public class AjusteMarcaRequest

@@ -1,19 +1,17 @@
-import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
-import { Loader2, Check, X, Package, Plus, Printer, Trash2 } from 'lucide-react'
+import { Loader2, Check, X, Package, Plus, Printer, Trash2, CalendarClock } from 'lucide-react'
 import Dialog from './ui/Dialog'
 import DialogPrimaryField from './ui/DialogPrimaryField'
 import Button from './ui/Button'
 import SelectAltaCruzada from './ui/SelectAltaCruzada'
 import PrefixedCodeInput from './ui/PrefixedCodeInput'
+import ProductoVencimientosEditor, { ordenarFechasVencimiento } from './shared/ProductoVencimientosEditor'
 import { useNotification } from '../context/NotificationContext'
 import BarcodePrintDialog from './BarcodePrintDialog'
 import LabelPrintDialog from './LabelPrintDialog'
-
-function ordenarFechasVencimiento(fechas: string[]) {
-  return [...fechas.filter(Boolean)].sort().concat(['', '', '']).slice(0, 3)
-}
+import VencimientosProductoModal from './VencimientosProductoModal'
 
 function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
@@ -69,6 +67,9 @@ export default function ProductFormModal({
   const [esBulto, setEsBulto] = useState(false)
   const [productoBultoId, setProductoBultoId] = useState('')
   const [fechasVencimiento, setFechasVencimiento] = useState(['', '', ''])
+  const [showVencimientos, setShowVencimientos] = useState(false)
+  const [diasAvisoVencimiento, setDiasAvisoVencimiento] = useState(7)
+  const vencimientosSnapshot = useRef<{ seguir: boolean; fechas: string[] } | null>(null)
   const [productosBulto, setProductosBulto] = useState<ProductoDto[]>([])
   const [loading, setLoading] = useState(false)
   const { notifyError } = useNotification()
@@ -345,6 +346,43 @@ export default function ProductFormModal({
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
     api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
   }, [])
+
+  // Días de anticipación configurados por el usuario (para el aviso de vencimiento)
+  useEffect(() => {
+    let mounted = true
+    api.preferencias.obtener()
+      .then(res => {
+        const valor = res.preferencias?.vencimientos?.diasAnticipacion
+        if (mounted && valor && Number(valor) > 0) setDiasAvisoVencimiento(Number(valor))
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
+  const alertaVencimiento = useMemo(() => {
+    if (!seguirVencimientos) return false
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const limite = new Date(hoy)
+    limite.setDate(limite.getDate() + diasAvisoVencimiento)
+    return fechasVencimiento
+      .filter(Boolean)
+      .some(fecha => new Date(`${fecha.slice(0, 10)}T00:00:00`) <= limite)
+  }, [seguirVencimientos, fechasVencimiento, diasAvisoVencimiento])
+
+  function abrirVencimientos() {
+    vencimientosSnapshot.current = { seguir: seguirVencimientos, fechas: [...fechasVencimiento] }
+    setShowVencimientos(true)
+  }
+
+  function cancelarVencimientos() {
+    const snapshot = vencimientosSnapshot.current
+    if (snapshot) {
+      setSeguirVencimientos(snapshot.seguir)
+      setFechasVencimiento(snapshot.fechas)
+    }
+    setShowVencimientos(false)
+  }
 
   // Preselect unit from OFF data
   useEffect(() => {
@@ -1006,48 +1044,18 @@ export default function ProductFormModal({
                   }`}
                   placeholder={seguirStock ? '0' : 'Sin control'} />
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <label className={`flex items-center gap-1.5 select-none group ${esBulto ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                  <input
-                    type="checkbox"
-                    checked={seguirVencimientos}
-                    onChange={event => setSeguirVencimientos(event.target.checked)}
-                    disabled={esBulto}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
-                  />
-                  <span className={`text-sm font-medium transition-colors ${esBulto ? 'text-gray-400' : 'text-gray-800 group-hover:text-[var(--color-primary)]'}`}>Controlar vencimientos</span>
-                </label>
-                <span className="text-[11px] text-gray-400 font-normal">— muestra avisos</span>
-              </div>
               {!esBulto && (
-                <div className="mt-2">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-700">Vencimientos</p>
-                    <span className="text-[10px] text-gray-400">Hasta tres fechas</span>
-                  </div>
-                  <div className="space-y-1">
-                    {[0, 1, 2].map(index => (
-                      <label key={index} className="flex items-center gap-2 text-[11px] font-medium text-gray-600">
-                        <span className="w-20 shrink-0">Fecha {index + 1}</span>
-                        <input
-                          type="date"
-                          value={fechasVencimiento[index] ?? ''}
-                          onChange={event => setFechasVencimiento(actuales => ordenarFechasVencimiento([0, 1, 2].map(currentIndex => currentIndex === index ? event.target.value : actuales[currentIndex] ?? '')))}
-                          disabled={!seguirVencimientos}
-                          className="h-6 min-w-0 flex-1 rounded-md border border-gray-300 px-1.5 text-xs outline-none transition-all duration-150 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-ring)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFechasVencimiento(actuales => ordenarFechasVencimiento(actuales.filter((_, currentIndex) => currentIndex !== index)))}
-                          disabled={!seguirVencimientos || !fechasVencimiento[index]}
-                          aria-label={`Eliminar fecha ${index + 1}`}
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
-                        >
-                          <X size={14} />
-                        </button>
-                      </label>
-                    ))}
-                  </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button variant="secondary" size="md" icon={<CalendarClock size={17} />} type="button" onClick={abrirVencimientos} className="h-11 flex-1 text-[14px]">
+                    Controlar vencimientos
+                  </Button>
+                  {alertaVencimiento && (
+                    <span
+                      title="Vencido o próximo a vencer"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-[15px] font-bold leading-none text-red-600">
+                      !
+                    </span>
+                  )}
                 </div>
               )}
             </FieldSection>
@@ -1065,6 +1073,46 @@ export default function ProductFormModal({
         onClose={() => setShowLabelPrint(false)}
       />
     )}
+
+    {showVencimientos && (editingProduct ? (
+      <VencimientosProductoModal
+        producto={{ ...editingProduct, seguirVencimientos, fechasVencimiento: fechasVencimiento.filter(Boolean) }}
+        onSaved={actualizado => {
+          setSeguirVencimientos(actualizado.seguirVencimientos ?? false)
+          setFechasVencimiento(ordenarFechasVencimiento((actualizado.fechasVencimiento ?? []).map(fecha => fecha.slice(0, 10))))
+          setShowVencimientos(false)
+        }}
+        onClose={() => setShowVencimientos(false)}
+      />
+    ) : (
+      <Dialog
+        open
+        onClose={cancelarVencimientos}
+        closeOnBackdrop={false}
+        title="VENCIMIENTOS"
+        icon={CalendarClock}
+        highlight={nombre || 'Nuevo producto'}
+        width="md"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button variant="secondary" size="md" className="min-w-[128px]" type="button" onClick={cancelarVencimientos}>
+              Cancelar
+            </Button>
+            <Button variant="primary" size="md" className="min-w-[128px]" icon={<Check size={18} />} type="button" onClick={() => setShowVencimientos(false)}>
+              Guardar
+            </Button>
+          </div>
+        }
+      >
+        <ProductoVencimientosEditor
+          seguirVencimientos={seguirVencimientos}
+          onSeguirVencimientosChange={setSeguirVencimientos}
+          fechas={fechasVencimiento}
+          onFechasChange={setFechasVencimiento}
+          size="md"
+        />
+      </Dialog>
+    ))}
 
     {codigoAImprimir && (
       <BarcodePrintDialog codigo={codigoAImprimir.codigo} origen={codigoAImprimir.origen} onClose={() => setCodigoAImprimir(null)} />

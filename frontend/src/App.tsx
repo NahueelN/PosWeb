@@ -19,6 +19,7 @@ import PedidosPage from './pages/PedidosPage'
 import DashboardPage from './pages/DashboardPage'
 import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
+import VencimientosPage from './pages/VencimientosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
@@ -133,6 +134,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
             <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/vencimientos" element={<VencimientosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/historial" element={<HistorialPage />} />
             <Route path="/clientes" element={<ClientesPage />} />

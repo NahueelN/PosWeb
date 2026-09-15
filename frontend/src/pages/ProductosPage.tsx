@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
+import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
 import { ProductRow, ProductGridRows, ProductGridHeader } from '../components/shared'
 import ProductFormModal from '../components/ProductFormModal'
 import ImportarProductosModal from '../components/ImportarProductosModal'
-import ConfiguracionProductosTab, { type ProductConfigSection } from '../components/ConfiguracionProductosTab'
+import ConfiguracionProductosTab from '../components/ConfiguracionProductosTab'
 import type { ProductoDto, OpenFoodFactsResultDto, SucursalDto } from '../types'
 import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import Dialog from '../components/ui/Dialog'
@@ -17,14 +17,11 @@ import { TrendingUp } from 'lucide-react'
 
 export default function ProductosPage() {
   const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
-  const location = useLocation()
-  const navigate = useNavigate()
   const [productos, setProductos] = useState<ProductoDto[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { notifyError, notifySuccess } = useNotification()
   const [tab, setTab] = useState<'productos' | 'configuracion' | 'actualizacion-masiva'>('productos')
-  const [configSection, setConfigSection] = useState<ProductConfigSection>('categorias')
 
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -64,13 +61,6 @@ export default function ProductosPage() {
   useEffect(() => {
     if (sucursal?.id) listar()
   }, [sucursal?.id])
-
-  useEffect(() => {
-    if (!location.state?.openVencimientos) return
-    setTab('configuracion')
-    setConfigSection('vencimientos')
-    navigate('/productos', { replace: true })
-  }, [location.state, navigate])
 
   useEffect(() => {
     if (tab === 'actualizacion-masiva' && marcas.length === 0) {
@@ -318,7 +308,7 @@ export default function ProductosPage() {
         </ProductCardPanel>
         </Card>
       ) : tab === 'configuracion' ? (
-        <ConfiguracionProductosTab notifyError={notifyError} initialSection={configSection} />
+        <ConfiguracionProductosTab notifyError={notifyError} />
       ) : (
         <div className="space-y-6">
           <Card padding="lg">
