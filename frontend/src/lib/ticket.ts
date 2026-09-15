@@ -22,6 +22,7 @@ export interface TicketData {
   ventaId: number
   fecha: string
   vendedor?: string
+  mesa?: string
   items: TicketItem[]
   total: number
   pagos: { nombre: string }[]
@@ -63,13 +64,14 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   const push = (text: string, opts: { bold?: boolean; center?: boolean; size?: 'sm' | 'md' | 'lg'; space?: boolean } = {}) =>
     entries.push({ text, bold: opts.bold ?? false, center: opts.center ?? false, size: opts.size, space: opts.space })
 
-  push(data.empresaNombre ?? 'PosWeb', { bold: true, center: true, size: 'md' })
+  push(data.empresaNombre ?? 'Vendeto', { bold: true, center: true, size: 'md' })
   if (data.empresaDireccion) push(data.empresaDireccion, { center: true })
   if (data.mostrarTelefonoTicket && data.empresaTelefono) push(`Tel: ${data.empresaTelefono}`, { center: true })
   push('TICKET DE COMPRA', { bold: true, center: true, space: true })
   push(line)
   push(fmtFecha(data.fecha))
   push(`Ticket N° ${String(data.ventaId).padStart(6, '0')}`)
+  if (data.mesa) push(`MESA ${data.mesa}`, { bold: true })
   push(`Vendedor: ${data.vendedor ?? '—'}`)
   push(line)
 
@@ -94,6 +96,8 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push(line)
   push('¡GRACIAS POR SU COMPRA!', { bold: true, center: true, space: true })
   push('NO VÁLIDO COMO FACTURA', { center: true, size: 'sm' })
+  push('')
+  push('Vendeto~'.padStart(cols), { bold: true, size: 'sm' })
 
   return entries
 }

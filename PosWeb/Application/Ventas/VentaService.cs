@@ -99,6 +99,7 @@ public class VentaService
 
         Venta venta = new Venta(dto.SucursalId, usuarioId);
         venta.AsignarCliente(dto.ClienteId);
+        venta.AsignarSesionMesa(dto.SesionMesaId);
 
         if (esTransferenciaPendiente)
         {
@@ -120,23 +121,29 @@ public class VentaService
             {
                 var combo = _context.Combo
                     .Include(c => c.ITEMS)
-                    .FirstOrDefault(c => c.ID_COMBO == item.ComboId.Value && c.ACTIVO)
+                    .FirstOrDefault(c => c.ID_COMBO == item.ComboId.Value)
                     ?? throw new InvalidOperationException($"Combo con ID {item.ComboId} no encontrado o inactivo");
 
-                if (!combo.EstaVigenteHoy())
-                    throw new InvalidOperationException($"El combo '{combo.DESC_COMBO}' no está vigente hoy");
+                // En mesas el combo ya fue servido: no se valida vigencia/activo y se usa el precio capturado.
+                if (!dto.SinStock)
+                {
+                    if (!combo.ACTIVO)
+                        throw new InvalidOperationException($"El combo '{combo.DESC_COMBO}' no está activo");
+                    if (!combo.EstaVigenteHoy())
+                        throw new InvalidOperationException($"El combo '{combo.DESC_COMBO}' no está vigente hoy");
+                }
 
                 foreach (var citem in combo.ITEMS)
                 {
                     Producto? cproducto = _context.Producto.Find(citem.ID_PRODUCTO);
                     if (cproducto == null)
                         throw new ProductoNoExisteException(citem.ID_PRODUCTO);
-                    if (!cproducto.ACTIVO)
+                    if (!dto.SinStock && !cproducto.ACTIVO)
                         throw new ProductoInactivoException(citem.ID_PRODUCTO);
 
                     decimal cantidadNecesaria = citem.CANTIDAD * item.Cantidad;
 
-                    if (cproducto.SEGUIR_STOCK)
+                    if (!dto.SinStock && cproducto.SEGUIR_STOCK)
                     {
                         StockSucursal? cstock = _context.StockSucursal
                             .FirstOrDefault(s => s.ID_PRODUCTO == citem.ID_PRODUCTO && s.ID_SUCURSAL == dto.SucursalId);
@@ -161,7 +168,11 @@ public class VentaService
                     venta.AgregarRenglonCombo(combo, citem.ID_PRODUCTO, cantidadNecesaria, 0);
                 }
 
-                venta.AgregarRenglonCombo(combo, 0, item.Cantidad, combo.PRECIO);
+                var precioCombo = dto.SinStock && item.PrecioUnitario.HasValue
+                    ? item.PrecioUnitario.Value
+                    : combo.PRECIO;
+
+                venta.AgregarRenglonCombo(combo, 0, item.Cantidad, precioCombo);
             }
             else
             {
@@ -172,12 +183,13 @@ public class VentaService
                     throw new ProductoNoExisteException(item.ProductoId);
                 }
 
-                if (!producto.ACTIVO)
+                // En mesas el producto ya fue servido: no se bloquea si se desactivó después.
+                if (!dto.SinStock && !producto.ACTIVO)
                 {
                     throw new ProductoInactivoException(item.ProductoId);
                 }
 
-                if (producto.SEGUIR_STOCK)
+                if (!dto.SinStock && producto.SEGUIR_STOCK)
                 {
                     StockSucursal? stockSuc = _context.StockSucursal
                         .FirstOrDefault(s => s.ID_PRODUCTO == item.ProductoId && s.ID_SUCURSAL == dto.SucursalId);
@@ -200,7 +212,7 @@ public class VentaService
                     }
                 }
 
-                if (item.OfertaId.HasValue && item.OfertaId.Value > 0)
+                if (!dto.SinStock && item.OfertaId.HasValue && item.OfertaId.Value > 0)
                 {
                     var oferta = _context.Oferta.Find(item.OfertaId.Value)
                         ?? throw new InvalidOperationException($"Oferta con ID {item.OfertaId} no encontrada");
@@ -212,7 +224,12 @@ public class VentaService
                         throw new InvalidOperationException($"La oferta del producto '{producto.DESC_PRODUCTO}' no está vigente hoy");
                 }
 
-                venta.AgregarRenglon(producto, item.Cantidad, item.OfertaId);
+                // En ventas de mesa (SinStock) se usa el precio capturado en la comanda si viene.
+                var precioUnitario = dto.SinStock && item.PrecioUnitario.HasValue
+                    ? item.PrecioUnitario.Value
+                    : producto.PRECIO;
+
+                venta.AgregarRenglon(producto, item.Cantidad, precioUnitario, item.OfertaId);
             }
 
         }
@@ -396,6 +413,17 @@ public class VentaService
             cajaActiva.ID_CAJA
         );
         _context.Pago.Add(pago);
+
+        // Si la venta corresponde a una mesa, se cierra la sesión al confirmar el pago.
+        if (venta.ID_SESION_MESA.HasValue)
+        {
+            var sesion = _context.SesionMesa.FirstOrDefault(s => s.ID_SESION_MESA == venta.ID_SESION_MESA.Value);
+            if (sesion != null)
+            {
+                sesion.MarcarCobrada(venta.ID_VENTA);
+            }
+        }
+
         _context.SaveChanges();
 
         return ConstruirVentaResultado(venta);
@@ -487,6 +515,13 @@ public class VentaService
         else
             venta.Cancelar();
 
+        // Las ventas de mesa (SinStock) nunca descontaron stock: no hay nada que reponer.
+        if (venta.ID_SESION_MESA.HasValue)
+        {
+            _context.SaveChanges();
+            return;
+        }
+
         var renglones = _context.RenglonVenta
             .Where(r => r.ID_VENTA == ventaId)
             .ToList();
@@ -549,7 +584,14 @@ public class VentaService
                 Total = v.TOTAL,
                 CantidadItems = v.RENGLONES.Count,
                 Anulada = v.ANULADA,
-                Estado = v.ESTADO
+                Estado = v.ESTADO,
+                Mesa = v.ID_SESION_MESA == null ? null : _context.SesionMesa
+                    .Where(s => s.ID_SESION_MESA == v.ID_SESION_MESA)
+                    .Select(s => _context.Mesa
+                        .Where(m => m.ID_MESA == s.ID_MESA)
+                        .Select(m => m.NUMERO_MESA)
+                        .FirstOrDefault())
+                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -616,6 +658,16 @@ public class VentaService
                 .FirstOrDefaultAsync()
             : null;
 
+        string? mesa = venta.ID_SESION_MESA.HasValue
+            ? await _context.SesionMesa
+                .Where(s => s.ID_SESION_MESA == venta.ID_SESION_MESA.Value)
+                .Select(s => _context.Mesa
+                    .Where(m => m.ID_MESA == s.ID_MESA)
+                    .Select(m => m.NUMERO_MESA)
+                    .FirstOrDefault())
+                .FirstOrDefaultAsync()
+            : null;
+
         return new VentaDetalleDto
         {
             VentaId = venta.ID_VENTA,
@@ -626,6 +678,7 @@ public class VentaService
             Items = items,
             EmpresaNombre = empresaNombre,
             Vendedor = vendedor,
+            Mesa = mesa,
             Pagos = pagos,
             Cambio = pagos.Sum(p => p.Cambio)
         };
@@ -642,6 +695,14 @@ public class VentaService
         var limite = DateTime.Now.AddMonths(-1);
         if (venta.FECHA_VENTA < limite)
             throw new InvalidOperationException("Solo se pueden deshacer ventas del último mes");
+
+        // Las ventas de mesa (SinStock) nunca descontaron stock: no hay nada que reponer.
+        if (venta.ID_SESION_MESA.HasValue)
+        {
+            venta.Anular();
+            _context.SaveChanges();
+            return;
+        }
 
         var renglones = _context.RenglonVenta
             .Where(r => r.ID_VENTA == ventaId)

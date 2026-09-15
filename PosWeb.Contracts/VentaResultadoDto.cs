@@ -34,4 +34,7 @@ public class VentaResultadoDto
     public string Estado { get; set; } = "Completada";
 
     public string? QrData { get; set; }
+
+    /// <summary>Número de mesa (restaurante) si la venta proviene de una cuenta de mesa.</summary>
+    public string? Mesa { get; set; }
 }

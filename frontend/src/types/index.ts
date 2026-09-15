@@ -127,6 +127,7 @@ export interface VentaItemDto {
   ofertaId?: number
   descripcionManual?: string
   precioManual?: number
+  precioUnitario?: number
 }
 
 export interface VentaDto {
@@ -135,6 +136,8 @@ export interface VentaDto {
   pagos?: PagoVentaDto[]
   clienteId?: number
   allowSinStock?: boolean
+  sinStock?: boolean
+  sesionMesaId?: number
   esperarTransferencia?: boolean
   pendienteMedioId?: number
 }
@@ -151,6 +154,7 @@ export interface VentaResultadoDto {
   mostrarTelefonoTicket?: boolean
   estado?: string
   qrData?: string | null
+  mesa?: string | null
 }
 
 export interface StockSucursalDto {
@@ -168,6 +172,91 @@ export interface AjustarStockDto {
   stock: number
 }
 
+// --- Restaurante (mesas) types ---
+export interface RestauranteConfigDto {
+  habilitado: boolean
+}
+
+export interface MesaDto {
+  id: number
+  sucursalId: number
+  numero: string
+  descripcion?: string | null
+  /** Salón/área del local (ej: Principal, Terraza) */
+  salon: string
+  posX: number
+  posY: number
+  activa: boolean
+  ocupada: boolean
+}
+
+export interface UpsertMesaRequest {
+  sucursalId: number
+  numero: string
+  descripcion?: string | null
+  salon?: string
+  posX: number
+  posY: number
+}
+
+export type EstadoItemComanda = 'Pendiente' | 'EnCocina' | 'Servido' | 'Devuelto' | 'Cancelado'
+
+export type GrupoComanda = 'Entrada' | 'Principal' | 'Postre' | 'Otros'
+
+export interface ItemComandaDto {
+  id: number
+  sesionMesaId: number
+  productoId?: number | null
+  comboId?: number | null
+  descripcion: string
+  cantidad: number
+  precioUnitario: number
+  subtotal: number
+  nota?: string | null
+  estado: EstadoItemComanda
+  grupo: GrupoComanda
+  fechaAlta: string
+  fechaEstado?: string | null
+}
+
+export interface AgregarItemComandaRequest {
+  productoId?: number
+  comboId?: number
+  cantidad: number
+  nota?: string
+  /** Nota individual por unidad (una por cada unidad). Si viene, tiene prioridad sobre nota. */
+  notas?: (string | null)[]
+  /** Grupo/ronda de la comanda. */
+  grupo?: GrupoComanda
+}
+
+export interface ActualizarItemComandaRequest {
+  cantidad: number
+  nota?: string
+  grupo?: GrupoComanda
+}
+
+export interface SesionMesaDto {
+  id: number
+  mesaId: number
+  mesaNumero: string
+  sucursalId: number
+  usuarioId: number
+  estado: 'Abierta' | 'Cobrada' | 'Cancelada'
+  fechaApertura: string
+  fechaCierre?: string | null
+  idVenta?: number | null
+  total: number
+  items: ItemComandaDto[]
+}
+
+export interface CobrarCuentaRequest {
+  pagos?: PagoVentaDto[]
+  clienteId?: number
+  esperarTransferencia?: boolean
+  pendienteMedioId?: number
+}
+
 export interface VentaHistorialDto {
   ventaId: number
   fecha: string
@@ -177,6 +266,7 @@ export interface VentaHistorialDto {
   cantidadItems: number
   anulada: boolean
   estado?: string
+  mesa?: string | null
 }
 
 export interface VentaDetalleDto {
@@ -188,6 +278,7 @@ export interface VentaDetalleDto {
   items: RenglonHistorialDto[]
   empresaNombre?: string
   vendedor?: string
+  mesa?: string | null
   pagos: PagoVentaResultDto[]
   cambio: number
 }

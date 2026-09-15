@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -10,9 +11,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations.Local
 {
     [DbContext(typeof(PosDbContextLocal))]
-    partial class PosDbContextLocalModelSnapshot : ModelSnapshot
+    [Migration("20260909174921_AddRestaurante")]
+    partial class AddRestaurante
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.13");
@@ -515,12 +518,6 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("FECHA_ESTADO");
 
-                    b.Property<string>("GRUPO")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("GRUPO");
-
                     b.Property<int?>("ID_COMBO")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_COMBO");
@@ -660,13 +657,6 @@ namespace PosWeb.Migrations.Local
                     b.Property<decimal>("POS_Y")
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("POS_Y");
-
-                    b.Property<string>("SALON")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("Principal")
-                        .HasColumnName("SALON");
 
                     b.HasKey("ID_MESA");
 

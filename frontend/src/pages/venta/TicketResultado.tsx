@@ -16,6 +16,7 @@ interface TicketResultadoProps {
   ultimosItems: ItemEmitido[]
   user: UsuarioInfo | null
   onNuevaVenta: () => void
+  mesa?: string
 }
 
 type Letra = 'chica' | 'mediana' | 'grande'
@@ -55,7 +56,7 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
+export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta, mesa }: TicketResultadoProps) {
   const imprimirBtnRef = useRef<HTMLButtonElement>(null!)
   const nuevaVentaBtnRef = useRef<HTMLButtonElement>(null!)
   const receiptRef = useRef<HTMLDivElement>(null)
@@ -111,6 +112,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     ventaId: resultado.ventaId,
     fecha: resultado.fecha,
     vendedor: user?.nombre,
+    mesa,
     items: ultimosItems.map(i => ({ nombre: i.producto.nombre, cantidad: i.cantidad, precio: i.producto.precio })),
     total: resultado.total,
     pagos: resultado.pagos.map(p => ({ nombre: p.medioPagoNombre })),
@@ -149,8 +151,8 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
 <html><head><title>Ticket</title><style>
 @page { size: ${ancho}mm auto; margin: 0; }
 html, body { margin: 0; padding: 0; width: ${ancho}mm; }
-.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.receipt div { font-weight: 900; }
+.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Consolas', 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
 </style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
@@ -252,7 +254,7 @@ ${pxCss}
       </div>
 
       <div ref={receiptRef} className="receipt bg-white py-6 px-4 mx-auto font-mono leading-[1.45] text-gray-900"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
+        style={{ fontFamily: "'Consolas', 'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
         {lines.map((l, i) => {
           const sizeCls = sizeClsFor(l)
           return (

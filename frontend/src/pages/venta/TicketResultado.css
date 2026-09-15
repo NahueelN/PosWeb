@@ -28,5 +28,6 @@
 
   .receipt div {
     font-weight: 900 !important;
+    white-space: pre !important;
   }
 }

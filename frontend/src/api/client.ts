@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
 
 export function resolveApiBase(isTauri: boolean, protocol?: string, hostname?: string): string {
   if (!isTauri && protocol === 'http:' && hostname === 'localhost') return '/api'
@@ -671,6 +671,72 @@ export const api = {
       body: JSON.stringify({ monto }),
     }),
     qr: () => request<{ qrData?: string }>('/mercadopago/qr'),
+  },
+
+  // Restaurante (mesas)
+  restaurante: {
+    config: () => request<RestauranteConfigDto>('/restaurante/config'),
+    setConfig: (habilitado: boolean) => request<RestauranteConfigDto>('/restaurante/config', {
+      method: 'PUT',
+      body: JSON.stringify({ habilitado }),
+    }),
+
+    listarMesas: (sucursalId: number) =>
+      request<MesaDto[]>(`/restaurante/mesas?sucursalId=${sucursalId}`),
+
+    crearMesa: (dto: UpsertMesaRequest) => request<MesaDto>('/restaurante/mesas', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+    actualizarMesa: (id: number, dto: UpsertMesaRequest) => request<MesaDto>(`/restaurante/mesas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto),
+    }),
+
+    eliminarMesa: (id: number) => request<void>(`/restaurante/mesas/${id}`, { method: 'DELETE' }),
+
+    abrirSesion: (mesaId: number) => request<SesionMesaDto>(`/restaurante/mesas/${mesaId}/abrir`, {
+      method: 'POST',
+    }),
+
+    sesionesAbiertas: (sucursalId: number) =>
+      request<SesionMesaDto[]>(`/restaurante/sesiones/abiertas?sucursalId=${sucursalId}`),
+
+    obtenerSesion: (id: number) => request<SesionMesaDto>(`/restaurante/sesiones/${id}`),
+
+    agregarItem: (sesionId: number, dto: AgregarItemComandaRequest) =>
+      request<ItemComandaDto[]>(`/restaurante/sesiones/${sesionId}/items`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+
+    actualizarItem: (itemId: number, dto: ActualizarItemComandaRequest) =>
+      request<ItemComandaDto>(`/restaurante/items/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      }),
+
+    cambiarEstadoItem: (itemId: number, estado: string) =>
+      request<void>(`/restaurante/items/${itemId}/estado`, {
+        method: 'PUT',
+        body: JSON.stringify({ estado }),
+      }),
+
+    unificar: (desde: number, hacia: number) =>
+      request<SesionMesaDto>(`/restaurante/sesiones/${desde}/unificar/${hacia}`, {
+        method: 'POST',
+      }),
+
+    cobrar: (sesionId: number, dto: CobrarCuentaRequest) =>
+      request<VentaResultadoDto>(`/restaurante/sesiones/${sesionId}/cobrar`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+
+    cancelarSesion: (sesionId: number) => request<void>(`/restaurante/sesiones/${sesionId}/cancelar`, {
+      method: 'POST',
+    }),
   },
 }
 

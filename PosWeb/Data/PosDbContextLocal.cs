@@ -36,12 +36,17 @@ public class PosDbContextLocal : DbContext
     public DbSet<Oferta> Oferta { get; set; }
     public DbSet<PagoDeuda> PagoDeuda { get; set; }
     public DbSet<UsuarioPreferencia> UsuarioPreferencia { get; set; }
+    public DbSet<Mesa> Mesa { get; set; }
+    public DbSet<SesionMesa> SesionMesa { get; set; }
+    public DbSet<ItemComanda> ItemComanda { get; set; }
+    public DbSet<EmpresaConfiguracion> EmpresaConfiguracion { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         PosDbContext.ConfigureEntities(modelBuilder);
+        PosDbContext.ConfigureRestaurante(modelBuilder);
 
         // Índices únicos filtrados por ACTIVO (SQLite soporta índices parciales),
         // para que un registro inactivo no bloquee el reuso de su código.

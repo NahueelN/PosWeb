@@ -187,17 +187,27 @@ public class AuthService
         int? usuarioResponsableId = rol == Roles.UsuarioComun ? currentUserId : null;
 
         int? empresaId = request.EmpresaId;
+        string? crearEmpresaNombre = null;
 
         // Si viene el nombre en vez del ID, resolver la empresa por nombre.
+        // Si no existe, se crea una empresa nueva con ese nombre (cualquier nombre es válido
+        // para el primer Admin; para otros roles sin empresa existente se rechaza).
         if (!empresaId.HasValue && !string.IsNullOrWhiteSpace(request.EmpresaNombre))
         {
-            var empresa = _context.Empresa
-                .FirstOrDefault(e => e.NOMBRE == request.EmpresaNombre.Trim());
-            if (empresa == null)
+            var nombre = request.EmpresaNombre.Trim();
+            var empresa = _context.Empresa.FirstOrDefault(e => e.NOMBRE == nombre);
+            if (empresa != null)
             {
-                throw new ArgumentException($"No existe una empresa con el nombre '{request.EmpresaNombre.Trim()}'");
+                empresaId = empresa.ID_EMPRESA;
             }
-            empresaId = empresa.ID_EMPRESA;
+            else if (rol == Roles.Admin)
+            {
+                crearEmpresaNombre = nombre;
+            }
+            else
+            {
+                throw new ArgumentException($"No existe una empresa con el nombre '{nombre}'");
+            }
         }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
@@ -218,6 +228,17 @@ public class AuthService
             var suscripcion = Suscripcion.CrearBasica(nuevoUsuario.ID_USUARIO);
             _context.Suscripcion.Add(suscripcion);
             _context.SaveChanges();
+
+            // Crear la empresa nueva y asignársela al titular.
+            if (crearEmpresaNombre != null)
+            {
+                var empresaNueva = new Empresa(crearEmpresaNombre, "00000000000", suscripcion.ID_SUSCRIPCION);
+                _context.Empresa.Add(empresaNueva);
+                _context.SaveChanges();
+
+                nuevoUsuario.AsignarEmpresa(empresaNueva.ID_EMPRESA);
+                _context.SaveChanges();
+            }
         }
 
         return new RegisterResponseDto

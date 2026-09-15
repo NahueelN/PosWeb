@@ -135,7 +135,7 @@ export default function AltaUsuarioTab() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Alta de usuario</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Crea usuarios comunes o administradores y guarda a quién responden.
+            Crea usuarios comunes o administradores y guarda su supervisor.
           </p>
         </div>
 
@@ -249,7 +249,7 @@ export default function AltaUsuarioTab() {
                   <th className="py-2 pr-4 font-medium">Usuario</th>
                   <th className="py-2 pr-4 font-medium">Mail</th>
                   <th className="py-2 pr-4 font-medium">Rol</th>
-                  <th className="py-2 pr-4 font-medium">Responde a</th>
+                  <th className="py-2 pr-4 font-medium">Supervisor</th>
                   <th className="py-2 pr-4 font-medium">Empresa</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
                   <th className="py-2 pr-4 font-medium">Nivel</th>

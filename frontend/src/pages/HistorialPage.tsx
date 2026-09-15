@@ -209,6 +209,7 @@ export default function HistorialPage() {
       ventaId: detalle.ventaId,
       fecha: detalle.fecha,
       vendedor: detalle.vendedor ?? venta?.usuarioNombre,
+      mesa: detalle.mesa ?? undefined,
       items: detalle.items.map(i => ({ nombre: i.productoNombre, cantidad: i.cantidad, precio: i.precioUnitario })),
       total: detalle.total,
       pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre })),
@@ -353,6 +354,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3">Fecha</th>
                       <th className="px-4 py-3">Sucursal</th>
                       <th className="px-4 py-3">Usuario</th>
+                      <th className="px-4 py-3">Mesa</th>
                       <th className="px-4 py-3">Artículos</th>
                       <th className="px-4 py-3 text-right">Total</th>
                       <th className="px-4 py-3 w-10"></th>
@@ -377,6 +379,9 @@ export default function HistorialPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-700 text-xs">
                             {venta.usuarioNombre || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 text-xs">
+                            {venta.mesa ? `Mesa ${venta.mesa}` : '—'}
                           </td>
                           <td className="px-4 py-3 text-gray-700">
                             {venta.cantidadItems} items
