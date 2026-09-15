@@ -146,6 +146,46 @@ public class ProductoServiceTest
     }
 
     [Fact]
+    public void ActualizarVencimientos_GuardaFechasYControl()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(ActualizarVencimientos_GuardaFechasYControl));
+        Producto producto = CrearProducto(context, 1, "123", "Producto");
+        ProductoService service = CrearService(context);
+
+        ProductoDto resultado = service.ActualizarVencimientos(producto.ID_PRODUCTO, true, new[]
+        {
+            new DateTime(2027, 3, 1), new DateTime(2027, 1, 1)
+        });
+
+        Assert.True(resultado.SeguirVencimientos);
+        Assert.Equal(new[] { new DateTime(2027, 1, 1), new DateTime(2027, 3, 1) }, resultado.FechasVencimiento);
+    }
+
+    [Fact]
+    public void ActualizarVencimientos_MasDeTresFechas_LanzaExcepcion()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(ActualizarVencimientos_MasDeTresFechas_LanzaExcepcion));
+        Producto producto = CrearProducto(context, 1, "123", "Producto");
+        ProductoService service = CrearService(context);
+
+        Assert.Throws<ArgumentException>(() => service.ActualizarVencimientos(producto.ID_PRODUCTO, true, new[]
+        {
+            new DateTime(2027, 1, 1), new DateTime(2027, 2, 1),
+            new DateTime(2027, 3, 1), new DateTime(2027, 4, 1)
+        }));
+    }
+
+    [Fact]
+    public void ActualizarVencimientos_ProductoInexistente_LanzaExcepcion()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(ActualizarVencimientos_ProductoInexistente_LanzaExcepcion));
+        ProductoService service = CrearService(context);
+
+        Assert.Throws<ProductoNoEncontradoException>(() =>
+            service.ActualizarVencimientos(999, true, Array.Empty<DateTime>()));
+    }
+
+    [Fact]
     public void Crear_CodigoDuplicado_LanzaExcepcion()
     {
         PosDbContextLocal context = CrearContexto(nameof(Crear_CodigoDuplicado_LanzaExcepcion));

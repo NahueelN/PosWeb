@@ -38,8 +38,10 @@ const widthMap: Record<string, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-[1100px]',
-  '2xl': 'max-w-[1440px]',
 }
+
+// Solo el diálogo abierto más arriba responde a Escape / foco inicial.
+const dialogStack: symbol[] = []
 
 // ── Component ──────────────────────────────────────────────────────
 
@@ -59,17 +61,23 @@ export default function Dialog({
   const dialogRef = useRef<HTMLDivElement>(null)
   const { notifyError } = useNotification()
 
-  // Close on Escape
+  // Close on Escape — only the topmost dialog reacts
   useEffect(() => {
     if (!open) return
+    const token = Symbol('dialog')
+    dialogStack.push(token)
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
+      if (e.key !== 'Escape') return
+      if (dialogStack[dialogStack.length - 1] !== token) return
+      e.preventDefault()
+      onClose()
     }
     document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
+    return () => {
+      document.removeEventListener('keydown', handler)
+      const index = dialogStack.indexOf(token)
+      if (index >= 0) dialogStack.splice(index, 1)
+    }
   }, [open, onClose])
 
   // Trap focus inside dialog when open

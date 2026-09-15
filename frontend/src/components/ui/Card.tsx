@@ -4,6 +4,8 @@ interface CardProps {
   children: ReactNode
   className?: string
   padding?: 'sm' | 'md' | 'lg'
+  /** Borde más marcado que el estándar */
+  strongBorder?: boolean
 }
 
 const paddings = {
@@ -12,9 +14,9 @@ const paddings = {
   lg: 'p-6',
 }
 
-export default function Card({ children, className = '', padding = 'md' }: CardProps) {
+export default function Card({ children, className = '', padding = 'md', strongBorder = false }: CardProps) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 ${paddings[padding]} ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-sm border ${strongBorder ? 'border-gray-300' : 'border-gray-200'} ${paddings[padding]} ${className}`}>
       {children}
     </div>
   )

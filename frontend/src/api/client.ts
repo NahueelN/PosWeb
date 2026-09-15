@@ -249,6 +249,11 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ cantidadIdeal }),
       }),
+    actualizarVencimientos: (id: number, seguirVencimientos: boolean, fechas: string[]) =>
+      request<ProductoDto>(`/productos/${id}/vencimientos`, {
+        method: 'PUT',
+        body: JSON.stringify({ seguirVencimientos, fechas }),
+      }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(dto),

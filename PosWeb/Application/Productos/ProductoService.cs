@@ -332,6 +332,22 @@ public class ProductoService
         return MapToDto(producto);
     }
 
+    public ProductoDto ActualizarVencimientos(int id, bool seguirVencimientos, IEnumerable<DateTime> fechas)
+    {
+        Producto? producto = _context.Producto.Find(id);
+
+        if (producto == null)
+        {
+            throw new ProductoNoEncontradoException(id);
+        }
+
+        producto.CambiarSeguirVencimientos(seguirVencimientos);
+        producto.CambiarFechasVencimiento(fechas);
+        _context.SaveChanges();
+
+        return MapToDto(producto);
+    }
+
     public List<ProductoDto> BuscarPorNombre(string term)
     {
         if (string.IsNullOrWhiteSpace(term))
