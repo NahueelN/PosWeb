@@ -7,7 +7,7 @@ import { COMBO_PREFIX } from '../lib/constants'
 import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import DiasSemanaSelector from '../components/shared/DiasSemanaSelector'
 import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto, OfertaDto, OfertaUpsertDto, SucursalDto } from '../types'
-import { Plus, Search, AlertTriangle, Trash2, Sandwich, Minus, Check, X, Printer } from 'lucide-react'
+import { Plus, Minus, Search, AlertTriangle, Trash2, Sandwich, Check, Printer, Tag } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
 import PrefixedCodeInput from '../components/ui/PrefixedCodeInput'
@@ -15,8 +15,6 @@ import BarcodePrintDialog from '../components/BarcodePrintDialog'
 import LabelPrintDialog from '../components/LabelPrintDialog'
 
 type Tab = 'combos' | 'ofertas'
-
-const MIN_BUSQUEDA_PRODUCTOS = 3
 
 export default function CombosPage() {
   const { notifyError, notifySuccess } = useNotification()
@@ -58,7 +56,7 @@ export default function CombosPage() {
     fechaFin: '',
     productoId: 0,
     productoNombre: '',
-    descuento: '',
+    descuento: '0',
     diasSemana: [] as string[],
   })
 
@@ -228,7 +226,7 @@ export default function CombosPage() {
       })
       setOfertaEditId(oferta.id)
     } else {
-      setOfertaForm({ fechaInicio: '', fechaFin: '', productoId: 0, productoNombre: '', descuento: '', diasSemana: [] })
+      setOfertaForm({ fechaInicio: '', fechaFin: '', productoId: 0, productoNombre: '', descuento: '0', diasSemana: [] })
       setOfertaEditId(null)
     }
     setShowOfertaModal(true)
@@ -303,8 +301,8 @@ export default function CombosPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Combos y Ofertas</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-xl font-bold text-black">Combos y Ofertas</h2>
+          <p className="text-sm text-black mt-0.5">
             {tab === 'combos' ? `${combos.length} combos` : `${ofertas.length} ofertas`}
           </p>
         </div>
@@ -340,7 +338,7 @@ export default function CombosPage() {
               placeholder="Buscar combo por nombre o código..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-black cursor-pointer select-none">
             <input type="checkbox" checked={mostrarCombosInactivos}
               onChange={e => setMostrarCombosInactivos(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -349,14 +347,14 @@ export default function CombosPage() {
 
           {filteredCombos.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 font-medium text-sm">
+              <p className="text-black font-medium text-sm">
                 {comboSearch.trim() ? 'No se encontraron combos' : 'No hay combos activos'}
               </p>
             </div>
           )}
 
           <div className="flex flex-col gap-1">
-            <div className="grid grid-cols-[110px_minmax(0,1fr)_100px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            <div className="grid grid-cols-[110px_minmax(0,1fr)_100px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-black">
               <span className="truncate">Código</span>
               <span className="truncate">Descripción</span>
               <span className="text-right truncate">Precio</span>
@@ -372,14 +370,14 @@ export default function CombosPage() {
                     : 'border-gray-200 opacity-60'
                 }`}
               >
-                <span className="font-mono text-[12px] text-gray-500 truncate">{combo.codCombo}</span>
+                <span className="font-mono text-[12px] text-black truncate">{combo.codCombo}</span>
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="font-medium text-gray-900 truncate">{combo.descCombo}</span>
+                  <span className="font-medium text-black truncate">{combo.descCombo}</span>
                   {!combo.activo && (
-                    <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">Desactivado</span>
+                    <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-black">Desactivado</span>
                   )}
                 </span>
-                <span className="text-right font-bold tabular-nums text-gray-900">${combo.precio.toFixed(2)}</span>
+                <span className="text-right font-bold tabular-nums text-black">${combo.precio.toFixed(2)}</span>
                 <span className="flex items-center justify-end gap-3" onClick={e => e.stopPropagation()}>
                   <button type="button" onClick={() => abrirComboModal(combo)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
                   {combo.activo
@@ -406,7 +404,7 @@ export default function CombosPage() {
               placeholder="Buscar oferta por producto o código..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-black cursor-pointer select-none">
             <input type="checkbox" checked={mostrarOfertasInactivas}
               onChange={e => setMostrarOfertasInactivas(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -415,14 +413,14 @@ export default function CombosPage() {
 
           {filteredOfertas.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 font-medium text-sm">
+              <p className="text-black font-medium text-sm">
                 {ofertaSearch.trim() ? 'No se encontraron ofertas' : 'No hay ofertas activas'}
               </p>
             </div>
           )}
 
           <div className="flex flex-col gap-1">
-            <div className="grid grid-cols-[110px_minmax(0,1fr)_170px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            <div className="grid grid-cols-[110px_minmax(0,1fr)_170px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-black">
               <span className="truncate">Código</span>
               <span className="truncate">Producto</span>
               <span className="text-right truncate">Precio</span>
@@ -448,18 +446,18 @@ export default function CombosPage() {
                         : 'border-gray-300 hover:bg-indigo-50/50 hover:border-indigo-200'
                   }`}
                 >
-                  <span className="font-mono text-[12px] text-gray-500 truncate">{oferta.codigoBarra}</span>
+                  <span className="font-mono text-[12px] text-black truncate">{oferta.codigoBarra}</span>
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium text-gray-900 truncate">{oferta.productoNombre ?? `ID ${oferta.productoId}`}</span>
+                    <span className="font-medium text-black truncate">{oferta.productoNombre ?? `ID ${oferta.productoId}`}</span>
                     {!oferta.activo
-                      ? <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">Desactivada</span>
+                      ? <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-black">Desactivada</span>
                       : <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vigente ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{vigente ? 'Vigente' : 'Expirada'}</span>
                     }
                   </span>
                   <span className="flex items-center justify-end gap-1.5 tabular-nums">
-                    <span className="text-[11px] text-gray-400 line-through">${precioOriginal.toFixed(0)}</span>
+                    <span className="text-[11px] text-black line-through">${precioOriginal.toFixed(0)}</span>
                     <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">-{oferta.descuento}%</span>
-                    <span className="font-bold text-gray-900">${precioOferta.toFixed(2)}</span>
+                    <span className="font-bold text-black">${precioOferta.toFixed(2)}</span>
                   </span>
                   <span className="flex items-center justify-end gap-3" onClick={e => e.stopPropagation()}>
                     <button type="button" onClick={() => abrirOfertaModal(oferta)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
@@ -509,7 +507,7 @@ export default function CombosPage() {
         <div className="flex items-center justify-end gap-3 w-full">
           <button
             onClick={() => setConfirmDelete(null)}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 bg-gray-100 text-black rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
           >
             Cancelar
           </button>
@@ -571,29 +569,14 @@ function ComboFormModal({
     productos.filter(p => !p.esBulto),
     [productos])
 
-  const productosFiltrados = useMemo(() => {
-    const seleccionados = new Set(form.items.map(i => i.productoId))
+  const productosLista = useMemo(() => {
     const q = prodSearch.trim().toLowerCase()
-
-    // Sin búsqueda suficiente: mostrar solo los productos ya seleccionados
-    if (q.length < MIN_BUSQUEDA_PRODUCTOS) {
-      return productosDisponibles.filter(p => seleccionados.has(p.id))
-    }
-
-    const coincidentes = productosDisponibles.filter(p =>
+    if (!q) return productosDisponibles
+    return productosDisponibles.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
       (p.codigoBarra ?? '').toLowerCase().includes(q)
     )
-    return [...coincidentes].sort((a, b) =>
-      Number(seleccionados.has(b.id)) - Number(seleccionados.has(a.id))
-    )
-  }, [productosDisponibles, prodSearch, form.items])
-
-  const cantidadPorProducto = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const i of form.items) m.set(i.productoId, i.cantidad)
-    return m
-  }, [form.items])
+  }, [productosDisponibles, prodSearch])
 
   const totalVenta = useMemo(() => form.items.reduce((t, i) => {
     const p = productos.find(x => x.id === i.productoId)
@@ -605,40 +588,64 @@ function ComboFormModal({
     return t + (p?.costo ?? 0) * i.cantidad
   }, 0), [form.items, productos])
 
+  const precioCombo = parseFloat(form.precio) || 0
+  const descuento = precioCombo > 0 ? totalVenta - precioCombo : 0
+
+  function agregarProducto(p: ProductoDto) {
+    setForm(prev => prev.items.some(i => i.productoId === p.id)
+      ? prev
+      : {
+          ...prev,
+          items: [...prev.items, {
+            productoId: p.id,
+            cantidad: 1,
+            productoNombre: p.nombre,
+            codigoBarra: p.codigoBarra,
+          }],
+        })
+    setProdSearch('')
+  }
+
+  function quitarProducto(productoId: number) {
+    setForm(prev => ({ ...prev, items: prev.items.filter(i => i.productoId !== productoId) }))
+  }
+
   function toggleProducto(p: ProductoDto) {
-    setForm(prev => {
-      const existe = prev.items.some(i => i.productoId === p.id)
-      return {
-        ...prev,
-        items: existe
-          ? prev.items.filter(i => i.productoId !== p.id)
-          : [...prev.items, {
-              productoId: p.id,
-              cantidad: 1,
-              productoNombre: p.nombre,
-              codigoBarra: p.codigoBarra,
-            }],
-      }
-    })
+    setForm(prev => prev.items.some(i => i.productoId === p.id)
+      ? { ...prev, items: prev.items.filter(i => i.productoId !== p.id) }
+      : {
+          ...prev,
+          items: [...prev.items, {
+            productoId: p.id,
+            cantidad: 1,
+            productoNombre: p.nombre,
+            codigoBarra: p.codigoBarra,
+          }],
+        })
   }
 
-  function ajustarCantidad(productoId: number, delta: number) {
+  function setCantidad(productoId: number, cantidad: number) {
+    if (cantidad <= 0) { quitarProducto(productoId); return }
     setForm(prev => ({
       ...prev,
-      items: prev.items.map(i => i.productoId === productoId
-        ? { ...i, cantidad: Math.max(1, Math.round((i.cantidad + delta) * 1000) / 1000) }
-        : i),
+      items: prev.items.map(i => i.productoId === productoId ? { ...i, cantidad } : i),
     }))
   }
 
-  function setCantidadManual(productoId: number, value: string) {
-    const num = parseFloat(value)
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.map(i => i.productoId === productoId
-        ? { ...i, cantidad: isNaN(num) || num <= 0 ? 1 : num }
-        : i),
-    }))
+  function limpiarTodo() {
+    setForm(prev => ({ ...prev, items: [] }))
+  }
+
+  function handleSearchChange(valor: string) {
+    setProdSearch(valor)
+    const buscado = normalizarCodigoBarra(valor).toLowerCase()
+    if (!buscado) return
+    const match = productosDisponibles.find(p =>
+      (p.codigoBarra ?? '').trim() !== '' &&
+      normalizarCodigoBarra(p.codigoBarra).toLowerCase() === buscado
+    )
+    if (!match) return
+    agregarProducto(match)
   }
 
   return (
@@ -650,7 +657,9 @@ function ComboFormModal({
       title="COMBO"
       icon={Sandwich}
       highlight={form.descCombo.trim() || (editId !== null ? 'Editar combo' : 'Nuevo combo')}
-      width="xl"
+      description="Editá la información del combo y seleccioná los productos que lo componen."
+      width="2xl"
+      fillHeight
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
           <Button variant="secondary" size="md" icon={<Printer size={16} />} type="button" onClick={() => setShowLabelPrint(true)}>
@@ -665,22 +674,21 @@ function ComboFormModal({
         </div>
       }
     >
-      <form id="combo-form" onSubmit={onSubmit} onKeyDown={e => {
+      <form id="combo-form" className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" onSubmit={onSubmit} onKeyDown={e => {
         const target = e.target as HTMLElement
         if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') {
           e.preventDefault()
         }
       }}>
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
           {/* ── Columna izquierda ── */}
-          <div className="flex-[7] min-w-0 flex flex-col gap-4">
+          <div className="min-w-0 flex flex-col gap-4 lg:min-h-0">
             {/* Información general */}
-            <div>
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Información general</h3>
+            <div className="shrink-0">
+              <h3 className="text-xs font-semibold text-black uppercase tracking-wider mb-2">Información general</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Código *</label>
+                  <label className="block text-xs font-medium text-black mb-1">Código *</label>
                   <PrefixedCodeInput
                     prefix={COMBO_PREFIX}
                     value={form.codCombo}
@@ -701,167 +709,197 @@ function ComboFormModal({
                   )}
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre / Descripción *</label>
+                  <label className="block text-xs font-medium text-black mb-1">Nombre / Descripción *</label>
                   <input type="text" value={form.descCombo}
                     onChange={e => { descManual.current = true; setForm(f => ({ ...f, descCombo: e.target.value })) }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none"
                     placeholder="Combo Hamburguesa + Papas + Bebida" />
                 </div>
               </div>
             </div>
 
             {/* Recurrencia */}
-            <div>
-              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Recurrencia (opcional)</h3>
+            <div className="shrink-0">
+              <h3 className="text-xs font-semibold text-black uppercase tracking-wider mb-2">Recurrencia (opcional)</h3>
               <div className="grid grid-cols-2 gap-3 mb-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio</label>
+                  <label className="block text-xs font-medium text-black mb-1">Fecha inicio</label>
                   <input type="datetime-local" value={form.fechaInicio}
                     onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
+                  <label className="block text-xs font-medium text-black mb-1">Fecha fin</label>
                   <input type="datetime-local" value={form.fechaFin}
                     onChange={e => setForm(f => ({ ...f, fechaFin: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
                 </div>
               </div>
               <DiasSemanaSelector selected={form.diasSemana}
                 onChange={dias => setForm(f => ({ ...f, diasSemana: dias }))} />
             </div>
+
+            {/* Productos disponibles */}
+            <div className="border border-gray-300 bg-white overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-gray-300 shrink-0">
+                <h3 className="text-xs font-semibold text-black">PRODUCTOS DISPONIBLES</h3>
+                <div className="relative w-64 max-w-[60%]">
+                  <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" value={prodSearch}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    placeholder="Buscar producto..."
+                    className="w-full pl-8 pr-2 py-1 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
+                </div>
+              </div>
+              <div className="max-h-[380px] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100">
+                    <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                      <th className="px-2 py-1.5">Producto</th>
+                      <th className="px-1 py-1.5 text-right w-[72px] xl:w-[92px]">Precio</th>
+                      <th className="px-1 py-1.5 text-right w-[56px]">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productosLista.map(p => {
+                      const yaEsta = form.items.some(i => i.productoId === p.id)
+                      return (
+                        <tr key={p.id} onClick={() => toggleProducto(p)}
+                          className={`cursor-pointer border-b border-gray-200 last:border-0 ${yaEsta ? 'bg-[var(--color-primary-light)]' : 'hover:bg-gray-50'}`}>
+                          <td className="px-2 py-1.5">
+                            <span className="flex items-center gap-1.5">
+                              {yaEsta && <Check size={13} className="shrink-0 text-[var(--color-primary)]" />}
+                              <span className="text-black">{p.nombre}</span>
+                            </span>
+                            <span className="block font-mono text-[11px] text-black">{p.codigoBarra || p.codigoProducto || ''}</span>
+                          </td>
+                          <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${p.precio.toFixed(2)}</td>
+                          <td className="px-1 py-1.5 text-right tabular-nums whitespace-nowrap">
+                            <span className={p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}>●</span> {p.stock}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {productosLista.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-10 text-center text-sm text-black">Sin productos para mostrar</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
-          {/* ── Columna derecha: resumen ── */}
-          <div className="flex-[3] min-w-0">
-            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-[var(--shadow-card)]">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Resumen del combo</h3>
+          {/* ── Columna derecha ── */}
+          <div className="min-w-0 flex flex-col gap-3 lg:min-h-0">
+            {/* Productos del combo */}
+            <div className="border border-gray-300 bg-white overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-gray-300 shrink-0">
+                <h3 className="text-xs font-semibold text-black">PRODUCTOS DEL COMBO ({form.items.length})</h3>
+                {form.items.length > 0 && (
+                  <button type="button" onClick={limpiarTodo}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 border border-gray-300 text-[12px] text-black hover:border-red-400 hover:text-red-600 transition-colors">
+                    <Trash2 size={13} /> Limpiar todo
+                  </button>
+                )}
               </div>
-              <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Productos seleccionados</span>
-                  <span className="text-2xl font-bold text-gray-900 tabular-nums">{form.items.length}</span>
+              {form.items.length === 0 ? (
+                <div className="px-3 py-12 text-center text-sm text-black lg:flex-1 lg:flex lg:items-center lg:justify-center">Agregá productos desde la lista de la izquierda</div>
+              ) : (
+                <div className="max-h-[420px] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="sticky top-0 z-10 bg-gray-100">
+                      <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                        <th className="px-2 py-1.5">Producto</th>
+                        <th className="px-1 py-1.5 text-right w-[68px] xl:w-[90px]">P. unit.</th>
+                        <th className="px-1 py-1.5 text-center w-[86px]">Cant.</th>
+                        <th className="px-1 py-1.5 text-right w-[72px] xl:w-[90px]">Subtotal</th>
+                        <th className="px-1 py-1.5 w-[24px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.items.map(i => {
+                        const p = productos.find(x => x.id === i.productoId)
+                        const precio = p?.precio ?? 0
+                        const esPesable = p?.esPesable ?? false
+                        const step = esPesable ? 0.1 : 1
+                        return (
+                          <tr key={i.productoId} className="border-b border-gray-200 last:border-0 hover:bg-gray-50">
+                            <td className="px-2 py-1.5">
+                              <span className="text-black">{i.productoNombre ?? p?.nombre ?? `#${i.productoId}`}</span>
+                              {(i.codigoBarra || p?.codigoBarra) && (
+                                <span className="block font-mono text-[11px] text-black">{i.codigoBarra || p?.codigoBarra}</span>
+                              )}
+                            </td>
+                            <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${precio.toFixed(2)}</td>
+                            <td className="px-1 py-1.5">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <button type="button" onClick={() => setCantidad(i.productoId, i.cantidad - step)}
+                                  className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100">
+                                  <Minus size={11} />
+                                </button>
+                                <input type="number" min={0} step={step} value={i.cantidad}
+                                  onChange={e => setCantidad(i.productoId, parseFloat(e.target.value) || 0)}
+                                  className="w-10 py-0.5 text-center border border-gray-300 font-mono text-xs tabular-nums outline-none focus:border-[var(--color-primary)]" />
+                                <button type="button" onClick={() => setCantidad(i.productoId, i.cantidad + step)}
+                                  className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100">
+                                  <Plus size={11} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-1 py-1.5 text-right font-semibold tabular-nums text-black whitespace-nowrap">${(precio * i.cantidad).toFixed(2)}</td>
+                            <td className="px-1 py-1.5 text-center">
+                              <button type="button" onClick={() => quitarProducto(i.productoId)} title="Quitar"
+                                className="text-black hover:text-red-500 transition-colors">
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+              )}
 
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                  <span className="text-sm text-gray-500">Total venta individual</span>
-                  <span className="text-lg font-bold text-gray-700 tabular-nums">${totalVenta.toFixed(2)}</span>
+              {/* RESUMEN — pegado abajo del carrito, como en Ventas */}
+              <div className="shrink-0 border-t border-gray-300">
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                  <h3 className="text-xs font-bold text-black">RESUMEN</h3>
+                  <span className="text-[13px] font-medium text-black tabular-nums">{form.items.length} prod. · ${totalVenta.toFixed(2)}</span>
                 </div>
-
-                <div className="border-t border-gray-100 pt-3">
-                  <label className="block text-sm text-gray-500 mb-1">Precio combo</label>
-                  <div className="relative">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-light text-gray-300 select-none">$</span>
+                <div className="flex items-center gap-2 px-3 pb-2">
+                  <label className="text-[13px] font-medium text-black whitespace-nowrap">Precio combo</label>
+                  <div className="flex-1 flex items-center gap-1 bg-gray-50 border border-gray-300 px-2 py-1">
+                    <span className="text-[13px] text-black select-none">$</span>
                     <input type="number" step="0.01" min="0" value={form.precio}
                       onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
                       placeholder="0,00"
-                      className="w-full pl-6 pr-2 py-1 text-right text-2xl font-bold text-gray-900 font-mono tabular-nums border border-gray-200 rounded-lg outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-ring)]" />
+                      className="flex-1 w-full bg-transparent text-right text-base font-bold text-black font-mono tabular-nums outline-none" />
                   </div>
-                  {totalCosto > 0 && parseFloat(form.precio) > 0 && parseFloat(form.precio) < totalCosto && (
-                    <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-red-600">
-                      <AlertTriangle size={13} strokeWidth={2.5} />
-                      El precio es menor al costo (${totalCosto.toFixed(2)})
+                </div>
+                <div className="px-3 pb-2 space-y-1">
+                  <div className={`flex items-center justify-between px-2.5 py-1.5 border ${descuento >= 0 ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300'}`}>
+                    <span className={`text-[13px] font-semibold ${descuento >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>Descuento</span>
+                    <span className={`inline-flex items-center gap-1 text-[15px] font-bold tabular-nums ${descuento >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      <Tag size={14} strokeWidth={2.5} />
+                      {descuento < 0 ? '-' : ''}${Math.abs(descuento).toFixed(2)}
+                      {totalVenta > 0 && ` (${Math.round(descuento / totalVenta * 100)}%)`}
+                    </span>
+                  </div>
+                  {totalCosto > 0 && precioCombo > 0 && precioCombo < totalCosto && (
+                    <p className="flex items-center gap-1 text-[11px] font-medium text-red-700">
+                      <AlertTriangle size={12} strokeWidth={2.5} />
+                      Menor al costo (${totalCosto.toFixed(2)})
                     </p>
                   )}
                 </div>
               </div>
             </div>
+
           </div>
         </div>
-
-        {/* ── Productos del combo (ancho completo) ── */}
-        <div className="flex flex-col min-h-0">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Productos del combo</h3>
-          <div className="mb-2">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" value={prodSearch}
-                onChange={e => {
-                  const valor = e.target.value
-                  setProdSearch(valor)
-                  const buscado = normalizarCodigoBarra(valor).toLowerCase()
-                  if (!buscado) return
-                  const match = productosDisponibles.find(p =>
-                    (p.codigoBarra ?? '').trim() !== '' &&
-                    normalizarCodigoBarra(p.codigoBarra).toLowerCase() === buscado
-                  )
-                  if (!match) return
-                  setForm(f => ({
-                    ...f,
-                    items: f.items.some(i => i.productoId === match.id)
-                      ? f.items
-                      : [...f.items, {
-                          productoId: match.id,
-                          cantidad: 1,
-                          productoNombre: match.nombre,
-                          codigoBarra: match.codigoBarra,
-                        }],
-                  }))
-                  setProdSearch('')
-                }}
-                placeholder="Buscar producto por nombre o código de barras..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <div className="grid grid-cols-[28px_98px_minmax(0,1fr)_90px_108px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-              <span />
-              <span className="truncate">Código</span>
-              <span className="truncate">Descripción</span>
-              <span className="text-right truncate">Precio</span>
-              <span className="text-center truncate">Cantidad</span>
-            </div>
-            <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto">
-              {productosFiltrados.map(p => {
-                const cant = cantidadPorProducto.get(p.id)
-                const seleccionado = cant !== undefined
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => toggleProducto(p)}
-                    className={[
-                      'grid grid-cols-[28px_98px_minmax(0,1fr)_90px_108px] items-center gap-x-2 cursor-pointer',
-                      'w-full px-3 py-2 rounded-lg border-2 transition-colors bg-white',
-                      seleccionado
-                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                        : 'border-gray-300 hover:bg-indigo-50/50 hover:border-indigo-200',
-                    ].join(' ')}
-                  >
-                    <input type="checkbox" checked={seleccionado} onChange={() => toggleProducto(p)} onClick={e => e.stopPropagation()}
-                      className="w-4 h-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)]" />
-                    <span className="font-mono text-[12px] text-gray-500 truncate">{p.codigoBarra || p.codigoProducto || ''}</span>
-                    <span className="font-medium text-gray-900 truncate">{p.nombre}</span>
-                    <span className="text-right font-bold tabular-nums text-gray-900">${p.precio.toFixed(2)}</span>
-                    <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                      <button type="button" disabled={!seleccionado} onClick={() => ajustarCantidad(p.id, -1)}
-                        className="w-6 h-6 rounded-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Minus size={12} />
-                      </button>
-                      <input type="number" min={1} step="0.001" disabled={!seleccionado}
-                        value={seleccionado ? cant : 1}
-                        onChange={e => setCantidadManual(p.id, e.target.value)}
-                        className="w-12 py-1 text-center border border-gray-200 rounded-md font-mono text-xs tabular-nums outline-none focus:border-[var(--color-primary)] disabled:bg-gray-50 disabled:text-gray-400" />
-                      <button type="button" disabled={!seleccionado} onClick={() => ajustarCantidad(p.id, 1)}
-                        className="w-6 h-6 rounded-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-              {productosFiltrados.length === 0 && (
-                <div className="px-3 py-8 text-center text-sm text-gray-400">
-                  {prodSearch.trim().length < MIN_BUSQUEDA_PRODUCTOS
-                    ? `Escribí al menos ${MIN_BUSQUEDA_PRODUCTOS} letras para buscar productos`
-                    : 'Sin productos para mostrar'}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
       </form>
     </Dialog>
 
@@ -898,6 +936,8 @@ function OfertaFormModal({
   const [showProdDropdown, setShowProdDropdown] = useState(false)
   const [prodHighIdx, setProdHighIdx] = useState(-1)
   const prodInputRef = useRef<HTMLInputElement>(null)
+  const [modoDescuento, setModoDescuento] = useState<'porcentaje' | 'precio'>('porcentaje')
+  const [precioFinalInput, setPrecioFinalInput] = useState('0')
 
   const productosFiltrados = useMemo(() => {
     if (!prodSearch.trim()) return productos
@@ -927,22 +967,31 @@ function OfertaFormModal({
   const precioOferta = precioOriginal * (1 - desc / 100)
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={onSubmit} onClick={e => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">
-            {editId !== null ? 'Editar oferta' : 'Nueva oferta'}
-          </h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-            <X size={16} />
-          </button>
+    <Dialog
+      open
+      onClose={onClose}
+      closeOnBackdrop={false}
+      title="OFERTA"
+      icon={Tag}
+      highlight={form.productoNombre.trim() || (editId !== null ? 'Editar oferta' : 'Nueva oferta')}
+      width="md"
+      footer={
+        <div className="flex justify-end gap-2 w-full">
+          <Button variant="secondary" size="md" type="button" onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" size="md" type="submit" form="oferta-form">
+            {editId !== null ? 'Guardar' : 'Crear'}
+          </Button>
         </div>
-
-        {/* Searchable product select */}
+      }
+    >
+      <form id="oferta-form" className="space-y-3" onSubmit={onSubmit} onKeyDown={e => {
+        const target = e.target as HTMLElement
+        if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') e.preventDefault()
+      }}>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Producto *</label>
+          <label className="block text-xs font-medium text-black mb-1">Producto</label>
           <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input ref={prodInputRef} type="text" value={form.productoId > 0 ? form.productoNombre : prodSearch}
               onFocus={() => {
                 if (form.productoId > 0) {
@@ -968,16 +1017,16 @@ function OfertaFormModal({
                 }
               }}
               placeholder="Buscar producto..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full pl-8 pr-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
             {showProdDropdown && productosFiltrados.length > 0 && (
-              <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
+              <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-48 overflow-y-auto text-[13px]">
                 {productosFiltrados.map((p, i) => (
                   <li key={p.id}
                     onMouseDown={() => seleccionarProducto(p.id)}
                     onMouseEnter={() => setProdHighIdx(i)}
                     className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === prodHighIdx ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                    <span className="truncate">{p.nombre}</span>
-                    <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
+                    <span className="truncate text-black">{p.nombre}</span>
+                    <span className="text-black shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
                   </li>
                 ))}
               </ul>
@@ -986,48 +1035,73 @@ function OfertaFormModal({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Descuento (%) *</label>
-          <input type="number" step="0.01" min="0.01" max="100" value={form.descuento}
-            onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono"
-            placeholder="15" />
+          <label className="block text-xs font-medium text-black mb-1">Descuento</label>
+          <div className="flex">
+            <select value={modoDescuento}
+              onChange={e => {
+                const m = e.target.value as 'porcentaje' | 'precio'
+                if (m === 'precio') setPrecioFinalInput(precioOriginal > 0 ? precioOferta.toFixed(2) : '')
+                setModoDescuento(m)
+              }}
+              className="px-2 py-1.5 border border-gray-300 border-r-0 bg-white text-sm text-black outline-none focus:border-[var(--color-primary)]">
+              <option value="porcentaje">Porcentaje</option>
+              <option value="precio">Precio final</option>
+            </select>
+            {modoDescuento === 'porcentaje' ? (
+              <input type="number" step="0.01" min="0" max="100" value={form.descuento}
+                onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
+                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 text-sm text-black text-right font-mono outline-none focus:border-[var(--color-primary)]"
+                placeholder="15" />
+            ) : (
+              <input type="number" step="0.01" min="0" value={precioFinalInput}
+                onChange={e => {
+                  const v = e.target.value
+                  setPrecioFinalInput(v)
+                  if (precioOriginal <= 0) return
+                  const p = parseFloat(v)
+                  if (isNaN(p)) { setForm(f => ({ ...f, descuento: '' })); return }
+                  const pct = Math.max(0, Math.min(100, (1 - p / precioOriginal) * 100))
+                  setForm(f => ({ ...f, descuento: String(Math.round(pct * 100) / 100) }))
+                }}
+                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 text-sm text-black text-right font-mono outline-none focus:border-[var(--color-primary)]"
+                placeholder="0,00" />
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio *</label>
+            <label className="block text-xs font-medium text-black mb-1">Desde</label>
             <input type="datetime-local" value={form.fechaInicio}
               onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full px-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin *</label>
+            <label className="block text-xs font-medium text-black mb-1">Hasta</label>
             <input type="datetime-local" value={form.fechaFin}
               onChange={e => setForm(f => ({ ...f, fechaFin: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full px-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
           </div>
         </div>
 
         <DiasSemanaSelector selected={form.diasSemana}
           onChange={dias => setForm(f => ({ ...f, diasSemana: dias }))} />
 
-        {form.productoId > 0 && form.descuento && (
-          <div className="bg-amber-50 rounded-lg px-4 py-3 border border-amber-200">
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">{form.productoNombre || 'Producto'}</span>
-              {' '}— Precio original: <span className="font-mono font-semibold">${precioOriginal.toFixed(0)}</span>
-              {' → '}
-              <span className="font-mono font-bold text-green-700">${precioOferta.toFixed(0)}</span>
-              {' '}(-{desc}%)
-            </p>
+        <div className="border border-gray-300">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 text-[13px]">
+            <span className="text-black">Precio anterior</span>
+            <span className="text-black tabular-nums">${precioOriginal.toFixed(2)}</span>
           </div>
-        )}
-
-        <button type="submit"
-          className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors">
-          {editId !== null ? 'Guardar cambios' : 'Crear oferta'}
-        </button>
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 text-[13px]">
+            <span className="text-black">Descuento</span>
+            <span className="font-semibold text-red-600 tabular-nums">-${(precioOriginal - precioOferta).toFixed(2)} ({desc > 0 ? desc : 0}%)</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-50 text-[13px]">
+            <span className="font-semibold text-black">Precio final</span>
+            <span className="font-bold text-emerald-700 tabular-nums">${precioOferta.toFixed(2)}</span>
+          </div>
+        </div>
       </form>
-    </div>
+    </Dialog>
   )
 }
