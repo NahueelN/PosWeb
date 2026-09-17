@@ -14,9 +14,10 @@ interface TicketResultadoProps {
   ultimosItems: ItemEmitido[]
   user: UsuarioInfo | null
   onNuevaVenta: () => void
+  mesa?: string
 }
 
-export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta }: TicketResultadoProps) {
+export default function TicketResultado({ resultado, ultimosItems, user, onNuevaVenta, mesa }: TicketResultadoProps) {
   const [empresa, setEmpresa] = useState<{
     direccion?: string
     documento?: string
@@ -44,6 +45,7 @@ export default function TicketResultado({ resultado, ultimosItems, user, onNueva
     ventaId: resultado.ventaId,
     fecha: resultado.fecha,
     vendedor: user?.nombre,
+    mesa,
     items: ultimosItems.map(i => ({ nombre: i.producto.nombre, cantidad: i.cantidad, precio: i.producto.precio })),
     total: resultado.total,
     pagos: resultado.pagos.map(p => ({ nombre: p.medioPagoNombre, monto: p.monto })),

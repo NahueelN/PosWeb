@@ -27,6 +27,7 @@ const menuGroups = [
       { to: '/deudas', label: 'Deudas', icon: '📝' },
       { to: '/pedidos', label: 'Pedidos', icon: '📋' },
       { to: '/caja', label: 'Caja', icon: '💰' },
+      { to: '/mesas', label: 'Mesas', icon: '🍽️', modulo: 'restaurante' },
     ],
   },
   {
@@ -47,7 +48,7 @@ const menuGroups = [
   },
 ]
 
-const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/vencimientos'])
+const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/vencimientos', '/mesas'])
 
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
@@ -78,7 +79,7 @@ function useSucursalActiva() {
 
 export { useSucursalActiva }
 
-function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; links: { to: string; label: string; icon: string }[]; defaultOpen: boolean; onLinkClick: () => void }) {
+function MenuGroup({ label, links, defaultOpen, onLinkClick }: { label: string; links: { to: string; label: string; icon: string; modulo?: string }[]; defaultOpen: boolean; onLinkClick: () => void }) {
   const [open, setOpen] = useState(defaultOpen)
   const location = useLocation()
 
@@ -205,6 +206,16 @@ export default function Layout() {
 
   const canCreateUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
 
+  // Módulo restaurante: el menú "Mesas" solo aparece si está habilitado (y para Admin/SuperAdmin).
+  const [restauranteHabilitado, setRestauranteHabilitado] = useState(false)
+
+  useEffect(() => {
+    if (!canCreateUsers) return
+    api.restaurante.config()
+      .then(c => setRestauranteHabilitado(c.habilitado))
+      .catch(() => {})
+  }, [canCreateUsers])
+
   function handleLogout() {
     logout()
     limpiar()
@@ -277,9 +288,11 @@ export default function Layout() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-px">
         {menuGroups.map(group => {
-          const visibleLinks = user?.rol === 'UsuarioComun'
-            ? group.links.filter(l => !hiddenForUsuarioComun.has(l.to))
-            : group.links
+          const visibleLinks = group.links.filter(l => {
+            if (l.modulo === 'restaurante' && !restauranteHabilitado) return false
+            if (user?.rol === 'UsuarioComun' && hiddenForUsuarioComun.has(l.to)) return false
+            return true
+          })
 
           return (
             <MenuGroup

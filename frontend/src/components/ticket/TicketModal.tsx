@@ -123,8 +123,8 @@ export default function TicketModal({ data, buildLines, title = 'Ticket', onClos
 <html><head><title>Ticket</title><style>
 @page { size: ${ancho}mm auto; margin: 0; }
 html, body { margin: 0; padding: 0; width: ${ancho}mm; }
-.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.receipt div { font-weight: 900; }
+.receipt { width: ${ancho}mm; padding: 2mm; box-sizing: border-box; font-family: 'Consolas', 'Courier New', Courier, monospace; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
 </style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
@@ -153,7 +153,7 @@ ${pxCss}
           </button>
         </div>
 
-        <div className="flex justify-center gap-3 mb-4 flex-wrap items-center">
+<div className="flex justify-center gap-3 mb-4 flex-wrap items-center">
           <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
             <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
             <button

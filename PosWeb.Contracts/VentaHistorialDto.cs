@@ -10,6 +10,8 @@ public class VentaHistorialDto
     public int CantidadItems { get; set; }
     public bool Anulada { get; set; }
     public string Estado { get; set; } = string.Empty;
+    /// <summary>Número de mesa (restaurante) si la venta proviene de una cuenta de mesa.</summary>
+    public string? Mesa { get; set; }
 }
 
 public class DeshacerVentaRequest

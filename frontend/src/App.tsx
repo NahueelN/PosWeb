@@ -21,6 +21,7 @@ import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
 import VencimientosPage from './pages/VencimientosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
+import MesasPage from './pages/MesasPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
@@ -145,6 +146,7 @@ export default function App() {
               <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/combos" element={<CombosPage />} />
+              <Route path="/mesas" element={<MesasPage />} />
 
               <Route path="/usuarios/alta" element={<Navigate to="/configuracion" replace />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />

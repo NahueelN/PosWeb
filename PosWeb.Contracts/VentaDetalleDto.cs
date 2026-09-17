@@ -14,6 +14,8 @@ public class VentaDetalleDto
     public string? EmpresaTelefono { get; set; }
     public bool MostrarTelefonoTicket { get; set; }
     public string? Vendedor { get; set; }
+    /// <summary>Número de mesa (restaurante) si la venta proviene de una cuenta de mesa.</summary>
+    public string? Mesa { get; set; }
     public List<PagoVentaResultDto> Pagos { get; set; } = [];
     public decimal Cambio { get; set; }
 }

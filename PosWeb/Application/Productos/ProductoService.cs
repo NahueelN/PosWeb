@@ -366,7 +366,8 @@ public class ProductoService
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
                 Activo = p.ACTIVO,
-                EsPesable = p.ES_PESABLE
+                EsPesable = p.ES_PESABLE,
+                SeguirStock = p.SEGUIR_STOCK
             })
             .ToList();
     }
@@ -397,7 +398,8 @@ public class ProductoService
                     Activo = p.ACTIVO,
                     EsPesable = p.ES_PESABLE,
                     EsBulto = p.ES_BULTO,
-                    ProductoBultoId = p.ID_PRODUCTO_BULTO
+                    ProductoBultoId = p.ID_PRODUCTO_BULTO,
+                    SeguirStock = p.SEGUIR_STOCK
             })
             .ToList();
     }

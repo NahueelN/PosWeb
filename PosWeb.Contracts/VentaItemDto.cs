@@ -8,4 +8,6 @@ public class VentaItemDto
     public int? OfertaId { get; set; }
     public string? DescripcionManual { get; set; }
     public decimal PrecioManual { get; set; }
+    /// <summary>Precio unitario capturado (p. ej. de una comanda de mesa). Se usa en lugar del precio actual cuando SinStock=true.</summary>
+    public decimal? PrecioUnitario { get; set; }
 }

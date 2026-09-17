@@ -5,8 +5,11 @@ Guía para crear un nuevo release de la app de escritorio (Tauri + auto-updater)
 ## Arquitectura
 
 - El release se dispara desde GitHub con un **tag** `v*`.
-- El workflow `.github/workflows/release.yml` compila el backend .NET (sidecar) y el bundle Tauri, sube el instalador a un release de GitHub y regenera `latest.json`.
-- La app chequea `latest.json` (endpoint configurado en `tauri.conf.json` → `raw.githubusercontent.com/NahueelN/PosWeb/master/latest.json`) y se auto-actualiza con el plugin updater de Tauri.
+- El workflow `.github/workflows/release.yml` compila el backend .NET (sidecar) y el bundle Tauri, sube el instalador a un release de GitHub, regenera `latest.json` y lo adjunta como **asset del release** (además de pushearlo a master).
+- La app chequea `latest.json` con dos endpoints (configurados en `tauri.conf.json`, se prueban en orden):
+  1. `https://github.com/NahueelN/PosWeb/releases/latest/download/latest.json` (asset del release, CDN de GitHub, más estable).
+  2. `https://raw.githubusercontent.com/NahueelN/PosWeb/master/latest.json` (fallback).
+  Si el primero devuelve 404/error (ej. release fallado y vacío), cae al segundo.
 
 ## Checklist para crear un release
 
@@ -53,11 +56,12 @@ git push origin vX.Y.Z
 2. `npm run tauri build` → genera `PosWeb_X.Y.Z_x64-setup.exe` + `.sig`.
 3. Sube `.exe` y `.nsis.zip` al release de GitHub.
 4. Genera `latest.json` (version, url, firma, fecha) y lo pushea a `origin/master`.
+5. Adjunta `latest.json` como asset del release (`.../releases/download/vX.Y.Z/latest.json`, también servido en `.../releases/latest/download/latest.json`).
 
 ### 6. Verificar
 
-- El release de GitHub tiene **assets** (no vacío).
-- `latest.json` quedó actualizado a la nueva versión.
+- El release de GitHub tiene **assets** (no vacío): el `.exe` y el `latest.json`.
+- `latest.json` quedó actualizado a la nueva versión (en el asset del release y en master).
 
 ## Gotchas
 
@@ -71,5 +75,7 @@ git push origin vX.Y.Z
      ```
   3. `git tag -a vX.Y.Z -m "vX.Y.Z"` sobre el commit corregido y `git push origin vX.Y.Z`.
 - **Versión desalineada** entre `tauri.conf.json`/`Cargo.*` y el tag → el instalador sale con otro nombre/versión que `latest.json`, rompiendo el auto-updater (loop de "actualización disponible").
+- **Release fallido y vacío** → ya no rompe a los clientes instalados: el primer endpoint (`releases/latest/download/latest.json`) da 404 y el updater cae al fallback de `raw.githubusercontent.com` de master (que sigue apuntando a la última versión buena). Igual hay que reintentar el release para que la versión nueva quede disponible.
+- El endpoint queda **compilado dentro del binario** en cada build. Los instalados viejos (≤ v1.1.13) solo conocen el endpoint de `raw.githubusercontent.com` de master; por eso master se sigue actualizando siempre.
 - Las keys de firma (`TAURI_PRIVATE_KEY`, `TAURI_PRIVATE_KEY_PASSWORD`) están en los secrets de GitHub.
 - Al final del workflow, `origin/master` queda 1 commit adelante de `azure/master` (`chore: update latest.json`); re-sincronizar Azure después (`git pull` + `git push azure master`).
