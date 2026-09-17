@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Printer, X } from 'lucide-react'
 import { api } from '../../api/client'
-import { buildTicketLines, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
+import { buildTicketLines, fitTicketToWidth, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
 
 interface TicketModalProps {
   data?: TicketData
@@ -127,7 +127,20 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
 .receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
-</style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+</style></head><body>${ticketHtml}<script>window.onload = () => {
+  const el = document.querySelector('.receipt');
+  if (el) {
+    const style = getComputedStyle(el);
+    const avail = el.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    el.querySelectorAll('div').forEach(r => {
+      if (r.scrollWidth > avail && avail > 0) {
+        const fs = parseFloat(getComputedStyle(r).fontSize);
+        if (fs > 0) r.style.fontSize = (fs * avail / r.scrollWidth).toFixed(2) + 'px';
+      }
+    });
+  }
+  window.focus(); window.print();
+}; window.onafterprint = () => window.close();</script></body></html>`)
       ticketWindow.document.close()
       return
     }
@@ -139,6 +152,10 @@ ${pxCss}
     style.id = styleId
     style.textContent = `:root { --ticket-width: ${ancho}mm; } @page { size: ${ancho}mm auto; margin: 0; }`
     document.head.appendChild(style)
+    if (receiptRef.current) {
+      receiptRef.current.style.whiteSpace = 'pre'
+      fitTicketToWidth(receiptRef.current)
+    }
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
