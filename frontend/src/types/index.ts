@@ -16,9 +16,11 @@ export interface ProductoDto {
   margenGanancia?: number | null
   cantidadIdeal?: number | null
   seguirStock?: boolean
+  seguirVencimientos?: boolean
   esPesable?: boolean
   esBulto?: boolean
   productoBultoId?: number | null
+  fechasVencimiento?: string[]
 }
 
 export interface ProductoDetailDto {
@@ -88,9 +90,11 @@ export interface ProductoUpsertDto {
   codigoProducto?: string | null
   margenGanancia?: number | null
   seguirStock?: boolean
+  seguirVencimientos?: boolean
   esPesable?: boolean
   esBulto?: boolean
   productoBultoId?: number | null
+  fechasVencimiento?: string[]
 }
 
 // --- Open Food Facts ---
@@ -150,6 +154,7 @@ export interface VentaResultadoDto {
   cambio: number
   empresaNombre?: string
   empresaDireccion?: string
+  empresaDocumento?: string
   empresaTelefono?: string
   mostrarTelefonoTicket?: boolean
   estado?: string
@@ -277,6 +282,10 @@ export interface VentaDetalleDto {
   total: number
   items: RenglonHistorialDto[]
   empresaNombre?: string
+  empresaDireccion?: string
+  empresaDocumento?: string
+  empresaTelefono?: string
+  mostrarTelefonoTicket?: boolean
   vendedor?: string
   mesa?: string | null
   pagos: PagoVentaResultDto[]
@@ -550,6 +559,15 @@ export interface CajaDto {
   usuarioCierre?: string
 }
 
+export interface MovimientoCajaDto {
+  tipo: 'Venta' | 'Gasto'
+  referenciaId: number
+  fecha: string
+  descripcion: string
+  monto: number
+  anulado: boolean
+}
+
 export interface AbrirCajaRequest {
   sucursalId: number
   montoInicial: number
@@ -778,6 +796,7 @@ export interface RecibirItemDto {
   cantidadRecibida: number
   esFaltante: boolean
   precioUnitarioReal: number
+  precioVenta: number
 }
 
 // --- Combo types ---
@@ -908,17 +927,5 @@ export interface EmpresaDto {
 // --- Preferencias de usuario ---
 export interface PreferenciasResponse {
   preferencias: Record<string, Record<string, string>>
-}
-
-export interface EnvioCierreCajaConfig {
-  envioAutomatico: boolean
-  whatsapp: {
-    habilitado: boolean
-    destinatarios: string[]
-  }
-  email: {
-    habilitado: boolean
-    destinatarios: string[]
-  }
 }
 

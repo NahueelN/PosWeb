@@ -91,7 +91,7 @@ public class PedidoService
         var renglonesLookup = pedido.RENGLONES.ToDictionary(r => r.ID_RENGLON_PEDIDO);
 
         // Split received vs faltante items
-        var recibidos = new List<(RenglonPedido Renglon, decimal CantidadRecibida, decimal PrecioReal)>();
+        var recibidos = new List<(RenglonPedido Renglon, decimal CantidadRecibida, decimal PrecioReal, decimal PrecioVenta)>();
         var faltantes = new List<(int ProductoId, string ProductoNombre, decimal CantidadFaltante, decimal PrecioEstimado)>();
 
         foreach (var item in request.Items)
@@ -125,7 +125,7 @@ public class PedidoService
 
             if (item.CantidadRecibida > 0 && renglon.ID_PRODUCTO.HasValue)
             {
-                recibidos.Add((renglon, item.CantidadRecibida, item.PrecioUnitarioReal));
+                recibidos.Add((renglon, item.CantidadRecibida, item.PrecioUnitarioReal, item.PrecioVenta));
             }
         }
 
@@ -157,12 +157,15 @@ public class PedidoService
 
                 decimal totalGasto = 0;
 
-                foreach (var (renglon, cantidadRecibida, precioReal) in recibidos)
+                foreach (var (renglon, cantidadRecibida, precioReal, precioVenta) in recibidos)
                 {
                     int productoId = renglon.ID_PRODUCTO!.Value;
                     Producto? producto = _context.Producto.Find(productoId);
                     if (producto == null || !producto.ACTIVO)
                         throw new ProductoNoEncontradoException(productoId);
+
+                    if (precioVenta > 0 && precioVenta != producto.PRECIO)
+                        producto.CambiarPrecio(precioVenta);
 
                     // Update stock
                     StockSucursal? stock = _context.StockSucursal

@@ -26,12 +26,15 @@ public class ProductoDto
     public decimal? CantidadIdeal { get; set; }
 
     public bool SeguirStock { get; set; } = true;
+    public bool SeguirVencimientos { get; set; }
 
     public bool EsPesable { get; set; }
 
     public bool EsBulto { get; set; }
 
     public int? ProductoBultoId { get; set; }
+
+    public List<DateTime> FechasVencimiento { get; set; } = new();
 
     /// <summary>
     /// Código interno del producto.

@@ -108,7 +108,7 @@ public class PedidosController : ControllerBase
         try
         {
             _pedidoService.Cancelar(id);
-            return Ok();
+            return NoContent();
         }
         catch (ArgumentException ex)
         {

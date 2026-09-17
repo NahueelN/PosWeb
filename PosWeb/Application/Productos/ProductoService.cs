@@ -31,28 +31,10 @@ public class ProductoService
             query = query.Where(p => p.ES_BULTO == esBulto.Value);
         }
 
-        var projected = query.OrderBy(p => p.DESC_PRODUCTO)
-            .Select(p => new ProductoDto
-            {
-                Id = p.ID_PRODUCTO,
-                CodigoBarra = p.CODIGO_BARRAS,
-                Nombre = p.DESC_PRODUCTO,
-                Precio = p.PRECIO,
-                Costo = p.COSTO,
-                Activo = p.ACTIVO,
-                Marca = p.MARCA,
-                Contenido = p.CONTENIDO,
-                CategoriaId = p.ID_CATEGORIA,
-                UnidadMedidaId = p.ID_UNIDAD_MEDIDA,
-                DescAdicional = p.DESC_ADICIONAL,
-                CodigoProducto = p.COD_PRODUCTO,
-                MargenGanancia = p.MARGEN_GANANCIA,
-                CantidadIdeal = p.CANTIDAD_IDEAL,
-                SeguirStock = p.SEGUIR_STOCK,
-                EsPesable = p.ES_PESABLE,
-                EsBulto = p.ES_BULTO,
-                ProductoBultoId = p.ID_PRODUCTO_BULTO
-            });
+        var result = query.OrderBy(p => p.DESC_PRODUCTO)
+            .AsEnumerable()
+            .Select(MapToDto)
+            .ToList();
 
         if (sucursalId.HasValue)
         {
@@ -60,7 +42,6 @@ public class ProductoService
                 .Where(s => s.ID_SUCURSAL == sucursalId.Value)
                 .ToDictionary(s => s.ID_PRODUCTO, s => s.STOCK);
 
-            var result = projected.ToList();
             foreach (var p in result)
             {
                 p.Stock = stockDict.TryGetValue(p.Id, out var s) ? s : 0;
@@ -68,7 +49,7 @@ public class ProductoService
             return result;
         }
 
-        return projected.ToList();
+        return result;
     }
 
     public ProductoDetailDto? ObtenerDetalle(int id, int? sucursalId = null)
@@ -193,6 +174,8 @@ public class ProductoService
             inactivo.CambiarDescAdicional(dto.DescAdicional);
             inactivo.CambiarMarca(dto.Marca);
             inactivo.CambiarMargen(margen);
+            inactivo.CambiarSeguirVencimientos(dto.SeguirVencimientos ?? false);
+            inactivo.CambiarFechasVencimiento(dto.FechasVencimiento);
 
             _context.SaveChanges();
             return MapToDto(inactivo);
@@ -214,6 +197,8 @@ public class ProductoService
             dto.EsBulto,
             dto.EsBulto ? dto.ProductoBultoId : null
         );
+        producto.CambiarSeguirVencimientos(dto.SeguirVencimientos ?? false);
+        producto.CambiarFechasVencimiento(dto.FechasVencimiento);
 
         _context.Producto.Add(producto);
         _context.SaveChanges();
@@ -293,9 +278,11 @@ public class ProductoService
             MargenGanancia = producto.MARGEN_GANANCIA,
             CantidadIdeal = producto.CANTIDAD_IDEAL,
             SeguirStock = producto.SEGUIR_STOCK,
+            SeguirVencimientos = producto.SEGUIR_VENCIMIENTOS,
             EsPesable = producto.ES_PESABLE,
             EsBulto = producto.ES_BULTO,
-            ProductoBultoId = producto.ID_PRODUCTO_BULTO
+            ProductoBultoId = producto.ID_PRODUCTO_BULTO,
+            FechasVencimiento = producto.ObtenerFechasVencimiento().ToList()
         };
     }
 
@@ -336,10 +323,28 @@ public class ProductoService
         producto.CambiarUnidadMedida(dto.UnidadMedidaId);
         producto.CambiarDescAdicional(dto.DescAdicional);
         producto.CambiarMargen(dto.MargenGanancia);
+        if (dto.SeguirVencimientos.HasValue) producto.CambiarSeguirVencimientos(dto.SeguirVencimientos.Value);
+        producto.CambiarFechasVencimiento(dto.FechasVencimiento);
         if (dto.SeguirStock.HasValue) producto.CambiarSeguirStock(dto.SeguirStock.Value);
         
         _context.SaveChanges();
         
+        return MapToDto(producto);
+    }
+
+    public ProductoDto ActualizarVencimientos(int id, bool seguirVencimientos, IEnumerable<DateTime> fechas)
+    {
+        Producto? producto = _context.Producto.Find(id);
+
+        if (producto == null)
+        {
+            throw new ProductoNoEncontradoException(id);
+        }
+
+        producto.CambiarSeguirVencimientos(seguirVencimientos);
+        producto.CambiarFechasVencimiento(fechas);
+        _context.SaveChanges();
+
         return MapToDto(producto);
     }
 

@@ -4,6 +4,7 @@ import type { PedidoDetailDto } from '../types'
 export type WhatsAppMethod = 'desktop' | 'web'
 
 const WHATSAPP_PREF_KEY = 'whatsappPreferido'
+const WHATSAPP_RECIPIENT_KEY = 'whatsappDestinatario'
 
 export function getWhatsAppPref(): WhatsAppMethod | null {
   try {
@@ -19,6 +20,32 @@ export function setWhatsAppPref(method: WhatsAppMethod | null): void {
     if (method) localStorage.setItem(WHATSAPP_PREF_KEY, method)
     else localStorage.removeItem(WHATSAPP_PREF_KEY)
   } catch {}
+}
+
+export function getWhatsAppRecipient(): string {
+  try {
+    return localStorage.getItem(WHATSAPP_RECIPIENT_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function setWhatsAppRecipient(phone: string): void {
+  try {
+    const v = phone.trim()
+    if (v) localStorage.setItem(WHATSAPP_RECIPIENT_KEY, v)
+    else localStorage.removeItem(WHATSAPP_RECIPIENT_KEY)
+  } catch {
+    // localStorage no disponible: se ignora la persistencia del destinatario
+  }
+}
+
+export function normalizeWhatsAppPhone(value: string): string {
+  const d = sanitizePhone(value)
+  if (d.length === 0) return ''
+  if (d.startsWith('549')) return `+${d}`
+  if (d.startsWith('54')) return `+${d}`
+  return `+549${d}`
 }
 
 export function sanitizePhone(phone: string): string {

@@ -1,9 +1,12 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Printer, X } from 'lucide-react'
-import { buildTicketLines, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
+import { api } from '../../api/client'
+import { buildTicketLines, fitTicketToWidth, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
 
 interface TicketModalProps {
-  data: TicketData
+  data?: TicketData
+  buildLines?: (width: TicketWidth) => TicketLine[]
+  title?: string
   onClose: () => void
 }
 
@@ -44,15 +47,50 @@ const TXT: Record<number, string> = {
   22: 'text-[22px]',
 }
 
-export default function TicketModal({ data, onClose }: TicketModalProps) {
+export default function TicketModal({ data, buildLines, title = 'Ticket', onClose }: TicketModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
-  const [ancho, setAncho] = useState<TicketWidth>(80)
+  const [ancho, setAncho] = useState<TicketWidth>(() => {
+    const saved = localStorage.getItem('posweb-ticket-ancho')
+    return saved === '58' ? 58 : 80
+  })
   const [letra, setLetra] = useState<Letra>(() => {
     const saved = localStorage.getItem('posweb-ticket-letra')
     return saved === 'chica' || saved === 'mediana' || saved === 'grande' ? saved : 'chica'
   })
 
-  const lines = buildTicketLines(data, ancho)
+  useEffect(() => {
+    let mounted = true
+    api.preferencias.obtener()
+      .then(res => {
+        if (!mounted) return
+        const t = res.preferencias?.ticket
+        if (!t) return
+        if (t.ancho === '58' || t.ancho === '80') setAncho(Number(t.ancho) as TicketWidth)
+        if (t.letra === 'chica' || t.letra === 'mediana' || t.letra === 'grande') setLetra(t.letra as Letra)
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
+  const persistir = (nuevoAncho: TicketWidth, nuevaLetra: Letra) => {
+    localStorage.setItem('posweb-ticket-ancho', String(nuevoAncho))
+    localStorage.setItem('posweb-ticket-letra', nuevaLetra)
+    api.preferencias.guardar({ ticket: { ancho: String(nuevoAncho), letra: nuevaLetra } }).catch(() => {})
+  }
+
+  const cambiarAncho = (nuevoAncho: TicketWidth) => {
+    const nuevaLetra = nuevoAncho === 58 && letra === 'grande' ? 'mediana' : letra
+    setAncho(nuevoAncho)
+    setLetra(nuevaLetra)
+    persistir(nuevoAncho, nuevaLetra)
+  }
+
+  const cambiarLetra = (nuevaLetra: Letra) => {
+    setLetra(nuevaLetra)
+    persistir(ancho, nuevaLetra)
+  }
+
+  const lines = buildLines ? buildLines(ancho) : buildTicketLines(data as TicketData, ancho)
 
   const sizeClsFor = (l: TicketLine) => {
     const px = LETRA_PX[letra][ancho]
@@ -89,7 +127,20 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
 .receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
-</style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+</style></head><body>${ticketHtml}<script>window.onload = () => {
+  const el = document.querySelector('.receipt');
+  if (el) {
+    const style = getComputedStyle(el);
+    const avail = el.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    el.querySelectorAll('div').forEach(r => {
+      if (r.scrollWidth > avail && avail > 0) {
+        const fs = parseFloat(getComputedStyle(r).fontSize);
+        if (fs > 0) r.style.fontSize = (fs * avail / r.scrollWidth).toFixed(2) + 'px';
+      }
+    });
+  }
+  window.focus(); window.print();
+}; window.onafterprint = () => window.close();</script></body></html>`)
       ticketWindow.document.close()
       return
     }
@@ -101,6 +152,10 @@ ${pxCss}
     style.id = styleId
     style.textContent = `:root { --ticket-width: ${ancho}mm; } @page { size: ${ancho}mm auto; margin: 0; }`
     document.head.appendChild(style)
+    if (receiptRef.current) {
+      receiptRef.current.style.whiteSpace = 'pre'
+      fitTicketToWidth(receiptRef.current)
+    }
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
@@ -109,45 +164,23 @@ ${pxCss}
     <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-800">Ticket</h3>
+          <h3 className="font-semibold text-gray-800">{title}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
             <X size={16} />
           </button>
         </div>
 
-        <div ref={receiptRef} className="receipt bg-white mx-auto font-mono leading-[1.45] text-gray-900"
-          style={{ fontFamily: "'Consolas', 'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
-          {lines.map((l, i) => {
-            const sizeCls = sizeClsFor(l)
-            return (
-              <div
-                key={i}
-                className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
-                style={l.center ? { textAlign: 'center' } : undefined}
-              >
-                {l.text}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex justify-center gap-3 mt-4 flex-wrap items-center">
+<div className="flex justify-center gap-3 mb-4 flex-wrap items-center">
           <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
             <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
             <button
-              onClick={() => {
-                setAncho(58)
-                if (letra === 'grande') {
-                  setLetra('chica')
-                  localStorage.setItem('posweb-ticket-letra', 'chica')
-                }
-              }}
+              onClick={() => cambiarAncho(58)}
               className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 58 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
             >
               58 mm
             </button>
             <button
-              onClick={() => setAncho(80)}
+              onClick={() => cambiarAncho(80)}
               className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${ancho === 80 ? 'bg-[oklch(0.52_0.255_278)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
             >
               80 mm
@@ -161,10 +194,7 @@ ${pxCss}
                 <button
                   key={l.id}
                   disabled={disabled}
-                  onClick={() => {
-                    setLetra(l.id)
-                    localStorage.setItem('posweb-ticket-letra', l.id)
-                  }}
+                  onClick={() => cambiarLetra(l.id)}
                   className={`px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors ${
                     disabled
                       ? 'text-gray-300 cursor-not-allowed'
@@ -183,6 +213,22 @@ ${pxCss}
             <Printer size={14} />
             Imprimir
           </button>
+        </div>
+
+        <div ref={receiptRef} className="receipt bg-white mx-auto font-mono leading-[1.45] text-gray-900"
+          style={{ fontFamily: "'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
+          {lines.map((l, i) => {
+            const sizeCls = sizeClsFor(l)
+            return (
+              <div
+                key={i}
+                className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
+                style={l.center ? { textAlign: 'center' } : undefined}
+              >
+                {l.text}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

@@ -19,14 +19,18 @@ export interface DialogProps {
   highlight?: string
   /** Optional description below the title, rendered in the body area */
   description?: string
-  /** Dialog width. 'sm' = 384px, 'md' = 448px, 'lg' = 512px, 'xl' = 1024px */
-  width?: 'sm' | 'md' | 'lg' | 'xl'
+  /** Dialog width. 'sm' = 384px, 'md' = 448px, 'lg' = 512px, 'xl' = 1100px, '2xl' = 1440px */
+  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   /** Main content */
   children?: ReactNode
   /** Footer actions (buttons). Rendered right-aligned with gap. */
   footer?: ReactNode
   /** Whether clicking the backdrop closes the dialog. Default true. */
   closeOnBackdrop?: boolean
+  /** Whether pressing Escape closes the dialog. Default true. */
+  closeOnEscape?: boolean
+  /** Fixed height (85vh on lg): the body doesn't scroll; inner lists must scroll themselves. */
+  fillHeight?: boolean
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -36,7 +40,11 @@ const widthMap: Record<string, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-[1100px]',
+  '2xl': 'max-w-[1440px]',
 }
+
+// Solo el diálogo abierto más arriba responde a Escape / foco inicial.
+const dialogStack: symbol[] = []
 
 // ── Component ──────────────────────────────────────────────────────
 
@@ -51,22 +59,31 @@ export default function Dialog({
   children,
   footer,
   closeOnBackdrop = true,
+  closeOnEscape = true,
+  fillHeight = false,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const { notifyError } = useNotification()
 
-  // Close on Escape
+  // Close on Escape — only the topmost dialog reacts
   useEffect(() => {
     if (!open) return
+    const token = Symbol('dialog')
+    dialogStack.push(token)
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
+      if (e.key !== 'Escape') return
+      if (dialogStack[dialogStack.length - 1] !== token) return
+      if (!closeOnEscape) return
+      e.preventDefault()
+      onClose()
     }
     document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [open, onClose])
+    return () => {
+      document.removeEventListener('keydown', handler)
+      const index = dialogStack.indexOf(token)
+      if (index >= 0) dialogStack.splice(index, 1)
+    }
+  }, [open, onClose, closeOnEscape])
 
   // Trap focus inside dialog when open
   useEffect(() => {
@@ -98,7 +115,8 @@ export default function Dialog({
           'bg-white rounded-2xl shadow-xl w-full animate-[fadeIn_0.15s_ease]',
           'overflow-hidden',
           widthMap[width] || widthMap.sm,
-          'mx-4 max-h-[85vh] flex flex-col',
+          'mx-4 flex flex-col',
+          fillHeight ? 'max-h-[85vh] lg:h-[85vh]' : 'max-h-[85vh]',
         ].join(' ')}
         onClick={(e) => e.stopPropagation()}
       >
@@ -110,15 +128,15 @@ export default function Dialog({
         {/* Description badge (only when there's no header — rare) */}
         {!title && description && (
           <div className="px-6 pt-6 pb-2 shrink-0">
-            <p className="text-sm text-gray-500">{description}</p>
+            <p className="text-sm text-black">{description}</p>
           </div>
         )}
 
         {/* Body */}
-        <div data-dialog-body className="px-6 py-3 overflow-y-auto">
+        <div data-dialog-body className={`px-6 py-3 flex-1 min-h-0 ${fillHeight ? 'flex flex-col overflow-y-auto lg:overflow-hidden' : 'overflow-y-auto'}`}>
           <ErrorBoundary onUnexpectedError={(err) => { notifyError(err.message); onClose() }}>
             {title && description && (
-              <p className="text-sm text-gray-500 mb-4">{description}</p>
+              <p className="text-sm text-black mb-4">{description}</p>
             )}
             {children}
           </ErrorBoundary>

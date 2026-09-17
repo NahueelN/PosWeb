@@ -63,6 +63,9 @@ public partial class PosDbContext
             entity.Property(p => p.SEGUIR_STOCK)
                 .HasColumnName("SEGUIR_STOCK");
 
+            entity.Property(p => p.SEGUIR_VENCIMIENTOS)
+                .HasColumnName("SEGUIR_VENCIMIENTOS");
+
             entity.Property(p => p.CANTIDAD_IDEAL)
                 .HasColumnName("CANTIDAD_IDEAL")
                 .HasColumnType("decimal(18,2)");
@@ -72,6 +75,15 @@ public partial class PosDbContext
 
             entity.Property(p => p.ES_BULTO)
                 .HasColumnName("ES_BULTO");
+
+            entity.Property(p => p.FECHA_VENCIMIENTO_1)
+                .HasColumnName("FECHA_VENCIMIENTO_1");
+
+            entity.Property(p => p.FECHA_VENCIMIENTO_2)
+                .HasColumnName("FECHA_VENCIMIENTO_2");
+
+            entity.Property(p => p.FECHA_VENCIMIENTO_3)
+                .HasColumnName("FECHA_VENCIMIENTO_3");
 
             entity.Property(p => p.ID_PRODUCTO_BULTO)
                 .HasColumnName("ID_PRODUCTO_BULTO");

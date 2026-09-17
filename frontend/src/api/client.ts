@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
 
 export function resolveApiBase(isTauri: boolean, protocol?: string, hostname?: string): string {
   if (!isTauri && protocol === 'http:' && hostname === 'localhost') return '/api'
@@ -134,7 +134,8 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   console.log(`[API Success] ${options?.method ?? 'GET'} ${url} - ${res.status} (${duration}ms)`)
   
   if (res.status === 204) return undefined as T
-  return res.json()
+  const text = await res.text()
+  return text ? JSON.parse(text) as T : undefined as T
 }
 
 export const api = {
@@ -248,6 +249,11 @@ export const api = {
       request<ProductoDto>(`/productos/${id}/cantidad-ideal`, {
         method: 'PUT',
         body: JSON.stringify({ cantidadIdeal }),
+      }),
+    actualizarVencimientos: (id: number, seguirVencimientos: boolean, fechas: string[]) =>
+      request<ProductoDto>(`/productos/${id}/vencimientos`, {
+        method: 'PUT',
+        body: JSON.stringify({ seguirVencimientos, fechas }),
       }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
@@ -393,6 +399,7 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
+    movimientos: (cajaId: number) => request<{ items: MovimientoCajaDto[] }>(`/cajas/${cajaId}/movimientos`),
     ultimoCierre: (sucursalId: number) => request<CajaDto | null>(`/cajas/ultimo-cierre?sucursalId=${sucursalId}`),
     historial: (sucursalId: number, fechaDesde?: string, fechaHasta?: string) => {
       const params = new URLSearchParams({ sucursalId: String(sucursalId) })

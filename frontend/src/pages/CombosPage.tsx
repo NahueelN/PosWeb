@@ -1,19 +1,25 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { COMBO_PREFIX } from '../lib/constants'
+import { normalizarCodigoBarra } from '../lib/codigoBarra'
 import DiasSemanaSelector from '../components/shared/DiasSemanaSelector'
-import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto, OfertaDto, OfertaUpsertDto } from '../types'
-import { Plus, Search, X, AlertTriangle, Trash2 } from 'lucide-react'
+import type { ComboDto, ProductoDto, ComboUpsertDto, ComboItemDto, OfertaDto, OfertaUpsertDto, SucursalDto } from '../types'
+import { Plus, Minus, Search, AlertTriangle, Trash2, Sandwich, Check, Printer, Tag } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Dialog from '../components/ui/Dialog'
+import PrefixedCodeInput from '../components/ui/PrefixedCodeInput'
+import BarcodePrintDialog from '../components/BarcodePrintDialog'
+import LabelPrintDialog from '../components/LabelPrintDialog'
 
 type Tab = 'combos' | 'ofertas'
 
 export default function CombosPage() {
   const { notifyError, notifySuccess } = useNotification()
   const { user } = useAuth()
+  const { sucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
   const [tab, setTab] = useState<Tab>('combos')
 
   const [productos, setProductos] = useState<ProductoDto[]>([])
@@ -50,15 +56,15 @@ export default function CombosPage() {
     fechaFin: '',
     productoId: 0,
     productoNombre: '',
-    descuento: '',
+    descuento: '0',
     diasSemana: [] as string[],
   })
 
   useEffect(() => {
     cargarCombos()
     cargarOfertas()
-    api.productos.listar().then(setProductos).catch(() => {})
-  }, [])
+    api.productos.listar(sucursal?.id).then(setProductos).catch(() => {})
+  }, [sucursal?.id])
 
   async function cargarCombos() {
     try { setCombos(await api.combos.listar()) }
@@ -98,6 +104,15 @@ export default function CombosPage() {
   // ===================================================================
   // COMBO FORM
   // ===================================================================
+  function siguienteCodigoCombo(): string {
+    const numeros = combos
+      .map(c => /^COMB(\d+)$/i.exec((c.codCombo ?? '').trim()))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map(m => Number(m[1]))
+    const siguiente = (numeros.length > 0 ? Math.max(...numeros) : 0) + 1
+    return `${COMBO_PREFIX}${siguiente}`
+  }
+
   function abrirComboModal(combo?: ComboDto) {
     if (combo) {
       setComboForm({
@@ -116,7 +131,7 @@ export default function CombosPage() {
       })
       setComboEditId(combo.id)
     } else {
-      setComboForm({ codCombo: '', descCombo: '', precio: '', fechaInicio: '', fechaFin: '', diasSemana: [], items: [] })
+      setComboForm({ codCombo: siguienteCodigoCombo(), descCombo: '', precio: '0', fechaInicio: '', fechaFin: '', diasSemana: [], items: [] })
       setComboEditId(null)
     }
     setShowComboModal(true)
@@ -134,6 +149,13 @@ export default function CombosPage() {
     if (!comboForm.codCombo.trim()) { notifyError('Código requerido'); return }
     if (!comboForm.descCombo.trim()) { notifyError('Descripción requerida'); return }
     if (comboForm.items.length === 0) { notifyError('Agregá al menos un producto'); return }
+
+    const codigo = comboForm.codCombo.trim().toUpperCase()
+    const duplicado = combos.find(c => c.codCombo.toUpperCase() === codigo && c.id !== comboEditId)
+    if (duplicado) {
+      notifyError(`Ya existe el combo «${duplicado.descCombo}» con el código ${duplicado.codCombo}`)
+      return
+    }
 
     const dto: ComboUpsertDto = {
       codCombo: comboForm.codCombo.trim(),
@@ -204,7 +226,7 @@ export default function CombosPage() {
       })
       setOfertaEditId(oferta.id)
     } else {
-      setOfertaForm({ fechaInicio: '', fechaFin: '', productoId: 0, productoNombre: '', descuento: '', diasSemana: [] })
+      setOfertaForm({ fechaInicio: '', fechaFin: '', productoId: 0, productoNombre: '', descuento: '0', diasSemana: [] })
       setOfertaEditId(null)
     }
     setShowOfertaModal(true)
@@ -279,8 +301,8 @@ export default function CombosPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Combos y Ofertas</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-xl font-bold text-black">Combos y Ofertas</h2>
+          <p className="text-sm text-black mt-0.5">
             {tab === 'combos' ? `${combos.length} combos` : `${ofertas.length} ofertas`}
           </p>
         </div>
@@ -316,7 +338,7 @@ export default function CombosPage() {
               placeholder="Buscar combo por nombre o código..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-black cursor-pointer select-none">
             <input type="checkbox" checked={mostrarCombosInactivos}
               onChange={e => setMostrarCombosInactivos(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -325,45 +347,47 @@ export default function CombosPage() {
 
           {filteredCombos.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 font-medium text-sm">
+              <p className="text-black font-medium text-sm">
                 {comboSearch.trim() ? 'No se encontraron combos' : 'No hay combos activos'}
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-[110px_minmax(0,1fr)_100px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+              <span className="truncate">Código</span>
+              <span className="truncate">Descripción</span>
+              <span className="text-right truncate">Precio</span>
+              <span className="text-right truncate">Acciones</span>
+            </div>
             {filteredCombos.map(combo => (
-              <div key={combo.id} className={`bg-white rounded-xl border p-5 transition-all ${combo.activo ? 'border-gray-200 hover:border-indigo-300 hover:shadow-md' : 'border-gray-200 opacity-50'}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{combo.descCombo}</p>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">{combo.codCombo}</p>
-                  </div>
-                  <span className="text-xl font-bold text-indigo-600 shrink-0 ml-3">${combo.precio.toFixed(0)}</span>
-                </div>
-
-                {combo.items.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    {combo.items.map((item, j) => (
-                      <div key={j} className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0" />
-                        <span className="truncate">{item.productoNombre ?? `ID ${item.productoId}`}</span>
-                        <span className="text-gray-400 shrink-0">x{item.cantidad}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
-                  <button onClick={() => abrirComboModal(combo)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
+              <div
+                key={combo.id}
+                onClick={() => abrirComboModal(combo)}
+                className={`grid grid-cols-[110px_minmax(0,1fr)_100px_170px] items-center gap-x-2 w-full px-3 py-2 rounded-lg border-2 transition-colors bg-white cursor-pointer ${
+                  combo.activo
+                    ? 'border-gray-300 hover:bg-indigo-50/50 hover:border-indigo-200'
+                    : 'border-gray-200 opacity-60'
+                }`}
+              >
+                <span className="font-mono text-[12px] text-black truncate">{combo.codCombo}</span>
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="font-medium text-black truncate">{combo.descCombo}</span>
+                  {!combo.activo && (
+                    <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-black">Desactivado</span>
+                  )}
+                </span>
+                <span className="text-right font-bold tabular-nums text-black">${combo.precio.toFixed(2)}</span>
+                <span className="flex items-center justify-end gap-3" onClick={e => e.stopPropagation()}>
+                  <button type="button" onClick={() => abrirComboModal(combo)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
                   {combo.activo
-                    ? <button onClick={() => handleEliminarCombo(combo.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
-                    : <button onClick={() => handleReactivarCombo(combo.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
+                    ? <button type="button" onClick={() => handleEliminarCombo(combo.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
+                    : <button type="button" onClick={() => handleReactivarCombo(combo.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
                   }
-                  <button onClick={() => handleEliminarDefinitivoCombo(combo.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
+                  <button type="button" onClick={() => handleEliminarDefinitivoCombo(combo.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
                     <Trash2 size={14} />
                   </button>
-                </div>
+                </span>
               </div>
             ))}
           </div>
@@ -380,7 +404,7 @@ export default function CombosPage() {
               placeholder="Buscar oferta por producto o código..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-black cursor-pointer select-none">
             <input type="checkbox" checked={mostrarOfertasInactivas}
               onChange={e => setMostrarOfertasInactivas(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -389,13 +413,19 @@ export default function CombosPage() {
 
           {filteredOfertas.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 font-medium text-sm">
+              <p className="text-black font-medium text-sm">
                 {ofertaSearch.trim() ? 'No se encontraron ofertas' : 'No hay ofertas activas'}
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-[110px_minmax(0,1fr)_170px_170px] items-center gap-x-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+              <span className="truncate">Código</span>
+              <span className="truncate">Producto</span>
+              <span className="text-right truncate">Precio</span>
+              <span className="text-right truncate">Acciones</span>
+            </div>
             {filteredOfertas.map(oferta => {
               const prod = productos.find(p => p.id === oferta.productoId)
               const precioOriginal = prod?.precio ?? 0
@@ -405,46 +435,40 @@ export default function CombosPage() {
               const vigente = fin > ahora
 
               return (
-                <div key={oferta.id} className={`bg-white rounded-xl border p-5 transition-all ${!oferta.activo ? 'border-gray-200 opacity-50' : vigente ? 'border-amber-200 hover:border-amber-400 hover:shadow-md' : 'border-gray-200 opacity-60'}`}>
-                  <div className="flex items-start justify-between">
-
-
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 truncate">{oferta.productoNombre ?? `ID ${oferta.productoId}`}</p>
-                      <p className="text-xs text-gray-400 font-mono mt-0.5">{oferta.codigoBarra}</p>
-                    </div>
-                    <span className="text-xl font-bold text-amber-600 shrink-0 ml-3">${precioOferta.toFixed(0)}</span>
-                  </div>
-
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-400 line-through font-mono">${precioOriginal.toFixed(0)}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">-{oferta.descuento}%</span>
-                      <span className="text-gray-400">→</span>
-                      <span className="text-green-700 font-semibold font-mono">${precioOferta.toFixed(0)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      {!oferta.activo
-                        ? <span className="text-red-500 font-medium">Desactivada</span>
-                        : <span className={vigente ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{vigente ? 'Vigente' : 'Expirada'}</span>
-                      }
-                      <span>·</span>
-                      <span>{new Date(oferta.fechaInicio).toLocaleDateString()}</span>
-                      <span>→</span>
-                      <span>{fin.toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
-                    <button onClick={() => abrirOfertaModal(oferta)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
-                    {oferta.activo
-                      ? <button onClick={() => handleEliminarOferta(oferta.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
-                      : <button onClick={() => handleReactivarOferta(oferta.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
+                <div
+                  key={oferta.id}
+                  onClick={() => abrirOfertaModal(oferta)}
+                  className={`grid grid-cols-[110px_minmax(0,1fr)_170px_170px] items-center gap-x-2 w-full px-3 py-2 rounded-lg border-2 transition-colors bg-white cursor-pointer ${
+                    !oferta.activo
+                      ? 'border-gray-200 opacity-60'
+                      : vigente
+                        ? 'border-amber-200 hover:bg-amber-50/50 hover:border-amber-300'
+                        : 'border-gray-300 hover:bg-indigo-50/50 hover:border-indigo-200'
+                  }`}
+                >
+                  <span className="font-mono text-[12px] text-black truncate">{oferta.codigoBarra}</span>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-black truncate">{oferta.productoNombre ?? `ID ${oferta.productoId}`}</span>
+                    {!oferta.activo
+                      ? <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-black">Desactivada</span>
+                      : <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vigente ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{vigente ? 'Vigente' : 'Expirada'}</span>
                     }
-                    <button onClick={() => handleEliminarDefinitivoOferta(oferta.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
+                  </span>
+                  <span className="flex items-center justify-end gap-1.5 tabular-nums">
+                    <span className="text-[11px] text-black line-through">${precioOriginal.toFixed(0)}</span>
+                    <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">-{oferta.descuento}%</span>
+                    <span className="font-bold text-black">${precioOferta.toFixed(2)}</span>
+                  </span>
+                  <span className="flex items-center justify-end gap-3" onClick={e => e.stopPropagation()}>
+                    <button type="button" onClick={() => abrirOfertaModal(oferta)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Editar</button>
+                    {oferta.activo
+                      ? <button type="button" onClick={() => handleEliminarOferta(oferta.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Desactivar</button>
+                      : <button type="button" onClick={() => handleReactivarOferta(oferta.id)} className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors">Reactivar</button>
+                    }
+                    <button type="button" onClick={() => handleEliminarDefinitivoOferta(oferta.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar permanentemente">
                       <Trash2 size={14} />
                     </button>
-                  </div>
+                  </span>
                 </div>
               )
             })}
@@ -458,9 +482,9 @@ export default function CombosPage() {
         setForm={setComboForm}
         editId={comboEditId}
         productos={productos}
+        combos={combos}
         onSubmit={handleComboSubmit}
         onClose={cerrarComboModal}
-        notifyError={notifyError}
       />}
 
       {/* ---- OFERTA MODAL ---- */}
@@ -483,7 +507,7 @@ export default function CombosPage() {
         <div className="flex items-center justify-end gap-3 w-full">
           <button
             onClick={() => setConfirmDelete(null)}
-            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 bg-gray-100 text-black rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
           >
             Cancelar
           </button>
@@ -507,24 +531,26 @@ export default function CombosPage() {
 // COMBO FORM MODAL
 // ===================================================================
 function ComboFormModal({
-  form, setForm, editId, productos, onSubmit, onClose, notifyError,
+  form, setForm, editId, productos, combos, onSubmit, onClose,
 }: {
   form: { codCombo: string; descCombo: string; precio: string; fechaInicio: string; fechaFin: string; diasSemana: string[]; items: ComboItemDto[] }
   setForm: React.Dispatch<React.SetStateAction<typeof form>>
   editId: number | null
   productos: ProductoDto[]
+  combos: ComboDto[]
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
-  notifyError: (msg: string) => void
 }) {
   const [prodSearch, setProdSearch] = useState('')
-  const [cantidad, setCantidad] = useState('1')
-  const [showProdDropdown, setShowProdDropdown] = useState(false)
-  const [prodHighIdx, setProdHighIdx] = useState(-1)
-  const [selectedProductId, setSelectedProductId] = useState(0)
-  const prodInputRef = useRef<HTMLInputElement>(null)
-  const cantInputRef = useRef<HTMLInputElement>(null)
+  const [codigoAImprimir, setCodigoAImprimir] = useState<{ codigo: string; origen: string } | null>(null)
+  const [showLabelPrint, setShowLabelPrint] = useState(false)
   const descManual = useRef(editId !== null)
+
+  const comboConMismoCodigo = useMemo(() => {
+    const cod = form.codCombo.trim().toUpperCase()
+    if (!cod) return null
+    return combos.find(c => c.codCombo.toUpperCase() === cod && c.id !== editId) ?? null
+  }, [form.codCombo, combos, editId])
 
   // Auto-generar descripción concatenando nombres de productos
   useEffect(() => {
@@ -539,265 +565,339 @@ function ComboFormModal({
     }
   }, [form.items, editId])
 
-  const itemsYaAgregados = useMemo(() =>
-    new Set(form.items.map(i => i.productoId)),
-    [form.items])
+  const productosDisponibles = useMemo(() =>
+    productos.filter(p => !p.esBulto),
+    [productos])
 
-  const productosFiltrados = useMemo(() => {
-    if (!prodSearch.trim()) return productos
-    const q = prodSearch.toLowerCase()
-    return productos.filter(p =>
+  const productosLista = useMemo(() => {
+    const seleccionados = new Set(form.items.map(i => i.productoId))
+    const base = productosDisponibles.filter(p => !seleccionados.has(p.id))
+    const q = prodSearch.trim().toLowerCase()
+    if (!q) return base
+    return base.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
-      p.codigoBarra.toLowerCase().includes(q)
+      (p.codigoBarra ?? '').toLowerCase().includes(q)
     )
-  }, [productos, prodSearch])
+  }, [productosDisponibles, prodSearch, form.items])
 
-  function seleccionarDelDropdown(id: number) {
-    if (itemsYaAgregados.has(id)) {
-      notifyError('El producto ya está en el combo')
-      setProdSearch('')
-      setSelectedProductId(0)
-      setShowProdDropdown(false)
-      return
-    }
-    const prod = productos.find(p => p.id === id)!
-    setProdSearch(prod.nombre)
-    setSelectedProductId(id)
-    setShowProdDropdown(false)
-    setProdHighIdx(-1)
-    setTimeout(() => cantInputRef.current?.focus(), 50)
+  const totalVenta = useMemo(() => form.items.reduce((t, i) => {
+    const p = productos.find(x => x.id === i.productoId)
+    return t + (p?.precio ?? 0) * i.cantidad
+  }, 0), [form.items, productos])
+
+  const totalCosto = useMemo(() => form.items.reduce((t, i) => {
+    const p = productos.find(x => x.id === i.productoId)
+    return t + (p?.costo ?? 0) * i.cantidad
+  }, 0), [form.items, productos])
+
+  const precioCombo = parseFloat(form.precio) || 0
+  const descuento = precioCombo > 0 ? totalVenta - precioCombo : 0
+
+  function agregarProducto(p: ProductoDto) {
+    setForm(prev => prev.items.some(i => i.productoId === p.id)
+      ? prev
+      : {
+          ...prev,
+          items: [...prev.items, {
+            productoId: p.id,
+            cantidad: 1,
+            productoNombre: p.nombre,
+            codigoBarra: p.codigoBarra,
+          }],
+        })
+    setProdSearch('')
   }
 
-  function agregarProductoSeleccionado() {
-    if (selectedProductId <= 0) {
-      if (!prodSearch.trim() && productosFiltrados.length > 0) {
-        seleccionarDelDropdown(productosFiltrados[0].id)
-        return
-      }
-      const match = productos.find(p =>
-        p.nombre.toLowerCase() === prodSearch.trim().toLowerCase() ||
-        p.codigoBarra === prodSearch.trim()
-      )
-      if (match) {
-        setSelectedProductId(match.id)
-        setProdSearch(match.nombre)
-        return
-      }
-      notifyError('Seleccioná un producto de la lista')
-      return
-    }
-    if (itemsYaAgregados.has(selectedProductId)) {
-      notifyError('El producto ya está en el combo')
-      setProdSearch('')
-      setSelectedProductId(0)
-      return
-    }
-    const cant = parseFloat(cantidad)
-    if (isNaN(cant) || cant <= 0) {
-      notifyError('Cantidad inválida')
-      return
-    }
-    const prod = productos.find(p => p.id === selectedProductId)
-    if (!prod) return
+  function quitarProducto(productoId: number) {
+    setForm(prev => ({ ...prev, items: prev.items.filter(i => i.productoId !== productoId) }))
+  }
+
+  function setCantidad(productoId: number, cantidad: number) {
+    if (cantidad <= 0) { quitarProducto(productoId); return }
     setForm(prev => ({
       ...prev,
-      items: [...prev.items, {
-        productoId: selectedProductId,
-        cantidad: cant,
-        productoNombre: prod.nombre,
-        codigoBarra: prod.codigoBarra,
-      }],
+      items: prev.items.map(i => i.productoId === productoId ? { ...i, cantidad } : i),
     }))
-    setProdSearch('')
-    setCantidad('1')
-    setSelectedProductId(0)
-    prodInputRef.current?.focus()
   }
 
-  function quitarItem(idx: number) {
-    setForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))
+  function limpiarTodo() {
+    setForm(prev => ({ ...prev, items: [] }))
+  }
+
+  function handleSearchChange(valor: string) {
+    setProdSearch(valor)
+    const buscado = normalizarCodigoBarra(valor).toLowerCase()
+    if (!buscado) return
+    const match = productosDisponibles.find(p =>
+      (p.codigoBarra ?? '').trim() !== '' &&
+      normalizarCodigoBarra(p.codigoBarra).toLowerCase() === buscado
+    )
+    if (!match) return
+    agregarProducto(match)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={onSubmit} onClick={e => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">
-            {editId !== null ? 'Editar combo' : 'Nuevo combo'}
-          </h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-            <X size={16} />
-          </button>
+    <>
+    <Dialog
+      open
+      onClose={onClose}
+      closeOnBackdrop={false}
+      title="COMBO"
+      icon={Sandwich}
+      highlight={form.descCombo.trim() || (editId !== null ? 'Editar combo' : 'Nuevo combo')}
+      description="Editá la información del combo y seleccioná los productos que lo componen."
+      width="2xl"
+      fillHeight
+      footer={
+        <div className="flex items-center justify-end gap-3 w-full">
+          <Button variant="secondary" size="md" icon={<Printer size={16} />} type="button" onClick={() => setShowLabelPrint(true)}>
+            Imprimir etiqueta
+          </Button>
+          <Button variant="destructive" size="md" className="min-w-[128px]" icon={<Trash2 size={16} />} type="button" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" size="md" className="min-w-[128px]" icon={<Check size={18} />} type="submit" form="combo-form" disabled={comboConMismoCodigo !== null}>
+            {editId !== null ? 'Guardar cambios' : 'Crear combo'}
+          </Button>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Código *</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-mono text-gray-400 select-none">{COMBO_PREFIX}</span>
-              <input type="text"
-                value={form.codCombo.startsWith(COMBO_PREFIX) ? form.codCombo.substring(COMBO_PREFIX.length) : form.codCombo}
-                onChange={e => {
-                  const val = e.target.value.trim()
-                  setForm(f => ({ ...f, codCombo: val ? COMBO_PREFIX + val : '' }))
-                }}
-                className="w-full pl-14 pr-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                placeholder="4" />
-            </div>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Descripción *</label>
-            <input type="text" value={form.descCombo}
-              onChange={e => { descManual.current = true; setForm(f => ({ ...f, descCombo: e.target.value })) }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-              placeholder="Combo Hamburguesa + Papas + Bebida" />
-          </div>
-        </div>
-
-        {/* Recurrencia */}
-        <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Recurrencia (opcional)</h4>
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha inicio</label>
-              <input type="datetime-local" value={form.fechaInicio}
-                onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha fin</label>
-              <input type="datetime-local" value={form.fechaFin}
-                onChange={e => setForm(f => ({ ...f, fechaFin: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-            </div>
-          </div>
-          <DiasSemanaSelector selected={form.diasSemana}
-            onChange={dias => setForm(f => ({ ...f, diasSemana: dias }))} />
-        </div>
-
-        {/* Productos del combo — searchable select */}
-        <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Productos del combo</h4>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 relative">
-              <label className="block text-xs text-gray-500 mb-1">Producto</label>
-              <input ref={prodInputRef} type="text" value={prodSearch}
-                onChange={e => { setProdSearch(e.target.value); setShowProdDropdown(true); setProdHighIdx(-1); setSelectedProductId(0) }}
-                onFocus={() => { if (prodSearch) setShowProdDropdown(true) }}
-                onBlur={() => setTimeout(() => setShowProdDropdown(false), 200)}
-                onKeyDown={e => {
-                  if (!showProdDropdown || productosFiltrados.length === 0) return
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setProdHighIdx(Math.min(prodHighIdx + 1, productosFiltrados.length - 1)) }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); setProdHighIdx(Math.max(prodHighIdx - 1, 0)) }
-                  else if (e.key === 'Enter' && prodHighIdx >= 0) {
-                    e.preventDefault()
-                    seleccionarDelDropdown(productosFiltrados[prodHighIdx].id)
-                  }
-                }}
-                placeholder="Buscar producto..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-              {showProdDropdown && productosFiltrados.length > 0 && (
-                <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
-                  {productosFiltrados.map((p, i) => (
-                    <li key={p.id}
-                      onMouseDown={() => seleccionarDelDropdown(p.id)}
-                      onMouseEnter={() => setProdHighIdx(i)}
-                      className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === prodHighIdx ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'} ${itemsYaAgregados.has(p.id) ? 'opacity-40' : ''}`}>
-                      <span className="truncate">{p.nombre}</span>
-                      <span className="text-gray-400 shrink-0 font-mono text-[11px]">${p.precio.toFixed(0)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="w-24">
-              <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
-              <input ref={cantInputRef} type="number" min="0.001" step="0.001" value={cantidad}
-                onChange={e => setCantidad(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-            </div>
-            <button type="button" onClick={agregarProductoSeleccionado}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
-              + Agregar
-            </button>
-          </div>
-
-          {form.items.length > 0 && (
-            <div className="mt-3">
-              <div className="grid grid-cols-[1fr_56px_72px_72px_40px] gap-1.5 px-2 mb-1">
-                <span className="text-[11px] text-gray-400 font-medium">Producto</span>
-                <span className="text-[11px] text-gray-400 font-medium text-center">Cant</span>
-                <span className="text-[11px] text-gray-400 font-medium text-right">Costo u.</span>
-                <span className="text-[11px] text-gray-400 font-medium text-right">Vta. u.</span>
-                <span />
+      }
+    >
+      <form id="combo-form" className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" onSubmit={onSubmit} onKeyDown={e => {
+        const target = e.target as HTMLElement
+        if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+          e.preventDefault()
+        }
+      }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
+          {/* ── Columna izquierda ── */}
+          <div className="min-w-0 flex flex-col gap-4 lg:min-h-0">
+            {/* Información general */}
+            <div className="shrink-0">
+              <h3 className="text-xs font-semibold text-black uppercase tracking-wider mb-2">Información general</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-black mb-1">Código *</label>
+                  <PrefixedCodeInput
+                    prefix={COMBO_PREFIX}
+                    value={form.codCombo}
+                    onChange={codCombo => setForm(f => ({ ...f, codCombo }))}
+                    size="lg"
+                    placeholder="Auto-generado"
+                    trailing={form.codCombo ? (
+                      <button type="button" title="Imprimir código de barras" onClick={() => setCodigoAImprimir({ codigo: form.codCombo, origen: 'Código de combo' })}
+                        className="text-gray-400 hover:text-[var(--color-primary)] transition-colors">
+                        <Printer size={13} />
+                      </button>
+                    ) : undefined}
+                  />
+                  {comboConMismoCodigo && (
+                    <p className="mt-0.5 text-[11px] font-medium text-red-600">
+                      Ya existe «{comboConMismoCodigo.descCombo}» con este código
+                    </p>
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-black mb-1">Nombre / Descripción *</label>
+                  <input type="text" value={form.descCombo}
+                    onChange={e => { descManual.current = true; setForm(f => ({ ...f, descCombo: e.target.value })) }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none"
+                    placeholder="Combo Hamburguesa + Papas + Bebida" />
+                </div>
               </div>
-              {form.items.map((item, i) => {
-                const prod = productos.find(p => p.id === item.productoId)
-                const costoUnit = prod?.costo ?? 0
-                const ventaUnit = prod?.precio ?? 0
-                return (
-                  <div key={i} className="grid grid-cols-[1fr_56px_72px_72px_40px] gap-1.5 items-center bg-gray-50 rounded-lg px-2 py-1.5 text-sm mb-1">
-                    <span className="truncate font-medium">{item.productoNombre ?? prod?.nombre ?? `ID ${item.productoId}`}</span>
-                    <span className="text-center font-mono text-xs tabular-nums">{item.cantidad}</span>
-                    <span className="text-right font-mono text-xs tabular-nums text-gray-500">${costoUnit.toFixed(0)}</span>
-                    <span className="text-right font-mono text-xs tabular-nums text-gray-500">${ventaUnit.toFixed(0)}</span>
-                    <button type="button" onClick={() => quitarItem(i)} className="flex justify-center text-red-400 hover:text-red-600">
-                      <X size={14} />
-                    </button>
-                  </div>
-                )
-              })}
-              {(() => {
-                const costoTotal = form.items.reduce((t, i) => { const p = productos.find(x => x.id === i.productoId); return t + (p?.costo ?? 0) * i.cantidad }, 0)
-                const ventaTotal = form.items.reduce((t, i) => { const p = productos.find(x => x.id === i.productoId); return t + (p?.precio ?? 0) * i.cantidad }, 0)
-                const comboPrecio = parseFloat(form.precio) || 0
-                const ahorro = ventaTotal - comboPrecio
-                const descuento = ventaTotal > 0 ? (ahorro / ventaTotal * 100).toFixed(0) : '0'
-                return (
-                  <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2 text-sm border border-amber-200">
-                      <span className="text-xs text-gray-500">Costo total</span>
-                      <span className="font-mono font-semibold tabular-nums text-gray-700">${costoTotal.toFixed(0)}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2 text-sm border border-indigo-100">
-                      <span className="text-xs text-gray-500">Suma venta individual</span>
-                      <span className="font-mono font-semibold tabular-nums text-indigo-600">${ventaTotal.toFixed(0)}</span>
-                    </div>
-                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm border ${comboPrecio > 0 && comboPrecio < costoTotal ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-                      <label className="text-xs text-gray-500">Precio combo</label>
-                      <div className="flex items-center gap-1.5">
-                        {costoTotal > 0 && comboPrecio > 0 && comboPrecio < costoTotal && (
-                          <AlertTriangle size={15} className="text-red-500 shrink-0" strokeWidth={2.5} />
-                        )}
-                        <input type="number" step="0.01" value={form.precio}
-                          onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
-                          className="w-24 text-right px-2 py-1 border border-gray-300 rounded text-sm font-mono font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                          placeholder="2000" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg px-3 py-2 text-sm border"
-                      style={{ backgroundColor: ahorro >= 0 ? '#f0fdf4' : '#fef2f2', borderColor: ahorro >= 0 ? '#bbf7d0' : '#fecaca' }}>
-                      <span className="text-xs" style={{ color: ahorro >= 0 ? '#166534' : '#991b1b' }}>
-                        {ahorro >= 0 ? 'Ahorro' : 'Pérdida'} ({descuento}%)
-                      </span>
-                      <span className="font-mono font-bold tabular-nums" style={{ color: ahorro >= 0 ? '#15803d' : '#dc2626' }}>
-                        {ahorro >= 0 ? '-' : '+'}${Math.abs(ahorro).toFixed(0)}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })()}
             </div>
-          )}
-        </div>
 
-        <button type="submit"
-          className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors">
-          {editId !== null ? 'Guardar cambios' : 'Crear combo'}
-        </button>
+            {/* Recurrencia */}
+            <div className="shrink-0">
+              <h3 className="text-xs font-semibold text-black uppercase tracking-wider mb-2">Recurrencia (opcional)</h3>
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                <div>
+                  <label className="block text-xs font-medium text-black mb-1">Fecha inicio</label>
+                  <input type="datetime-local" value={form.fechaInicio}
+                    onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-black mb-1">Fecha fin</label>
+                  <input type="datetime-local" value={form.fechaFin}
+                    onChange={e => setForm(f => ({ ...f, fechaFin: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none" />
+                </div>
+              </div>
+              <DiasSemanaSelector selected={form.diasSemana}
+                onChange={dias => setForm(f => ({ ...f, diasSemana: dias }))} />
+            </div>
+
+            {/* Productos disponibles */}
+            <div className="border border-gray-300 bg-white overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-gray-300 shrink-0">
+                <h3 className="text-xs font-semibold text-black">PRODUCTOS DISPONIBLES</h3>
+                <div className="relative w-64 max-w-[60%]">
+                  <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" value={prodSearch}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    placeholder="Buscar producto..."
+                    className="w-full pl-8 pr-2 py-1 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
+                </div>
+              </div>
+              <div className="max-h-[380px] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100">
+                    <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                      <th className="px-2 py-1.5">Producto</th>
+                      <th className="px-1 py-1.5 text-right w-[72px] xl:w-[92px]">Precio</th>
+                      <th className="px-1 py-1.5 text-right w-[56px]">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productosLista.map(p => (
+                      <tr key={p.id} onClick={() => agregarProducto(p)}
+                        className="cursor-pointer border-b border-gray-200 last:border-0 hover:bg-gray-50">
+                        <td className="px-2 py-1.5">
+                          <span className="text-black">{p.nombre}</span>
+                          <span className="block font-mono text-[11px] text-black">{p.codigoBarra || p.codigoProducto || ''}</span>
+                        </td>
+                        <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${p.precio.toFixed(2)}</td>
+                        <td className="px-1 py-1.5 text-right tabular-nums whitespace-nowrap">
+                          <span className={p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}>●</span> {p.stock}
+                        </td>
+                      </tr>
+                    ))}
+                    {productosLista.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-10 text-center text-sm text-black">Sin productos para mostrar</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Columna derecha ── */}
+          <div className="min-w-0 flex flex-col gap-3 lg:min-h-0">
+            {/* Productos del combo */}
+            <div className="border border-gray-300 bg-white overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+              <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-gray-300 shrink-0">
+                <h3 className="text-xs font-semibold text-black">PRODUCTOS DEL COMBO ({form.items.length})</h3>
+                {form.items.length > 0 && (
+                  <button type="button" onClick={limpiarTodo}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 border border-gray-300 text-[12px] text-black hover:border-red-400 hover:text-red-600 transition-colors">
+                    <Trash2 size={13} /> Limpiar todo
+                  </button>
+                )}
+              </div>
+              {form.items.length === 0 ? (
+                <div className="px-3 py-12 text-center text-sm text-black lg:flex-1 lg:flex lg:items-center lg:justify-center">Agregá productos desde la lista de la izquierda</div>
+              ) : (
+                <div className="max-h-[420px] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="sticky top-0 z-10 bg-gray-100">
+                      <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                        <th className="px-2 py-1.5">Producto</th>
+                        <th className="px-1 py-1.5 text-right w-[68px] xl:w-[90px]">P. unit.</th>
+                        <th className="px-1 py-1.5 text-center w-[86px]">Cant.</th>
+                        <th className="px-1 py-1.5 text-right w-[72px] xl:w-[90px]">Subtotal</th>
+                        <th className="px-1 py-1.5 w-[24px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.items.map(i => {
+                        const p = productos.find(x => x.id === i.productoId)
+                        const precio = p?.precio ?? 0
+                        const esPesable = p?.esPesable ?? false
+                        const step = esPesable ? 0.1 : 1
+                        return (
+                          <tr key={i.productoId} className="border-b border-gray-200 last:border-0 hover:bg-gray-50">
+                            <td className="px-2 py-1.5">
+                              <span className="text-black">{i.productoNombre ?? p?.nombre ?? `#${i.productoId}`}</span>
+                              {(i.codigoBarra || p?.codigoBarra) && (
+                                <span className="block font-mono text-[11px] text-black">{i.codigoBarra || p?.codigoBarra}</span>
+                              )}
+                            </td>
+                            <td className="px-1 py-1.5 text-right tabular-nums text-black whitespace-nowrap">${precio.toFixed(2)}</td>
+                            <td className="px-1 py-1.5">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <button type="button" onClick={() => setCantidad(i.productoId, i.cantidad - step)}
+                                  className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100">
+                                  <Minus size={11} />
+                                </button>
+                                <input type="number" min={0} step={step} value={i.cantidad}
+                                  onChange={e => setCantidad(i.productoId, parseFloat(e.target.value) || 0)}
+                                  className="w-10 py-0.5 text-center border border-gray-300 font-mono text-xs tabular-nums outline-none focus:border-[var(--color-primary)]" />
+                                <button type="button" onClick={() => setCantidad(i.productoId, i.cantidad + step)}
+                                  className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100">
+                                  <Plus size={11} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-1 py-1.5 text-right font-semibold tabular-nums text-black whitespace-nowrap">${(precio * i.cantidad).toFixed(2)}</td>
+                            <td className="px-1 py-1.5 text-center">
+                              <button type="button" onClick={() => quitarProducto(i.productoId)} title="Quitar"
+                                className="text-black hover:text-red-500 transition-colors">
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* RESUMEN — pegado abajo del carrito, como en Ventas */}
+              <div className="shrink-0 border-t border-gray-300">
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                  <h3 className="text-xs font-bold text-black">RESUMEN</h3>
+                  <span className="text-[13px] font-medium text-black tabular-nums">{form.items.length} prod. · ${totalVenta.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 pb-2">
+                  <label className="text-[13px] font-medium text-black whitespace-nowrap">Precio combo</label>
+                  <div className="flex-1 flex items-center gap-1 bg-gray-50 border border-gray-300 px-2 py-1">
+                    <span className="text-[13px] text-black select-none">$</span>
+                    <input type="number" step="0.01" min="0" value={form.precio}
+                      onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
+                      placeholder="0,00"
+                      className="flex-1 w-full bg-transparent text-right text-base font-bold text-black font-mono tabular-nums outline-none" />
+                  </div>
+                </div>
+                <div className="px-3 pb-2 space-y-1">
+                  <div className={`flex items-center justify-between px-2.5 py-1.5 border ${descuento >= 0 ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300'}`}>
+                    <span className={`text-[13px] font-semibold ${descuento >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>Descuento</span>
+                    <span className={`inline-flex items-center gap-1 text-[15px] font-bold tabular-nums ${descuento >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      <Tag size={14} strokeWidth={2.5} />
+                      {descuento < 0 ? '-' : ''}${Math.abs(descuento).toFixed(2)}
+                      {totalVenta > 0 && ` (${Math.round(descuento / totalVenta * 100)}%)`}
+                    </span>
+                  </div>
+                  {totalCosto > 0 && precioCombo > 0 && precioCombo < totalCosto && (
+                    <p className="flex items-center gap-1 text-[11px] font-medium text-red-700">
+                      <AlertTriangle size={12} strokeWidth={2.5} />
+                      Menor al costo (${totalCosto.toFixed(2)})
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </form>
-    </div>
+    </Dialog>
+
+    {codigoAImprimir && (
+      <BarcodePrintDialog codigo={codigoAImprimir.codigo} origen={codigoAImprimir.origen} onClose={() => setCodigoAImprimir(null)} />
+    )}
+
+    {showLabelPrint && (
+      <LabelPrintDialog
+        nombre={form.descCombo}
+        precio={Number(form.precio) || 0}
+        codigoInterno={form.codCombo}
+        onClose={() => setShowLabelPrint(false)}
+      />
+    )}
+    </>
   )
 }
 
@@ -818,6 +918,8 @@ function OfertaFormModal({
   const [showProdDropdown, setShowProdDropdown] = useState(false)
   const [prodHighIdx, setProdHighIdx] = useState(-1)
   const prodInputRef = useRef<HTMLInputElement>(null)
+  const [modoDescuento, setModoDescuento] = useState<'porcentaje' | 'precio'>('porcentaje')
+  const [precioFinalInput, setPrecioFinalInput] = useState('0')
 
   const productosFiltrados = useMemo(() => {
     if (!prodSearch.trim()) return productos
@@ -847,22 +949,31 @@ function OfertaFormModal({
   const precioOferta = precioOriginal * (1 - desc / 100)
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={onSubmit} onClick={e => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">
-            {editId !== null ? 'Editar oferta' : 'Nueva oferta'}
-          </h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-            <X size={16} />
-          </button>
+    <Dialog
+      open
+      onClose={onClose}
+      closeOnBackdrop={false}
+      title="OFERTA"
+      icon={Tag}
+      highlight={form.productoNombre.trim() || (editId !== null ? 'Editar oferta' : 'Nueva oferta')}
+      width="md"
+      footer={
+        <div className="flex justify-end gap-2 w-full">
+          <Button variant="secondary" size="md" type="button" onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" size="md" type="submit" form="oferta-form">
+            {editId !== null ? 'Guardar' : 'Crear'}
+          </Button>
         </div>
-
-        {/* Searchable product select */}
+      }
+    >
+      <form id="oferta-form" className="space-y-3" onSubmit={onSubmit} onKeyDown={e => {
+        const target = e.target as HTMLElement
+        if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') e.preventDefault()
+      }}>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Producto *</label>
+          <label className="block text-xs font-medium text-black mb-1">Producto</label>
           <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input ref={prodInputRef} type="text" value={form.productoId > 0 ? form.productoNombre : prodSearch}
               onFocus={() => {
                 if (form.productoId > 0) {
@@ -888,16 +999,16 @@ function OfertaFormModal({
                 }
               }}
               placeholder="Buscar producto..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full pl-8 pr-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
             {showProdDropdown && productosFiltrados.length > 0 && (
-              <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
+              <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-48 overflow-y-auto text-[13px]">
                 {productosFiltrados.map((p, i) => (
                   <li key={p.id}
                     onMouseDown={() => seleccionarProducto(p.id)}
                     onMouseEnter={() => setProdHighIdx(i)}
                     className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === prodHighIdx ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                    <span className="truncate">{p.nombre}</span>
-                    <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
+                    <span className="truncate text-black">{p.nombre}</span>
+                    <span className="text-black shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
                   </li>
                 ))}
               </ul>
@@ -906,48 +1017,73 @@ function OfertaFormModal({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Descuento (%) *</label>
-          <input type="number" step="0.01" min="0.01" max="100" value={form.descuento}
-            onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-mono"
-            placeholder="15" />
+          <label className="block text-xs font-medium text-black mb-1">Descuento</label>
+          <div className="flex">
+            <select value={modoDescuento}
+              onChange={e => {
+                const m = e.target.value as 'porcentaje' | 'precio'
+                if (m === 'precio') setPrecioFinalInput(precioOriginal > 0 ? precioOferta.toFixed(2) : '')
+                setModoDescuento(m)
+              }}
+              className="px-2 py-1.5 border border-gray-300 border-r-0 bg-white text-sm text-black outline-none focus:border-[var(--color-primary)]">
+              <option value="porcentaje">Porcentaje</option>
+              <option value="precio">Precio final</option>
+            </select>
+            {modoDescuento === 'porcentaje' ? (
+              <input type="number" step="0.01" min="0" max="100" value={form.descuento}
+                onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
+                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 text-sm text-black text-right font-mono outline-none focus:border-[var(--color-primary)]"
+                placeholder="15" />
+            ) : (
+              <input type="number" step="0.01" min="0" value={precioFinalInput}
+                onChange={e => {
+                  const v = e.target.value
+                  setPrecioFinalInput(v)
+                  if (precioOriginal <= 0) return
+                  const p = parseFloat(v)
+                  if (isNaN(p)) { setForm(f => ({ ...f, descuento: '' })); return }
+                  const pct = Math.max(0, Math.min(100, (1 - p / precioOriginal) * 100))
+                  setForm(f => ({ ...f, descuento: String(Math.round(pct * 100) / 100) }))
+                }}
+                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 text-sm text-black text-right font-mono outline-none focus:border-[var(--color-primary)]"
+                placeholder="0,00" />
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio *</label>
+            <label className="block text-xs font-medium text-black mb-1">Desde</label>
             <input type="datetime-local" value={form.fechaInicio}
               onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full px-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin *</label>
+            <label className="block text-xs font-medium text-black mb-1">Hasta</label>
             <input type="datetime-local" value={form.fechaFin}
               onChange={e => setForm(f => ({ ...f, fechaFin: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              className="w-full px-2 py-1.5 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)]" />
           </div>
         </div>
 
         <DiasSemanaSelector selected={form.diasSemana}
           onChange={dias => setForm(f => ({ ...f, diasSemana: dias }))} />
 
-        {form.productoId > 0 && form.descuento && (
-          <div className="bg-amber-50 rounded-lg px-4 py-3 border border-amber-200">
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">{form.productoNombre || 'Producto'}</span>
-              {' '}— Precio original: <span className="font-mono font-semibold">${precioOriginal.toFixed(0)}</span>
-              {' → '}
-              <span className="font-mono font-bold text-green-700">${precioOferta.toFixed(0)}</span>
-              {' '}(-{desc}%)
-            </p>
+        <div className="border border-gray-300">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 text-[13px]">
+            <span className="text-black">Precio anterior</span>
+            <span className="text-black tabular-nums">${precioOriginal.toFixed(2)}</span>
           </div>
-        )}
-
-        <button type="submit"
-          className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors">
-          {editId !== null ? 'Guardar cambios' : 'Crear oferta'}
-        </button>
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 text-[13px]">
+            <span className="text-black">Descuento</span>
+            <span className="font-semibold text-red-600 tabular-nums">-${(precioOriginal - precioOferta).toFixed(2)} ({desc > 0 ? desc : 0}%)</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-50 text-[13px]">
+            <span className="font-semibold text-black">Precio final</span>
+            <span className="font-bold text-emerald-700 tabular-nums">${precioOferta.toFixed(2)}</span>
+          </div>
+        </div>
       </form>
-    </div>
+    </Dialog>
   )
 }
