@@ -27,6 +27,8 @@ export interface DialogProps {
   footer?: ReactNode
   /** Whether clicking the backdrop closes the dialog. Default true. */
   closeOnBackdrop?: boolean
+  /** Whether pressing Escape closes the dialog. Default true. */
+  closeOnEscape?: boolean
   /** Fixed height (85vh on lg): the body doesn't scroll; inner lists must scroll themselves. */
   fillHeight?: boolean
 }
@@ -38,6 +40,7 @@ const widthMap: Record<string, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-[1100px]',
+  '2xl': 'max-w-[1440px]',
 }
 
 // Solo el diálogo abierto más arriba responde a Escape / foco inicial.
@@ -56,6 +59,7 @@ export default function Dialog({
   children,
   footer,
   closeOnBackdrop = true,
+  closeOnEscape = true,
   fillHeight = false,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -69,6 +73,7 @@ export default function Dialog({
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (dialogStack[dialogStack.length - 1] !== token) return
+      if (!closeOnEscape) return
       e.preventDefault()
       onClose()
     }
@@ -78,7 +83,7 @@ export default function Dialog({
       const index = dialogStack.indexOf(token)
       if (index >= 0) dialogStack.splice(index, 1)
     }
-  }, [open, onClose])
+  }, [open, onClose, closeOnEscape])
 
   // Trap focus inside dialog when open
   useEffect(() => {

@@ -74,4 +74,5 @@ public class RecibirItemDto
     public decimal CantidadRecibida { get; set; }
     public bool EsFaltante { get; set; }
     public decimal PrecioUnitarioReal { get; set; }
+    public decimal PrecioVenta { get; set; }
 }

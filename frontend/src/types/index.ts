@@ -796,6 +796,7 @@ export interface RecibirItemDto {
   cantidadRecibida: number
   esFaltante: boolean
   precioUnitarioReal: number
+  precioVenta: number
 }
 
 // --- Combo types ---
