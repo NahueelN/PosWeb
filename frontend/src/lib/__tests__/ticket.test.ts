@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCierreTicketLines, buildTicketLines, wrapText } from '../ticket'
+import { buildCierreTicketLines, buildTicketLines, wrapText, TICKET_COLS_LG } from '../ticket'
 import type { TicketData } from '../ticket'
 import type { CajaDto } from '../../types'
 
@@ -56,6 +56,27 @@ describe('buildTicketLines', () => {
     expect(texto).not.toContain('...')
     for (const palabra of ['Coca-Cola', 'Zero', 'Lata', '354ml', 'Pack', 'x6']) {
       expect(texto).toContain(palabra)
+    }
+  })
+
+  it('la línea del TOTAL no supera el ancho reducido (regresión "sale $4 de $4.600")', () => {
+    const ticket: TicketData = {
+      empresaNombre: 'PosWeb',
+      ventaId: 1,
+      fecha: '2026-09-05T20:30:00.000Z',
+      vendedor: 'Ana',
+      items: [{ nombre: 'Producto', cantidad: 1, precio: 4600 }],
+      total: 4600,
+      pagos: [{ nombre: 'Efectivo' }],
+      cambio: 0,
+    }
+
+    for (const width of [58, 80] as const) {
+      const totales = buildTicketLines(ticket, width).filter(l => l.text.includes('TOTAL'))
+      for (const l of totales) {
+        expect(l.text.length).toBeLessThanOrEqual(TICKET_COLS_LG[width])
+        expect(l.text).toContain('$4.600,00')
+      }
     }
   })
 

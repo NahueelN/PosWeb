@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Printer, X } from 'lucide-react'
 import { api } from '../../api/client'
-import { buildTicketLines, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
+import { buildTicketLines, fitTicketToWidth, type TicketData, type TicketLine, type TicketWidth } from '../../lib/ticket'
 
 interface TicketModalProps {
   data?: TicketData
@@ -127,7 +127,20 @@ html, body { margin: 0; padding: 0; width: ${ancho}mm; }
 .receipt div { font-weight: 900; white-space: pre; }
 .text-center{text-align:center}.mt-2{margin-top:8px}.mb-1{margin-bottom:4px}
 ${pxCss}
-</style></head><body>${ticketHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
+</style></head><body>${ticketHtml}<script>window.onload = () => {
+  const el = document.querySelector('.receipt');
+  if (el) {
+    const style = getComputedStyle(el);
+    const avail = el.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+    el.querySelectorAll('div').forEach(r => {
+      if (r.scrollWidth > avail && avail > 0) {
+        const fs = parseFloat(getComputedStyle(r).fontSize);
+        if (fs > 0) r.style.fontSize = (fs * avail / r.scrollWidth).toFixed(2) + 'px';
+      }
+    });
+  }
+  window.focus(); window.print();
+}; window.onafterprint = () => window.close();</script></body></html>`)
       ticketWindow.document.close()
       return
     }
@@ -139,6 +152,10 @@ ${pxCss}
     style.id = styleId
     style.textContent = `:root { --ticket-width: ${ancho}mm; } @page { size: ${ancho}mm auto; margin: 0; }`
     document.head.appendChild(style)
+    if (receiptRef.current) {
+      receiptRef.current.style.whiteSpace = 'pre'
+      fitTicketToWidth(receiptRef.current)
+    }
     window.print()
     setTimeout(() => document.getElementById(styleId)?.remove(), 200)
   }
@@ -153,23 +170,7 @@ ${pxCss}
           </button>
         </div>
 
-        <div ref={receiptRef} className="receipt bg-white mx-auto font-mono leading-[1.45] text-gray-900"
-          style={{ fontFamily: "'Consolas', 'Courier New', Courier, monospace", width: `${ancho}mm`, overflowX: 'hidden' }}>
-          {lines.map((l, i) => {
-            const sizeCls = sizeClsFor(l)
-            return (
-              <div
-                key={i}
-                className={`${sizeCls} font-bold ${l.center ? 'text-center' : ''} ${l.space ? 'mt-2 mb-1' : ''}`}
-                style={l.center ? { textAlign: 'center' } : undefined}
-              >
-                {l.text}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex justify-center gap-3 mt-4 flex-wrap items-center">
+<div className="flex justify-center gap-3 mb-4 flex-wrap items-center">
           <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white shadow-sm">
             <span className="text-[11px] text-gray-400 font-medium px-2">Ticket</span>
             <button

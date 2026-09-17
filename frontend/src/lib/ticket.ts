@@ -36,6 +36,10 @@ export const TICKET_COLS: Record<TicketWidth, number> = { 80: 40, 58: 32 }
 export const TICKET_PRICE_W: Record<TicketWidth, number> = { 80: 14, 58: 12 }
 export const TICKET_NAME_MAX: Record<TicketWidth, number> = { 80: 26, 58: 20 }
 export const TICKET_DPI: Record<TicketWidth, number> = { 80: 203, 58: 203 }
+// Líneas en tamaño grande (lg) ocupan más ancho físico con la misma cantidad de
+// columnas. Se les reserva un ancho reducido para que el total nunca se corte en
+// el margen derecho (evita la regresión de "sale $4 de $4.600").
+export const TICKET_COLS_LG: Record<TicketWidth, number> = { 80: 29, 58: 23 }
 
 export function fmtPeso(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -53,6 +57,26 @@ function fmtHoraCorta(iso: string): string {
 function buildLine(width: TicketWidth): { line: string; dline: string } {
   const cols = TICKET_COLS[width]
   return { line: '─'.repeat(cols), dline: '═'.repeat(cols) }
+}
+
+/**
+ * Fallback de impresión: escala SOLO las líneas que desbordan el ancho del papel.
+ * A diferencia de escalar todo el ticket, respeta el tamaño y la fuente que el
+ * cliente eligió en las líneas que sí entran. Se usa como red de seguridad para
+ * montos extremos; normalmente el ancho reducido de las líneas lg ya alcanza.
+ */
+export function fitTicketToWidth(container: HTMLElement): void {
+  const style = getComputedStyle(container)
+  const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+  const avail = container.clientWidth - padX
+  if (avail <= 0) return
+  const rows = Array.from(container.children) as HTMLElement[]
+  rows.forEach(r => {
+    if (r.scrollWidth > avail) {
+      const fs = parseFloat(getComputedStyle(r).fontSize)
+      if (fs > 0) r.style.fontSize = `${(fs * avail / r.scrollWidth).toFixed(2)}px`
+    }
+  })
 }
 
 export function wrapText(text: string, maxWidth: number): string[] {
@@ -81,13 +105,14 @@ export function wrapText(text: string, maxWidth: number): string[] {
 
 export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLine[] {
   const cols = TICKET_COLS[width]
+  const colsLg = TICKET_COLS_LG[width]
   const priceW = TICKET_PRICE_W[width]
   const nameMax = TICKET_NAME_MAX[width]
   const { line, dline } = buildLine(width)
 
   const padFmt = (n: number) => fmtPeso(n).padStart(priceW)
-  const LR = (left: string, right: string) => {
-    const avail = cols - left.length
+  const LR = (left: string, right: string, totalW = cols) => {
+    const avail = totalW - left.length
     return left + (avail > 0 ? right.padStart(avail) : ' ' + right)
   }
 
@@ -114,7 +139,7 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
   push(line)
   push(`${data.items.reduce((s, i) => s + i.cantidad, 0)} artículos`)
   push(line)
-  push(LR('TOTAL', padFmt(data.total)), { bold: true, size: 'lg', space: true })
+  push(LR('TOTAL', padFmt(data.total), colsLg), { bold: true, size: 'lg', space: true })
   push(dline)
 
   data.pagos.forEach(p => push(LR('Forma de pago:', p.nombre.toUpperCase())))
@@ -134,13 +159,14 @@ export function buildTicketLines(data: TicketData, width: TicketWidth): TicketLi
 
 export function buildCierreTicketLines(caja: CajaDto, width: TicketWidth): TicketLine[] {
   const cols = TICKET_COLS[width]
+  const colsLg = TICKET_COLS_LG[width]
   const priceW = TICKET_PRICE_W[width]
   const { line, dline } = buildLine(width)
 
   const padFmt = (n: number) => fmtPeso(n).padStart(priceW)
   const signedFmt = (n: number) => ((n >= 0 ? '+' : '-') + fmtPeso(Math.abs(n))).padStart(priceW)
-  const LR = (left: string, right: string) => {
-    const avail = cols - left.length
+  const LR = (left: string, right: string, totalW = cols) => {
+    const avail = totalW - left.length
     return left + (avail > 0 ? right.padStart(avail) : ' ' + right)
   }
 
@@ -160,7 +186,7 @@ export function buildCierreTicketLines(caja: CajaDto, width: TicketWidth): Ticke
   push(LR('Ventas', padFmt(caja.totalVentas)))
   push(LR('Gastos', caja.gastos > 0 ? ('-' + fmtPeso(caja.gastos)).padStart(priceW) : padFmt(0)))
   push(dline)
-  push(LR('GANANCIA', padFmt(caja.totalVentas - caja.gastos)), { bold: true, size: 'lg', space: true })
+  push(LR('GANANCIA', padFmt(caja.totalVentas - caja.gastos), colsLg), { bold: true, size: 'lg', space: true })
   push(dline)
 
   const pagos = caja.desglosePagos ?? []

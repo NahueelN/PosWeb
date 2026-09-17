@@ -39,6 +39,17 @@
         document.getElementById('ticket').appendChild(row)
       })
       setTimeout(async () => {
+        const ticket = document.getElementById('ticket')
+        if (ticket) {
+          const style = getComputedStyle(ticket)
+          const avail = ticket.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0)
+          Array.from(ticket.children).forEach(r => {
+            if (r.scrollWidth > avail && avail > 0) {
+              const fs = parseFloat(getComputedStyle(r).fontSize)
+              if (fs > 0) r.style.fontSize = (fs * avail / r.scrollWidth).toFixed(2) + 'px'
+            }
+          })
+        }
         window.focus()
         window.print()
         await closePrintWindow()
