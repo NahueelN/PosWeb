@@ -48,6 +48,6 @@ steps:
   displayName: 'Instalar dependencias del frontend'
   workingDirectory: 'frontend'
 
-- script: npx vitest run src/lib/__tests__/ticket.test.ts --reporter=basic
+- script: npx vitest run src/lib/__tests__/ticket.test.ts
   displayName: 'Tests de ticket (frontend)'
   workingDirectory: 'frontend'
