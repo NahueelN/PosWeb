@@ -33,3 +33,8 @@
 | BUS-compra | RELATED | PAT-cart-flow |
 | BUS-carrito | RELATED | PAT-cart-flow |
 | LAYOUT-page-shell | RELATED | DS-design-tokens |
+| ADR-ticket-resultado-landing | RELATED | PAT-usuario-preferencias |
+| ADR-ticket-resultado-landing | USES | COMP-LabelPrintDialog |
+| PAT-ticket-impresion-ancho | RESPECTS | PAT-usuario-preferencias |
+| PAT-ticket-impresion-ancho | RELATED | ADR-ticket-resultado-landing |
+| PAT-ticket-impresion-ancho | RELATED | COMP-LabelPrintDialog |
