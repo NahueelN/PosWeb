@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import type { SucursalDto, GastoDto, CajaDto, CategoriaGastoDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
@@ -229,6 +230,7 @@ export default function GastosPage() {
       <PageHeader
         title="Gastos"
         subtitle={cajaActiva ? `${gastos.length} gastos registrados` : undefined}
+        helpKey={HELP_KEYS.gastos}
       />
 
       {error && (

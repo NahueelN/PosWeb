@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import ProductCardPanel from '../components/ProductCardPanel'
@@ -215,6 +216,7 @@ export default function ProductosPage() {
           </Button>
         </>
       ) : undefined}
+      helpKey={tab === 'productos' ? HELP_KEYS.productos : tab === 'configuracion' ? 'solapa-productos-configuracion' : 'solapa-productos-actualizacion'}
       tabs={
         <div className="flex border-b border-slate-200">
           <button onClick={() => setTab('productos')}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
@@ -293,7 +294,7 @@ export default function DashboardPage() {
   if (!dashboard) {
     return (
       <PageShell title="Inicio" subtitle="Resumen de la actividad del negocio" loading={loading} loadingMessage="Cargando dashboard…"
-        error={!loading ? 'No se pudieron cargar los datos del dashboard' : null} onErrorClose={() => cargar()}>
+        error={!loading ? 'No se pudieron cargar los datos del dashboard' : null} onErrorClose={() => cargar()} helpKey={HELP_KEYS.inicio}>
         <div />
       </PageShell>
     )
@@ -306,6 +307,7 @@ export default function DashboardPage() {
         subtitle="Resumen de la actividad del negocio"
         loading={loading}
         loadingMessage="Actualizando…"
+        helpKey={HELP_KEYS.inicio}
         actions={
           <div className="flex items-center gap-2">
             {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}

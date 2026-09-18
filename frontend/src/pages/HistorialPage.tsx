@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
@@ -234,6 +235,7 @@ export default function HistorialPage() {
     <PageShell
       title="Historial"
       subtitle="Historial de ventas y compras del negocio."
+      helpKey={modo === 'ventas' ? HELP_KEYS.historial : 'solapa-historial-compras'}
       tabs={
         <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
           <button onClick={() => setModo('ventas')}

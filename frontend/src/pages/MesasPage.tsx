@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
@@ -8,7 +10,7 @@ import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import MontoInput from '../components/shared/MontoInput'
 import TicketResultado from './venta/TicketResultado'
-import { Search, Plus, X, Minus, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical, CreditCard, Smartphone, QrCode } from 'lucide-react'
+import { Search, Plus, X, Minus, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical, CreditCard, Smartphone, QrCode, HelpCircle } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda } from '../types'
 
 const GRUPOS_COMANDA: GrupoComanda[] = ['Entrada', 'Principal', 'Postre', 'Otros']
@@ -82,6 +84,7 @@ async function imprimirComanda(mesa: string, items: ItemComandaDto[], grupo?: st
 }
 
 export default function MesasPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { notifyError, notifySuccess } = useNotification()
   const { sucursal } = useSucursalActiva()
@@ -441,6 +444,15 @@ export default function MesasPage() {
           <Button size="sm" icon={<Plus size={14} />} onClick={() => { setNuevaMesaNumero(''); setNuevoSalon(salon); setNuevoSalonLibre(false); setMostrarNuevaMesa(true) }}>
             Agregar mesa
           </Button>
+          <button
+            type="button"
+            onClick={() => navigate('/ayuda?key=' + HELP_KEYS.mesas)}
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[oklch(0.52_0.255_278)] hover:bg-gray-100 transition-colors"
+            aria-label="Ayuda"
+            title="Ayuda"
+          >
+            <HelpCircle size={17} />
+          </button>
           </div>
         </div>
       )}

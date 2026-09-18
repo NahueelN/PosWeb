@@ -22,6 +22,7 @@ import CombosPage from './pages/CombosPage'
 import VencimientosPage from './pages/VencimientosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import MesasPage from './pages/MesasPage'
+import AyudaPage from './pages/AyudaPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
@@ -150,6 +151,7 @@ export default function App() {
 
               <Route path="/usuarios/alta" element={<Navigate to="/configuracion" replace />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
+              <Route path="/ayuda" element={<AyudaPage />} />
             </Route>
           </Route>
         </Routes>
