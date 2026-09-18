@@ -4,6 +4,17 @@ import CartHost from '../CartHost'
 import { useCart } from '../../../hooks/useCart'
 import { createMockStorage } from '../../../test-utils'
 
+vi.mock('../../../context/NotificationContext', () => ({
+  useNotification: () => ({
+    current: null,
+    hasNext: false,
+    notifyError: vi.fn(),
+    notifySuccess: vi.fn(),
+    notifyInfo: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}))
+
 // ── Test item ──────────────────────────────────────────────────────
 interface TestItem {
   id: number

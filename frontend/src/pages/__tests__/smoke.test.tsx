@@ -24,22 +24,21 @@ vi.mock('react-router-dom', () => ({
   useOutletContext: () => ({ sucursal: { id: 1, nombre: 'Central', codigo: 'CEN', numero: 1 } }),
 }))
 
-vi.mock('../../api/client', () => ({
-  api: {
-    sucursales: { listar: vi.fn().mockResolvedValue([]) },
-    productos: { listar: vi.fn().mockResolvedValue([]), detalle: vi.fn().mockResolvedValue(null), obtenerPorBarra: vi.fn().mockResolvedValue(null), crear: vi.fn(), actualizar: vi.fn(), lookupOpenFoodFacts: vi.fn() },
-    ventas: { crear: vi.fn(), listar: vi.fn(), detalle: vi.fn() },
-    compras: { crear: vi.fn() },
-    cajas: { activa: vi.fn().mockResolvedValue({ activa: true }), abrir: vi.fn(), cerrar: vi.fn(), previewCierre: vi.fn() },
-    mediosPago: { listar: vi.fn().mockResolvedValue([]) },
-    clientes: { listar: vi.fn().mockResolvedValue({ items: [] }), crear: vi.fn() },
-    proveedores: { listar: vi.fn().mockResolvedValue([]) },
-    combos: { listar: vi.fn().mockResolvedValue([]) },
-    categorias: { listar: vi.fn().mockResolvedValue([]) },
-    unidadesMedida: { listar: vi.fn().mockResolvedValue([]) },
-    gastos: { listar: vi.fn(), crear: vi.fn() },
-  },
-}))
+vi.mock('../../api/client', () => {
+  type CallableProxy = (() => Promise<unknown>) & { [k: string]: CallableProxy }
+  const callableProxy = (): CallableProxy => {
+    const fn = (() => Promise.resolve({})) as CallableProxy
+    const handler: ProxyHandler<CallableProxy> = {
+      get: (target, prop) => {
+        if (typeof prop === 'symbol') return fn
+        if (!(prop in target)) target[prop as string] = callableProxy()
+        return target[prop as string]
+      },
+    }
+    return new Proxy(fn, handler)
+  }
+  return { api: callableProxy() }
+})
 
 vi.mock('../../context/NotificationContext', () => ({
   useNotification: () => ({
