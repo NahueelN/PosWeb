@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { HelpCircle, Search, ChevronDown, ChevronRight } from 'lucide-react'
+import { HelpCircle, Search, ChevronDown, ChevronRight, ZoomIn, ZoomOut, X, ChevronLeft, ChevronRight as ChevronRightIcon, Maximize } from 'lucide-react'
 import { AYUDA_MODULOS, AYUDA_ITEMS, getAyudaItem, type AyudaEntrada, type AyudaItem } from '../help/content'
 
 function CapturaPendiente() {
@@ -16,7 +16,88 @@ function CapturaPendiente() {
   )
 }
 
-function DetalleItem({ item }: { item: AyudaEntrada }) {
+function Lightbox({ srcs, index, onClose }: { srcs: string[]; index: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(index)
+  const [zoom, setZoom] = useState(1)
+
+  const siguiente = useCallback(() => setIdx(i => (i + 1) % srcs.length), [srcs.length])
+  const anterior = useCallback(() => setIdx(i => (i - 1 + srcs.length) % srcs.length), [srcs.length])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowRight') siguiente()
+      else if (e.key === 'ArrowLeft') anterior()
+      else if (e.key === '+' || e.key === '=') setZoom(z => Math.min(4, z + 0.5))
+      else if (e.key === '-') setZoom(z => Math.max(1, z - 0.5))
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose, siguiente, anterior])
+
+  const src = srcs[idx]
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-4"
+      onClick={onClose}>
+      <div className="relative flex flex-col items-center w-full h-full"
+        onClick={e => e.stopPropagation()}>
+        {/* Toolbar */}
+        <div className="flex items-center justify-between w-full shrink-0 mb-3">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setZoom(z => Math.max(1, z - 0.5))}
+              className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+              aria-label="Alejar">
+              <ZoomOut size={17} />
+            </button>
+            <button type="button" onClick={() => setZoom(z => Math.min(4, z + 0.5))}
+              className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+              aria-label="Acercar">
+              <ZoomIn size={17} />
+            </button>
+            <span className="text-[11px] font-semibold text-white/70 px-2">
+              {Math.round(zoom * 100)}%
+            </span>
+          </div>
+          {srcs.length > 1 && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={anterior}
+                className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                aria-label="Anterior">
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-[12px] font-semibold text-white/80 min-w-[60px] text-center">
+                {idx + 1} / {srcs.length}
+              </span>
+              <button type="button" onClick={siguiente}
+                className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                aria-label="Siguiente">
+                <ChevronRightIcon size={18} />
+              </button>
+            </div>
+          )}
+          <button type="button" onClick={onClose}
+            className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+            aria-label="Cerrar">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Imagen con scroll + zoom */}
+        <div className="flex-1 min-h-0 w-full overflow-auto rounded-xl bg-black/30 flex items-start justify-center p-3">
+          <img
+            src={src}
+            alt={`Captura ${idx + 1}`}
+            style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+            className="rounded-lg object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetalleItem({ item, onOpenImagen }: { item: AyudaEntrada; onOpenImagen: (index: number) => void }) {
   const categoriaLabel = item.tipo === 'modulo' ? 'Módulo' : item.tipo === 'solapa' ? 'Solapa' : 'Concepto'
 
   return (
@@ -42,10 +123,20 @@ function DetalleItem({ item }: { item: AyudaEntrada }) {
         <div className="mt-4 space-y-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
             Capturas{item.imagenes.length > 1 ? ` (${item.imagenes.length})` : ''}
+            <span className="ml-2 normal-case text-slate-400">— click para ampliar</span>
           </p>
           {item.imagenes.map((src, i) => (
-            <img key={i} src={src} alt={`Captura ${i + 1} de ${item.titulo}`}
-              className="rounded-xl border border-gray-200 w-full max-w-2xl" />
+            <button key={i} type="button" onClick={() => onOpenImagen(i)}
+              className="block w-full text-left group relative overflow-hidden rounded-xl border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(0.52_0.255_278)]"
+              aria-label={`Ampliar captura ${i + 1} de ${item.titulo}`}>
+              <img src={src} alt={`Captura ${i + 1} de ${item.titulo}`}
+                className="w-full" />
+              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  <Maximize size={13} /> Ampliar
+                </span>
+              </span>
+            </button>
           ))}
         </div>
       ) : item.necesitaImagen ? (
@@ -80,6 +171,7 @@ export default function AyudaPage() {
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
   const [modulosAbiertos, setModulosAbiertos] = useState<Record<string, boolean>>({})
+  const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
   const detalleRef = useRef<HTMLDivElement>(null)
 
   const keyActiva = params.get('key') ?? 'modulo-inicio'
@@ -205,9 +297,18 @@ export default function AyudaPage() {
 
         {/* ── Detalle ── */}
         <div ref={detalleRef} className="flex-1 min-w-0 overflow-y-auto scroll-mt-2">
-          <DetalleItem item={itemActivo} />
+          <DetalleItem item={itemActivo}
+            onOpenImagen={index => {
+              if (itemActivo.imagenes && itemActivo.imagenes.length > 0) {
+                setLightbox({ srcs: itemActivo.imagenes, index })
+              }
+            }} />
         </div>
       </div>
+
+      {lightbox && (
+        <Lightbox srcs={lightbox.srcs} index={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
     </div>
   )
 }

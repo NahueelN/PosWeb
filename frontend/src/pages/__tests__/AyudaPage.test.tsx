@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AyudaPage from '../AyudaPage'
 
@@ -40,5 +41,13 @@ describe('AyudaPage', () => {
   it('no muestra captura pendiente en conceptos simples', () => {
     renderAyuda('concepto-venta')
     expect(screen.queryByText('Captura pendiente')).not.toBeInTheDocument()
+  })
+
+  it('abre el lightbox al hacer click en una captura', async () => {
+    renderAyuda('concepto-pesable')
+    const user = userEvent.setup()
+    const ampliar = screen.getByRole('button', { name: /Ampliar captura 1/i })
+    await user.click(ampliar)
+    expect(screen.getByLabelText('Cerrar')).toBeInTheDocument()
   })
 })
