@@ -26,8 +26,14 @@ describe('AyudaPage', () => {
     expect(screen.getByText(/representa un empaque/)).toBeInTheDocument()
   })
 
-  it('muestra la tarjeta de captura pendiente en conceptos con necesitaImagen', () => {
+  it('muestra las capturas en conceptos con imagenes', () => {
     renderAyuda('concepto-pesable')
+    expect(screen.getByText(/Capturas \(2\)/)).toBeInTheDocument()
+    expect(screen.queryByText('Captura pendiente')).not.toBeInTheDocument()
+  })
+
+  it('muestra la tarjeta de captura pendiente en conceptos sin imagen pero con necesitaImagen', () => {
+    renderAyuda('concepto-multipago')
     expect(screen.getByText('Captura pendiente')).toBeInTheDocument()
   })
 

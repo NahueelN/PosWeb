@@ -1,5 +1,17 @@
 export type AyudaTipo = 'solapa' | 'concepto'
 
+import pesableAlta from './screenshots/pesable-alta.png'
+import pesableVenta from './screenshots/pesable-venta.png'
+import bultoAlta from './screenshots/bulto-alta.png'
+import bultoFuncionamiento from './screenshots/bulto-funcionamiento.png'
+import cantidadIdealUbicacion from './screenshots/cantidad-ideal-ubicacion.png'
+import cantidadIdealStock from './screenshots/cantidad-ideal-stock.png'
+import cantidadIdealPedido from './screenshots/cantidad-ideal-pedido.png'
+import cierreCaja from './screenshots/cierre-caja.png'
+import cierreCajaResumen from './screenshots/cierre-caja-resumen.png'
+import mesas from './screenshots/mesas.png'
+import mesasCocina from './screenshots/mesas-cocina.png'
+
 export interface AyudaItem {
   /** Clave única usada en la URL ?key= */
   key: string
@@ -9,8 +21,8 @@ export interface AyudaItem {
   ejemplo?: string
   /** true = la UI muestra la tarjeta "captura pendiente" hasta que exista la imagen */
   necesitaImagen?: boolean
-  /** Path de la imagen importada (se asigna cuando el archivo existe) */
-  imagen?: string
+  /** Capturas de pantalla, en orden de visualización */
+  imagenes?: string[]
   relacionados?: string[]
 }
 
@@ -21,7 +33,7 @@ export interface AyudaModulo {
   definicion: string
   ejemplo?: string
   necesitaImagen?: boolean
-  imagen?: string
+  imagenes?: string[]
   relacionados?: string[]
   /** Solapas y conceptos que pertenecen a este módulo */
   items: AyudaItem[]
@@ -133,6 +145,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         tipo: 'concepto',
         definicion: 'Proceso que finaliza la jornada de caja. Muestra el total vendido por medio de pago, los gastos, y compara el efectivo esperado contra el contado, informando la diferencia. Al cerrar se genera un ticket de cierre.',
         necesitaImagen: true,
+        imagenes: [cierreCaja, cierreCajaResumen],
         relacionados: ['concepto-caja'],
       },
       {
@@ -155,6 +168,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         tipo: 'concepto',
         definicion: 'Cada espacio del salón donde se atienden comensales. Una mesa puede abrirse, cargarse de productos (comanda) y cobrarse al final. El mapa de mesas permite ver el estado de todas a la vez.',
         necesitaImagen: true,
+        imagenes: [mesas, mesasCocina],
         relacionados: ['concepto-comanda'],
       },
       {
@@ -186,6 +200,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Producto que se vende por peso (kg), como fiambres, verduras o carnes. Al momento de la venta se carga la cantidad en kilogramos y el sistema calcula el total. Su unidad de medida queda fijada en KG.',
         ejemplo: 'Vendés 0,750 kg de jamón a $12.000 el kg → el total es $9.000.',
         necesitaImagen: true,
+        imagenes: [pesableAlta, pesableVenta],
         relacionados: ['concepto-producto'],
       },
       {
@@ -195,6 +210,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Producto que representa un empaque o agrupación (ej: una caja de 6 gaseosas), sin stock, costo ni precio propios. Se asocia a un producto unidad: al vender o recibir un bulto, se actualiza el stock del producto unidad multiplicado por la cantidad que contiene.',
         ejemplo: 'La caja de 6 gaseosas está asociada a la gaseosa unidad. Recibís 2 cajas → se suman 12 unidades al stock.',
         necesitaImagen: true,
+        imagenes: [bultoAlta, bultoFuncionamiento],
         relacionados: ['concepto-producto'],
       },
       {
@@ -204,6 +220,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Nivel de stock que el negocio considera óptimo para un producto. Se configura en Configuración → Stock → control individual por producto. Cuando el stock está por debajo de la cantidad ideal, el módulo de Pedidos sugiere reponerlo; también alerta cuando cae por debajo del 20% del ideal.',
         ejemplo: 'Si un producto tiene cantidad ideal de 50 y el stock actual es 12, el módulo de Pedidos sugiere comprar 38 unidades.',
         necesitaImagen: true,
+        imagenes: [cantidadIdealUbicacion, cantidadIdealStock, cantidadIdealPedido],
         relacionados: ['modulo-pedidos'],
       },
       {
@@ -366,7 +383,7 @@ export interface AyudaEntrada {
   definicion: string
   ejemplo?: string
   necesitaImagen?: boolean
-  imagen?: string
+  imagenes?: string[]
   relacionados?: string[]
 }
 
@@ -380,7 +397,7 @@ export const AYUDA_ITEMS: AyudaEntrada[] = AYUDA_MODULOS.flatMap(modulo => [
     definicion: modulo.definicion,
     ejemplo: modulo.ejemplo,
     necesitaImagen: modulo.necesitaImagen,
-    imagen: modulo.imagen,
+    imagenes: modulo.imagenes,
     relacionados: modulo.relacionados,
   },
   ...modulo.items.map(item => ({
@@ -391,7 +408,7 @@ export const AYUDA_ITEMS: AyudaEntrada[] = AYUDA_MODULOS.flatMap(modulo => [
     definicion: item.definicion,
     ejemplo: item.ejemplo,
     necesitaImagen: item.necesitaImagen,
-    imagen: item.imagen,
+    imagenes: item.imagenes,
     relacionados: item.relacionados,
   })),
 ])

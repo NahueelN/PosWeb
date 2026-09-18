@@ -38,11 +38,15 @@ function DetalleItem({ item }: { item: AyudaEntrada }) {
         </div>
       )}
 
-      {item.imagen ? (
-        <div className="mt-4">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Captura</p>
-          <img src={item.imagen} alt={`Captura de ${item.titulo}`}
-            className="rounded-xl border border-gray-200 w-full max-w-2xl" />
+      {item.imagenes && item.imagenes.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Capturas{item.imagenes.length > 1 ? ` (${item.imagenes.length})` : ''}
+          </p>
+          {item.imagenes.map((src, i) => (
+            <img key={i} src={src} alt={`Captura ${i + 1} de ${item.titulo}`}
+              className="rounded-xl border border-gray-200 w-full max-w-2xl" />
+          ))}
         </div>
       ) : item.necesitaImagen ? (
         <div className="mt-4">
