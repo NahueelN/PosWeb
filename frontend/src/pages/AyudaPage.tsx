@@ -84,12 +84,12 @@ function Lightbox({ srcs, index, onClose }: { srcs: string[]; index: number; onC
         </div>
 
         {/* Imagen con scroll + zoom */}
-        <div className="flex-1 min-h-0 w-full overflow-auto rounded-xl bg-black/30 flex items-start justify-center p-3">
+        <div className="flex-1 min-h-0 w-full overflow-auto rounded-xl bg-black/30 flex items-center justify-center p-3">
           <img
             src={src}
             alt={`Captura ${idx + 1}`}
-            style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
-            className="rounded-lg object-contain"
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+            className="max-h-full max-w-full rounded-lg object-contain"
           />
         </div>
       </div>
@@ -127,10 +127,10 @@ function DetalleItem({ item, onOpenImagen }: { item: AyudaEntrada; onOpenImagen:
           </p>
           {item.imagenes.map((src, i) => (
             <button key={i} type="button" onClick={() => onOpenImagen(i)}
-              className="block w-full text-left group relative overflow-hidden rounded-xl border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(0.52_0.255_278)]"
-              aria-label={`Ampliar captura ${i + 1} de ${item.titulo}`}>
+              aria-label={`Ampliar captura ${i + 1} de ${item.titulo}`}
+              className="block w-full text-left group relative overflow-hidden rounded-xl border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(0.52_0.255_278)]">
               <img src={src} alt={`Captura ${i + 1} de ${item.titulo}`}
-                className="w-full" />
+                className="w-full max-h-[560px] object-contain bg-slate-50" />
               <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
                   <Maximize size={13} /> Ampliar
