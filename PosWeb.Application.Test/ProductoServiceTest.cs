@@ -352,4 +352,28 @@ public class ProductoServiceTest
             }
         }));
     }
+
+    [Fact]
+    public void BuscarPorNombre_DevuelveStockTotalDeTodasLasSucursales()
+    {
+        PosDbContextLocal context = CrearContexto(nameof(BuscarPorNombre_DevuelveStockTotalDeTodasLasSucursales));
+        ProductoService service = CrearService(context);
+
+        Producto producto = CrearProducto(context, 1, "7791234567890", "Coca Cola");
+        Sucursal sucursal1 = new Sucursal("COD1", "Sucursal 1", 1);
+        Sucursal sucursal2 = new Sucursal("COD2", "Sucursal 2", 2);
+        TestHelpers.SetId(sucursal1, 1, "ID_SUCURSAL");
+        TestHelpers.SetId(sucursal2, 2, "ID_SUCURSAL");
+        context.Sucursal.AddRange(sucursal1, sucursal2);
+        context.SaveChanges();
+
+        context.StockSucursal.Add(new StockSucursal(producto.ID_PRODUCTO, sucursal1.ID_SUCURSAL, 48m));
+        context.StockSucursal.Add(new StockSucursal(producto.ID_PRODUCTO, sucursal2.ID_SUCURSAL, 12m));
+        context.SaveChanges();
+
+        List<ProductoDto> resultado = service.BuscarPorNombre("Coca");
+
+        ProductoDto? encontrado = Assert.Single(resultado);
+        Assert.Equal(60m, encontrado.Stock);
+    }
 }

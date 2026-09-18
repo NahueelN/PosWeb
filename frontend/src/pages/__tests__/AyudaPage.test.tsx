@@ -43,6 +43,12 @@ describe('AyudaPage', () => {
     expect(screen.queryByText('Captura pendiente')).not.toBeInTheDocument()
   })
 
+  it('muestra el módulo de complementos con sus conceptos', () => {
+    renderAyuda('concepto-barcode-scanner')
+    expect(screen.getByText('Barcode Scanner')).toBeInTheDocument()
+    expect(screen.getByText(/vendeto\.com\.ar/)).toBeInTheDocument()
+  })
+
   it('abre el lightbox al hacer click en una captura', async () => {
     renderAyuda('concepto-pesable')
     const user = userEvent.setup()
