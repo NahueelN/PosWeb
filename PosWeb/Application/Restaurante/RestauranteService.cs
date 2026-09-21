@@ -115,7 +115,9 @@ public class RestauranteService
         if (req.SucursalId > 0)
             mesa.CambiarSucursal(req.SucursalId);
 
-        mesa.CambiarNumero(req.Numero);
+        if (req.Numero.Trim() != mesa.NUMERO_MESA)
+            mesa.CambiarNumero(req.Numero);
+
         mesa.CambiarDescripcion(req.Descripcion);
         mesa.CambiarSalon(req.Salon);
         mesa.Mover(req.PosX, req.PosY);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
@@ -8,10 +8,12 @@ import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import MontoInput from '../components/shared/MontoInput'
 import TicketResultado from './venta/TicketResultado'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Search, Plus, X, Minus, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical, CreditCard, Smartphone, QrCode } from 'lucide-react'
 import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda } from '../types'
 
 const GRUPOS_COMANDA: GrupoComanda[] = ['Entrada', 'Principal', 'Postre', 'Otros']
+const TAMANO_BASE_MESA = 112
 const GRUPO_LABEL: Record<GrupoComanda, string> = {
   Entrada: 'Entradas',
   Principal: 'Platos principales',
@@ -21,6 +23,10 @@ const GRUPO_LABEL: Record<GrupoComanda, string> = {
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof Error ? e.message : fallback
 }
 
 interface ItemEmitido {
@@ -85,6 +91,7 @@ export default function MesasPage() {
   const { user } = useAuth()
   const { notifyError, notifySuccess } = useNotification()
   const { sucursal } = useSucursalActiva()
+  const esCompacto = useMediaQuery('(max-width: 1279px)')
 
   const [mesas, setMesas] = useState<MesaDto[]>([])
   const [sesiones, setSesiones] = useState<SesionMesaDto[]>([])
@@ -108,6 +115,7 @@ export default function MesasPage() {
   const [resultadoItems, setResultadoItems] = useState<ItemEmitido[]>([])
 
   const [nuevaMesaNumero, setNuevaMesaNumero] = useState('')
+  const [nuevaMesaTitulo, setNuevaMesaTitulo] = useState('')
   const [nuevoSalon, setNuevoSalon] = useState('Principal')
   const [nuevoSalonLibre, setNuevoSalonLibre] = useState(false)
   const [salon, setSalon] = useState('Principal')
@@ -115,6 +123,9 @@ export default function MesasPage() {
   const [agregarSalonOpen, setAgregarSalonOpen] = useState(false)
   const [mostrarNuevaMesa, setMostrarNuevaMesa] = useState(false)
   const [confirmar, setConfirmar] = useState<{ tipo: 'cancelar' | 'eliminar' | 'reenviar'; sesion?: SesionMesaDto; mesa?: MesaDto; grupo?: GrupoComanda } | null>(null)
+  const [renombrarMesa, setRenombrarMesa] = useState<MesaDto | null>(null)
+  const [renombrarNombre, setRenombrarNombre] = useState('')
+  const [renombrarTitulo, setRenombrarTitulo] = useState('')
   const [tamanoMesa, setTamanoMesa] = useState(112)
 
   const sesionPorMesa = useMemo(() => {
@@ -147,7 +158,7 @@ export default function MesasPage() {
     notifySuccess(`Salón "${nombre}" creado`)
   }
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     if (!sucursal) return
     setCargando(true)
     try {
@@ -161,19 +172,42 @@ export default function MesasPage() {
       setSesiones(s)
       setMediosPago(mp)
       setMesaSeleccionada(prev => (prev && m.some(mm => mm.id === prev.id)) ? prev : null)
-    } catch (e: any) {
-      notifyError(e.message || 'Error al cargar mesas')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'Error al cargar mesas'))
     } finally {
       setCargando(false)
     }
-  }
+  }, [sucursal, notifyError])
 
-  useEffect(() => { cargar() }, [sucursal?.id])
+  useEffect(() => {
+    if (!sucursal) return
+    const raf = requestAnimationFrame(() => setCargando(true))
+    const run = async () => {
+      try {
+        const [m, s, mp] = await Promise.all([
+          api.restaurante.listarMesas(sucursal.id),
+          api.restaurante.sesionesAbiertas(sucursal.id),
+          api.mediosPago.listar(),
+        ])
+        mp.sort((a, b) => { const p = [1, 4]; const ia = p.indexOf(a.id); const ib = p.indexOf(b.id); if (ia !== -1 && ib !== -1) return ia - ib; if (ia !== -1) return -1; if (ib !== -1) return 1; return a.id - b.id })
+        setMesas(m)
+        setSesiones(s)
+        setMediosPago(mp)
+        setMesaSeleccionada(prev => (prev && m.some(mm => mm.id === prev.id)) ? prev : null)
+      } catch (e: unknown) {
+        notifyError(errorMessage(e, 'Error al cargar mesas'))
+      } finally {
+        setCargando(false)
+      }
+    }
+    void run()
+    return () => cancelAnimationFrame(raf)
+  }, [sucursal, notifyError])
 
   useEffect(() => {
     api.preferencias.obtener().then(res => {
       const ancho = Number(res.preferencias?.mesaMapa?.ancho)
-      if (Number.isFinite(ancho) && ancho >= 80 && ancho <= 200) setTamanoMesa(ancho)
+      if (Number.isFinite(ancho) && ancho >= 30 && ancho <= 200) setTamanoMesa(ancho)
     }).catch(() => {})
   }, [])
 
@@ -187,8 +221,8 @@ export default function MesasPage() {
       const sesion = await api.restaurante.abrirSesion(mesa.id)
       setSesiones(prev => [...prev.filter(x => x.id !== sesion.id), sesion])
       setMesaSeleccionada(mesa)
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo abrir la mesa')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo abrir la mesa'))
     }
   }
 
@@ -198,8 +232,8 @@ export default function MesasPage() {
       setSesiones(prev => prev.filter(x => x.id !== sesion.id))
       setMesaSeleccionada(null)
       notifySuccess('Cuenta cancelada')
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo cancelar la cuenta')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo cancelar la cuenta'))
     }
   }
 
@@ -218,8 +252,8 @@ export default function MesasPage() {
       for (const it of pendientes) await api.restaurante.cambiarEstadoItem(it.id, 'EnCocina')
       await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), pendientes)
       await cargar()
-    } catch (e: any) {
-      notifyError(e.message || 'Error al enviar a cocina')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'Error al enviar a cocina'))
     }
   }
 
@@ -238,8 +272,8 @@ export default function MesasPage() {
       for (const it of pendientes) await api.restaurante.cambiarEstadoItem(it.id, 'EnCocina')
       await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), pendientes, grupo)
       await cargar()
-    } catch (e: any) {
-      notifyError(e.message || 'Error al enviar a cocina')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'Error al enviar a cocina'))
     }
   }
 
@@ -249,8 +283,8 @@ export default function MesasPage() {
     try {
       await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), enCocina, grupo)
       await cargar()
-    } catch (e: any) {
-      notifyError(e.message || 'Error al reenviar a cocina')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'Error al reenviar a cocina'))
     }
   }
 
@@ -263,8 +297,8 @@ export default function MesasPage() {
         if (s.id !== sesionSeleccionada?.id) return s
         return { ...s, items: s.items.map(i => i.id === itemId ? { ...i, grupo } : i) }
       }))
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo mover el item de grupo')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo mover el item de grupo'))
     }
   }
 
@@ -275,8 +309,8 @@ export default function MesasPage() {
         if (s.id !== sesionSeleccionada?.id) return s
         return { ...s, items: s.items.map(i => i.id === itemId ? { ...i, estado: estado as ItemComandaDto['estado'] } : i) }
       }))
-    } catch (e: any) {
-      notifyError(e.message || 'Error al actualizar el item')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'Error al actualizar el item'))
     }
   }
 
@@ -287,28 +321,31 @@ export default function MesasPage() {
         if (s.id !== item.sesionMesaId) return s
         return { ...s, items: s.items.map(i => i.id === item.id ? { ...i, nota } : i) }
       }))
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo guardar la nota')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo guardar la nota'))
     }
   }
 
   async function crearMesa() {
     if (!sucursal || !nuevaMesaNumero.trim()) return
+    if (!/^\d+$/.test(nuevaMesaNumero.trim())) { notifyError('El número de mesa debe ser numérico'); return }
     const salonMesa = nuevoSalonLibre ? nuevoSalon.trim() : nuevoSalon
     if (!salonMesa) { notifyError('Indicá el salón'); return }
     try {
       await api.restaurante.crearMesa({
         sucursalId: sucursal.id,
         numero: nuevaMesaNumero.trim(),
+        descripcion: nuevaMesaTitulo.trim() || null,
         posX: 50,
         posY: 50,
         salon: salonMesa,
       })
       setNuevaMesaNumero('')
+      setNuevaMesaTitulo('')
       setMostrarNuevaMesa(false)
       await cargar()
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo crear la mesa')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo crear la mesa'))
     }
   }
 
@@ -316,8 +353,37 @@ export default function MesasPage() {
     try {
       await api.restaurante.eliminarMesa(mesa.id)
       await cargar()
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo eliminar la mesa')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo eliminar la mesa'))
+    }
+  }
+
+  function abrirRenombrar(mesa: MesaDto) {
+    setRenombrarNombre(mesa.numero)
+    setRenombrarTitulo(mesa.descripcion ?? '')
+    setRenombrarMesa(mesa)
+  }
+
+  async function guardarRenombrado() {
+    if (!renombrarMesa) return
+    const nombre = renombrarNombre.trim()
+    if (!nombre) { notifyError('Indicá el número de la mesa'); return }
+    if (!/^\d+$/.test(nombre)) { notifyError('El número de mesa debe ser numérico'); return }
+    try {
+      await api.restaurante.actualizarMesa(renombrarMesa.id, {
+        sucursalId: renombrarMesa.sucursalId,
+        numero: nombre,
+        descripcion: renombrarTitulo.trim() || null,
+        salon: renombrarMesa.salon,
+        posX: renombrarMesa.posX,
+        posY: renombrarMesa.posY,
+      })
+      setMesas(prev => prev.map(m => m.id === renombrarMesa.id ? { ...m, numero: nombre, descripcion: renombrarTitulo.trim() || null } : m))
+      setMesaSeleccionada(prev => prev?.id === renombrarMesa.id ? { ...prev, numero: nombre, descripcion: renombrarTitulo.trim() || null } : prev)
+      setRenombrarMesa(null)
+      notifySuccess('Mesa actualizada')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo actualizar la mesa'))
     }
   }
 
@@ -340,8 +406,8 @@ export default function MesasPage() {
         posY: y,
       })
       setMesas(prev => prev.map(m => m.id === mesa.id ? { ...m, posX: x, posY: y } : m))
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo guardar la posición')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo guardar la posición'))
     }
   }
 
@@ -367,6 +433,261 @@ export default function MesasPage() {
       })
     return [...map.values()]
   }
+
+  const mapa = (
+    <div
+      className="relative h-full rounded-xl border border-gray-200 bg-[radial-gradient(circle_at_1px_1px,#e5e7eb_1px,transparent_0)] bg-[size:22px_22px] overflow-hidden select-none min-w-0"
+      onPointerUp={onMapPointerUp}
+    >
+      {mesasSalon.map(mesa => {
+        const sesion = sesionPorMesa.get(mesa.id)
+        const seleccionada = mesaSeleccionada?.id === mesa.id
+        const escala = tamanoMesa / TAMANO_BASE_MESA
+        const pendientes = sesion ? sesion.items.filter(i => i.estado === 'Pendiente').length : 0
+        return (
+          <div
+            key={mesa.id}
+            className={`absolute flex flex-col items-center justify-center rounded-2xl border-2 px-1 py-1 shadow-md cursor-pointer transition-colors ${
+              seleccionada ? 'ring-2 ring-[oklch(0.52_0.255_278)]' : ''
+            } ${sesion ? 'border-orange-400 bg-orange-50' : 'border-emerald-400 bg-emerald-50'}`}
+            style={{
+              left: `${mesa.posX}%`,
+              top: `${mesa.posY}%`,
+              width: esCompacto ? tamanoMesa : TAMANO_BASE_MESA,
+              minHeight: esCompacto ? Math.round(tamanoMesa * 0.5) : Math.round(TAMANO_BASE_MESA * 0.5),
+              transform: esCompacto ? 'translate(-50%, -50%)' : `translate(-50%, -50%) scale(${escala})`,
+              touchAction: 'none',
+            }}
+            onPointerDown={e => { if (editarMapa && !(e.target as HTMLElement).closest('button')) { setDragId(mesa.id); (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId) } }}
+            onPointerMove={e => {
+              if (!editarMapa || dragId !== mesa.id) return
+              const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect()
+              const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10
+              const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10
+              setMesas(prev => prev.map(m => m.id === mesa.id ? { ...m, posX: Math.max(0, Math.min(100, x)), posY: Math.max(0, Math.min(100, y)) } : m))
+            }}
+            onClick={() => { if (esCompacto && editarMapa) return; setMesaSeleccionada(mesa) }}
+          >
+            {esCompacto ? (
+              <div className="relative flex w-full flex-col items-center justify-center">
+                <div className="flex max-w-full items-center justify-center gap-1">
+                  <span
+                    className="max-w-full whitespace-nowrap text-center font-bold leading-none text-gray-800"
+                    style={{ fontSize: Math.max(11, Math.min(Math.round(tamanoMesa * 0.3), Math.floor((tamanoMesa - 8) / Math.max(1, mesa.numero.length * 0.62)))) }}
+                  >
+                    {mesa.numero}
+                  </span>
+                  {sesion && pendientes > 0 && (
+                    <span
+                      className="shrink-0 leading-none text-amber-500"
+                      style={{ fontSize: Math.max(8, Math.round(tamanoMesa * 0.18)) }}
+                      title="Comanda sin enviar a cocina"
+                    >
+                      🕐
+                    </span>
+                  )}
+                </div>
+                {editarMapa && (
+                  <div className="absolute -right-1 -top-1 flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      className="text-gray-500 hover:text-[oklch(0.52_0.255_278)]"
+                      onClick={e => { e.stopPropagation(); abrirRenombrar(mesa) }}
+                      title="Renombrar mesa"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={e => { e.stopPropagation(); setConfirmar({ tipo: 'eliminar', mesa }) }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-1.5">
+                  <UtensilsCrossed size={16} className={sesion ? 'text-orange-500' : 'text-emerald-500'} />
+                  <span
+                    className="max-w-full whitespace-nowrap text-center font-bold leading-none text-gray-800"
+                    style={{ fontSize: Math.max(11, Math.min(Math.round(TAMANO_BASE_MESA * 0.24), Math.floor((TAMANO_BASE_MESA - 8) / Math.max(1, mesa.numero.length * 0.62)))) }}
+                  >
+                    {mesa.numero}
+                  </span>
+                  {sesion && pendientes > 0 && (
+                    <span className="shrink-0 text-amber-500" title="Comanda sin enviar a cocina">
+                      🕐
+                    </span>
+                  )}
+                  {editarMapa && (
+                    <>
+                      <button
+                        type="button"
+                        className="text-gray-500 hover:text-[oklch(0.52_0.255_278)]"
+                        onClick={e => { e.stopPropagation(); abrirRenombrar(mesa) }}
+                        title="Renombrar mesa"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={e => { e.stopPropagation(); setConfirmar({ tipo: 'eliminar', mesa }) }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="absolute inset-x-0 bottom-0.5 flex items-center justify-center">
+                  {sesion ? (
+                    <span className="text-[11px] font-semibold text-orange-600">Ocupada</span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-emerald-600">Libre</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })}
+      {mesasSalon.length === 0 && !cargando && (
+        <div className="absolute inset-0 grid place-items-center text-sm text-gray-400">
+          No hay mesas en este salón. Agregá la primera con el botón "Agregar mesa".
+        </div>
+      )}
+    </div>
+  )
+
+  const comandaPanel = (compacto: boolean) => (
+    <div className={`rounded-xl border border-gray-200 bg-white p-3 ${compacto ? '' : 'h-full overflow-y-auto'} min-w-0`}>
+      {!mesaSeleccionada && (
+        <p className="text-sm text-gray-500">Seleccioná una mesa para ver su comanda.</p>
+      )}
+
+      {mesaSeleccionada && !sesionSeleccionada && (
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-700">Mesa {mesaSeleccionada.numero} — Libre</p>
+            {mesaSeleccionada.descripcion && <p className="text-[11px] text-gray-500">{mesaSeleccionada.descripcion}</p>}
+          </div>
+          <Button fullWidth icon={<Plus size={14} />} onClick={() => abrirMesa(mesaSeleccionada)}>
+            Abrir mesa
+          </Button>
+        </div>
+      )}
+
+      {mesaSeleccionada && sesionSeleccionada && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold text-gray-800">Mesa {sesionSeleccionada.mesaNumero || mesaSeleccionada.numero}</p>
+              <p className="text-[11px] text-gray-500">Apertura {new Date(sesionSeleccionada.fechaApertura).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</p>
+              {mesaSeleccionada.descripcion && <p className="text-[11px] text-gray-500">{mesaSeleccionada.descripcion}</p>}
+            </div>
+            <p className="font-bold text-lg text-[oklch(0.52_0.255_278)]">{fmt(sesionSeleccionada.total)}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant="secondary" icon={<Printer size={13} />} onClick={() => enviarCocina(sesionSeleccionada)}>
+              Enviar a cocina
+            </Button>
+            <Button size="sm" variant="secondary" icon={<ArrowRightLeft size={13} />} onClick={() => setUnificarDe(sesionSeleccionada)}>
+              Unificar
+            </Button>
+            <Button size="sm" variant="confirm" icon={<Banknote size={13} />} onClick={() => setCobrarSesion(sesionSeleccionada)}>
+              Cobrar
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmar({ tipo: 'cancelar', sesion: sesionSeleccionada })}>
+              Cancelar
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {GRUPOS_COMANDA.map(grupo => {
+              const itemsGrupo = sesionSeleccionada.items.filter(i => i.grupo === grupo)
+              const pendientes = itemsGrupo.filter(i => i.estado === 'Pendiente').length
+              const enCocina = itemsGrupo.filter(i => i.estado === 'EnCocina').length
+              const productos = agruparItems(itemsGrupo)
+              const esDragOver = dragOverGrupo === grupo
+              return (
+                <div
+                  key={grupo}
+                  onDragOver={e => { e.preventDefault(); setDragOverGrupo(grupo) }}
+                  onDragLeave={() => setDragOverGrupo(g => (g === grupo ? null : g))}
+                  onDrop={e => {
+                    e.preventDefault()
+                    const id = Number(e.dataTransfer.getData('text/plain'))
+                    setDragOverGrupo(null)
+                    if (id) void moverItemGrupo(id, grupo)
+                  }}
+                  className={`rounded-lg border p-2 transition-colors ${esDragOver ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.05)]' : 'border-gray-200'}`}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-gray-600">
+                      {GRUPO_LABEL[grupo]}
+                      {pendientes > 0 && <span className="ml-1.5 text-amber-600 normal-case">({pendientes} sin enviar)</span>}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
+                        Agregar
+                      </Button>
+                      <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0 && enCocina === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
+                        Enviar
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {productos.length === 0 && (
+                      <p className="px-1 text-[11px] text-gray-300">Sin items en este grupo</p>
+                    )}
+                    {productos.map(g => {
+                      const expandKey = `${grupo}-${g.key}`
+                      const expandido = grupoExpandido === expandKey
+                      const totalUnidades = g.unidades.reduce((s, i) => s + i.cantidad, 0)
+                      const subtotal = g.unidades.reduce((s, i) => s + i.subtotal, 0)
+                      return (
+                        <div key={g.key} className="rounded-lg border border-gray-200 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setGrupoExpandido(expandido ? null : expandKey)}
+                            className="flex w-full items-center justify-between gap-2 p-2 hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${expandido ? 'rotate-90' : ''}`} />
+                              <span className="text-sm font-medium text-gray-800 truncate">{g.descripcion}</span>
+                              <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">x{totalUnidades}</span>
+                            </span>
+                            <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(subtotal)}</span>
+                          </button>
+                          {expandido && (
+                            <div className="border-t border-gray-100 divide-y divide-gray-50">
+                              {g.unidades.map(item => (
+                                <ItemUnidadRow
+                                  key={item.id}
+                                  item={item}
+                                  onCambiarEstado={cambiarEstadoItem}
+                                  onEditar={() => setEditarItem(item)}
+                                  onGuardarNota={guardarNotaUnidad}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="p-4 space-y-2 flex flex-col flex-1 min-h-0">
@@ -397,7 +718,7 @@ export default function MesasPage() {
             <button
               type="button"
               className="p-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-30"
-              disabled={tamanoMesa <= 80}
+              disabled={tamanoMesa <= 30}
               onClick={() => cambiarTamanoMesa(tamanoMesa - 16)}
               title="Disminuir tamaño de las mesas"
             >
@@ -438,7 +759,7 @@ export default function MesasPage() {
           >
             {editarMapa ? 'Listo' : 'Editar mapa'}
           </Button>
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => { setNuevaMesaNumero(''); setNuevoSalon(salon); setNuevoSalonLibre(false); setMostrarNuevaMesa(true) }}>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => { setNuevaMesaNumero(''); setNuevaMesaTitulo(''); setNuevoSalon(salon); setNuevoSalonLibre(false); setMostrarNuevaMesa(true) }}>
             Agregar mesa
           </Button>
           </div>
@@ -452,191 +773,27 @@ export default function MesasPage() {
           onImprimir={imprimirComanda}
           onCambiarEstado={cambiarEstadoItem}
         />
+      ) : esCompacto ? (
+        <div className="flex-1 min-h-0">
+          {mapa}
+        </div>
       ) : (
-      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-3 flex-1 min-h-0">
-        {/* Mapa */}
-        <div
-          className="relative h-full rounded-xl border border-gray-200 bg-[radial-gradient(circle_at_1px_1px,#e5e7eb_1px,transparent_0)] bg-[size:22px_22px] overflow-hidden select-none min-w-0"
-          onPointerUp={onMapPointerUp}
+        <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-3 flex-1 min-h-0">
+          {mapa}
+          {comandaPanel(false)}
+        </div>
+      )}
+
+      {esCompacto && mesaSeleccionada && (
+        <Dialog
+          open
+          onClose={() => setMesaSeleccionada(null)}
+          title={`Mesa ${mesaSeleccionada.numero}${mesaSeleccionada.descripcion ? ` — ${mesaSeleccionada.descripcion}` : ''}`}
+          width="xl"
+          fillHeight
         >
-          {mesasSalon.map(mesa => {
-            const sesion = sesionPorMesa.get(mesa.id)
-            const seleccionada = mesaSeleccionada?.id === mesa.id
-            return (
-              <div
-                key={mesa.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-1.5 shadow-md cursor-pointer transition-colors ${
-                  seleccionada ? 'ring-2 ring-[oklch(0.52_0.255_278)]' : ''
-                } ${sesion ? 'border-orange-400 bg-orange-50' : 'border-emerald-400 bg-emerald-50'}`}
-                style={{ left: `${mesa.posX}%`, top: `${mesa.posY}%`, width: tamanoMesa, minHeight: Math.round(tamanoMesa * 0.5), touchAction: 'none' }}
-                onPointerDown={e => { if (editarMapa) { setDragId(mesa.id); (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId) } }}
-                onPointerMove={e => {
-                  if (!editarMapa || dragId !== mesa.id) return
-                  const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect()
-                  const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10
-                  const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10
-                  setMesas(prev => prev.map(m => m.id === mesa.id ? { ...m, posX: Math.max(0, Math.min(100, x)), posY: Math.max(0, Math.min(100, y)) } : m))
-                }}
-                onClick={() => setMesaSeleccionada(mesa)}
-              >
-                <div className="flex items-center justify-center gap-1.5">
-                  <UtensilsCrossed size={16} className={sesion ? 'text-orange-500' : 'text-emerald-500'} />
-                  <span className="font-bold text-gray-800 truncate">{mesa.numero}</span>
-                  {editarMapa && (
-                    <button
-                      type="button"
-                      className="text-red-500 hover:text-red-700"
-                      onClick={e => { e.stopPropagation(); setConfirmar({ tipo: 'eliminar', mesa }) }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-                <div className="mt-1 flex items-center justify-center">
-                  {sesion ? (
-                    sesion.items.some(i => i.estado === 'Pendiente') ? (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5" title="Comanda sin enviar a cocina">
-                        🕐 {sesion.items.filter(i => i.estado === 'Pendiente').length} sin enviar
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-orange-600">Ocupada</span>
-                    )
-                  ) : (
-                    <span className="text-[11px] font-semibold text-emerald-600">Libre</span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-          {mesasSalon.length === 0 && !cargando && (
-            <div className="absolute inset-0 grid place-items-center text-sm text-gray-400">
-              No hay mesas en este salón. Agregá la primera con el botón "Agregar mesa".
-            </div>
-          )}
-        </div>
-
-        {/* Panel comanda / selección */}
-        <div className="rounded-xl border border-gray-200 bg-white p-3 h-full overflow-y-auto min-w-0">
-          {!mesaSeleccionada && (
-            <p className="text-sm text-gray-500">Seleccioná una mesa para ver su comanda.</p>
-          )}
-
-          {mesaSeleccionada && !sesionSeleccionada && (
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-gray-700">Mesa {mesaSeleccionada.numero} — Libre</p>
-              <Button fullWidth icon={<Plus size={14} />} onClick={() => abrirMesa(mesaSeleccionada)}>
-                Abrir mesa
-              </Button>
-            </div>
-          )}
-
-          {mesaSeleccionada && sesionSeleccionada && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-gray-800">Mesa {sesionSeleccionada.mesaNumero || mesaSeleccionada.numero}</p>
-                  <p className="text-[11px] text-gray-500">Apertura {new Date(sesionSeleccionada.fechaApertura).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-                <p className="font-bold text-lg text-[oklch(0.52_0.255_278)]">{fmt(sesionSeleccionada.total)}</p>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                <Button size="sm" variant="secondary" icon={<Printer size={13} />} onClick={() => enviarCocina(sesionSeleccionada)}>
-                  Enviar a cocina
-                </Button>
-                <Button size="sm" variant="secondary" icon={<ArrowRightLeft size={13} />} onClick={() => setUnificarDe(sesionSeleccionada)}>
-                  Unificar
-                </Button>
-                <Button size="sm" variant="confirm" icon={<Banknote size={13} />} onClick={() => setCobrarSesion(sesionSeleccionada)}>
-                  Cobrar
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => setConfirmar({ tipo: 'cancelar', sesion: sesionSeleccionada })}>
-                  Cancelar
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {GRUPOS_COMANDA.map(grupo => {
-                  const itemsGrupo = sesionSeleccionada.items.filter(i => i.grupo === grupo)
-                  const pendientes = itemsGrupo.filter(i => i.estado === 'Pendiente').length
-                  const enCocina = itemsGrupo.filter(i => i.estado === 'EnCocina').length
-                  const productos = agruparItems(itemsGrupo)
-                  const esDragOver = dragOverGrupo === grupo
-                  return (
-                    <div
-                      key={grupo}
-                      onDragOver={e => { e.preventDefault(); setDragOverGrupo(grupo) }}
-                      onDragLeave={() => setDragOverGrupo(g => (g === grupo ? null : g))}
-                      onDrop={e => {
-                        e.preventDefault()
-                        const id = Number(e.dataTransfer.getData('text/plain'))
-                        setDragOverGrupo(null)
-                        if (id) void moverItemGrupo(id, grupo)
-                      }}
-                      className={`rounded-lg border p-2 transition-colors ${esDragOver ? 'border-[oklch(0.52_0.255_278)] bg-[oklch(0.52_0.255_278_/_0.05)]' : 'border-gray-200'}`}
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wide text-gray-600">
-                          {GRUPO_LABEL[grupo]}
-                          {pendientes > 0 && <span className="ml-1.5 text-amber-600 normal-case">({pendientes} sin enviar)</span>}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" icon={<Plus size={12} />} onClick={() => { setAgregarItemGrupo(grupo); setAgregarItemSesion(sesionSeleccionada) }}>
-                            Agregar
-                          </Button>
-                          <Button size="sm" variant="secondary" icon={<Printer size={12} />} disabled={pendientes === 0 && enCocina === 0} onClick={() => enviarCocinaGrupo(sesionSeleccionada, grupo)}>
-                            Enviar
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        {productos.length === 0 && (
-                          <p className="px-1 text-[11px] text-gray-300">Sin items en este grupo</p>
-                        )}
-                        {productos.map(g => {
-                          const expandKey = `${grupo}-${g.key}`
-                          const expandido = grupoExpandido === expandKey
-                          const totalUnidades = g.unidades.reduce((s, i) => s + i.cantidad, 0)
-                          const subtotal = g.unidades.reduce((s, i) => s + i.subtotal, 0)
-                          return (
-                            <div key={g.key} className="rounded-lg border border-gray-200 overflow-hidden">
-                              <button
-                                type="button"
-                                onClick={() => setGrupoExpandido(expandido ? null : expandKey)}
-                                className="flex w-full items-center justify-between gap-2 p-2 hover:bg-gray-50 transition-colors"
-                              >
-                                <span className="flex items-center gap-1.5 min-w-0">
-                                  <ChevronRight size={14} className={`shrink-0 transition-transform text-gray-400 ${expandido ? 'rotate-90' : ''}`} />
-                                  <span className="text-sm font-medium text-gray-800 truncate">{g.descripcion}</span>
-                                  <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">x{totalUnidades}</span>
-                                </span>
-                                <span className="text-sm font-semibold text-gray-600 shrink-0">{fmt(subtotal)}</span>
-                              </button>
-                              {expandido && (
-                                <div className="border-t border-gray-100 divide-y divide-gray-50">
-                                  {g.unidades.map(item => (
-                                    <ItemUnidadRow
-                                      key={item.id}
-                                      item={item}
-                                      onCambiarEstado={cambiarEstadoItem}
-                                      onEditar={() => setEditarItem(item)}
-                                      onGuardarNota={guardarNotaUnidad}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+          {comandaPanel(true)}
+        </Dialog>
       )}
 
       <AgregarItemDialog
@@ -699,15 +856,29 @@ export default function MesasPage() {
           </>
         }
       >
-        <input
-          autoFocus
-          value={nuevaMesaNumero}
-          onChange={e => setNuevaMesaNumero(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') crearMesa() }}
-          placeholder="Número / nombre (ej. 1, A-3)"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        />
-        <div className="mt-2">
+        <label className="text-xs font-semibold text-gray-600">
+          Número de mesa <span className="text-red-500">*</span>
+          <input
+            autoFocus
+            value={nuevaMesaNumero}
+            onChange={e => setNuevaMesaNumero(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={e => { if (e.key === 'Enter') crearMesa() }}
+            placeholder="Ej. 1, 2, 3"
+            inputMode="numeric"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="mt-3 block text-xs font-semibold text-gray-600">
+          Título (opcional)
+          <input
+            value={nuevaMesaTitulo}
+            onChange={e => setNuevaMesaTitulo(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') crearMesa() }}
+            placeholder="Ej. Mesa de la ventana"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <div className="mt-3">
           <label className="text-xs font-semibold text-gray-600">Salón</label>
           <select
             value={nuevoSalonLibre ? '__libre__' : nuevoSalon}
@@ -750,6 +921,38 @@ export default function MesasPage() {
         />
       </Dialog>
 
+      <Dialog open={renombrarMesa != null} onClose={() => setRenombrarMesa(null)} title={`Editar mesa ${renombrarMesa?.numero ?? ''}`} width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRenombrarMesa(null)}>Cancelar</Button>
+            <Button onClick={guardarRenombrado} disabled={!renombrarNombre.trim()}>Guardar</Button>
+          </>
+        }
+      >
+        <label className="block text-xs font-semibold text-gray-600">
+          Número de mesa <span className="text-red-500">*</span>
+          <input
+            autoFocus
+            value={renombrarNombre}
+            onChange={e => setRenombrarNombre(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={e => { if (e.key === 'Enter') guardarRenombrado() }}
+            placeholder="Ej. 1, 2, 3"
+            inputMode="numeric"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="mt-3 block text-xs font-semibold text-gray-600">
+          Título (opcional)
+          <input
+            value={renombrarTitulo}
+            onChange={e => setRenombrarTitulo(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') guardarRenombrado() }}
+            placeholder="Ej. Mesa de la ventana"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </label>
+      </Dialog>
+
       <ConfirmDialog
         open={confirmar != null}
         title={confirmar?.tipo === 'cancelar' ? 'Cancelar cuenta' : confirmar?.tipo === 'eliminar' ? 'Eliminar mesa' : 'Reenviar a cocina'}
@@ -790,10 +993,12 @@ function ItemUnidadRow({ item, onCambiarEstado, onEditar, onGuardarNota }: ItemU
   const esTerminal = item.estado === 'Cancelado' || item.estado === 'Devuelto'
   const editable = item.estado === 'Pendiente'
   const [nota, setNota] = useState(item.nota ?? '')
+  const [prevKey, setPrevKey] = useState(`${item.id}|${item.nota ?? ''}`)
 
-  useEffect(() => {
+  if (`${item.id}|${item.nota ?? ''}` !== prevKey) {
+    setPrevKey(`${item.id}|${item.nota ?? ''}`)
     setNota(item.nota ?? '')
-  }, [item.id, item.nota])
+  }
 
   function commitNota() {
     const valor = nota.trim()
@@ -997,20 +1202,23 @@ function EditarItemDialog({ item, onClose, onGuardado }: EditarItemDialogProps) 
   const { notifyError } = useNotification()
   const [cantidad, setCantidad] = useState(1)
   const [nota, setNota] = useState('')
+  const [prevItem, setPrevItem] = useState<ItemComandaDto | null>(item)
 
-  useEffect(() => {
-    if (!item) return
-    setCantidad(item.cantidad)
-    setNota(item.nota ?? '')
-  }, [item])
+  if (item !== prevItem) {
+    setPrevItem(item)
+    if (item) {
+      setCantidad(item.cantidad)
+      setNota(item.nota ?? '')
+    }
+  }
 
   async function guardar() {
     if (!item) return
     try {
       await api.restaurante.actualizarItem(item.id, { cantidad, nota })
       await onGuardado()
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo actualizar el item')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo actualizar el item'))
     }
   }
 
@@ -1133,25 +1341,29 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
   const totalCarrito = carrito.reduce((s, c) => s + c.precio * c.notas.length, 0)
 
   // Reset al abrir el diálogo (cambia la sesión), NO en cada tecla.
-  useEffect(() => {
-    if (!sesion) return
-    setProductos([])
-    setCombos([])
-    setQ('')
-    setNota('')
-    setCantidad('1')
-    setNotas([])
-    setSeleccionado(null)
-    setCarrito([])
-    setEnviando(false)
-    setExistentes(sesion.items.filter(i => i.estado === 'Pendiente'))
-    setEditandoId(null)
-    setCantidadEdit('1')
-    setNotaEdit('')
-    setEditandoCarrito(null)
-    setCantidadCarritoEdit('1')
-    setNotasCarritoEdit([])
-  }, [sesion])
+  const [prevSesion, setPrevSesion] = useState<SesionMesaDto | null>(sesion)
+
+  if (sesion !== prevSesion) {
+    setPrevSesion(sesion)
+    if (sesion) {
+      setProductos([])
+      setCombos([])
+      setQ('')
+      setNota('')
+      setCantidad('1')
+      setNotas([])
+      setSeleccionado(null)
+      setCarrito([])
+      setEnviando(false)
+      setExistentes(sesion.items.filter(i => i.estado === 'Pendiente'))
+      setEditandoId(null)
+      setCantidadEdit('1')
+      setNotaEdit('')
+      setEditandoCarrito(null)
+      setCantidadCarritoEdit('1')
+      setNotasCarritoEdit([])
+    }
+  }
 
   // Búsqueda de productos con debounce: depende de q pero no lo resetea.
   useEffect(() => {
@@ -1274,8 +1486,8 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
       const act = await api.restaurante.actualizarItem(editandoId, { cantidad: c, nota: notaEdit.trim() })
       setExistentes(prev => prev.map(i => (i.id === editandoId ? act : i)))
       setEditandoId(null)
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo actualizar el item')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo actualizar el item'))
     }
   }
 
@@ -1283,8 +1495,8 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
     try {
       await api.restaurante.cambiarEstadoItem(itemId, 'Cancelado')
       setExistentes(prev => prev.filter(i => i.id !== itemId))
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo quitar el item')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo quitar el item'))
     }
   }
 
@@ -1304,8 +1516,8 @@ function AgregarItemDialog({ sesion, grupo, sucursalId, onClose, onAdded }: Agre
       }
       setCarrito([])
       await onAdded()
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudieron agregar los items')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudieron agregar los items'))
     } finally {
       setEnviando(false)
     }
@@ -1600,11 +1812,12 @@ function UnificarDialog({ de, sesiones, onClose, onDone }: UnificarDialogProps) 
   const { notifyError } = useNotification()
   const [haciaId, setHaciaId] = useState<number | null>(null)
   const [unificando, setUnificando] = useState(false)
+  const [prevDe, setPrevDe] = useState<SesionMesaDto | null>(de)
 
-  useEffect(() => {
-    if (!de) return
-    setHaciaId(sesiones[0]?.id ?? null)
-  }, [de])
+  if (de !== prevDe) {
+    setPrevDe(de)
+    if (de) setHaciaId(sesiones[0]?.id ?? null)
+  }
 
   async function unificar() {
     if (!de || !haciaId) return
@@ -1612,8 +1825,8 @@ function UnificarDialog({ de, sesiones, onClose, onDone }: UnificarDialogProps) 
     try {
       await api.restaurante.unificar(de.id, haciaId)
       await onDone()
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo unificar')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo unificar'))
     } finally {
       setUnificando(false)
     }
@@ -1654,10 +1867,12 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
   const [clienteId, setClienteId] = useState<number | null>(null)
   const [clientes, setClientes] = useState<ClienteDto[]>([])
   const [cobrando, setCobrando] = useState(false)
+  const [prevSesion, setPrevSesion] = useState<SesionMesaDto | null>(sesion)
 
-  useEffect(() => {
+  if (sesion !== prevSesion) {
+    setPrevSesion(sesion)
     setMonto((sesion?.total ?? 0).toFixed(2))
-  }, [sesion])
+  }
 
   useEffect(() => {
     if (!sesion) return
@@ -1684,8 +1899,8 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
       if (medio?.pagaVuelto && montoNum > sesion.total) pago.conCambio = montoNum
       const res = await api.restaurante.cobrar(sesion.id, { pagos: [pago], clienteId: clienteId ?? undefined })
       onCobrado(res)
-    } catch (e: any) {
-      notifyError(e.message || 'No se pudo cobrar la cuenta')
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo cobrar la cuenta'))
     } finally {
       setCobrando(false)
     }

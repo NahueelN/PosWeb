@@ -47,6 +47,9 @@ public class Mesa
         if (string.IsNullOrWhiteSpace(numero))
             throw new ArgumentException("El número de mesa es requerido");
 
+        if (!int.TryParse(numero.Trim(), out _))
+            throw new ArgumentException("El número de mesa debe ser numérico");
+
         NUMERO_MESA = numero.Trim();
     }
 
