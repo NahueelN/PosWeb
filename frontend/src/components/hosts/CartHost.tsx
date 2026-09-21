@@ -33,6 +33,7 @@ export interface CartHostProps<T extends CartItemBase> {
       activa?: boolean | null
       closedMessage?: string
     }
+    helpKey?: string
   }
   /** Payment controls (medios de pago, fuente selector, etc.) */
   paymentSlot?: ReactNode
@@ -151,7 +152,7 @@ export default function CartHost<T extends CartItemBase>({
 
   const displayTitle = title ?? (cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Productos')
   const leftContent = pageShell ? (
-    <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja}>
+    <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja} helpKey={pageShell.helpKey}>
       {topContent && <div className="pb-2">{topContent}</div>}
       {children}
     </PageShell>

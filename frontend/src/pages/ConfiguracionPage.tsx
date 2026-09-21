@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { HelpCircle } from 'lucide-react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +19,7 @@ const tabStyle = (active: boolean) =>
   }`
 
 export default function ConfiguracionPage() {
+  const navigate = useNavigate()
   const { notifyError, notifySuccess } = useNotification()
   const { user } = useAuth()
   const canManageUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
@@ -105,9 +109,20 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
-        <p className="mt-1 text-sm text-slate-500">Administrá usuarios, el perfil de tu empresa y cómo compartir.</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
+          <p className="mt-1 text-sm text-slate-500">Administrá usuarios, el perfil de tu empresa y cómo compartir.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate(`/ayuda?key=${tab === 'usuarios' ? 'solapa-configuracion-usuarios' : tab === 'compartir' ? 'solapa-configuracion-compartir' : tab === 'respaldo' ? 'solapa-configuracion-respaldo' : HELP_KEYS.configuracion}`)}
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[oklch(0.52_0.255_278)] hover:bg-gray-100 transition-colors"
+          aria-label="Ayuda"
+          title="Ayuda"
+        >
+          <HelpCircle size={17} />
+        </button>
       </div>
 
       <div className="flex border-b border-slate-200">

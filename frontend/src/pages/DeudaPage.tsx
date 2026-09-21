@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
+import { HELP_KEYS } from '../help/content';
 import type { DeudaDto, ProveedorDto, ClienteDto, CuentaCorrienteDto, CrearDeudaRequestDto, VentaDetalleDto, CompraDetalleDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
@@ -418,6 +419,7 @@ export default function DeudaPage() {
       <PageShell
         title="Deudas"
         tabs={renderTabs(handleTabSwitch)}
+        helpKey={modo === 'clientes' ? HELP_KEYS.deudas : 'concepto-proveedor'}
         backButton={
           <button onClick={closeCuenta} className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 mt-2">
             ← Volver
@@ -676,6 +678,7 @@ export default function DeudaPage() {
       title="Deudas"
       subtitle="Administre las cuentas pendientes y registre los pagos."
       loading={loading}
+      helpKey={modo === 'clientes' ? HELP_KEYS.deudas : 'concepto-proveedor'}
       actions={
         <button onClick={() => { setNdBusqueda(''); setNdEntidadId(null); setNdMonto(''); setShowNuevaDeuda(true) }}
           className="px-3 py-1.5 text-xs sm:text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shrink-0">

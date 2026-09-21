@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
-import { AlertTriangle, CircleAlert, X } from 'lucide-react'
+import { AlertTriangle, CircleAlert, X, HelpCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface CajaStatus {
   /** True while checking if caja is open */
@@ -21,6 +22,8 @@ interface PageShellProps {
   backButton?: ReactNode
   /** Optional actions on the right side of the header (e.g., "+ Nuevo" button) */
   actions?: ReactNode
+  /** When provided, renders a "?" button that opens the help page at this entry */
+  helpKey?: string
   /**
    * Optional tabs rendered between header and content.
    * Always in the same position, same spacing.
@@ -69,6 +72,7 @@ export default function PageShell({
   subtitle,
   backButton,
   actions,
+  helpKey,
   tabs,
   caja,
   loading = false,
@@ -77,6 +81,7 @@ export default function PageShell({
   onErrorClose,
   children,
 }: PageShellProps) {
+  const navigate = useNavigate()
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ── Header ── */}
@@ -90,9 +95,20 @@ export default function PageShell({
             {backButton}
           </div>
         </div>
-        {actions && (
-          <div className="flex items-center gap-2 shrink-0">{actions}</div>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {actions}
+          {helpKey && (
+            <button
+              type="button"
+              onClick={() => navigate(`/ayuda?key=${helpKey}`)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[oklch(0.52_0.255_278)] hover:bg-gray-100 transition-colors"
+              aria-label="Ayuda"
+              title="Ayuda"
+            >
+              <HelpCircle size={17} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Caja status ── */}

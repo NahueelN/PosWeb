@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import type { ClienteDto } from '../types'
@@ -90,6 +91,7 @@ export default function ClientesPage() {
       loading={list.loading && list.data.length === 0}
       error={list.error}
       onErrorClose={list.clearError}
+      helpKey={HELP_KEYS.clientes}
     >
       <EntityToolbar
         search={search.search}

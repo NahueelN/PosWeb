@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { api, isSessionExpiredError } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
@@ -258,6 +259,7 @@ export default function CajaPage() {
       title="Caja"
       subtitle="Gestione la apertura, el cierre y el balance de caja."
       loading={loading && !caja && !reporteCierre}
+      helpKey={tab === 'caja' ? HELP_KEYS.caja : 'solapa-caja-configuracion'}
       tabs={
         <div className="flex border-b border-slate-200">
           <button onClick={() => setTab('caja')}

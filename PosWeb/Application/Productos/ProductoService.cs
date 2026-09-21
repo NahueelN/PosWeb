@@ -365,6 +365,9 @@ public class ProductoService
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
+                Stock = (decimal)_context.StockSucursal
+                    .Where(s => s.ID_PRODUCTO == p.ID_PRODUCTO)
+                    .Sum(s => (double)s.STOCK),
                 Activo = p.ACTIVO,
                 EsPesable = p.ES_PESABLE,
                 SeguirStock = p.SEGUIR_STOCK

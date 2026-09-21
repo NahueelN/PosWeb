@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { HELP_KEYS } from '../help/content';
 import type { CompraRequestDto, CompraResponseDto, ProductoDto, ProveedorDto, CrearProveedorRequestDto, CategoriaDto, UnidadMedidaDto, SucursalDto, OpenFoodFactsResultDto } from '../types';
 import { api } from '../api/client';
 import ProductFormModal from '../components/ProductFormModal';
@@ -408,7 +409,7 @@ export default function CompraPage() {
       confirmDisabled={isConfirming || cart.items.length === 0 || !proveedorOk}
       cartRef={cartListRef}
       confirmRef={confirmBtnRef}
-      pageShell={{ title: 'Compras', subtitle: 'Registrar ingreso de mercadería' }}
+      pageShell={{ title: 'Compras', subtitle: 'Registrar ingreso de mercadería', helpKey: HELP_KEYS.compras }}
       headerExtra={proveedorNombre ? (
         <span className="text-xs text-gray-500">{proveedorNombre}</span>
       ) : undefined}

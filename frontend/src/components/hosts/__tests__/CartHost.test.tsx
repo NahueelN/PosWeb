@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import CartHost from '../CartHost'
 import { useCart } from '../../../hooks/useCart'
 import { createMockStorage } from '../../../test-utils'
@@ -14,6 +15,10 @@ vi.mock('../../../context/NotificationContext', () => ({
     dismiss: vi.fn(),
   }),
 }))
+
+function renderWithRouter(ui: React.ReactNode) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 // ── Test item ──────────────────────────────────────────────────────
 interface TestItem {
@@ -55,42 +60,42 @@ function TestCartHost(props: Partial<Parameters<typeof CartHost<TestItem>>[0]> =
 describe('CartHost', () => {
   // ── Basic rendering ──────────────────────────────────────────────
   it('renders children in left panel', () => {
-    render(<TestCartHost />)
+    renderWithRouter(<TestCartHost />)
     expect(screen.getByTestId('child')).toBeInTheDocument()
   })
 
   it('renders CartPanel with title', () => {
-    render(<TestCartHost title="Productos (3)" />)
+    renderWithRouter(<TestCartHost title="Productos (3)" />)
     expect(screen.getByText('Productos (3)')).toBeInTheDocument()
   })
 
   it('renders empty state when cart is empty', () => {
-    render(<TestCartHost />)
+    renderWithRouter(<TestCartHost />)
     expect(screen.getByText('Agregá productos para armar la operación')).toBeInTheDocument()
   })
 
   it('renders custom empty state', () => {
-    render(<TestCartHost emptyState={<div>Custom empty</div>} />)
+    renderWithRouter(<TestCartHost emptyState={<div>Custom empty</div>} />)
     expect(screen.getByText('Custom empty')).toBeInTheDocument()
   })
 
   // ── Payment footer ───────────────────────────────────────────────
   it('renders confirm button with label', () => {
-    render(<TestCartHost confirmLabel="Confirmar venta" />)
+    renderWithRouter(<TestCartHost confirmLabel="Confirmar venta" />)
     // The confirm button is inside PaymentFooter
     const btn = screen.queryByText('Confirmar venta')
     if (btn) expect(btn).toBeInTheDocument()
   })
 
   it('disables confirm button when confirmDisabled is true', () => {
-    render(<TestCartHost confirmDisabled={true} confirmLabel="Test" />)
+    renderWithRouter(<TestCartHost confirmDisabled={true} confirmLabel="Test" />)
     // Since cart is empty and we override disabled, the button should be there but disabled
     // PaymentFooter may not render button when cart is empty
   })
 
   // ── PageShell ────────────────────────────────────────────────────
   it('renders PageShell when pageShell prop is provided', () => {
-    render(<TestCartHost pageShell={{ title: 'Test Page' }} />)
+    renderWithRouter(<TestCartHost pageShell={{ title: 'Test Page' }} />)
     expect(screen.getByText('Test Page')).toBeInTheDocument()
   })
 
@@ -122,7 +127,7 @@ describe('CartHost', () => {
         </CartHost>
       )
     }
-    render(<TestWithItems />)
+    renderWithRouter(<TestWithItems />)
     expect(screen.getByText('Test Item')).toBeInTheDocument()
   })
 })

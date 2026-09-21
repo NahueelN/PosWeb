@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Plus, Minus, Trash2, ClipboardList, Search, ChevronRight } from 'lucide-react';
+import { HELP_KEYS } from '../help/content';
 import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto, CrearProveedorRequestDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
@@ -396,6 +397,7 @@ export default function PedidosPage() {
         subtitle={`${pedidosFiltrados.length} pedidos`}
         loading={loading}
         loadingMessage="Cargando pedidos..."
+        helpKey={HELP_KEYS.pedidos}
         actions={
           <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setProdSearch(''); setPedidoTab('productos'); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar(getSucursalActivaId()).then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight, BellRing } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight, BellRing, HelpCircle } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -424,6 +424,16 @@ export default function Layout() {
                 <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] leading-none text-amber-900">{productosPorVencer}</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => navigate('/ayuda')}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[oklch(0.52_0.255_278)] hover:bg-gray-100 transition-colors"
+              aria-label="Ayuda"
+              title="Ayuda"
+            >
+              <HelpCircle size={17} />
+            </button>
 
             {user && (
               <div className="flex items-center gap-3">
