@@ -309,7 +309,7 @@ export default function MesasPage() {
     try {
       await api.restaurante.cambiarEstadoItem(itemId, estado)
       setSesiones(prev => prev.map(s => {
-        if (s.id !== sesionSeleccionada?.id) return s
+        if (!s.items.some(i => i.id === itemId)) return s
         return { ...s, items: s.items.map(i => i.id === itemId ? { ...i, estado: estado as ItemComandaDto['estado'] } : i) }
       }))
     } catch (e: unknown) {
@@ -414,13 +414,19 @@ export default function MesasPage() {
     }
   }
 
+  const PASO_GRILLA = 2.5
+
+  function snapValor(v: number): number {
+    return Math.round(v / PASO_GRILLA) * PASO_GRILLA
+  }
+
   function onMapPointerUp(e: React.PointerEvent) {
     if (dragId == null) return
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10
     const mesa = mesas.find(m => m.id === dragId)
-    if (mesa) moverMesa(mesa, Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
+    if (mesa) moverMesa(mesa, Math.max(0, Math.min(100, snapValor(x))), Math.max(0, Math.min(100, snapValor(y))))
     setDragId(null)
   }
 
@@ -467,7 +473,7 @@ export default function MesasPage() {
               const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect()
               const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10
               const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10
-              setMesas(prev => prev.map(m => m.id === mesa.id ? { ...m, posX: Math.max(0, Math.min(100, x)), posY: Math.max(0, Math.min(100, y)) } : m))
+              setMesas(prev => prev.map(m => m.id === mesa.id ? { ...m, posX: Math.max(0, Math.min(100, snapValor(x))), posY: Math.max(0, Math.min(100, snapValor(y))) } : m))
             }}
             onClick={() => { if (esCompacto && editarMapa) return; setMesaSeleccionada(mesa) }}
           >

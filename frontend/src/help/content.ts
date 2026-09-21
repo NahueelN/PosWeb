@@ -162,7 +162,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
     key: 'modulo-mesas',
     titulo: 'Mesas',
     definicion: 'Módulo de restaurante: administra mesas, comandas y cuentas. Permite abrir una mesa, cargar productos, unificar cuentas y cobrar.',
-    relacionados: ['concepto-mesa', 'concepto-comanda'],
+    relacionados: ['concepto-mesa', 'concepto-comanda', 'solapa-mesas-cocina'],
     items: [
       {
         key: 'concepto-mesa',
@@ -170,8 +170,15 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         tipo: 'concepto',
         definicion: 'Cada espacio del salón donde se atienden comensales. Una mesa puede abrirse, cargarse de productos (comanda) y cobrarse al final. El mapa de mesas permite ver el estado de todas a la vez.',
         necesitaImagen: true,
-        imagenes: [mesas, mesasCocina],
+        imagenes: [mesas],
         relacionados: ['concepto-comanda'],
+      },
+      {
+        key: 'solapa-mesas-cocina',
+        titulo: 'Mesas → Cocina',
+        tipo: 'solapa',
+        definicion: 'Muestra todas las órdenes que están en cocina (Pendientes o EnCocina), ordenadas desde la más antigua, con el horario en que se enviaron a cocina y las mesas a las que pertenecen. Permite cambiar el estado de cada ítem (En cocina / Servido) e imprimir la comanda de nuevo.',
+        imagenes: [mesasCocina],
       },
       {
         key: 'concepto-comanda',

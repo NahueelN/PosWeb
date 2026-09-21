@@ -38,3 +38,8 @@
 | PAT-ticket-impresion-ancho | RESPECTS | PAT-usuario-preferencias |
 | PAT-ticket-impresion-ancho | RELATED | ADR-ticket-resultado-landing |
 | PAT-ticket-impresion-ancho | RELATED | COMP-LabelPrintDialog |
+| PAT-mapa-responsive-popup | USES | HOOK-use-media-query |
+| PAT-mapa-responsive-popup | RESPECTS | BUS-mesa-numero-titulo |
+| HOOK-use-media-query | USES | PAT-mapa-responsive-popup |
+| BUS-mesa-numero-titulo | RELATED | PAT-mapa-responsive-popup |
+| BUS-mesa-numero-titulo | USES | HOOK-use-media-query |
