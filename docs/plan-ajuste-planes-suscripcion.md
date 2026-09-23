@@ -1,7 +1,9 @@
 # Plan: redefinir planes de suscripción → Basica / Maxima (sin Media)
 
 > Documento de planificación guardado en la rama `Suscripciones`.
-> **NO implementado todavía.** Retomar cuando se apruebe.
+> **IMPLEMENTADO.** Verificado contra el código al 2026-09-22. Commits:
+> `7436a50` (plan), `56f9755` (planes), `3336ce6` (gate MP), `6582cc1` (fix espera QR/transferencia).
+> Queda como pendiente conocido solo el deploy de `licensing-worker` + `landing` (ver "Verificación al implementar").
 
 ## Objetivo
 
@@ -79,6 +81,19 @@ Ajustar los planes para que cumplan estas limitaciones:
 
 ## Verificación al implementar
 
-- `dotnet build` + `dotnet test` en la solución.
-- `npx tsc -b` en `frontend`.
-- Si corresponde, deploy de `licensing-worker` + `landing` (se coordina aparte).
+- [x] `dotnet build` + `dotnet test` en la solución (tests actualizados: `UsuariosSubscriptionTest.cs`, `VentaServiceTest.cs`).
+- [x] `npx tsc -b` en `frontend`.
+- [x] Limpieza de "Media" en `frontend/src` (sin referencias), worker y landing.
+- [ ] **Pendiente:** deploy de `licensing-worker` + `landing` (se coordina aparte).
+
+### Checklist de verificación de código (2026-09-22)
+
+- [x] `Suscripcion.cs`: sin `Media`, `CrearBasica(1, null, 3)`, `CrearMaxima(null, null, null)`, helper `AplicarLimitesPorNivel()`.
+- [x] `LicenciaConfig.cs` / `LicenciaService.cs`: límites Basica/Maxima, `NormalizarPlan` sin "media", `PermiteMercadoPago()`, `DegradarSuscripcionABasica`.
+- [x] `AuthService.ValidarCupoSuscripcion`: tope total de cuentas por `MAX_USUARIOS` (null = ilimitado).
+- [x] `Program.cs`: normalización idempotente de suscripciones existentes al arrancar.
+- [x] `MercadoPagoController.verificar-pago` → 403 si `!PermiteMercadoPago()`; `auth-url`, `estado`, `desvincular`, `qr` libres para todos.
+- [x] `TransferenciaPollingService`: confirmación automática solo con `PermiteMercadoPago()`.
+- [x] `VentaService.CrearVenta`: sin rechazo por plan.
+- [x] Frontend: QR/transferencia siempre visibles; `TransferenciaEspera` oculta "Verificar pago" sin verificación instantánea.
+- [x] `licensing-worker` + `landing`: planes Basica/Maxima, textos "3 cuentas en total" / "ilimitados + MercadoPago".
