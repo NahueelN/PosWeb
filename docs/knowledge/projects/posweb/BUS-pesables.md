@@ -16,9 +16,10 @@ Sources:
   - frontend/src/components/shared/CartItemRow.tsx
   - PosWeb.Domain/Producto.cs
   - PosWeb/Application/Ventas/VentaService.cs
+  - PosWeb/Application/Productos/ProductoService.cs
 Template: business-rule
 Created: 2026-07-05
-Updated: 2026-07-05
+Updated: 2026-09-10
 Tags:
   - Productos
   - Ventas
@@ -44,7 +45,7 @@ Defines the rules for weight-based products (`esPesable = true`) in PosWeb. Thes
 
 4. **Unidad de medida fija a KG.** The unit of measure is locked to KG (ID=2). The UI disables the select and shows "KG - kilogramo".
 
-5. **Código de barras opcional.** Pesable products may have an empty barcode. If provided, it must be unique among active products.
+5. **Código de barras opcional.** Pesable products may have an empty barcode. If provided, it must be unique among active products. This is not exclusive to pesables: the catalog identification contract is *barcode OR internal code* — any product (pesable, bulto, or regular) may have an empty barcode as long as it has a custom `COD_PRODUCTO`. Numeric barcodes are normalized to 13 digits (EAN-13).
 
 6. **Sin campo Contenido.** The "Contenido" field is hidden in the pesable product form. The `CONTENIDO` column is left null.
 

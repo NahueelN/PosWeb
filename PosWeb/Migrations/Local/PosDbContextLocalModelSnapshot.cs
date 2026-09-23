@@ -389,17 +389,17 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_EMPRESA");
 
-                    b.Property<string>("DOCUMENTO")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("DOCUMENTO");
-
                     b.Property<string>("DIRECCION")
                         .IsRequired()
                         .HasMaxLength(250)
                         .HasColumnType("TEXT")
                         .HasColumnName("DIRECCION");
+
+                    b.Property<string>("DOCUMENTO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DOCUMENTO");
 
                     b.Property<int>("ID_SUSCRIPCION")
                         .HasColumnType("INTEGER")
@@ -426,6 +426,22 @@ namespace PosWeb.Migrations.Local
                     b.HasIndex("ID_SUSCRIPCION");
 
                     b.ToTable("EMPRESA", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.EmpresaConfiguracion", b =>
+                {
+                    b.Property<int>("ID_EMPRESA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_EMPRESA");
+
+                    b.Property<bool>("MODULO_RESTAURANTE")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MODULO_RESTAURANTE");
+
+                    b.HasKey("ID_EMPRESA");
+
+                    b.ToTable("EMPRESA_CONFIGURACION", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Gasto", b =>
@@ -468,7 +484,7 @@ namespace PosWeb.Migrations.Local
                     b.ToTable("GASTO", (string)null);
                 });
 
-            modelBuilder.Entity("PosWeb.Domain.LicenciaConfig", b =>
+modelBuilder.Entity("PosWeb.Domain.LicenciaConfig", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -508,6 +524,71 @@ namespace PosWeb.Migrations.Local
                     b.HasKey("Id");
 
                     b.ToTable("LicenciaConfig");
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.ItemComanda", b =>
+                {
+                    b.Property<int>("ID_ITEM_COMANDA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_ITEM_COMANDA");
+
+                    b.Property<decimal>("CANTIDAD")
+                        .HasColumnType("decimal(12,3)")
+                        .HasColumnName("CANTIDAD");
+
+                    b.Property<string>("DESCRIPCION")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DESCRIPCION");
+
+                    b.Property<string>("ESTADO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ESTADO");
+
+                    b.Property<DateTime>("FECHA_ALTA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_ALTA");
+
+                    b.Property<DateTime?>("FECHA_ESTADO")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_ESTADO");
+
+                    b.Property<string>("GRUPO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("GRUPO");
+
+                    b.Property<int?>("ID_COMBO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_COMBO");
+
+                    b.Property<int?>("ID_PRODUCTO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_PRODUCTO");
+
+                    b.Property<int>("ID_SESION_MESA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SESION_MESA");
+
+                    b.Property<string>("NOTA")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NOTA");
+
+                    b.Property<decimal>("PRECIO_UNITARIO")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("PRECIO_UNITARIO");
+
+                    b.HasKey("ID_ITEM_COMANDA");
+
+                    b.HasIndex("ID_SESION_MESA");
+
+                    b.ToTable("ITEM_COMANDA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
@@ -586,6 +667,56 @@ namespace PosWeb.Migrations.Local
                             DESC_MEDIO_PAGO = "QR",
                             PAGA_VUELTO = false
                         });
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Mesa", b =>
+                {
+                    b.Property<int>("ID_MESA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_MESA");
+
+                    b.Property<bool>("ACTIVA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ACTIVA");
+
+                    b.Property<string>("DESCRIPCION")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("DESCRIPCION");
+
+                    b.Property<int>("ID_SUCURSAL")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SUCURSAL");
+
+                    b.Property<string>("NUMERO_MESA")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("NUMERO_MESA");
+
+                    b.Property<decimal>("POS_X")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("POS_X");
+
+                    b.Property<decimal>("POS_Y")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("POS_Y");
+
+                    b.Property<string>("SALON")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Principal")
+                        .HasColumnName("SALON");
+
+                    b.HasKey("ID_MESA");
+
+                    b.HasIndex("ID_SUCURSAL", "NUMERO_MESA")
+                        .IsUnique()
+                        .HasFilter("ACTIVA = 1");
+
+                    b.ToTable("MESA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
@@ -822,6 +953,18 @@ namespace PosWeb.Migrations.Local
                     b.Property<DateTime>("FECHA_ULTIMA_MOD")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_1")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_1");
+
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_2")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_2");
+
+                    b.Property<DateTime?>("FECHA_VENCIMIENTO_3")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENCIMIENTO_3");
+
                     b.Property<int?>("ID_CATEGORIA")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_CATEGORIA");
@@ -849,6 +992,10 @@ namespace PosWeb.Migrations.Local
                     b.Property<bool>("SEGUIR_STOCK")
                         .HasColumnType("INTEGER")
                         .HasColumnName("SEGUIR_STOCK");
+
+                    b.Property<bool>("SEGUIR_VENCIMIENTOS")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SEGUIR_VENCIMIENTOS");
 
                     b.HasKey("ID_PRODUCTO");
 
@@ -1062,6 +1209,50 @@ namespace PosWeb.Migrations.Local
                     b.ToTable("RENGLON_VENTA", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.SesionMesa", b =>
+                {
+                    b.Property<int>("ID_SESION_MESA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SESION_MESA");
+
+                    b.Property<string>("ESTADO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ESTADO");
+
+                    b.Property<DateTime>("FECHA_APERTURA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_APERTURA");
+
+                    b.Property<DateTime?>("FECHA_CIERRE")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_CIERRE");
+
+                    b.Property<int>("ID_MESA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_MESA");
+
+                    b.Property<int>("ID_SUCURSAL")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SUCURSAL");
+
+                    b.Property<int>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<int?>("ID_VENTA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_VENTA");
+
+                    b.HasKey("ID_SESION_MESA");
+
+                    b.HasIndex("ID_MESA", "ESTADO");
+
+                    b.ToTable("SESION_MESA", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.StockSucursal", b =>
                 {
                     b.Property<int>("ID_PRODUCTO")
@@ -1223,6 +1414,9 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ID_UNIDAD_MEDIDA");
 
+                    b.Property<bool>("ACTIVO")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("COD_UNIDAD_MEDIDA")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1234,10 +1428,6 @@ namespace PosWeb.Migrations.Local
                         .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("DESC_UNIDAD_MEDIDA");
-
-                    b.Property<bool>("ACTIVO")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ACTIVO");
 
                     b.HasKey("ID_UNIDAD_MEDIDA");
 
@@ -1370,61 +1560,6 @@ namespace PosWeb.Migrations.Local
                         });
                 });
 
-            modelBuilder.Entity("PosWeb.Domain.Venta", b =>
-                {
-                    b.Property<int>("ID_VENTA")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_VENTA");
-
-                    b.Property<bool>("ANULADA")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ANULADA");
-
-                    b.Property<string>("ESTADO")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("Completada")
-                        .HasColumnName("ESTADO");
-
-                    b.Property<DateTime>("FECHA_VENTA")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("FECHA_VENTA");
-
-                    b.Property<int?>("ID_CLIENTE")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_CLIENTE");
-
-                    b.Property<int>("ID_SUCURSAL")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_SUCURSAL");
-
-                    b.Property<int?>("ID_USUARIO")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ID_USUARIO");
-
-                    b.Property<string>("REFERENCIA_MP")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("REFERENCIA_MP");
-
-                    b.Property<decimal>("TOTAL")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("TOTAL");
-
-                    b.HasKey("ID_VENTA");
-
-                    b.HasIndex("ID_CLIENTE");
-
-                    b.HasIndex("ID_SUCURSAL");
-
-                    b.HasIndex("ID_USUARIO");
-
-                    b.ToTable("VENTA", (string)null);
-                });
-
             modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
                 {
                     b.Property<int>("ID_USUARIO_PREFERENCIA")
@@ -1454,6 +1589,67 @@ namespace PosWeb.Migrations.Local
                         .IsUnique();
 
                     b.ToTable("USUARIO_PREFERENCIA", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Venta", b =>
+                {
+                    b.Property<int>("ID_VENTA")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_VENTA");
+
+                    b.Property<bool>("ANULADA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ANULADA");
+
+                    b.Property<string>("ESTADO")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Completada")
+                        .HasColumnName("ESTADO");
+
+                    b.Property<DateTime>("FECHA_VENTA")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FECHA_VENTA");
+
+                    b.Property<int?>("ID_CLIENTE")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_CLIENTE");
+
+                    b.Property<int?>("ID_SESION_MESA")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SESION_MESA");
+
+                    b.Property<int>("ID_SUCURSAL")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_SUCURSAL");
+
+                    b.Property<int?>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<string>("REFERENCIA_MP")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("REFERENCIA_MP");
+
+                    b.Property<decimal>("TOTAL")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("TOTAL");
+
+                    b.HasKey("ID_VENTA");
+
+                    b.HasIndex("ID_CLIENTE");
+
+                    b.HasIndex("ID_SESION_MESA");
+
+                    b.HasIndex("ID_SUCURSAL");
+
+                    b.HasIndex("ID_USUARIO");
+
+                    b.ToTable("VENTA", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Caja", b =>
@@ -1564,6 +1760,24 @@ namespace PosWeb.Migrations.Local
                         .WithMany()
                         .HasForeignKey("ID_CAJA")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.ItemComanda", b =>
+                {
+                    b.HasOne("PosWeb.Domain.SesionMesa", null)
+                        .WithMany("ITEMS")
+                        .HasForeignKey("ID_SESION_MESA")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.Mesa", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("ID_SUCURSAL")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Oferta", b =>
@@ -1699,6 +1913,15 @@ namespace PosWeb.Migrations.Local
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.SesionMesa", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Mesa", null)
+                        .WithMany()
+                        .HasForeignKey("ID_MESA")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PosWeb.Domain.StockSucursal", b =>
                 {
                     b.HasOne("PosWeb.Domain.Producto", "Producto")
@@ -1749,11 +1972,25 @@ namespace PosWeb.Migrations.Local
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Venta", b =>
                 {
                     b.HasOne("PosWeb.Domain.Cliente", null)
                         .WithMany()
                         .HasForeignKey("ID_CLIENTE")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PosWeb.Domain.SesionMesa", null)
+                        .WithMany()
+                        .HasForeignKey("ID_SESION_MESA")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("PosWeb.Domain.Sucursal", null)
@@ -1766,15 +2003,6 @@ namespace PosWeb.Migrations.Local
                         .WithMany()
                         .HasForeignKey("ID_USUARIO")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("PosWeb.Domain.UsuarioPreferencia", b =>
-                {
-                    b.HasOne("PosWeb.Domain.Usuario", null)
-                        .WithMany()
-                        .HasForeignKey("ID_USUARIO")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Combo", b =>
@@ -1790,6 +2018,11 @@ namespace PosWeb.Migrations.Local
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
                 {
                     b.Navigation("RENGLONES");
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.SesionMesa", b =>
+                {
+                    b.Navigation("ITEMS");
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Venta", b =>

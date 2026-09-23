@@ -10,3 +10,4 @@
 | BUS-compra | Purchase-Specific Business Rules | Active | Project | Critical | `knowledge/projects/posweb/BUS-compra.md` |
 | BUS-pesables | Weight-Based Product Rules | Active | Project | High | `knowledge/projects/posweb/BUS-pesables.md` |
 | BUS-vencimiento-licencia | Reglas de vencimiento, gracia y renovación de licencias | Active | Project | Critical | `knowledge/projects/posweb/BUS-vencimiento-licencia.md` |
+| BUS-mesa-numero-titulo | Mesa: número numérico obligatorio + título opcional | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-numero-titulo.md` |

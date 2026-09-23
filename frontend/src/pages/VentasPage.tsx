@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
@@ -610,7 +611,7 @@ const [recibio, setRecibio] = useState<string>(() => {
         confirmDisabled={!selectedMedio}
         confirmRef={confirmBtnRef}
         cartRef={cartListRef}
-        pageShell={{ title: 'Ventas', subtitle: 'Seleccioná productos para confirmar la operación', caja: { loading: cajaLoading, activa: cajaActiva, closedMessage: 'Andá a la sección Caja para abrir una.' } }}
+        pageShell={{ title: 'Ventas', subtitle: 'Seleccioná productos para confirmar la operación', caja: { loading: cajaLoading, activa: cajaActiva, closedMessage: 'Andá a la sección Caja para abrir una.' }, helpKey: HELP_KEYS.ventas }}
         montoValue={recibio}
         onMontoChange={v => { setRecibio(v); setClienteSeleccionado(null) }}
         montoInputRef={recibioInputRef}

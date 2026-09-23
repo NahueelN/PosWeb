@@ -33,3 +33,13 @@
 | BUS-compra | RELATED | PAT-cart-flow |
 | BUS-carrito | RELATED | PAT-cart-flow |
 | LAYOUT-page-shell | RELATED | DS-design-tokens |
+| ADR-ticket-resultado-landing | RELATED | PAT-usuario-preferencias |
+| ADR-ticket-resultado-landing | USES | COMP-LabelPrintDialog |
+| PAT-ticket-impresion-ancho | RESPECTS | PAT-usuario-preferencias |
+| PAT-ticket-impresion-ancho | RELATED | ADR-ticket-resultado-landing |
+| PAT-ticket-impresion-ancho | RELATED | COMP-LabelPrintDialog |
+| PAT-mapa-responsive-popup | USES | HOOK-use-media-query |
+| PAT-mapa-responsive-popup | RESPECTS | BUS-mesa-numero-titulo |
+| HOOK-use-media-query | USES | PAT-mapa-responsive-popup |
+| BUS-mesa-numero-titulo | RELATED | PAT-mapa-responsive-popup |
+| BUS-mesa-numero-titulo | USES | HOOK-use-media-query |

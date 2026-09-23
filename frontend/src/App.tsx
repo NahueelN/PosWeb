@@ -19,7 +19,10 @@ import PedidosPage from './pages/PedidosPage'
 import DashboardPage from './pages/DashboardPage'
 import InicioPage from './pages/InicioPage'
 import CombosPage from './pages/CombosPage'
+import VencimientosPage from './pages/VencimientosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
+import MesasPage from './pages/MesasPage'
+import AyudaPage from './pages/AyudaPage'
 import { esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
@@ -71,32 +74,43 @@ function HomePage() {
 export default function App() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
   const [updater, setUpdater] = useState<UpdaterState>({ status: 'idle' })
 
   useEffect(() => onUpdaterChange(setUpdater), [])
 
   useEffect(() => {
+    let active = true
+    let retryTimer: number | undefined
     initVersionCheck()
     esperarBackend()
       .then(() => {
+        if (!active) return
         console.log('[Startup] Backend connection successful - initializing app')
         setReady(true)
+        setError(null)
         if (!import.meta.env.DEV) {
           runUpdateCheck(getCurrentVersion())
         }
       })
       .catch(e => {
+        if (!active) return
         console.error('[Startup] Backend connection failed:', e.message)
         setError(e.message)
+        retryTimer = window.setTimeout(() => setConnectionAttempt(attempt => attempt + 1), 2000)
       })
-  }, [])
+    return () => {
+      active = false
+      if (retryTimer) window.clearTimeout(retryTimer)
+    }
+  }, [connectionAttempt])
 
   if (error) {
     return (
       <div className="grid h-screen place-items-center bg-slate-900">
         <div className="rounded-xl bg-white/10 p-8 text-center text-white">
           <p className="mb-2 text-lg font-medium">Error de conexión</p>
-          <p className="mb-4 text-sm text-gray-400">{error}</p>
+          <p className="mb-4 text-sm text-gray-400">{error}. Reintentando automáticamente…</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
@@ -122,6 +136,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
             <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/vencimientos" element={<VencimientosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/historial" element={<HistorialPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
@@ -132,9 +147,11 @@ export default function App() {
               <Route path="/deudas" element={<DeudaPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/combos" element={<CombosPage />} />
+              <Route path="/mesas" element={<MesasPage />} />
 
               <Route path="/usuarios/alta" element={<Navigate to="/configuracion" replace />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
+              <Route path="/ayuda" element={<AyudaPage />} />
             </Route>
           </Route>
         </Routes>

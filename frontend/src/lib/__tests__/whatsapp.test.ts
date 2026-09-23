@@ -12,8 +12,20 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
   },
 }))
 
-import { sanitizePhone, buildWhatsAppUrl, buildWhatsAppDesktopUrl, buildPedidoWhatsAppMessage, openWhatsApp } from '../whatsapp'
+import { sanitizePhone, buildWhatsAppUrl, buildWhatsAppDesktopUrl, buildPedidoWhatsAppMessage, openWhatsApp, normalizeWhatsAppPhone, getWhatsAppRecipient, setWhatsAppRecipient } from '../whatsapp'
 import type { PedidoDetailDto } from '../../types'
+
+function createStorage(): Storage {
+  const values = new Map<string, string>()
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value) },
+    removeItem: key => { values.delete(key) },
+    clear: () => { values.clear() },
+    key: index => [...values.keys()][index] ?? null,
+    get length() { return values.size },
+  }
+}
 
 function makePedido(overrides: Partial<PedidoDetailDto> = {}): PedidoDetailDto {
   return {
@@ -155,6 +167,42 @@ describe('whatsapp lib', () => {
       expect((openMock.mock.calls[0][0] as string).startsWith('whatsapp://send')).toBe(true)
       expect((openMock.mock.calls[1][0] as string).startsWith('https://web.whatsapp.com/send')).toBe(true)
       delete (window as any).__TAURI_INTERNALS__
+    })
+  })
+
+  describe('normalizeWhatsAppPhone', () => {
+    it('adds +549 to a local number', () => {
+      expect(normalizeWhatsAppPhone('11 1234-5678')).toBe('+5491112345678')
+    })
+
+    it('keeps already-normalized numbers', () => {
+      expect(normalizeWhatsAppPhone('+54 9 11 1234-5678')).toBe('+5491112345678')
+    })
+
+    it('returns empty when there are no digits', () => {
+      expect(normalizeWhatsAppPhone('abc')).toBe('')
+    })
+  })
+
+  describe('recipient persistence', () => {
+    beforeEach(() => {
+      vi.unstubAllGlobals()
+      vi.stubGlobal('localStorage', createStorage())
+    })
+
+    it('returns empty when nothing was saved', () => {
+      expect(getWhatsAppRecipient()).toBe('')
+    })
+
+    it('saves and trims the recipient', () => {
+      setWhatsAppRecipient('  +5491112345678  ')
+      expect(getWhatsAppRecipient()).toBe('+5491112345678')
+    })
+
+    it('clears the recipient when saving blank', () => {
+      setWhatsAppRecipient('+5491112345678')
+      setWhatsAppRecipient('   ')
+      expect(getWhatsAppRecipient()).toBe('')
     })
   })
 })

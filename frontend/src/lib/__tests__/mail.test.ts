@@ -6,8 +6,20 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
   open: (...args: unknown[]) => openMock(...args),
 }))
 
-import { buildMailtoUrl, buildGmailUrl, openEmail } from '../mail'
+import { buildMailtoUrl, buildGmailUrl, openEmail, isValidEmail, getMailRecipient, setMailRecipient } from '../mail'
 import type { PedidoDetailDto } from '../../types'
+
+function createStorage(): Storage {
+  const values = new Map<string, string>()
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value) },
+    removeItem: key => { values.delete(key) },
+    clear: () => { values.clear() },
+    key: index => [...values.keys()][index] ?? null,
+    get length() { return values.size },
+  }
+}
 
 function makePedido(overrides: Partial<PedidoDetailDto> = {}): PedidoDetailDto {
   return {
@@ -77,6 +89,34 @@ describe('mail lib', () => {
       expect(openMock).not.toHaveBeenCalled()
       expect(winOpen).not.toHaveBeenCalled()
       winOpen.mockRestore()
+    })
+  })
+
+  describe('isValidEmail', () => {
+    it('accepts a valid email', () => {
+      expect(isValidEmail('admin@empresa.com')).toBe(true)
+    })
+
+    it('rejects invalid emails', () => {
+      expect(isValidEmail('admin@empresa')).toBe(false)
+      expect(isValidEmail('sin-arroba')).toBe(false)
+      expect(isValidEmail('')).toBe(false)
+    })
+  })
+
+  describe('recipient persistence', () => {
+    beforeEach(() => {
+      vi.unstubAllGlobals()
+      vi.stubGlobal('localStorage', createStorage())
+    })
+
+    it('returns empty when nothing was saved', () => {
+      expect(getMailRecipient()).toBe('')
+    })
+
+    it('saves and trims the email', () => {
+      setMailRecipient('  admin@empresa.com  ')
+      expect(getMailRecipient()).toBe('admin@empresa.com')
     })
   })
 })

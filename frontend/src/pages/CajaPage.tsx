@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { HELP_KEYS } from '../help/content'
 import { api, isSessionExpiredError } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { PageShell } from '../components/shared'
 import ConfiguracionCajaTab from '../components/ConfiguracionCajaTab'
 import type { CajaDto, SucursalDto, CierrePreviewDto, MedioPagoDto } from '../types'
 import { formatDate, formatCurrency } from '../formats'
-import { ENVIO_CIERRE_SUBJECT, buildCierreCajaMessage, normalizarEnvioCierre } from '../lib/cierreCaja'
-import { openWhatsAppTo } from '../lib/whatsapp'
-import { openEmailTo } from '../lib/mail'
-import { Clock, Plus } from 'lucide-react'
+import { ENVIO_CIERRE_SUBJECT, buildCierreCajaMessage } from '../lib/cierreCaja'
+import { Clock, List, Plus, Printer } from 'lucide-react'
+import TicketModal from '../components/ticket/TicketModal'
+import { buildCierreTicketLines } from '../lib/ticket'
+import CompartirMenu from '../components/CompartirMenu'
+import MovimientosCajaModal from '../components/caja/MovimientosCajaModal'
 
 export default function CajaPage() {
   const { sucursal: ctxSucursal } = useOutletContext<{ sucursal: SucursalDto | null }>()
@@ -29,7 +32,7 @@ export default function CajaPage() {
   const [caja, setCaja] = useState<CajaDto | null>(null)
   const [activa, setActiva] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { notifyError, notifySuccess, notifyInfo } = useNotification()
+  const { notifyError, notifySuccess } = useNotification()
   const [reporteCierre, setReporteCierre] = useState<CajaDto | null>(null)
   const [preview, setPreview] = useState<CierrePreviewDto | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -44,6 +47,8 @@ export default function CajaPage() {
   const [ordenarPor, setOrdenarPor] = useState<'fecha' | 'usuario' | 'inicial' | 'ventas' | 'ganancia' | null>(null)
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc')
   const [cierreDetalle, setCierreDetalle] = useState<CajaDto | null>(null)
+  const [cierreTicket, setCierreTicket] = useState<CajaDto | null>(null)
+  const [movimientosCaja, setMovimientosCaja] = useState<CajaDto | null>(null)
 
   const toggleOrden = (campo: 'fecha' | 'usuario' | 'inicial' | 'ventas' | 'ganancia') => {
     if (ordenarPor !== campo) { setOrdenarPor(campo); setOrdenDir('asc') }
@@ -202,38 +207,11 @@ export default function CajaPage() {
       api.preferencias.guardar({ saldoInicialDiaSiguiente: saldoNum > 0 ? { monto: saldoNum } : null }).catch(() => {})
       if (saldoNum > 0) setMontoInicial(String(saldoNum))
       loadHistorial()
-      void enviarResumenAutomatico(result)
     } catch (err: any) {
       if (isSessionExpiredError(err)) return
       notifyError(err.message || 'Error al cerrar caja')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function enviarResumenAutomatico(cajaCerrada: CajaDto) {
-    try {
-      const res = await api.preferencias.obtener()
-      const cfg = normalizarEnvioCierre(res.preferencias?.envioCierreCaja)
-      if (!cfg.envioAutomatico) return
-      const mensaje = buildCierreCajaMessage(cajaCerrada)
-      const fallaron: string[] = []
-      if (cfg.whatsapp.habilitado && cfg.whatsapp.destinatarios.length > 0) {
-        for (const d of cfg.whatsapp.destinatarios) {
-          try { await openWhatsAppTo(d, mensaje) } catch { fallaron.push(`WhatsApp ${d}`) }
-        }
-      }
-      if (cfg.email.habilitado && cfg.email.destinatarios.length > 0) {
-        for (const d of cfg.email.destinatarios) {
-          try { await openEmailTo(d, ENVIO_CIERRE_SUBJECT, mensaje) } catch { fallaron.push(`email ${d}`) }
-        }
-      }
-      if (fallaron.length > 0) {
-        console.warn('Envío de cierre de caja fallido:', fallaron)
-        notifyInfo(`La caja se cerró, pero no se pudo abrir el envío a: ${fallaron.join(', ')}`)
-      }
-    } catch {
-      // El cierre ya está persistido: un fallo de envío nunca debe afectar la caja.
     }
   }
 
@@ -281,6 +259,7 @@ export default function CajaPage() {
       title="Caja"
       subtitle="Gestione la apertura, el cierre y el balance de caja."
       loading={loading && !caja && !reporteCierre}
+      helpKey={tab === 'caja' ? HELP_KEYS.caja : 'solapa-caja-configuracion'}
       tabs={
         <div className="flex border-b border-slate-200">
           <button onClick={() => setTab('caja')}
@@ -665,9 +644,47 @@ export default function CajaPage() {
                       </dl>
                     </div>
                   ) : null}
+
+                  <div className="flex items-center justify-between gap-2 mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setMovimientosCaja(cierreDetalle)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                    >
+                      <List size={15} />
+                      Ver movimientos
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <CompartirMenu
+                        mailSubject={ENVIO_CIERRE_SUBJECT}
+                        mensaje={buildCierreCajaMessage(cierreDetalle)}
+                        destinatarioManual
+                        className="relative"
+                        buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors"
+                      />
+                      <button
+                        onClick={() => setCierreTicket(cierreDetalle)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors"
+                      >
+                        <Printer size={15} />
+                        Imprimir
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
+
+          {cierreTicket && (
+            <TicketModal
+              title="Cierre de caja"
+              buildLines={(w) => buildCierreTicketLines(cierreTicket, w)}
+              onClose={() => setCierreTicket(null)}
+            />
+          )}
+
+          {movimientosCaja && (
+            <MovimientosCajaModal caja={movimientosCaja} onClose={() => setMovimientosCaja(null)} />
           )}
         </>
       )}

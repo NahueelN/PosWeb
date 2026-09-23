@@ -1,9 +1,13 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, Minus, Trash2, X } from 'lucide-react';
-import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto } from '../types';
+import { Plus, Minus, Trash2, ClipboardList, Search, ChevronRight } from 'lucide-react';
+import { HELP_KEYS } from '../help/content';
+import type { PedidoListDto, PedidoDetailDto, RecibirPedidoRequestDto, RecibirItemDto, ProveedorDto, ProductoDto, PedidoEditDto, CrearProveedorRequestDto } from '../types';
 import { api } from '../api/client';
 import { useNotification } from '../context/NotificationContext';
 import Dialog from '../components/ui/Dialog';
+import Button from '../components/ui/Button';
+import CarritoPopup from '../components/shared/CarritoPopup';
+import ProveedorAltaCruzada from '../components/shared/ProveedorAltaCruzada';
 import PageShell from '../components/shared/PageShell';
 import CompartirMenu from '../components/CompartirMenu';
 import { buildPedidoWhatsAppMessage } from '../lib/whatsapp';
@@ -48,7 +52,7 @@ export default function PedidosPage() {
   const [detalleModal, setDetalleModal] = useState<PedidoDetailDto | null>(null);
   const [compartirModalOpen, setCompartirModalOpen] = useState(false);
   const [recepcionPedido, setRecepcionPedido] = useState<PedidoDetailDto | null>(null);
-  const [recepcionItems, setRecepcionItems] = useState<Record<number, { cantidad: number; faltante: boolean; precioReal: number }>>({});
+  const [recepcionItems, setRecepcionItems] = useState<Record<number, { cantidad: number; faltante: boolean; precioReal: number; precioVenta: number }>>({});
   const [receiving, setReceiving] = useState(false);
   const [faltantesResult, setFaltantesResult] = useState<{ productoId: number; productoNombre: string; cantidadFaltante: number; precioEstimado: number }[] | null>(null);
 
@@ -56,48 +60,74 @@ export default function PedidosPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createProveedorId, setCreateProveedorId] = useState(0);
   const [createProveedorNombre, setCreateProveedorNombre] = useState('');
-  const [createProveedorSearch, setCreateProveedorSearch] = useState('');
   const [createItems, setCreateItems] = useState<{ productoId: number; productoNombre: string; cantidad: number; precioEstimado: number }[]>([]);
   const [createFechaEsperada, setCreateFechaEsperada] = useState('');
   const [createObs, setCreateObs] = useState('');
   const [creating, setCreating] = useState(false);
   const [editingPedidoId, setEditingPedidoId] = useState<number | null>(null);
+  const [editingPedidoDetalle, setEditingPedidoDetalle] = useState<PedidoDetailDto | null>(null);
+  const [showNewProvModal, setShowNewProvModal] = useState(false);
+  const [newProvNombre, setNewProvNombre] = useState('');
 
   // Product search state (create/edit modal)
   const [prodSearch, setProdSearch] = useState('');
-  const [cantidad, setCantidad] = useState('1');
-  const [showProdDropdown, setShowProdDropdown] = useState(false);
-  const [prodHighIdx, setProdHighIdx] = useState(-1);
-  const [selectedProductId, setSelectedProductId] = useState(0);
+  const [productoLibrePendiente, setProductoLibrePendiente] = useState<string | null>(null);
+  const [productoCatalogoIdx, setProductoCatalogoIdx] = useState(-1);
   const prodInputRef = useRef<HTMLInputElement>(null);
-  const cantInputRef = useRef<HTMLInputElement>(null);
+  const fechaEsperadaRef = useRef<HTMLInputElement>(null);
+  const observacionesRef = useRef<HTMLInputElement>(null);
+  const cancelarPedidoRef = useRef<HTMLButtonElement>(null);
+  const ultimaCantidadRef = useRef<HTMLInputElement>(null);
   const [pedidoTab, setPedidoTab] = useState<'productos' | 'alertas'>('productos');
 
   // Reset product selection when proveedor changes
   useEffect(() => {
     setProdSearch('');
-    setCantidad('1');
-    setSelectedProductId(0);
-    setShowProdDropdown(false);
-    setProdHighIdx(-1);
     setPedidoTab('productos');
   }, [createProveedorId]);
 
-  const [showProvDropdown, setShowProvDropdown] = useState(false);
-  const [provHighIdx, setProvHighIdx] = useState(-1);
-  const provFocusRef = useRef(false);
   const provInputRef = useRef<HTMLInputElement>(null);
 
-  const createProveedoresFilt = createProveedorSearch.trim()
-    ? proveedores.filter(p => p.nombre.toLowerCase().includes(createProveedorSearch.toLowerCase()) || p.codigo.toLowerCase().includes(createProveedorSearch.toLowerCase()))
-    : proveedores;
+  const seleccionarProveedorPedido = (proveedor: ProveedorDto) => {
+    setCreateProveedorId(proveedor.id);
+    setCreateProveedorNombre(proveedor.nombre);
+    setTimeout(() => prodInputRef.current?.focus(), 100);
+  };
+
+  const seleccionarProveedorOcasional = async () => {
+    const existente = proveedores.find(p => p.nombre === 'Proveedor ocasional' || p.codigo === 'OCASIONAL');
+    if (existente) { seleccionarProveedorPedido(existente); return; }
+    try {
+      const nuevo = await api.proveedores.crear({ nombre: 'Proveedor ocasional', ivaCondicion: 'ConsumidorFinal' });
+      setProveedores(items => [...items, nuevo]);
+      seleccionarProveedorPedido(nuevo);
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al crear proveedor ocasional');
+    }
+  };
+
+  const crearProveedorPedido = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newProvNombre.trim()) return;
+    try {
+      const dto: CrearProveedorRequestDto = { nombre: newProvNombre.trim(), ivaCondicion: 'ConsumidorFinal' };
+      const nuevo = await api.proveedores.crear(dto);
+      setProveedores(items => [...items, nuevo]);
+      seleccionarProveedorPedido(nuevo);
+      setNewProvNombre('');
+      setShowNewProvModal(false);
+    } catch (err: unknown) {
+      notifyError(err instanceof Error ? err.message : 'Error al crear proveedor');
+    }
+  };
 
   const productosFilt = useMemo(() => {
     if (createProveedorId === 0) return [];
-    if (!prodSearch.trim()) return productos;
+    const disponibles = productos.filter(p => !createItems.some(item => item.productoId === p.id));
+    if (!prodSearch.trim()) return disponibles;
     const q = prodSearch.toLowerCase();
-    return productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q));
-  }, [productos, createProveedorId, prodSearch]);
+    return disponibles.filter(p => p.nombre.toLowerCase().includes(q) || p.codigoBarra.toLowerCase().includes(q));
+  }, [productos, createItems, createProveedorId, prodSearch]);
 
   const sugerirCantidad = (prod: ProductoDto): number => {
     if (prod.seguirStock === false) return 1;
@@ -186,12 +216,13 @@ export default function PedidosPage() {
       const detail = await api.pedidos.obtener(id);
       setRecepcionPedido(detail);
       setFaltantesResult(null);
-      const items: Record<number, { cantidad: number; faltante: boolean; precioReal: number }> = {};
+      const items: Record<number, { cantidad: number; faltante: boolean; precioReal: number; precioVenta: number }> = {};
       detail.items.forEach(item => {
         items[item.id] = {
           cantidad: item.cantidadPedida,
           faltante: false,
           precioReal: item.precioUnitarioEstimado,
+          precioVenta: productos.find(producto => producto.id === item.productoId)?.precio ?? 0,
         };
       });
       setRecepcionItems(items);
@@ -205,9 +236,9 @@ export default function PedidosPage() {
       const detail = await api.pedidos.obtener(id);
       const proveedor = proveedores.find(p => p.nombre === detail.proveedorNombre);
       setEditingPedidoId(id);
+      setEditingPedidoDetalle(detail);
       setCreateProveedorId(proveedor?.id ?? 0);
       setCreateProveedorNombre(proveedor?.nombre ?? '');
-      setCreateProveedorSearch('');
       setCreateItems(detail.items.map(i => ({
         productoId: i.productoId,
         productoNombre: i.productoNombre,
@@ -238,6 +269,7 @@ export default function PedidosPage() {
             cantidadRecibida: ri.cantidad,
             esFaltante: ri.faltante,
             precioUnitarioReal: ri.precioReal,
+            precioVenta: ri.precioVenta,
           } as RecibirItemDto;
         }),
       };
@@ -309,64 +341,9 @@ export default function PedidosPage() {
     setPedidoCancelarId(null);
   };
 
-  const seleccionarDelDropdown = (id: number) => {
-    const prod = productos.find(p => p.id === id);
-    if (!prod) return;
-    setProdSearch(prod.nombre);
-    setSelectedProductId(id);
-    setCantidad(String(sugerirCantidad(prod)));
-    setShowProdDropdown(false);
-    setProdHighIdx(-1);
-    setTimeout(() => cantInputRef.current?.focus(), 50);
-  };
-
   const agregarDesdeAlerta = (prod: ProductoDto) => {
     const cant = sugerirCantidad(prod);
     setCreateItems(prev => [...prev, { productoId: prod.id, productoNombre: prod.nombre, cantidad: cant, precioEstimado: prod.costo }]);
-  };
-
-  const agregarProductoSeleccionado = () => {
-    const cant = parseFloat(cantidad);
-    if (isNaN(cant) || cant <= 0) {
-      notifyError('Cantidad inválida');
-      return;
-    }
-
-    let productoId = selectedProductId;
-    let productoNombre = '';
-    let precioEstimado = 0;
-
-    if (productoId > 0) {
-      const prod = productos.find(p => p.id === productoId);
-      if (!prod) return;
-      productoNombre = prod.nombre;
-      precioEstimado = prod.costo;
-    } else if (prodSearch.trim()) {
-      const match = productos.find(p =>
-        p.nombre.toLowerCase() === prodSearch.trim().toLowerCase() ||
-        p.codigoBarra === prodSearch.trim()
-      );
-      if (match) {
-        productoId = match.id;
-        productoNombre = match.nombre;
-        precioEstimado = match.costo;
-      } else {
-        productoId = 0;
-        productoNombre = prodSearch.trim();
-        precioEstimado = 0;
-      }
-    } else {
-      notifyError('Seleccioná un producto o escribí uno libre');
-      return;
-    }
-
-    setCreateItems(prev => [...prev, { productoId, productoNombre, cantidad: cant, precioEstimado }]);
-    setProdSearch('');
-    setCantidad('1');
-    setSelectedProductId(0);
-    setShowProdDropdown(false);
-    setProdHighIdx(-1);
-    prodInputRef.current?.focus();
   };
 
   const handleGuardarPedido = async () => {
@@ -398,7 +375,6 @@ export default function PedidosPage() {
       setEditingPedidoId(null);
       setCreateProveedorId(0);
       setCreateProveedorNombre('');
-      setCreateProveedorSearch('');
       setCreateItems([]);
       setCreateFechaEsperada('');
       setCreateObs('');
@@ -421,8 +397,9 @@ export default function PedidosPage() {
         subtitle={`${pedidosFiltrados.length} pedidos`}
         loading={loading}
         loadingMessage="Cargando pedidos..."
+        helpKey={HELP_KEYS.pedidos}
         actions={
-          <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setProdSearch(''); setCantidad('1'); setSelectedProductId(0); setPedidoTab('productos'); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateProveedorSearch(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar(getSucursalActivaId()).then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
+          <button onClick={() => { setEditingPedidoId(null); setShowCreateModal(true); setProdSearch(''); setPedidoTab('productos'); setCreateProveedorId(0); setCreateProveedorNombre(''); setCreateItems([]); setCreateFechaEsperada(''); setCreateObs(''); setProdLoading(true); api.productos.listar(getSucursalActivaId()).then(p => { setProductos(p); setProdLoading(false); }).catch(() => { setProdLoading(false); notifyError('Error al cargar productos'); }); setTimeout(() => provInputRef.current?.focus(), 100); }}
             className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
             + Nuevo pedido
           </button>
@@ -472,46 +449,29 @@ export default function PedidosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 w-[86px]">Pedido</th>
                   <th className="px-4 py-3">Proveedor</th>
-                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3 text-center">Productos</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="hidden md:table-cell px-4 py-3">Esperado</th>
                   <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3 text-right">Acción</th>
+                  <th className="px-3 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y-2 divide-gray-300">
                 {pedidosFiltrados.map(p => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{p.proveedorNombre}</td>
-                    <td className="px-4 py-3 text-gray-500">{formatDate(p.fecha)}</td>
+                  <tr key={p.id} onClick={() => p.estado === 'Pendiente' ? openEditar(p.id) : openDetalle(p.id)} className="group cursor-pointer hover:bg-indigo-50/40 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-indigo-600">#{p.id}</td>
+                    <td className="px-4 py-3"><span className="block font-medium text-gray-900">{p.proveedorNombre}</span><span className="block text-xs text-gray-400">Creado {formatDate(p.fecha)}</span></td>
+                    <td className="px-4 py-3 text-center"><span className="inline-flex min-w-7 justify-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{p.cantidadItems}</span></td>
+                    <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-gray-900">${p.total.toFixed(2)}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-gray-500">{p.fechaEsperada ? formatDate(p.fechaEsperada) : 'Sin fecha'}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${estadoBadge(p.estado)}`}>
                         {p.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center gap-1 justify-end">
-                        {p.estado === 'Pendiente' && (
-                          <>
-                            <button onClick={() => openEditar(p.id)}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-200 transition-colors">
-                              Editar
-                            </button>
-                            <button onClick={() => openRecepcion(p.id)}
-                              className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors">
-                              Recibir
-                            </button>
-                            <button onClick={() => handleCancelar(p.id)}
-                              className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-md hover:bg-red-200 transition-colors">
-                              Cancelar
-                            </button>
-                          </>
-                        )}
-                        <button onClick={() => openDetalle(p.id)}
-                          className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors">
-                          Ver
-                        </button>
-                      </div>
-                    </td>
+                    <td className="px-3 py-3 text-gray-400 group-hover:text-indigo-600"><ChevronRight size={18} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -563,13 +523,27 @@ export default function PedidosPage() {
 
       {/* ── Recepción Modal ── */}
       {recepcionPedido && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => { setRecepcionPedido(null); setFaltantesResult(null); }}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-4xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Recibir Pedido #{recepcionPedido.id}</h3>
-              <button onClick={() => { setRecepcionPedido(null); setFaltantesResult(null); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        <Dialog
+          open
+          onClose={() => { setRecepcionPedido(null); setFaltantesResult(null) }}
+          closeOnBackdrop={false}
+          title="PEDIDO"
+          icon={ClipboardList}
+          highlight={`Recibir pedido #${recepcionPedido.id}`}
+          description={recepcionPedido.proveedorNombre}
+          width="xl"
+          footer={
+            <div className="flex items-center justify-end gap-3 w-full">
+              <Button variant="secondary" size="md" onClick={() => { setRecepcionPedido(null); setFaltantesResult(null); loadPedidos() }}>Cerrar</Button>
+              {faltantesResult ? (
+                <Button variant="primary" size="md" onClick={handleCrearSiguientePedido}>Crear pedido con faltantes</Button>
+              ) : (
+                <Button variant="primary" size="md" onClick={handleRecibir} loading={receiving}>Confirmar recepción</Button>
+              )}
             </div>
-            <p className="text-sm text-gray-600 mb-4">{recepcionPedido.proveedorNombre}</p>
+          }
+        >
+          <div className="space-y-3">
 
             {faltantesResult ? (
               <div>
@@ -586,14 +560,6 @@ export default function PedidosPage() {
                     ))}</tbody>
                   </table>
                 </div>
-                <button onClick={handleCrearSiguientePedido}
-                  className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors mb-2">
-                  Crear pedido con faltantes
-                </button>
-                <button onClick={() => { setRecepcionPedido(null); setFaltantesResult(null); loadPedidos(); }}
-                  className="w-full py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200">
-                  Cerrar
-                </button>
               </div>
             ) : (
               <>
@@ -602,7 +568,7 @@ export default function PedidosPage() {
                   <span className="col-span-4">Producto</span>
                   <span className="col-span-2 text-center">Pedido</span>
                   <span className="col-span-2 text-center">Recibido</span>
-                  <span className="col-span-2 text-center">Precio real</span>
+                  <span className="col-span-2 text-center">Precio de venta</span>
                   <span className="col-span-2 text-center">Faltante</span>
                 </div>
                 <div className="space-y-2 mb-4">
@@ -630,11 +596,11 @@ export default function PedidosPage() {
                             onChange={e => setRecepcionItems(prev => ({ ...prev, [item.id]: { ...prev[item.id], cantidad: parseInt(e.target.value) || 0 } }))}
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                         </div>
-                        {/* Precio real */}
+                        {/* Precio de venta */}
                         <div className="sm:col-span-2 flex items-center justify-center">
                           <input type="number" min={0} step="0.01"
-                            value={ri?.precioReal ?? item.precioUnitarioEstimado}
-                            onChange={e => setRecepcionItems(prev => ({ ...prev, [item.id]: { ...prev[item.id], precioReal: parseFloat(e.target.value) || 0 } }))}
+                            value={ri?.precioVenta ?? 0}
+                            onChange={e => setRecepcionItems(prev => ({ ...prev, [item.id]: { ...prev[item.id], precioVenta: parseFloat(e.target.value) || 0 } }))}
                             className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-right font-mono focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                         </div>
                         {/* Faltante checkbox */}
@@ -652,102 +618,61 @@ export default function PedidosPage() {
                     );
                   })}
                 </div>
-                <button onClick={handleRecibir} disabled={receiving}
-                  className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  {receiving ? 'Recibiendo...' : 'Confirmar recepción'}
-                </button>
               </>
             )}
           </div>
-        </div>
+        </Dialog>
       )}
 
       {/* ── Crear Pedido Modal ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
-          <form onSubmit={e => { e.preventDefault(); handleGuardarPedido(); }} onClick={e => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">
-                {editingPedidoId ? `Editar pedido #${editingPedidoId}` : 'Nuevo pedido'}
-              </h3>
-              <button type="button" onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                <X size={16} />
-              </button>
+        <Dialog
+          open
+          onClose={() => setShowCreateModal(false)}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          title="PEDIDO"
+          icon={ClipboardList}
+          highlight={editingPedidoId ? `Editar pedido #${editingPedidoId}` : 'Nuevo pedido'}
+          description="Seleccioná el proveedor y armá el pedido desde el carrito."
+          width="2xl"
+          fillHeight
+          footer={
+            <div className="flex items-center justify-end gap-3 w-full">
+              {editingPedidoId && editingPedidoDetalle && (
+                <>
+                  <Button variant="destructive" size="md" className="mr-auto" type="button" onClick={() => { setShowCreateModal(false); handleCancelar(editingPedidoId) }}>Cancelar pedido</Button>
+                  <CompartirMenu mail={editingPedidoDetalle.proveedorMail} telefono={editingPedidoDetalle.proveedorTelefono}
+                    mailSubject={`Pedido #${editingPedidoDetalle.id}`} mensaje={buildPedidoWhatsAppMessage(editingPedidoDetalle)} destinatarioManual className="relative"
+                    buttonClassName="min-w-[128px] px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2" dropdownUp />
+                  <Button variant="confirm" size="md" type="button" onClick={() => { setShowCreateModal(false); openRecepcion(editingPedidoId) }}>Recibir</Button>
+                </>
+              )}
+              <Button ref={cancelarPedidoRef} variant="secondary" size="md" className="min-w-[128px]" type="button" onClick={() => setShowCreateModal(false)}>Cerrar</Button>
+              <Button variant="primary" size="md" className="min-w-[128px]" type="submit" form="pedido-form"
+                disabled={creating || createProveedorId === 0 || createItems.length === 0} loading={creating}>
+                {editingPedidoId ? 'Guardar cambios' : 'Crear pedido'}
+              </Button>
             </div>
+          }
+        >
+          <form id="pedido-form" onSubmit={e => { e.preventDefault(); handleGuardarPedido(); }} onKeyDown={e => {
+            if (e.key !== 'Enter' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
+            e.preventDefault()
+            document.querySelector<HTMLButtonElement>('button[form="pedido-form"][type="submit"]')?.focus()
+          }} className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 lg:flex-1 lg:min-h-0">
+              <div className="min-w-0 flex flex-col gap-4 lg:min-h-0">
 
-            {/* Proveedor search */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor *</label>
-              <div className="relative">
-                <input ref={provInputRef} type="text"
-                  value={createProveedorId > 0 ? createProveedorNombre : createProveedorSearch}
-                  onChange={e => { setCreateProveedorSearch(e.target.value); if (createProveedorId > 0) { setCreateProveedorId(0); setCreateProveedorNombre(''); } setShowProvDropdown(true); setProvHighIdx(-1); provFocusRef.current = false; }}
-                  onFocus={() => setShowProvDropdown(true)}
-                  onBlur={() => setTimeout(() => { setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; }, 200)}
-                  onKeyDown={e => {
-                    if (!showProvDropdown || createProveedoresFilt.length === 0) {
-                      if (e.key === 'Enter' && createProveedoresFilt.length === 1) {
-                        e.preventDefault();
-                        const p = createProveedoresFilt[0];
-                        setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
-                        setTimeout(() => prodInputRef.current?.focus(), 100);
-                      }
-                      return;
-                    }
-                    const pf = provFocusRef.current;
-                    const total = createProveedoresFilt.length;
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      if (!pf) { setProvHighIdx(0); provFocusRef.current = true; }
-                      else { const next = Math.min(provHighIdx + 1, total - 1); setProvHighIdx(next); }
-                      return;
-                    }
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      if (pf) {
-                        if (provHighIdx <= 0) { setProvHighIdx(-1); provFocusRef.current = false; }
-                        else { setProvHighIdx(provHighIdx - 1); }
-                      }
-                      return;
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (pf && provHighIdx >= 0) {
-                        const p = createProveedoresFilt[provHighIdx];
-                        setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
-                        setProvHighIdx(-1); provFocusRef.current = false;
-                        setTimeout(() => prodInputRef.current?.focus(), 100);
-                      } else if (total === 1) {
-                        const p = createProveedoresFilt[0];
-                        setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false);
-                        setTimeout(() => prodInputRef.current?.focus(), 100);
-                      }
-                      return;
-                    }
-                    if (e.key === 'Escape') { setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; }
-                  }}
-                  placeholder="Buscar proveedor..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-                {showProvDropdown && createProveedoresFilt.length > 0 && (
-                  <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
-                    {createProveedoresFilt.map((p, i) => (
-                      <li key={p.id} onMouseDown={() => { setCreateProveedorId(p.id); setCreateProveedorNombre(p.nombre); setCreateProveedorSearch(''); setShowProvDropdown(false); setProvHighIdx(-1); provFocusRef.current = false; setTimeout(() => prodInputRef.current?.focus(), 100); }}
-                        onMouseEnter={() => { setProvHighIdx(i); provFocusRef.current = true; }}
-                        className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === provHighIdx && provFocusRef.current ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                        <span className="truncate">{p.nombre}</span>
-                        <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigo}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <ProveedorAltaCruzada proveedores={proveedores} proveedorId={createProveedorId} proveedorNombre={createProveedorNombre}
+                inputRef={provInputRef} onSelect={seleccionarProveedorPedido} onCreate={() => setShowNewProvModal(true)} onSelectOcasional={seleccionarProveedorOcasional} />
             </div>
 
-            {/* Productos */}
+            {/* Catálogo de productos */}
             {createProveedorId > 0 && (
-              <div className="border-t border-gray-100 pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Productos del pedido</h4>
+              <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                 <div className="flex gap-1 mb-3">
                   <button type="button" onClick={() => setPedidoTab('productos')}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${pedidoTab === 'productos' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
@@ -759,59 +684,90 @@ export default function PedidosPage() {
                   </button>
                 </div>
                 {pedidoTab === 'productos' && (
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1 relative">
-                    <label className="block text-xs text-gray-500 mb-1">Producto</label>
-                    <input ref={prodInputRef} type="text" value={prodSearch}
-                      onChange={e => { setProdSearch(e.target.value); setShowProdDropdown(true); setProdHighIdx(-1); setSelectedProductId(0); }}
-                      onFocus={() => { if (prodSearch) setShowProdDropdown(true); }}
-                      onBlur={() => setTimeout(() => setShowProdDropdown(false), 200)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          if (showProdDropdown && productosFilt.length > 0 && prodHighIdx >= 0) {
-                            e.preventDefault();
-                            seleccionarDelDropdown(productosFilt[prodHighIdx].id);
-                            return;
-                          }
-                          if (prodSearch.trim()) {
-                            e.preventDefault();
-                            agregarProductoSeleccionado();
-                          }
-                          return;
-                        }
-                        if (!showProdDropdown || productosFilt.length === 0) return;
-                        if (e.key === 'ArrowDown') { e.preventDefault(); setProdHighIdx(Math.min(prodHighIdx + 1, productosFilt.length - 1)); }
-                        else if (e.key === 'ArrowUp') { e.preventDefault(); setProdHighIdx(Math.max(prodHighIdx - 1, 0)); }
-                      }}
-                      placeholder={prodLoading ? 'Cargando...' : 'Buscar producto o escribir uno libre...'}
-                      disabled={prodLoading}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50" />
-                    {showProdDropdown && productosFilt.length > 0 && (
-                      <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-[13px]">
-                        {productosFilt.map((p, i) => (
-                          <li key={p.id}
-                            onMouseDown={() => seleccionarDelDropdown(p.id)}
-                            onMouseEnter={() => setProdHighIdx(i)}
-                            className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-2 ${i === prodHighIdx ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                            <span className="truncate">{p.nombre}</span>
-                            <span className="text-gray-400 shrink-0 font-mono text-[11px]">{p.codigoBarra}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                  <div className="border border-gray-300 bg-white overflow-hidden lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+                    <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-gray-300 shrink-0">
+                      <h3 className="text-xs font-semibold text-black">PRODUCTOS DISPONIBLES</h3>
+                      <div className="relative w-64 max-w-[60%]">
+                        <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input ref={prodInputRef} type="text" value={prodSearch} onChange={e => { setProdSearch(e.target.value); setProductoLibrePendiente(null); setProductoCatalogoIdx(-1) }}
+                          onKeyDown={e => {
+                            if (e.key === 'Tab' && !e.shiftKey) {
+                              e.preventDefault()
+                              if (createItems.length > 0) ultimaCantidadRef.current?.focus()
+                              else fechaEsperadaRef.current?.focus()
+                              return
+                            }
+                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                              e.preventDefault()
+                              setProductoCatalogoIdx(current => {
+                                const next = e.key === 'ArrowDown'
+                                  ? Math.min(current + 1, productosFilt.length - 1)
+                                  : Math.max(current - 1, 0)
+                                setTimeout(() => document.querySelector<HTMLElement>(`[data-pedido-product-row="${next}"]`)?.scrollIntoView({ block: 'nearest' }), 0)
+                                return next
+                              })
+                              return
+                            }
+                            if (e.key !== 'Enter') return
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (productoLibrePendiente) {
+                              setCreateItems(items => [...items, { productoId: 0, productoNombre: productoLibrePendiente, cantidad: 1, precioEstimado: 0 }])
+                              setProdSearch('')
+                              setProductoLibrePendiente(null)
+                              return
+                            }
+                            const productoSeleccionado = productosFilt[productoCatalogoIdx]
+                            if (productoSeleccionado) {
+                              setCreateItems(items => [...items, { productoId: productoSeleccionado.id, productoNombre: productoSeleccionado.nombre, cantidad: sugerirCantidad(productoSeleccionado), precioEstimado: productoSeleccionado.costo }])
+                              setProdSearch('')
+                              setProductoCatalogoIdx(-1)
+                              return
+                            }
+                            const nombre = prodSearch.trim()
+                            if (!nombre) return
+                            const producto = productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase() || p.codigoBarra === nombre)
+                            if (producto) {
+                              setCreateItems(items => [...items, { productoId: producto.id, productoNombre: producto.nombre, cantidad: sugerirCantidad(producto), precioEstimado: producto.costo }])
+                              setProdSearch('')
+                              return
+                            }
+                            setProductoLibrePendiente(nombre)
+                          }}
+                          placeholder={prodLoading ? 'Cargando...' : 'Buscar producto...'} disabled={prodLoading}
+                          className="w-full pl-8 pr-2 py-1 border border-gray-300 text-sm text-black outline-none focus:border-[var(--color-primary)] disabled:opacity-50" />
+                        {productoLibrePendiente && (
+                          <div className="absolute z-20 top-full mt-1 right-0 w-72 border border-amber-300 bg-amber-50 p-2.5 shadow-lg text-xs text-amber-900">
+                            <p><strong>{productoLibrePendiente}</strong> no existe. ¿Deseás agregarlo al pedido?</p>
+                            <div className="mt-2 flex justify-end gap-2">
+                              <button type="button" onClick={() => setProductoLibrePendiente(null)} className="px-2 py-1 text-gray-600 hover:text-gray-900">Cancelar</button>
+                              <button type="button" onClick={() => { setCreateItems(items => [...items, { productoId: 0, productoNombre: productoLibrePendiente, cantidad: 1, precioEstimado: 0 }]); setProdSearch(''); setProductoLibrePendiente(null); prodInputRef.current?.focus() }} className="px-2 py-1 bg-amber-600 text-white hover:bg-amber-700">Agregar</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="max-h-[380px] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead className="sticky top-0 z-10 bg-gray-100">
+                          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                            <th className="px-2 py-1.5">Producto</th>
+                            <th className="px-1 py-1.5 text-right w-[56px]">Stock</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productosFilt.map((p, i) => (
+                            <tr key={p.id} data-pedido-product-row={i} onClick={() => { setCreateItems(items => [...items, { productoId: p.id, productoNombre: p.nombre, cantidad: sugerirCantidad(p), precioEstimado: p.costo }]); setProdSearch(''); setProductoCatalogoIdx(-1) }}
+                              className={`cursor-pointer border-b border-gray-200 last:border-0 hover:bg-gray-50 ${i === productoCatalogoIdx ? 'bg-indigo-50' : ''}`}>
+                              <td className="px-2 py-1.5"><span className="text-black">{p.nombre}</span><span className="block font-mono text-[11px] text-black">{p.codigoBarra || p.codigoProducto || ''}</span></td>
+                              <td className="px-1 py-1.5 text-right tabular-nums whitespace-nowrap"><span className={p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}>●</span> {p.stock}</td>
+                            </tr>
+                          ))}
+                          {productosFilt.length === 0 && <tr><td colSpan={2} className="px-3 py-10 text-center text-sm text-black">Sin productos para mostrar</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="w-24">
-                    <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
-                    <input ref={cantInputRef} type="number" min="1" step="1" value={cantidad}
-                      onChange={e => setCantidad(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarProductoSeleccionado(); } }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                  </div>
-                  <button type="button" onClick={agregarProductoSeleccionado}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
-                    + Agregar
-                  </button>
-                </div>
                 )}
 
                 {pedidoTab === 'alertas' && (
@@ -841,76 +797,80 @@ export default function PedidosPage() {
                   </div>
                 )}
 
-                {createItems.length > 0 && (
-                  <div className="mt-3">
-                    <div className="grid grid-cols-[1fr_88px_24px] gap-1.5 px-2 mb-1">
-                      <span className="text-[11px] text-gray-400 font-medium">Producto</span>
-                      <span className="text-[11px] text-gray-400 font-medium text-center">Cantidad</span>
-                      <span />
-                    </div>
-                    {createItems.map((item, i) => (
-                      <div key={i} className="grid grid-cols-[1fr_88px_24px] gap-1.5 items-center bg-gray-50 rounded-lg px-2 py-1.5 text-sm mb-1">
-                        <span className="truncate font-medium">
-                          {item.productoNombre}
-                          {item.productoId === 0 && <span className="ml-1 text-[12px] text-indigo-500 font-medium">(libre)</span>}
-                        </span>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button type="button"
-                            onClick={() => {
-                              const items = [...createItems];
-                              if (item.cantidad <= 1) setCreateItems(items.filter((_, j) => j !== i));
-                              else { items[i] = { ...items[i], cantidad: item.cantidad - 1 }; setCreateItems(items); }
-                            }}
-                            className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
-                            aria-label={`Reducir cantidad de ${item.productoNombre}`}>
-                            <Minus size={10} strokeWidth={3} />
-                          </button>
-                          <input type="number" min={1}
-                            value={item.cantidad}
-                            onChange={e => { const items = [...createItems]; items[i] = { ...items[i], cantidad: parseInt(e.target.value) || 1 }; setCreateItems(items); }}
-                            className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[12px] font-bold tabular-nums text-indigo-600 bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:border-indigo-400"
-                          />
-                          <button type="button"
-                            onClick={() => { const items = [...createItems]; items[i] = { ...items[i], cantidad: item.cantidad + 1 }; setCreateItems(items); }}
-                            className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all duration-100"
-                            aria-label={`Aumentar cantidad de ${item.productoNombre}`}>
-                            <Plus size={10} strokeWidth={3} />
-                          </button>
-                        </div>
-                        <button type="button"
-                          onClick={() => setCreateItems(createItems.filter((_, j) => j !== i))}
-                          className="flex justify-center text-red-400 hover:text-red-600"
-                          aria-label={`Quitar ${item.productoNombre}`}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha esperada</label>
-                <input type="date" value={createFechaEsperada} onChange={e => setCreateFechaEsperada(e.target.value)}
+                <input ref={fechaEsperadaRef} type="date" value={createFechaEsperada} onChange={e => setCreateFechaEsperada(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); observacionesRef.current?.focus() } }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Observaciones</label>
-                <input type="text" value={createObs} onChange={e => setCreateObs(e.target.value)}
+                <input ref={observacionesRef} type="text" value={createObs} onChange={e => setCreateObs(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); cancelarPedidoRef.current?.focus() } }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
               </div>
             </div>
+              </div>
 
-            <button type="submit"
-              disabled={creating || createProveedorId === 0 || createItems.length === 0}
-              className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
-              {creating ? 'Guardando...' : editingPedidoId ? 'Guardar cambios' : 'Crear pedido'}
-            </button>
+              <CarritoPopup
+                title="PRODUCTOS DEL PEDIDO"
+                count={createItems.length}
+                onClear={() => setCreateItems([])}
+                emptyState="Agregá productos desde la lista de la izquierda"
+                footer={<div className="flex items-center justify-between px-3 py-2 text-[13px] font-medium text-black"><span>RESUMEN</span><span>{createItems.reduce((total, item) => total + item.cantidad, 0)} unidades</span></div>}
+              >
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100">
+                    <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-black border-b border-gray-300">
+                      <th className="px-2 py-1.5">Producto</th>
+                      <th className="px-1 py-1.5 text-center w-[86px]">Cant.</th>
+                      <th className="px-1 py-1.5 w-[24px]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {createItems.map((item, i) => (
+                      <tr key={`${item.productoId}-${i}`} className="border-b border-gray-200 last:border-0 hover:bg-gray-50">
+                        <td className="px-2 py-1.5 text-black">
+                          {item.productoNombre}
+                          {item.productoId === 0 && <span className="ml-1 text-[12px] text-indigo-500 font-medium">(libre)</span>}
+                        </td>
+                        <td className="px-1 py-1.5">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button type="button" onClick={() => setCreateItems(items => item.cantidad <= 1 ? items.filter((_, j) => j !== i) : items.map((current, j) => j === i ? { ...current, cantidad: current.cantidad - 1 } : current))}
+                              className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100"><Minus size={11} /></button>
+                            <input ref={i === createItems.length - 1 ? ultimaCantidadRef : undefined} type="number" min={1} value={item.cantidad} onChange={e => setCreateItems(items => items.map((current, j) => j === i ? { ...current, cantidad: parseInt(e.target.value) || 1 } : current))}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); prodInputRef.current?.focus() } }}
+                              className="w-10 py-0.5 text-center border border-gray-300 font-mono text-xs tabular-nums outline-none focus:border-[var(--color-primary)]" />
+                            <button type="button" onClick={() => setCreateItems(items => items.map((current, j) => j === i ? { ...current, cantidad: current.cantidad + 1 } : current))}
+                              className="w-5 h-5 border border-gray-300 flex items-center justify-center text-black hover:bg-gray-100"><Plus size={11} /></button>
+                          </div>
+                        </td>
+                        <td className="px-1 py-1.5 text-center"><button type="button" onClick={() => setCreateItems(items => items.filter((_, j) => j !== i))} className="text-black hover:text-red-500" aria-label={`Quitar ${item.productoNombre}`}><Trash2 size={14} /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CarritoPopup>
+            </div>
           </form>
-        </div>
+        </Dialog>
       )}
+
+      <Dialog open={showNewProvModal} onClose={() => { setShowNewProvModal(false); setNewProvNombre('') }} title="Nuevo proveedor" width="md"
+        footer={<><Button variant="secondary" size="sm" onClick={() => { setShowNewProvModal(false); setNewProvNombre('') }}>Cancelar</Button><Button variant="primary" size="sm" type="submit" form="nuevo-prov-pedido-form" disabled={!newProvNombre.trim()}>Crear proveedor</Button></>}>
+        <form id="nuevo-prov-pedido-form" onSubmit={crearProveedorPedido} onKeyDown={e => {
+          if (e.key !== 'Enter') return
+          e.preventDefault()
+          document.querySelector<HTMLButtonElement>('button[form="nuevo-prov-pedido-form"][type="submit"]')?.focus()
+        }}>
+          <label className="text-xs font-semibold text-gray-700">Nombre *</label>
+          <input autoFocus type="text" value={newProvNombre} onChange={e => setNewProvNombre(e.target.value)} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+        </form>
+      </Dialog>
 
     <Dialog
       open={pedidoCancelarId !== null}

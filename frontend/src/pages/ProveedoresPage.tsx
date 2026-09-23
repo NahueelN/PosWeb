@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import { HELP_KEYS } from '../help/content'
 import type { ProveedorDto, CrearProveedorRequestDto } from '../types'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
@@ -84,6 +85,7 @@ export default function ProveedoresPage() {
       loading={list.loading && list.data.length === 0}
       error={list.error}
       onErrorClose={list.clearError}
+      helpKey={HELP_KEYS.proveedores}
     >
       <EntityToolbar
         search={search.search}

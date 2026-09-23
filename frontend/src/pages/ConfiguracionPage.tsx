@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { HelpCircle } from 'lucide-react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import AltaUsuarioTab from '../components/AltaUsuarioTab'
+import RespaldoTab from '../components/RespaldoTab'
 import type { EmpresaDto, UsuarioListadoDto, LicenciaEstado } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 
-type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock'
+type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock' | 'respaldo'
 
 const tabStyle = (active: boolean) =>
   `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -17,6 +21,7 @@ const tabStyle = (active: boolean) =>
   }`
 
 export default function ConfiguracionPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { notifyError, notifySuccess } = useNotification()
   const canManageUsers = user?.rol === 'SuperAdmin' || user?.rol === 'Admin'
@@ -33,6 +38,7 @@ export default function ConfiguracionPage() {
   const [saving, setSaving] = useState(false)
   const [mailPref, setMailPref] = useState<MailMethod | ''>(getMailPref() ?? '')
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
+  const [restauranteHabilitado, setRestauranteHabilitado] = useState(false)
 
   const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
@@ -62,6 +68,12 @@ export default function ConfiguracionPage() {
       .finally(() => setLoading(false))
     api.licencia.estado().then(setLicencia).catch(() => {})
     api.auth.me().then(setPerfil).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    api.restaurante.config()
+      .then(c => setRestauranteHabilitado(c.habilitado))
+      .catch(() => {})
   }, [])
 
   const guardarEmpresa = useCallback(async (datos = datosEmpresa()) => {
@@ -130,9 +142,20 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
-        <p className="mt-1 text-sm text-slate-500">Administrá usuarios, el perfil de tu empresa, márgenes, stock y cómo compartir.</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
+          <p className="mt-1 text-sm text-slate-500">Administrá usuarios, el perfil de tu empresa, márgenes, stock y cómo compartir.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate(`/ayuda?key=${tab === 'usuarios' ? 'solapa-configuracion-usuarios' : tab === 'compartir' ? 'solapa-configuracion-compartir' : tab === 'respaldo' ? 'solapa-configuracion-respaldo' : HELP_KEYS.configuracion}`)}
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[oklch(0.52_0.255_278)] hover:bg-gray-100 transition-colors"
+          aria-label="Ayuda"
+          title="Ayuda"
+        >
+          <HelpCircle size={17} />
+        </button>
       </div>
 
       <div className="flex border-b border-slate-200">
@@ -157,9 +180,16 @@ export default function ConfiguracionPage() {
             Stock
           </button>
         )}
+        {canManageUsers && (
+          <button type="button" onClick={() => setTab('respaldo')} className={tabStyle(tab === 'respaldo')}>
+            Datos y respaldo
+          </button>
+        )}
       </div>
 
       {tab === 'usuarios' && canManageUsers && <AltaUsuarioTab />}
+
+      {tab === 'respaldo' && canManageUsers && <RespaldoTab />}
 
       {tab === 'perfil' && (
         <>
@@ -231,6 +261,32 @@ export default function ConfiguracionPage() {
                   />
                 </div>
                 <p className="text-xs text-slate-500">{saving ? 'Guardando cambios...' : 'Los cambios se guardan al salir de cada campo.'}</p>
+                {canManageUsers && (
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="flex items-center justify-between gap-3 cursor-pointer">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Módulo restaurante (mesas)</p>
+                        <p className="text-xs text-slate-500">Habilita la operación por mesas en el menú. La venta de mesa se cobra sin descontar stock.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={restauranteHabilitado}
+                        onChange={e => {
+                          const on = e.target.checked
+                          setRestauranteHabilitado(on)
+                          api.restaurante.setConfig(on)
+                            .then(() => window.location.reload())
+                            .catch((err: unknown) => {
+                              const msg = err instanceof Error ? err.message : String(err)
+                              notifyError(`No se pudo guardar el módulo restaurante: ${msg}`)
+                              setRestauranteHabilitado(!on)
+                            })
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
             )}
           </div>

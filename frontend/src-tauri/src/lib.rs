@@ -91,13 +91,20 @@ fn kill_sidecar(state: tauri::State<SidecarProcess>) {
     }
 }
 
+#[tauri::command]
+fn reiniciar_aplicacion(app: tauri::AppHandle) {
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             kill_sidecar,
+            reiniciar_aplicacion,
             guardar_credenciales,
             guardar_usuario,
             obtener_credenciales,

@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
+import { HELP_KEYS } from '../help/content'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
@@ -206,12 +207,17 @@ export default function HistorialPage() {
     const venta = ventaData?.items.find(v => v.ventaId === ventaId)
     setTicketData({
       empresaNombre: detalle.empresaNombre,
+      empresaDireccion: detalle.empresaDireccion,
+      empresaDocumento: detalle.empresaDocumento,
+      empresaTelefono: detalle.empresaTelefono,
+      mostrarTelefonoTicket: detalle.mostrarTelefonoTicket,
       ventaId: detalle.ventaId,
       fecha: detalle.fecha,
       vendedor: detalle.vendedor ?? venta?.usuarioNombre,
+      mesa: detalle.mesa ?? undefined,
       items: detalle.items.map(i => ({ nombre: i.productoNombre, cantidad: i.cantidad, precio: i.precioUnitario })),
       total: detalle.total,
-      pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre })),
+      pagos: detalle.pagos.map(p => ({ nombre: p.medioPagoNombre, monto: p.monto })),
       cambio: detalle.cambio,
     })
   }
@@ -229,6 +235,7 @@ export default function HistorialPage() {
     <PageShell
       title="Historial"
       subtitle="Historial de ventas y compras del negocio."
+      helpKey={modo === 'ventas' ? HELP_KEYS.historial : 'solapa-historial-compras'}
       tabs={
         <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-fit">
           <button onClick={() => setModo('ventas')}
@@ -353,6 +360,7 @@ export default function HistorialPage() {
                       <th className="px-4 py-3">Fecha</th>
                       <th className="px-4 py-3">Sucursal</th>
                       <th className="px-4 py-3">Usuario</th>
+                      <th className="px-4 py-3">Mesa</th>
                       <th className="px-4 py-3">Artículos</th>
                       <th className="px-4 py-3 text-right">Total</th>
                       <th className="px-4 py-3 w-10"></th>
@@ -377,6 +385,9 @@ export default function HistorialPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-700 text-xs">
                             {venta.usuarioNombre || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 text-xs">
+                            {venta.mesa ? `Mesa ${venta.mesa}` : '—'}
                           </td>
                           <td className="px-4 py-3 text-gray-700">
                             {venta.cantidadItems} items

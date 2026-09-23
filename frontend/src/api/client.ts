@@ -1,16 +1,15 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaPorEmailRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaPorEmailRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
 
-// Determine API base URL at runtime based on deployment context
-let BASE: string;
-if (typeof window !== 'undefined' && window.location) {
-  if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
-    BASE = '/api';
-  } else {
-    BASE = 'http://localhost:5196/api';
-  }
-} else {
-  BASE = 'http://localhost:5196/api';
+export function resolveApiBase(isTauri: boolean, protocol?: string, hostname?: string): string {
+  if (!isTauri && protocol === 'http:' && hostname === 'localhost') return '/api'
+  return 'http://localhost:5196/api'
 }
+
+// Tauri can load the development frontend from localhost without Vite running.
+// In that case requests must still bypass the Vite proxy and reach the sidecar directly.
+const BASE = typeof window !== 'undefined' && window.location
+  ? resolveApiBase('__TAURI__' in window || '__TAURI_INTERNALS__' in window, window.location.protocol, window.location.hostname)
+  : 'http://localhost:5196/api'
 
 /**
  * Wait for the backend to become available.
@@ -135,7 +134,8 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   console.log(`[API Success] ${options?.method ?? 'GET'} ${url} - ${res.status} (${duration}ms)`)
   
   if (res.status === 204) return undefined as T
-  return res.json()
+  const text = await res.text()
+  return text ? JSON.parse(text) as T : undefined as T
 }
 
 export const api = {
@@ -161,6 +161,40 @@ export const api = {
     obtener: () => request<EmpresaDto>('/empresa'),
     actualizar: (dto: { nombre?: string; documento?: string; direccion?: string; telefono?: string; mostrarTelefonoTicket?: boolean }) =>
       request<EmpresaDto>('/empresa', { method: 'PUT', body: JSON.stringify(dto) }),
+  },
+
+  respaldos: {
+    exportar: async (): Promise<{ blob: Blob; fileName: string }> => {
+      const res = await fetch(`${BASE}/respaldo/exportar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      if (!res.ok) throw new Error(await responseError(res))
+      const disposition = res.headers.get('content-disposition') ?? ''
+      const fileName = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'posweb-respaldo.posweb-backup'
+      return { blob: await res.blob(), fileName }
+    },
+    exportarAArchivo: (ruta: string) => request<void>('/respaldo/exportar-a-archivo', {
+      method: 'POST',
+      body: JSON.stringify({ ruta }),
+    }),
+    importar: async (archivo: File): Promise<{ empresaNombre: string }> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      // Keeps the new one-click UI compatible with a running backend from before
+      // the confirmation field was removed from the restore endpoint.
+      form.append('confirmacion', 'REEMPLAZAR')
+      const res = await fetch(`${BASE}/respaldo/importar`, { method: 'POST', headers: getAuthHeaders(), body: form })
+      if (!res.ok) throw new Error(await responseError(res))
+      return res.json()
+    },
+    validar: async (archivo: File): Promise<{ nombre: string; documento: string; direccion: string }> => {
+      const form = new FormData()
+      form.append('archivo', archivo)
+      const res = await fetch(`${BASE}/respaldo/validar`, { method: 'POST', headers: getAuthHeaders(), body: form })
+      if (!res.ok) throw new Error(await responseError(res))
+      return res.json()
+    },
   },
 
   // Preferencias de usuario (clave-valor JSON por sección)
@@ -215,6 +249,11 @@ export const api = {
       request<ProductoDto>(`/productos/${id}/cantidad-ideal`, {
         method: 'PUT',
         body: JSON.stringify({ cantidadIdeal }),
+      }),
+    actualizarVencimientos: (id: number, seguirVencimientos: boolean, fechas: string[]) =>
+      request<ProductoDto>(`/productos/${id}/vencimientos`, {
+        method: 'PUT',
+        body: JSON.stringify({ seguirVencimientos, fechas }),
       }),
     actualizar: (id: number, dto: ProductoUpsertDto) => request<ProductoDto>(`/productos/${id}`, {
       method: 'PUT',
@@ -360,6 +399,7 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     previewCierre: (cajaId: number) => request<CierrePreviewDto>(`/cajas/${cajaId}/preview-cierre`),
+    movimientos: (cajaId: number) => request<{ items: MovimientoCajaDto[] }>(`/cajas/${cajaId}/movimientos`),
     ultimoCierre: (sucursalId: number) => request<CajaDto | null>(`/cajas/ultimo-cierre?sucursalId=${sucursalId}`),
     historial: (sucursalId: number, fechaDesde?: string, fechaHasta?: string) => {
       const params = new URLSearchParams({ sucursalId: String(sucursalId) })
@@ -655,4 +695,80 @@ export const api = {
     }),
     qr: () => request<{ qrData?: string }>('/mercadopago/qr'),
   },
+
+  // Restaurante (mesas)
+  restaurante: {
+    config: () => request<RestauranteConfigDto>('/restaurante/config'),
+    setConfig: (habilitado: boolean) => request<RestauranteConfigDto>('/restaurante/config', {
+      method: 'PUT',
+      body: JSON.stringify({ habilitado }),
+    }),
+
+    listarMesas: (sucursalId: number) =>
+      request<MesaDto[]>(`/restaurante/mesas?sucursalId=${sucursalId}`),
+
+    crearMesa: (dto: UpsertMesaRequest) => request<MesaDto>('/restaurante/mesas', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+    actualizarMesa: (id: number, dto: UpsertMesaRequest) => request<MesaDto>(`/restaurante/mesas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto),
+    }),
+
+    eliminarMesa: (id: number) => request<void>(`/restaurante/mesas/${id}`, { method: 'DELETE' }),
+
+    abrirSesion: (mesaId: number) => request<SesionMesaDto>(`/restaurante/mesas/${mesaId}/abrir`, {
+      method: 'POST',
+    }),
+
+    sesionesAbiertas: (sucursalId: number) =>
+      request<SesionMesaDto[]>(`/restaurante/sesiones/abiertas?sucursalId=${sucursalId}`),
+
+    obtenerSesion: (id: number) => request<SesionMesaDto>(`/restaurante/sesiones/${id}`),
+
+    agregarItem: (sesionId: number, dto: AgregarItemComandaRequest) =>
+      request<ItemComandaDto[]>(`/restaurante/sesiones/${sesionId}/items`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+
+    actualizarItem: (itemId: number, dto: ActualizarItemComandaRequest) =>
+      request<ItemComandaDto>(`/restaurante/items/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+      }),
+
+    cambiarEstadoItem: (itemId: number, estado: string) =>
+      request<void>(`/restaurante/items/${itemId}/estado`, {
+        method: 'PUT',
+        body: JSON.stringify({ estado }),
+      }),
+
+    unificar: (desde: number, hacia: number) =>
+      request<SesionMesaDto>(`/restaurante/sesiones/${desde}/unificar/${hacia}`, {
+        method: 'POST',
+      }),
+
+    cobrar: (sesionId: number, dto: CobrarCuentaRequest) =>
+      request<VentaResultadoDto>(`/restaurante/sesiones/${sesionId}/cobrar`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      }),
+
+    cancelarSesion: (sesionId: number) => request<void>(`/restaurante/sesiones/${sesionId}/cancelar`, {
+      method: 'POST',
+    }),
+  },
+}
+
+async function responseError(res: Response): Promise<string> {
+  const text = await res.text()
+  try {
+    const body = JSON.parse(text)
+    return body.error || body.title || body.message || text
+  } catch {
+    return text || 'La operación no pudo completarse.'
+  }
 }

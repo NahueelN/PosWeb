@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { ProductoDto, OpenFoodFactsResultDto, CategoriaDto, UnidadMedidaDto } from '../types'
-import { Loader2, Check, X, Package, Plus, Printer, Trash2 } from 'lucide-react'
+import { Loader2, Check, X, Package, Plus, Printer, Trash2, CalendarClock } from 'lucide-react'
 import Dialog from './ui/Dialog'
 import DialogPrimaryField from './ui/DialogPrimaryField'
 import Button from './ui/Button'
 import SelectAltaCruzada from './ui/SelectAltaCruzada'
+import PrefixedCodeInput from './ui/PrefixedCodeInput'
+import ProductoVencimientosEditor, { ordenarFechasVencimiento } from './shared/ProductoVencimientosEditor'
 import { useNotification } from '../context/NotificationContext'
 import BarcodePrintDialog from './BarcodePrintDialog'
-import { renderBarcode } from '../lib/barcode'
+import LabelPrintDialog from './LabelPrintDialog'
+import VencimientosProductoModal from './VencimientosProductoModal'
 
 function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
@@ -59,9 +62,14 @@ export default function ProductFormModal({
   const [margen, setMargen] = useState('')
   const [bloquearMargen, setBloquearMargen] = useState(false)
   const [seguirStock, setSeguirStock] = useState(true)
+  const [seguirVencimientos, setSeguirVencimientos] = useState(false)
   const [esPesable, setEsPesable] = useState(false)
   const [esBulto, setEsBulto] = useState(false)
   const [productoBultoId, setProductoBultoId] = useState('')
+  const [fechasVencimiento, setFechasVencimiento] = useState(['', '', ''])
+  const [showVencimientos, setShowVencimientos] = useState(false)
+  const [diasAvisoVencimiento, setDiasAvisoVencimiento] = useState(7)
+  const vencimientosSnapshot = useRef<{ seguir: boolean; fechas: string[] } | null>(null)
   const [productosBulto, setProductosBulto] = useState<ProductoDto[]>([])
   const [loading, setLoading] = useState(false)
   const { notifyError } = useNotification()
@@ -78,11 +86,7 @@ export default function ProductFormModal({
   const [nuevaUnidadCodigo, setNuevaUnidadCodigo] = useState('')
   const [nuevaUnidadDesc, setNuevaUnidadDesc] = useState('')
   const [loadingUnidad, setLoadingUnidad] = useState(false)
-  const [showEtiqueta, setShowEtiqueta] = useState(false)
-  const [cantidadEtiquetas, setCantidadEtiquetas] = useState('1')
-  const [anchoEtiqueta, setAnchoEtiqueta] = useState<58 | 80>(80)
-  const [incluirCodigoEtiqueta, setIncluirCodigoEtiqueta] = useState(false)
-  const [tipoCodigoEtiqueta, setTipoCodigoEtiqueta] = useState<'ean' | 'interno'>('ean')
+  const [showLabelPrint, setShowLabelPrint] = useState(false)
   const [codigoAImprimir, setCodigoAImprimir] = useState<{ codigo: string; origen: string } | null>(null)
 
   // Barcode uniqueness check
@@ -94,7 +98,6 @@ export default function ProductFormModal({
   const focusAppliedRef = useRef(false)
   const categoriaRefetchRef = useRef<number | null>(null)
   const unidadRefetchRef = useRef<number | null>(null)
-  const codigoEtiquetaRef = useRef<SVGSVGElement>(null)
 
   type FieldKey =
     | 'codigoBarra'
@@ -302,9 +305,11 @@ export default function ProductFormModal({
         setUnidadMedidaId(editingProduct.unidadMedidaId?.toString() || '')
         setStock(editingProduct.stock?.toString() || '')
         setSeguirStock(editingProduct.seguirStock ?? true)
+        setSeguirVencimientos(editingProduct.seguirVencimientos ?? false)
         setEsPesable(editingProduct.esPesable ?? false)
         setEsBulto(editingProduct.esBulto ?? false)
         setProductoBultoId(editingProduct.productoBultoId?.toString() || '')
+        setFechasVencimiento(ordenarFechasVencimiento((editingProduct.fechasVencimiento ?? []).map(fecha => fecha.slice(0, 10))))
         setDescripcion(editingProduct.descAdicional || '')
         setMargen(editingProduct.margenGanancia?.toString() || '')
         setBloquearMargen(false)
@@ -321,9 +326,11 @@ export default function ProductFormModal({
         setDescripcion('')
         setStock('')
         setSeguirStock(true)
+        setSeguirVencimientos(false)
         setEsPesable(defaultEsPesable ?? false)
         setEsBulto(false)
         setProductoBultoId('')
+        setFechasVencimiento(['', '', ''])
         setMargen('')
         setBloquearMargen(false)
         setBarcodeStatus('idle')
@@ -340,18 +347,42 @@ export default function ProductFormModal({
     api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
   }, [])
 
+  // Días de anticipación configurados por el usuario (para el aviso de vencimiento)
   useEffect(() => {
     let mounted = true
-    api.preferencias.obtener().then(res => {
-      if (!mounted) return
-      const etiqueta = res.preferencias?.etiquetaProducto
-      if (!etiqueta) return
-      if (etiqueta.ancho === '58' || etiqueta.ancho === '80') setAnchoEtiqueta(Number(etiqueta.ancho) as 58 | 80)
-      if (etiqueta.incluirCodigo === 'true' || etiqueta.incluirCodigo === 'false') setIncluirCodigoEtiqueta(etiqueta.incluirCodigo === 'true')
-      if (etiqueta.tipoCodigo === 'ean' || etiqueta.tipoCodigo === 'interno') setTipoCodigoEtiqueta(etiqueta.tipoCodigo)
-    }).catch(() => {})
+    api.preferencias.obtener()
+      .then(res => {
+        const valor = res.preferencias?.vencimientos?.diasAnticipacion
+        if (mounted && valor && Number(valor) > 0) setDiasAvisoVencimiento(Number(valor))
+      })
+      .catch(() => {})
     return () => { mounted = false }
   }, [])
+
+  const alertaVencimiento = useMemo(() => {
+    if (!seguirVencimientos) return false
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const limite = new Date(hoy)
+    limite.setDate(limite.getDate() + diasAvisoVencimiento)
+    return fechasVencimiento
+      .filter(Boolean)
+      .some(fecha => new Date(`${fecha.slice(0, 10)}T00:00:00`) <= limite)
+  }, [seguirVencimientos, fechasVencimiento, diasAvisoVencimiento])
+
+  function abrirVencimientos() {
+    vencimientosSnapshot.current = { seguir: seguirVencimientos, fechas: [...fechasVencimiento] }
+    setShowVencimientos(true)
+  }
+
+  function cancelarVencimientos() {
+    const snapshot = vencimientosSnapshot.current
+    if (snapshot) {
+      setSeguirVencimientos(snapshot.seguir)
+      setFechasVencimiento(snapshot.fechas)
+    }
+    setShowVencimientos(false)
+  }
 
   // Preselect unit from OFF data
   useEffect(() => {
@@ -491,19 +522,6 @@ export default function ProductFormModal({
     return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current) }
   }, [codigoBarra, prefillData])
 
-  const codigoParaEtiqueta = tipoCodigoEtiqueta === 'ean' ? codigoBarra.trim() : codigoProducto.trim()
-  useEffect(() => {
-    if (!showEtiqueta || !incluirCodigoEtiqueta || !codigoParaEtiqueta || !codigoEtiquetaRef.current) return
-    renderBarcode(codigoEtiquetaRef.current, codigoParaEtiqueta, anchoEtiqueta, anchoEtiqueta === 80 ? 45 : 36)
-  }, [showEtiqueta, incluirCodigoEtiqueta, codigoParaEtiqueta, anchoEtiqueta])
-
-  function persistirEtiqueta(ancho: 58 | 80, incluirCodigo: boolean, tipoCodigo: 'ean' | 'interno') {
-    setAnchoEtiqueta(ancho)
-    setIncluirCodigoEtiqueta(incluirCodigo)
-    setTipoCodigoEtiqueta(tipoCodigo)
-    api.preferencias.guardar({ etiquetaProducto: { ancho: String(ancho), incluirCodigo: String(incluirCodigo), tipoCodigo } }).catch(() => {})
-  }
-
   async function buscarCodigoEnCatalogo() {
     const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
     if (!/^\d{8,14}$/.test(codigo) || isEditing || prefillData?.codigoBarras) return
@@ -603,6 +621,12 @@ export default function ProductFormModal({
       return
     }
 
+    const vencimientos = fechasVencimiento.filter(Boolean)
+    if (new Set(vencimientos).size !== vencimientos.length) {
+      notifyError('No repitas fechas de vencimiento para el mismo producto')
+      return
+    }
+
     setLoading(true)
     try {
       const dto = {
@@ -618,9 +642,11 @@ export default function ProductFormModal({
         codigoProducto: codigoProducto.startsWith('PROD') && codigoProducto.length > 4 ? codigoProducto.trim() : undefined,
         margenGanancia: margen ? Number(margen) : undefined,
         seguirStock,
+        seguirVencimientos,
         esPesable,
         esBulto,
         productoBultoId: esBulto && productoBultoId ? Number(productoBultoId) : undefined,
+        fechasVencimiento: vencimientos,
       }
       const result = isEditing
         ? await api.productos.actualizar(editingProduct!.id, dto)
@@ -643,6 +669,7 @@ export default function ProductFormModal({
         result.stock = editingProduct!.stock
       }
 
+      window.dispatchEvent(new Event('vencimientos:configuracion'))
       onCreated(result)
     } catch (e: any) {
       notifyError(e.message || (isEditing ? 'Error al actualizar producto' : 'Error al crear producto'))
@@ -651,78 +678,6 @@ export default function ProductFormModal({
     }
   }
 
-  async function imprimirEtiquetas() {
-    const cantidad = Math.floor(Number(cantidadEtiquetas))
-    const codigo = codigoBarra.trim() || codigoProducto.trim()
-    const precioEtiqueta = Number(precio)
-    if (!Number.isFinite(cantidad) || cantidad < 1) {
-      notifyError('Ingresá una cantidad de etiquetas válida')
-      return
-    }
-    if (!codigo || !nombre.trim() || !Number.isFinite(precioEtiqueta) || precioEtiqueta <= 0) {
-      notifyError('El producto debe tener nombre, precio y código para imprimir una etiqueta')
-      return
-    }
-
-    const codigoDeBarras = incluirCodigoEtiqueta ? codigoParaEtiqueta : ''
-    const barcodeSvg = codigoDeBarras
-      ? (() => {
-          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-          renderBarcode(svg, codigoDeBarras, anchoEtiqueta, anchoEtiqueta === 80 ? 45 : 36)
-          return svg.outerHTML
-        })()
-      : null
-    const etiqueta = {
-      nombre: nombre.trim(),
-      precio: precioEtiqueta,
-      codigo,
-      cantidad,
-      barcodeSvg,
-      codigoDeBarras,
-      ancho: anchoEtiqueta,
-      altoMinimo: barcodeSvg ? (anchoEtiqueta === 80 ? 42 : 34) : (anchoEtiqueta === 80 ? 35 : 30),
-    }
-    setShowEtiqueta(false)
-
-    if ('__TAURI_INTERNALS__' in window) {
-      const printWindowLabel = `label-print-${Date.now()}`
-      localStorage.setItem('posweb-label-print', JSON.stringify(etiqueta))
-      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
-      new WebviewWindow(printWindowLabel, {
-        url: `label-print.html?print=${Date.now()}`,
-        title: 'Imprimir etiquetas',
-        width: 1200,
-        height: 700,
-        resizable: false,
-        center: true,
-        decorations: false,
-      })
-      return
-    }
-
-    const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]!)
-    const etiquetaHtml = Array.from({ length: cantidad }, () => `
-      <article class="label">
-        <div class="name">${escapeHtml(etiqueta.nombre)}</div>
-        <div class="price">$${etiqueta.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-        ${etiqueta.barcodeSvg ? `<div class="barcode">${etiqueta.barcodeSvg}</div><div class="code">${escapeHtml(etiqueta.codigoDeBarras)}</div>` : ''}
-      </article>`).join('')
-    const printWindow = window.open('', 'posweb-label', 'width=420,height=340')
-    if (!printWindow) {
-      notifyError('No se pudo abrir la ventana de impresión')
-      return
-    }
-    printWindow.document.write(`<!doctype html><html><head><title>Imprimir etiquetas</title><style>
-      @page { size: ${etiqueta.ancho}mm auto; margin: 0; }
-      html, body { margin: 0; padding: 0; width: ${etiqueta.ancho}mm; font-family: Arial, sans-serif; color: #000; }
-      .label { box-sizing: border-box; width: ${etiqueta.ancho}mm; min-height: ${etiqueta.altoMinimo}mm; padding: 3mm; border: .2mm solid #000; display: flex; flex-direction: column; justify-content: space-between; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .name { font-size: ${etiqueta.ancho === 80 ? 16 : 14}px; font-weight: 700; text-align: center; text-transform: uppercase; line-height: 1.1; }
-      .price { font-size: ${etiqueta.ancho === 80 ? 48 : 36}px; font-weight: 900; text-align: center; line-height: 1; white-space: nowrap; }
-      .code { font-size: ${etiqueta.ancho === 80 ? 14 : 12}px; letter-spacing: 1px; }
-      .barcode svg { display: block; width: 100%; height: auto; }
-    </style></head><body>${etiquetaHtml}<script>window.onload = () => { window.focus(); window.print(); }; window.onafterprint = () => window.close();</script></body></html>`)
-    printWindow.document.close()
-  }
 
   const precioNum = parseFloat(precio)
   const costoNum = parseFloat(costo)
@@ -755,7 +710,7 @@ export default function ProductFormModal({
               </Button>
             )}
             {isEditing && (
-              <Button variant="secondary" size="md" icon={<Printer size={16} />} type="button" className="ml-2" onClick={() => setShowEtiqueta(true)}>
+              <Button variant="secondary" size="md" icon={<Printer size={16} />} type="button" className="ml-2" onClick={() => setShowLabelPrint(true)}>
                 Imprimir etiqueta
               </Button>
             )}
@@ -855,26 +810,19 @@ export default function ProductFormModal({
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Código interno
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-gray-400 select-none">PROD</span>
-                    <input
-                      type="text"
-                      value={codigoProducto.startsWith('PROD') ? codigoProducto.substring(4) : codigoProducto}
-                      onChange={e => {
-                        const val = e.target.value.trim()
-                        setCodigoProducto(val ? 'PROD' + val : '')
-                      }}
-                      data-field="codigoProducto"
-                      className="w-full h-7 pl-[31px] pr-7 border border-gray-300 rounded-md text-sm font-mono outline-none transition-all duration-150 focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] hover:border-gray-400"
-                      placeholder="Auto-generado"
-                    />
-                    {codigoProducto && (
+                  <PrefixedCodeInput
+                    prefix="PROD"
+                    value={codigoProducto}
+                    onChange={setCodigoProducto}
+                    dataField="codigoProducto"
+                    placeholder="Auto-generado"
+                    trailing={codigoProducto ? (
                       <button type="button" title="Imprimir código interno" onClick={() => setCodigoAImprimir({ codigo: codigoProducto, origen: 'Código interno' })}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--color-primary)] transition-colors">
+                        className="text-gray-400 hover:text-[var(--color-primary)] transition-colors">
                         <Printer size={13} />
                       </button>
-                    )}
-                  </div>
+                    ) : undefined}
+                  />
                 </div>
               </div>
             </FieldSection>
@@ -1096,83 +1044,75 @@ export default function ProductFormModal({
                   }`}
                   placeholder={seguirStock ? '0' : 'Sin control'} />
               </div>
+              {!esBulto && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Button variant="secondary" size="md" icon={<CalendarClock size={17} />} type="button" onClick={abrirVencimientos} className="h-11 flex-1 text-[14px]">
+                    Controlar vencimientos
+                  </Button>
+                  {alertaVencimiento && (
+                    <span
+                      title="Vencido o próximo a vencer"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-[15px] font-bold leading-none text-red-600">
+                      !
+                    </span>
+                  )}
+                </div>
+              )}
             </FieldSection>
           </div>
         </div>
       </form>
     </Dialog>
 
-    <Dialog
-      open={showEtiqueta}
-      onClose={() => setShowEtiqueta(false)}
-      title="Imprimir etiquetas"
-      highlight={nombre || editingProduct?.nombre}
-      description={`Formato térmico de ${anchoEtiqueta} mm.`}
-      width="sm"
-      footer={
-        <>
-          <Button variant="secondary" size="sm" onClick={() => setShowEtiqueta(false)}>Cancelar</Button>
-          <Button variant="primary" size="sm" icon={<Printer size={14} />} onClick={() => void imprimirEtiquetas()}>Imprimir</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <label className="block text-sm font-semibold text-gray-700">
-          Cantidad de etiquetas
-          <input
-            autoFocus
-            type="number"
-            min="1"
-            step="1"
-            value={cantidadEtiquetas}
-            onChange={e => setCantidadEtiquetas(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void imprimirEtiquetas() } }}
-            className="mt-1.5 w-full h-10 px-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)]"
-          />
-        </label>
-        <div>
-          <p className="mb-1.5 text-sm font-semibold text-gray-700">Ancho del rollo</p>
-          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
-            {[58, 80].map(ancho => (
-              <button
-                key={ancho}
-                type="button"
-                onClick={() => persistirEtiqueta(ancho as 58 | 80, incluirCodigoEtiqueta, tipoCodigoEtiqueta)}
-                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${anchoEtiqueta === ancho ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-gray-500 hover:bg-white'}`}
-              >
-                {ancho} mm
-              </button>
-            ))}
+    {showLabelPrint && (
+      <LabelPrintDialog
+        nombre={nombre || editingProduct?.nombre || ''}
+        precio={Number(precio) || 0}
+        codigoBarra={codigoBarra}
+        codigoInterno={codigoProducto}
+        onClose={() => setShowLabelPrint(false)}
+      />
+    )}
+
+    {showVencimientos && (editingProduct ? (
+      <VencimientosProductoModal
+        producto={{ ...editingProduct, seguirVencimientos, fechasVencimiento: fechasVencimiento.filter(Boolean) }}
+        onSaved={actualizado => {
+          setSeguirVencimientos(actualizado.seguirVencimientos ?? false)
+          setFechasVencimiento(ordenarFechasVencimiento((actualizado.fechasVencimiento ?? []).map(fecha => fecha.slice(0, 10))))
+          setShowVencimientos(false)
+        }}
+        onClose={() => setShowVencimientos(false)}
+      />
+    ) : (
+      <Dialog
+        open
+        onClose={cancelarVencimientos}
+        closeOnBackdrop={false}
+        title="VENCIMIENTOS"
+        icon={CalendarClock}
+        highlight={nombre || 'Nuevo producto'}
+        width="md"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button variant="secondary" size="md" className="min-w-[128px]" type="button" onClick={cancelarVencimientos}>
+              Cancelar
+            </Button>
+            <Button variant="primary" size="md" className="min-w-[128px]" icon={<Check size={18} />} type="button" onClick={() => setShowVencimientos(false)}>
+              Guardar
+            </Button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <input type="checkbox" checked={incluirCodigoEtiqueta} onChange={e => persistirEtiqueta(anchoEtiqueta, e.target.checked, tipoCodigoEtiqueta)}
-              disabled={!codigoBarra.trim() && !codigoProducto.trim()}
-              className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)]" />
-            Incluir código
-          </label>
-          <select value={tipoCodigoEtiqueta} onChange={e => persistirEtiqueta(anchoEtiqueta, incluirCodigoEtiqueta, e.target.value as 'ean' | 'interno')}
-            disabled={!incluirCodigoEtiqueta}
-            className="h-8 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
-            <option value="ean" disabled={!codigoBarra.trim()}>EAN / código de barras</option>
-            <option value="interno" disabled={!codigoProducto.trim()}>Código interno</option>
-          </select>
-        </div>
-        <div className={`mx-auto border border-dashed border-gray-300 bg-gray-50 p-3 ${anchoEtiqueta === 80 ? 'w-[360px]' : 'w-[290px]'}`}>
-          <div className="border border-black bg-white px-3 py-2.5 text-black">
-            <p className={`text-center font-bold uppercase leading-tight line-clamp-2 ${anchoEtiqueta === 80 ? 'text-base' : 'text-sm'}`}>{nombre || 'Nombre del producto'}</p>
-            <p className={`my-2 text-center font-black leading-none whitespace-nowrap ${anchoEtiqueta === 80 ? 'text-5xl' : 'text-4xl'}`}>${Number(precio || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            {incluirCodigoEtiqueta && codigoParaEtiqueta && (
-              <>
-                <svg ref={codigoEtiquetaRef} className="mt-2 w-full h-auto" aria-label={`Código de barras ${codigoParaEtiqueta}`} />
-                <p className={`mt-1 text-center font-mono tracking-wider ${anchoEtiqueta === 80 ? 'text-sm' : 'text-xs'}`}>{codigoParaEtiqueta}</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </Dialog>
+        }
+      >
+        <ProductoVencimientosEditor
+          seguirVencimientos={seguirVencimientos}
+          onSeguirVencimientosChange={setSeguirVencimientos}
+          fechas={fechasVencimiento}
+          onFechasChange={setFechasVencimiento}
+          size="md"
+        />
+      </Dialog>
+    ))}
 
     {codigoAImprimir && (
       <BarcodePrintDialog codigo={codigoAImprimir.codigo} origen={codigoAImprimir.origen} onClose={() => setCodigoAImprimir(null)} />

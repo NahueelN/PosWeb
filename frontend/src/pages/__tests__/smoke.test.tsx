@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
 // ── Ensure storage APIs exist in test env ────────────────────────────
 const storageMock = () => {
@@ -20,26 +21,29 @@ beforeAll(() => {
 })
 
 // ── Mock all external dependencies ───────────────────────────────────
-vi.mock('react-router-dom', () => ({
-  useOutletContext: () => ({ sucursal: { id: 1, nombre: 'Central', codigo: 'CEN', numero: 1 } }),
-}))
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return {
+    ...actual,
+    useOutletContext: () => ({ sucursal: { id: 1, nombre: 'Central', codigo: 'CEN', numero: 1 } }),
+  }
+})
 
-vi.mock('../../api/client', () => ({
-  api: {
-    sucursales: { listar: vi.fn().mockResolvedValue([]) },
-    productos: { listar: vi.fn().mockResolvedValue([]), detalle: vi.fn().mockResolvedValue(null), obtenerPorBarra: vi.fn().mockResolvedValue(null), crear: vi.fn(), actualizar: vi.fn(), lookupOpenFoodFacts: vi.fn() },
-    ventas: { crear: vi.fn(), listar: vi.fn(), detalle: vi.fn() },
-    compras: { crear: vi.fn() },
-    cajas: { activa: vi.fn().mockResolvedValue({ activa: true }), abrir: vi.fn(), cerrar: vi.fn(), previewCierre: vi.fn() },
-    mediosPago: { listar: vi.fn().mockResolvedValue([]) },
-    clientes: { listar: vi.fn().mockResolvedValue({ items: [] }), crear: vi.fn() },
-    proveedores: { listar: vi.fn().mockResolvedValue([]) },
-    combos: { listar: vi.fn().mockResolvedValue([]) },
-    categorias: { listar: vi.fn().mockResolvedValue([]) },
-    unidadesMedida: { listar: vi.fn().mockResolvedValue([]) },
-    gastos: { listar: vi.fn(), crear: vi.fn() },
-  },
-}))
+vi.mock('../../api/client', () => {
+  type CallableProxy = (() => Promise<unknown>) & { [k: string]: CallableProxy }
+  const callableProxy = (): CallableProxy => {
+    const fn = (() => Promise.resolve({})) as CallableProxy
+    const handler: ProxyHandler<CallableProxy> = {
+      get: (target, prop) => {
+        if (typeof prop === 'symbol') return fn
+        if (!(prop in target)) target[prop as string] = callableProxy()
+        return target[prop as string]
+      },
+    }
+    return new Proxy(fn, handler)
+  }
+  return { api: callableProxy() }
+})
 
 vi.mock('../../context/NotificationContext', () => ({
   useNotification: () => ({
@@ -69,14 +73,14 @@ describe('VentasPage smoke', () => {
 
   it('renders without crashing', async () => {
     const { default: VentasPage } = await import('../../pages/VentasPage')
-    const { container } = render(<VentasPage />)
+    const { container } = render(<MemoryRouter><VentasPage /></MemoryRouter>)
     // Should render the main container
     expect(container.querySelector('.flex-1')).toBeTruthy()
   })
 
   it('shows PageShell with Ventas title', async () => {
     const { default: VentasPage } = await import('../../pages/VentasPage')
-    render(<VentasPage />)
+    render(<MemoryRouter><VentasPage /></MemoryRouter>)
     // Wait for renders
     await vi.waitFor(() => {
       expect(screen.getByText('Ventas')).toBeInTheDocument()
@@ -85,7 +89,7 @@ describe('VentasPage smoke', () => {
 
   it('shows CartPanel with Productos title', async () => {
     const { default: VentasPage } = await import('../../pages/VentasPage')
-    render(<VentasPage />)
+    render(<MemoryRouter><VentasPage /></MemoryRouter>)
     await vi.waitFor(() => {
       const titles = screen.getAllByText('Productos')
       expect(titles.length).toBeGreaterThanOrEqual(1)
@@ -100,13 +104,13 @@ describe('CompraPage smoke', () => {
 
   it('renders without crashing', async () => {
     const { default: CompraPage } = await import('../../pages/CompraPage')
-    const { container } = render(<CompraPage />)
+    const { container } = render(<MemoryRouter><CompraPage /></MemoryRouter>)
     expect(container.querySelector('.flex-1')).toBeTruthy()
   })
 
   it('shows PageShell with Compras title', async () => {
     const { default: CompraPage } = await import('../../pages/CompraPage')
-    render(<CompraPage />)
+    render(<MemoryRouter><CompraPage /></MemoryRouter>)
     await vi.waitFor(() => {
       expect(screen.getByText('Compras')).toBeInTheDocument()
     }, { timeout: 3000 })
@@ -114,7 +118,7 @@ describe('CompraPage smoke', () => {
 
   it('shows CartPanel with Productos title', async () => {
     const { default: CompraPage } = await import('../../pages/CompraPage')
-    render(<CompraPage />)
+    render(<MemoryRouter><CompraPage /></MemoryRouter>)
     await vi.waitFor(() => {
       const titles = screen.getAllByText('Productos')
       expect(titles.length).toBeGreaterThanOrEqual(1)

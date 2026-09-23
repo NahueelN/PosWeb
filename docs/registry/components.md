@@ -16,4 +16,7 @@
 | COMP-DialogActions | Button container with arrow nav | Active | Project | Medium | `../frontend/src/components/ui/DialogActions.tsx` |
 | COMP-Card | Generic card container | Active | Project | High | `../frontend/src/components/ui/Card.tsx` |
 | COMP-Button | Button with variants and sizes | Active | Project | Critical | `../frontend/src/components/ui/Button.tsx` |
-| COMP-SelectAltaCruzada | Lookup select with cross-registration (+) | Active | Project | High | `../frontend/src/components/ui/SelectAltaCruzada.tsx` |
+| COMP-Checkbox | Control Checkbox Reutilizable | Active | Project | Medium | `knowledge/projects/posweb/COMP-Checkbox.md` |
+| COMP-PrefixedCodeInput | Input de Código con Prefijo | Active | Project | Medium | `knowledge/projects/posweb/COMP-PrefixedCodeInput.md` |
+| COMP-LabelPrintDialog | Diálogo de Impresión de Etiquetas | Active | Project | High | `knowledge/projects/posweb/COMP-LabelPrintDialog.md` |
+| COMP-SelectAltaCruzada | Lookup select with cross-registration (+) | Active | Project | High | `knowledge/projects/posweb/COMP-SelectAltaCruzada.md` |

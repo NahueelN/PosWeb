@@ -58,8 +58,7 @@ public class ComboService
         return MapToDto(combo);
     }
 
-    public ComboDto ObtenerPorCodigo(string codigo)
-    {
+    public ComboDto ObtenerPorCodigo(string codigo)    {
         var combo = _context.Combo
             .Include(c => c.ITEMS)
             .FirstOrDefault(c => c.COD_COMBO == codigo.Trim().ToUpperInvariant());

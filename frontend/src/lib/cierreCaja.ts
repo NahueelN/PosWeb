@@ -1,37 +1,7 @@
-import type { CajaDto, EnvioCierreCajaConfig } from '../types'
+import type { CajaDto } from '../types'
 import { formatCurrency, formatDate } from '../formats'
-import { sanitizePhone } from './whatsapp'
 
 export const ENVIO_CIERRE_SUBJECT = 'Cierre de caja'
-
-export function normalizarTelefonoWhatsApp(v: string): string {
-  const d = sanitizePhone(v)
-  if (d.length === 0) return ''
-  if (d.startsWith('549')) return `+${d}`
-  if (d.startsWith('54')) return `+${d}`
-  return `+549${d}`
-}
-
-export function normalizarEnvioCierre(pref: unknown): EnvioCierreCajaConfig {
-  const p = (pref ?? {}) as Record<string, any>
-  const wa = (p.whatsapp ?? {}) as Record<string, any>
-  const em = (p.email ?? {}) as Record<string, any>
-  return {
-    envioAutomatico: Boolean(p.envioAutomatico),
-    whatsapp: {
-      habilitado: Boolean(wa.habilitado),
-      destinatarios: Array.isArray(wa.destinatarios)
-        ? wa.destinatarios.filter((x: unknown): x is string => typeof x === 'string' && x.trim() !== '')
-        : [],
-    },
-    email: {
-      habilitado: Boolean(em.habilitado),
-      destinatarios: Array.isArray(em.destinatarios)
-        ? em.destinatarios.filter((x: unknown): x is string => typeof x === 'string' && x.trim() !== '')
-        : [],
-    },
-  }
-}
 
 export function buildCierreCajaMessage(caja: CajaDto): string {
   const lineas: string[] = []
