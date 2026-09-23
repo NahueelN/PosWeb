@@ -1,7 +1,10 @@
 # Plan: redefinir planes de suscripción → Gratuito / Basico / Maximo
 
 > Documento de planificación para la rama `suscripciones`.
-> **NO implementado todavía.** Se ejecuta sobre la rama ya mergeada con `origin/master`.
+> **NO implementado todavía.** Se ejecuta sobre la rama ya mergeada con `origin/master`
+> (merge `d633567`, v1.1.19: incluye Mesas/Restaurante, Vencimientos, Respaldos y Ayuda).
+> Ajustado post-merge 2026-09-22: Vencimientos deshabilitado en Gratuito, Ayuda activa,
+> Márgenes/Stock activas, toggle restaurante oculto en Gratuito.
 
 ## Objetivo
 
@@ -16,7 +19,7 @@ Adaptar los planes para cumplir:
 
 ## Decisiones cerradas con el cliente
 
-1. **Gratuito** = 1 sucursal, 1 admin (el titular), 1 usuario total, 500 productos. Solo módulos **ventas, caja y stock**; todo lo demás deshabilitado (incluye Mesas/Restaurante, Clientes, Dashboard, Compras, Pedidos, Deudas, Gastos, Proveedores, Historial, Ofertas/Combos). Configuración accesible pero se **ocultan las solapas Compartir y Datos y Respaldo**.
+1. **Gratuito** = 1 sucursal, 1 admin (el titular), 1 usuario total, 500 productos. Solo módulos **ventas, caja y stock**; todo lo demás deshabilitado (incluye Mesas/Restaurante, Vencimientos, Clientes, Dashboard, Compras, Pedidos, Deudas, Gastos, Proveedores, Historial, Ofertas/Combos). Configuración accesible: **quedan Perfil, Usuarios, Márgenes y Stock**; se **ocultan Compartir, Datos y Respaldo** y el **toggle "Módulo restaurante (mesas)"**. La página de **Ayuda queda activa en todos los planes** (es documentación, no módulo de negocio).
 2. **Basico** = 1 sucursal, 3 cuentas totales, 1000 productos, todos los módulos activados.
 3. **Maximo** = sucursales ilimitadas, usuarios ilimitados, 10000 productos, MercadoPago con **verificación instantánea**.
 4. **Precios mensuales** (igual que el modelo actual de pago recurrente del worker).
@@ -81,9 +84,11 @@ Adaptar los planes para cumplir:
 ### Frontend
 
 - `types/index.ts`: `LicenciaEstado.maxProductos`.
-- `ConfiguracionPage.tsx` / `AltaUsuarioTab.tsx`: mostrar tope de productos; etiqueta "1 cuenta" para Gratuito; ocultar solapas **Compartir** y **Datos y Respaldo** (RespaldoTab) en Gratuito.
-- `Layout.tsx`: grisado de módulos en Gratuito — `hiddenForGratuito = ['/', '/historial', '/clientes', '/compras', '/gastos', '/proveedores', '/deudas', '/pedidos', '/combos', '/mesas']` aplicado cuando `licResumen?.plan === 'Gratuito'`.
-- `App.tsx`: guard de rutas para redirigir a `/ventas` si se navega a una ruta deshabilitada en Gratuito.
+- `ConfiguracionPage.tsx` / `AltaUsuarioTab.tsx`: mostrar tope de productos; etiqueta "1 cuenta" para Gratuito.
+  - En Gratuito: ocultar solapas **Compartir** y **Datos y Respaldo** (RespaldoTab); dejar Perfil, Usuarios, Márgenes y Stock.
+  - En Gratuito: ocultar el **toggle "Módulo restaurante (mesas)"** de la solapa Perfil (mesas no disponible).
+- `Layout.tsx`: grisado de módulos en Gratuito — `hiddenForGratuito = ['/', '/historial', '/clientes', '/compras', '/gastos', '/proveedores', '/deudas', '/pedidos', '/combos', '/mesas', '/vencimientos']` aplicado cuando `licResumen?.plan === 'Gratuito'`. `/ayuda` **no** se incluye (queda activa).
+- `App.tsx`: guard de rutas para redirigir a `/ventas` si se navega a una ruta deshabilitada en Gratuito. `/ayuda` y `/configuracion` quedan accesibles por URL.
 
 ### Tests
 
