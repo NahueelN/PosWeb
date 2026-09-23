@@ -698,4 +698,36 @@ public class UsuariosSubscriptionTest
 
         Assert.NotNull(dto);
     }
+
+    [Fact]
+    public async Task VerificarAcceso_ConPlanGratuitoEditado_RecortaProductosSobre500()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_ConPlanGratuitoEditado_RecortaProductosSobre500));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        // Alguien edita la DB local a Gratuito para escaparse del bloqueo/recorte,
+        // conservando 520 productos activos. VerificarAcceso debe recortarlos a 500.
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = "trial",
+            Plan = NivelesSuscripcion.Gratuito,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "maquina",
+            LastSeenUtc = DateTime.UtcNow,
+        });
+
+        for (int i = 1; i <= 520; i++)
+        {
+            var p = new Producto($"779{i:D10}", $"779{i:D10}", $"Producto {i}", 100m, 50m);
+            TestHelpers.SetId(p, i, "ID_PRODUCTO");
+            context.Producto.Add(p);
+        }
+        await context.SaveChangesAsync();
+
+        var (permitido, _) = await licenciaService.VerificarAcceso();
+
+        Assert.True(permitido);
+        Assert.Equal(500, context.Producto.Count(p => p.ACTIVO));
+        Assert.Equal(520, context.Producto.Count());
+    }
 }

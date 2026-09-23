@@ -118,6 +118,17 @@ Adaptar los planes para cumplir:
 9. **Middleware `Program.cs` (`UsuarioTieneAccesoPorSuscripcion`)**: usa `suscripcion.EstaActiva()`; al degradar a Gratuito la suscripcion debe seguir `Activa` (no se suspende). `CambiarNivel` no toca el estado → OK, verificar en el test del degradado.
 10. **`LicenciaResumenDto.Plan` / `VentasPage`**: `mpPermitido = r.plan === 'Maxima'`. Durante la prueba `Plan=Maxima` (instantáneo OK); al vencer `Plan=Gratuito` → confirmación manual. Coherente, sin cambios.
 
+## Validaciones anti-elusión (revisión post-implementación)
+
+El plan Gratuito no debilita las defensas existentes contra saltarse los bloqueos:
+
+1. **Rollback de reloj** (`LastSeenUtc`): intacto, aplica a todos los planes en `VerificarAcceso`.
+2. **Vencimiento de licencias pagas**: intacto. Solo la PRUEBA degrada a Gratuito; una licencia Basica/Maxima vencida sigue bloqueando (marca `Expirada`).
+3. **Reinicio de prueba**: intacto — `IniciarPruebaGratuita` es idempotente (no regala prueba nueva si ya hay `LicenciaConfig`).
+4. **Recorte de productos defensivo**: la rama `Plan == Gratuito` en `VerificarAcceso` ejecuta `RecortarProductosA500()` de forma idempotente y **persiste con `SaveChanges`**. Así, aunque alguien edite la DB local a Gratuito (o un plan pago vencido intente escapar), el tope de 500 productos activos se respeta. Aplica también al degradado por vencimiento de prueba.
+5. **Editar DB local a Gratuito**: no escala privilegios — queda en el nivel gratis (500 productos, 1 usuario, sin MP, módulos grisados en frontend). Equivale a usar el plan Gratuito legítimo, que es gratis por diseño.
+6. **`PermiteMercadoPago`**: solo `Maxima` (verificado contra `suscripcion.NIVEL`); editar la DB local no habilita MP sin sincronizar con el worker.
+
 ## Dejar como está (a propósito)
 
 - `MAX_SUCURSALES` no se enforcea al crear sucursales (hoy solo display). Con Gratuito=1 / Basica=1 / Maxima=ilimitado no empeora; queda documentado.

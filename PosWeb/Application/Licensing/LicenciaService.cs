@@ -238,6 +238,11 @@ public class LicenciaService
         // Plan Gratuito: estado local siempre activo, sin verificación remota ni vencimiento.
         if (licencia.Plan == NivelesSuscripcion.Gratuito)
         {
+            // Defensa anti-elusión: aunque alguien edite la DB local a Gratuito (o un plan pago
+            // vencido intente escapar del bloqueo), se mantiene el tope de 500 productos activos
+            // de forma idempotente (si ya hay <=500 no se toca nada).
+            if (RecortarProductosA500())
+                await _context.SaveChangesAsync();
             return (true, null);
         }
 
@@ -444,17 +449,23 @@ public class LicenciaService
     /// <summary>
     /// Al degradar a Gratuito (500 productos activos) se desactivan aleatoriamente los sobrantes
     /// (borrado lógico, sin borrar filas) hasta dejar 500 activos. Solo se hace en el degradado.
+    /// Retorna <c>true</c> si hubo recorte (requiere SaveChanges).
     /// </summary>
-    private void RecortarProductosA500()
+    private bool RecortarProductosA500()
     {
         const int maximoGratuito = 500;
+
+        // Short-circuit: si ya hay <=500 activos (caso normal en Gratuito) no se carga nada.
+        if (_context.Producto.Count(p => p.ACTIVO) <= maximoGratuito)
+            return false;
+
         var activos = _context.Producto
             .Where(p => p.ACTIVO)
             .OrderBy(p => p.ID_PRODUCTO)
             .ToList();
 
         if (activos.Count <= maximoGratuito)
-            return;
+            return false;
 
         var sobrantes = activos.Skip(maximoGratuito).ToList();
         // Desactivación aleatoria: mezclar y tomar el sobrante (el orden aleatorio evita
@@ -470,6 +481,8 @@ public class LicenciaService
         {
             producto.Desactivar();
         }
+
+        return true;
     }
 
     private async Task SincronizarSuscripcionConLicencia(LicenciaConfig licencia)
