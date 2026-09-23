@@ -110,6 +110,13 @@ Adaptar los planes para cumplir:
 5. **`/register` vs licencia paga**: no degradar a gratuito un email que ya contrató basica/maxima (upsert condicional).
 6. **Prueba gratuita = Maxima**: la prueba sigue operando como Maxima (MP instantáneo) por 7 días; al vencer → Gratuito. Mantener `IniciarPruebaGratuita` como hoy.
 
+## Notas de revisión de código (2026-09-22, segunda pasada)
+
+7. **`ObtenerLimitesPlan()`**: el switch por `licencia.Plan` (cuando no hay Suscripcion) también necesita el caso `Gratuito` → `(1, 1, 1, 500)`; no solo `PlanLimits.Get`.
+8. **`/checkout` del worker con `plan='gratuito'`**: `PLAN_PRICES.gratuito = 0` haría una preferencia de $0. La landing no ofrece botón de pago para Gratuito, pero por robustez conviene que `/checkout` rechace `gratuito` (o devuelva 400).
+9. **Middleware `Program.cs` (`UsuarioTieneAccesoPorSuscripcion`)**: usa `suscripcion.EstaActiva()`; al degradar a Gratuito la suscripcion debe seguir `Activa` (no se suspende). `CambiarNivel` no toca el estado → OK, verificar en el test del degradado.
+10. **`LicenciaResumenDto.Plan` / `VentasPage`**: `mpPermitido = r.plan === 'Maxima'`. Durante la prueba `Plan=Maxima` (instantáneo OK); al vencer `Plan=Gratuito` → confirmación manual. Coherente, sin cambios.
+
 ## Dejar como está (a propósito)
 
 - `MAX_SUCURSALES` no se enforcea al crear sucursales (hoy solo display). Con Gratuito=1 / Basica=1 / Maxima=ilimitado no empeora; queda documentado.
