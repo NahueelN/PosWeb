@@ -50,6 +50,10 @@ const menuGroups = [
 
 const hiddenForUsuarioComun = new Set(['/stock', '/sucursales', '/mesas', '/vencimientos'])
 
+// Plan Gratuito: solo ventas, caja y stock. Todo lo demás deshabilitado.
+// /ayuda y /configuracion quedan activas.
+const hiddenForGratuito = new Set(['/', '/historial', '/clientes', '/compras', '/gastos', '/proveedores', '/deudas', '/pedidos', '/combos', '/mesas', '/vencimientos'])
+
 function useSucursalActiva() {
   const [sucursal, setSucursal] = useState<SucursalDto | null>(null)
 
@@ -322,6 +326,7 @@ export default function Layout() {
           const visibleLinks = group.links.filter(l => {
             if (l.modulo === 'restaurante' && !restauranteHabilitado) return false
             if (user?.rol === 'UsuarioComun' && hiddenForUsuarioComun.has(l.to)) return false
+            if (licResumen?.plan === 'Gratuito' && hiddenForGratuito.has(l.to)) return false
             return true
           })
 

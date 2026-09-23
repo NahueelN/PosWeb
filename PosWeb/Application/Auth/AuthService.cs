@@ -309,6 +309,10 @@ public class AuthService
             {
                 var (_, licencia) = await _licenciaService.ActivarPorEmailOPrueba(mail);
                 licenciaEstado = licencia?.Estado;
+
+                // Dar de alta el email en la API de licensing (plan gratuito placeholder) para
+                // que cuando el usuario actualice el plan ya exista el registro.
+                await _licenciaService.RegistrarEmailEnWorker(mail);
             }
             else
             {

@@ -246,6 +246,12 @@ export default function AltaUsuarioTab() {
                   {licencia.maxUsuarios >= 2000000000 ? 'Ilimitados' : licencia.maxUsuarios}
                 </p>
               </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <label className="text-xs font-medium text-slate-400 uppercase">Productos</label>
+                <p className="text-sm text-slate-700 mt-0.5">
+                  {licencia.maxProductos >= 2000000000 ? 'Ilimitados' : licencia.maxProductos}
+                </p>
+              </div>
             </div>
           </div>
         )}

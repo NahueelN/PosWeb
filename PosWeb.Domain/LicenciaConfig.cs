@@ -83,17 +83,20 @@ public class LicenciaConfig
 
     public void MarcarPruebaExpirada()
     {
-        Estado = EstadosLicencia.PruebaExpirada;
-        Plan = NivelesSuscripcion.Basica;
+        Estado = EstadosLicencia.Activa;
+        Plan = NivelesSuscripcion.Gratuito;
         LastVerifiedAt = DateTime.UtcNow;
+        NextBilling = null;
+        GraceUntil = null;
     }
 }
 
 public static class PlanLimits
 {
-    public static (int maxSucursales, int maxAdmins, int maxUsuarios) Get(string plan) => plan switch
+    public static (int maxSucursales, int maxAdmins, int maxUsuarios, int maxProductos) Get(string plan) => plan switch
     {
-        NivelesSuscripcion.Maxima => (int.MaxValue, int.MaxValue, int.MaxValue),
-        _ => (1, int.MaxValue, 3)
+        NivelesSuscripcion.Gratuito => (1, 1, 1, 500),
+        NivelesSuscripcion.Maxima => (int.MaxValue, int.MaxValue, int.MaxValue, 10000),
+        _ => (1, int.MaxValue, 3, 1000)
     };
 }

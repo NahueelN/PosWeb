@@ -7,6 +7,8 @@ using System.Text;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.Productos;
+using PosWeb.Contracts;
 using PosWeb.Controllers;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -402,9 +404,9 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
-    public async Task VerificarAcceso_TrasVencerPrueba_SigueBloqueandoEnLlamadasPosteriores()
+    public async Task VerificarAcceso_TrasVencerPrueba_DegradaAGratuitoYPermiteAcceso()
     {
-        var context = CrearContexto(nameof(VerificarAcceso_TrasVencerPrueba_SigueBloqueandoEnLlamadasPosteriores));
+        var context = CrearContexto(nameof(VerificarAcceso_TrasVencerPrueba_DegradaAGratuitoYPermiteAcceso));
         var licenciaService = CrearLicenciaServiceConWorker(context);
 
         var machineId = await licenciaService.ObtenerOCrearMachineId();
@@ -412,17 +414,12 @@ public class UsuariosSubscriptionTest
         await Task.Delay(50);
 
         var (permitidoPrimeraVez, _) = await licenciaService.VerificarAcceso();
-        Assert.False(permitidoPrimeraVez);
-
-        // Antes de este fix, esta segunda llamada volvía a dar acceso: EsTrial ya era false
-        // (Estado pasó a trial-expired), caía al chequeo contra el Worker, fallaba, y la
-        // gracia offline daba un resultado negativo que siempre se evaluaba como "true".
-        var (permitidoSegundaVez, _) = await licenciaService.VerificarAcceso();
-        Assert.False(permitidoSegundaVez);
+        Assert.True(permitidoPrimeraVez);
 
         var licenciaFinal = await licenciaService.ObtenerEstadoLocal();
-        Assert.Equal(EstadosLicencia.PruebaExpirada, licenciaFinal!.Estado);
-        Assert.Equal(NivelesSuscripcion.Basica, licenciaFinal.Plan);
+        Assert.Equal(NivelesSuscripcion.Gratuito, licenciaFinal!.Plan);
+        Assert.Equal(EstadosLicencia.Activa, licenciaFinal.Estado);
+        Assert.Null(licenciaFinal.NextBilling);
     }
 
     [Fact]
@@ -622,5 +619,83 @@ public class UsuariosSubscriptionTest
         Assert.Single(context.Suscripcion);
         Assert.False(context.Suscripcion.Single(s => s.ID_USUARIO_TITULAR == titular.ID_USUARIO).EstaActiva());
         Assert.False(context.Usuario.Single(u => u.ID_USUARIO == titular.ID_USUARIO).SUSCRIPCION_ACTIVA);
+    }
+
+    [Fact]
+    public async Task VerificarAcceso_TrasVencerPrueba_RecortaProductosActivosA500()
+    {
+        var context = CrearContexto(nameof(VerificarAcceso_TrasVencerPrueba_RecortaProductosActivosA500));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        var machineId = await licenciaService.ObtenerOCrearMachineId();
+        await licenciaService.IniciarPruebaGratuita(machineId, TimeSpan.FromMilliseconds(1));
+
+        // 520 productos activos (como se permite en Maxima/prueba) antes de vencer la prueba.
+        for (int i = 1; i <= 520; i++)
+        {
+            var p = new Producto($"779{i:D10}", $"779{i:D10}", $"Producto {i}", 100m, 50m);
+            TestHelpers.SetId(p, i, "ID_PRODUCTO");
+            context.Producto.Add(p);
+        }
+        await context.SaveChangesAsync();
+
+        await Task.Delay(50);
+        var (permitido, _) = await licenciaService.VerificarAcceso();
+
+        Assert.True(permitido);
+        Assert.Equal(500, context.Producto.Count(p => p.ACTIVO));
+        Assert.Equal(520, context.Producto.Count());
+    }
+
+    [Fact]
+    public void CrearProducto_ConPlanBasico_RechazaSobreElTopeDeMil()
+    {
+        var context = CrearContexto(nameof(CrearProducto_ConPlanBasico_RechazaSobreElTopeDeMil));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        var service = new ProductoService(context, licenciaService);
+
+        // Basica permite hasta 1000 productos activos.
+        for (int i = 1; i <= 1000; i++)
+        {
+            var p = new Producto($"779{i:D10}", $"779{i:D10}", $"Producto {i}", 100m, 50m);
+            TestHelpers.SetId(p, i, "ID_PRODUCTO");
+            context.Producto.Add(p);
+        }
+        context.SaveChanges();
+
+        Assert.Throws<LimiteProductosException>(() => service.Crear(new ProductoUpsertDto
+        {
+            Nombre = "Producto 1001",
+            Precio = 100m,
+            Costo = 50m,
+            CodigoBarra = "7791001000000"
+        }));
+    }
+
+    [Fact]
+    public void CrearProducto_ConPlanMaxima_PermiteMilesDeProductos()
+    {
+        var context = CrearContexto(nameof(CrearProducto_ConPlanMaxima_PermiteMilesDeProductos));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearMaxima(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        var service = new ProductoService(context, licenciaService);
+
+        // Maxima permite hasta 10000; con 0 activos crear 1 no debe lanzar.
+        var dto = service.Crear(new ProductoUpsertDto
+        {
+            Nombre = "Producto libre",
+            Precio = 100m,
+            Costo = 50m,
+            CodigoBarra = "7791001000000"
+        });
+
+        Assert.NotNull(dto);
     }
 }

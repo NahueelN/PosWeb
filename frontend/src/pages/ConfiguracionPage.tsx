@@ -45,6 +45,8 @@ export default function ConfiguracionPage() {
   const [buscandoLicencia, setBuscandoLicencia] = useState(false)
   const [licenciaNoEncontrada, setLicenciaNoEncontrada] = useState(false)
 
+  const esGratuito = licencia?.plan === 'Gratuito'
+
   const datosEmpresa = useCallback(() => ({
     nombre: empresaNombre.trim(),
     direccion: empresaDireccion.trim(),
@@ -167,9 +169,11 @@ export default function ConfiguracionPage() {
         <button type="button" onClick={() => setTab('perfil')} className={tabStyle(tab === 'perfil')}>
           Perfil
         </button>
-        <button type="button" onClick={() => setTab('compartir')} className={tabStyle(tab === 'compartir')}>
-          Compartir
-        </button>
+        {!esGratuito && (
+          <button type="button" onClick={() => setTab('compartir')} className={tabStyle(tab === 'compartir')}>
+            Compartir
+          </button>
+        )}
         {canManageUsers && (
           <button type="button" onClick={() => setTab('margenes')} className={tabStyle(tab === 'margenes')}>
             Márgenes
@@ -180,7 +184,7 @@ export default function ConfiguracionPage() {
             Stock
           </button>
         )}
-        {canManageUsers && (
+        {canManageUsers && !esGratuito && (
           <button type="button" onClick={() => setTab('respaldo')} className={tabStyle(tab === 'respaldo')}>
             Datos y respaldo
           </button>
@@ -261,7 +265,7 @@ export default function ConfiguracionPage() {
                   />
                 </div>
                 <p className="text-xs text-slate-500">{saving ? 'Guardando cambios...' : 'Los cambios se guardan al salir de cada campo.'}</p>
-                {canManageUsers && (
+                {canManageUsers && !esGratuito && (
                   <div className="border-t border-slate-100 pt-4">
                     <label className="flex items-center justify-between gap-3 cursor-pointer">
                       <div>
@@ -320,7 +324,7 @@ export default function ConfiguracionPage() {
             {!licencia ? (
               <p className="text-sm text-slate-500">Sin licencia configurada.</p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="bg-slate-50 rounded-lg p-3">
                   <label className="text-xs font-medium text-slate-400 uppercase">Plan</label>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">{licencia.plan || '-'}</p>
@@ -343,6 +347,12 @@ export default function ConfiguracionPage() {
                   <label className="text-xs font-medium text-slate-400 uppercase">Cuentas (total)</label>
                   <p className="text-sm text-slate-700 mt-0.5">
                     {licencia.maxUsuarios >= 2000000000 ? 'Ilimitados' : licencia.maxUsuarios}
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <label className="text-xs font-medium text-slate-400 uppercase">Productos</label>
+                  <p className="text-sm text-slate-700 mt-0.5">
+                    {licencia.maxProductos >= 2000000000 ? 'Ilimitados' : licencia.maxProductos}
                   </p>
                 </div>
               </div>

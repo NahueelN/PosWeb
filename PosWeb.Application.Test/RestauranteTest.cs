@@ -169,8 +169,8 @@ public class RestauranteTest
         var usuarioId = context.Usuario.Single().ID_USUARIO;
         var p1 = context.Producto.OrderBy(p => p.ID_PRODUCTO).First();
 
-        var mesaA = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "A" });
-        var mesaB = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "B" });
+        var mesaA = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "1" });
+        var mesaB = service.CrearMesa(new UpsertMesaRequest { SucursalId = sucursalId, Numero = "2" });
         var sesionA = service.AbrirSesion(mesaA.Id, usuarioId);
         var sesionB = service.AbrirSesion(mesaB.Id, usuarioId);
 

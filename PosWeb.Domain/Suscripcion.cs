@@ -4,10 +4,11 @@ namespace PosWeb.Domain;
 
 public static class NivelesSuscripcion
 {
+    public const string Gratuito = "Gratuito";
     public const string Basica = "Basica";
     public const string Maxima = "Maxima";
 
-    public static readonly string[] Todos = { Basica, Maxima };
+    public static readonly string[] Todos = { Gratuito, Basica, Maxima };
 }
 
 public static class EstadosSuscripcion
@@ -92,6 +93,11 @@ public class Suscripcion
     {
     }
 
+    public static Suscripcion CrearGratuita(int usuarioTitularId, decimal costoMensual = 0m)
+    {
+        return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Gratuito, costoMensual, 1, 1, 1);
+    }
+
     public static Suscripcion CrearBasica(int usuarioTitularId, decimal costoMensual = 0m)
     {
         return new Suscripcion(usuarioTitularId, NivelesSuscripcion.Basica, costoMensual, 1, null, 3);
@@ -112,7 +118,7 @@ public class Suscripcion
     {
         if (!NivelesSuscripcion.Todos.Contains(NIVEL))
         {
-            NIVEL = NivelesSuscripcion.Basica;
+            NIVEL = NivelesSuscripcion.Gratuito;
         }
 
         var limites = PlanLimits.Get(NIVEL);

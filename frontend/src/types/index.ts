@@ -899,6 +899,7 @@ export interface LicenciaEstado {
   maxSucursales: number
   maxAdmins: number
   maxUsuarios: number
+  maxProductos: number
   cacheValido: boolean
 }
 

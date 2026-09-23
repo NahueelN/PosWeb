@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
@@ -23,11 +23,35 @@ import VencimientosPage from './pages/VencimientosPage'
 import ConfiguracionPage from './pages/ConfiguracionPage'
 import MesasPage from './pages/MesasPage'
 import AyudaPage from './pages/AyudaPage'
-import { esperarBackend } from './api/client'
+import { api, esperarBackend } from './api/client'
 import { onUpdaterChange, runUpdateCheck, type UpdaterState, type UpdaterStatus } from './updater'
 import { initVersionCheck, getCurrentVersion } from './versionCheck'
 
 declare const __APP_VERSION__: string
+
+// Rutas deshabilitadas en plan Gratuito (solo ventas, caja y stock).
+const rutasBloqueadasGratuito = new Set(['/', '/historial', '/clientes', '/compras', '/gastos', '/proveedores', '/deudas', '/pedidos', '/combos', '/mesas', '/vencimientos'])
+
+function GratuitoGuard() {
+  const { pathname } = useLocation()
+  const [plan, setPlan] = useState<string | null>(null)
+  const [chequeado, setChequeado] = useState(false)
+
+  useEffect(() => {
+    let activo = true
+    api.licencia.resumen()
+      .then(r => { if (activo) setPlan(r.plan) })
+      .catch(() => {})
+      .finally(() => { if (activo) setChequeado(true) })
+    return () => { activo = false }
+  }, [pathname])
+
+  if (!chequeado) return null
+  if (plan === 'Gratuito' && rutasBloqueadasGratuito.has(pathname)) {
+    return <Navigate to="/ventas" replace />
+  }
+  return <Outlet />
+}
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
   if (status === 'idle' || status === 'no-update' || status === 'checking') return null
@@ -134,21 +158,22 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<HomePage />} />
-            <Route path="/productos" element={<ProductosPage />} />
-            <Route path="/vencimientos" element={<VencimientosPage />} />
-            <Route path="/ventas" element={<VentasPage />} />
-            <Route path="/historial" element={<HistorialPage />} />
-            <Route path="/clientes" element={<ClientesPage />} />
-            <Route path="/caja" element={<CajaPage />} />
-            <Route path="/compras" element={<CompraPage />} />
-            <Route path="/gastos" element={<GastosPage />} />
-            <Route path="/proveedores" element={<ProveedoresPage />} />
-              <Route path="/deudas" element={<DeudaPage />} />
-              <Route path="/pedidos" element={<PedidosPage />} />
-              <Route path="/combos" element={<CombosPage />} />
-              <Route path="/mesas" element={<MesasPage />} />
-
+              <Route element={<GratuitoGuard />}>
+                <Route path="/" element={<HomePage />} />
+              <Route path="/vencimientos" element={<VencimientosPage />} />
+              <Route path="/historial" element={<HistorialPage />} />
+              <Route path="/clientes" element={<ClientesPage />} />
+              <Route path="/compras" element={<CompraPage />} />
+              <Route path="/gastos" element={<GastosPage />} />
+              <Route path="/proveedores" element={<ProveedoresPage />} />
+                <Route path="/deudas" element={<DeudaPage />} />
+                <Route path="/pedidos" element={<PedidosPage />} />
+                <Route path="/combos" element={<CombosPage />} />
+                <Route path="/mesas" element={<MesasPage />} />
+              </Route>
+              <Route path="/productos" element={<ProductosPage />} />
+              <Route path="/ventas" element={<VentasPage />} />
+              <Route path="/caja" element={<CajaPage />} />
               <Route path="/usuarios/alta" element={<Navigate to="/configuracion" replace />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
               <Route path="/ayuda" element={<AyudaPage />} />

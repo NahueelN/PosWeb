@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
+using System.Text;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Compras;
 using PosWeb.Application.Deudas;
+using PosWeb.Application.Licensing;
 using PosWeb.Application.Productos;
 using PosWeb.Contracts;
 using PosWeb.Data;
@@ -41,7 +44,15 @@ public class CompraServiceTest
     private static CompraService CrearService(PosDbContextLocal context)
     {
         var deudaService = new DeudaService(context);
-        var productoService = new ProductoService(context);
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+        var base64Key = Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!"));
+        var encryption = new EncryptionService(base64Key);
+        var licenciaService = new LicenciaService(context, configuration, encryption);
+
+        var productoService = new ProductoService(context, licenciaService);
         return new CompraService(context, deudaService, productoService);
     }
 

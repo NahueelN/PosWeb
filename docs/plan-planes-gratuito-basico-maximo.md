@@ -1,10 +1,11 @@
 # Plan: redefinir planes de suscripción → Gratuito / Basico / Maximo
 
 > Documento de planificación para la rama `suscripciones`.
-> **NO implementado todavía.** Se ejecuta sobre la rama ya mergeada con `origin/master`
+> **IMPLEMENTADO** (2026-09-22). Se ejecutó sobre la rama mergeada con `origin/master`
 > (merge `d633567`, v1.1.19: incluye Mesas/Restaurante, Vencimientos, Respaldos y Ayuda).
 > Ajustado post-merge 2026-09-22: Vencimientos deshabilitado en Gratuito, Ayuda activa,
 > Márgenes/Stock activas, toggle restaurante oculto en Gratuito.
+> Verificación: `dotnet build` (0 errores), `dotnet test` (156 OK), `tsc -b` y `vitest` (106 OK) en frontend.
 
 ## Objetivo
 

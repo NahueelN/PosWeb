@@ -1,4 +1,5 @@
 ﻿using PosWeb.Application.Exceptions;
+using PosWeb.Application.Licensing;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -10,10 +11,12 @@ namespace PosWeb.Application.Productos;
 public class ProductoService
 {
     private readonly PosDbContextLocal _context;
+    private readonly LicenciaService _licenciaService;
 
-    public ProductoService(PosDbContextLocal context)
+    public ProductoService(PosDbContextLocal context, LicenciaService licenciaService)
     {
         _context = context;
+        _licenciaService = licenciaService;
     }
 
     public List<ProductoDto> ObtenerActivos(int? sucursalId = null, bool? esPesable = null, bool? esBulto = null)
@@ -199,6 +202,8 @@ public class ProductoService
         );
         producto.CambiarSeguirVencimientos(dto.SeguirVencimientos ?? false);
         producto.CambiarFechasVencimiento(dto.FechasVencimiento);
+
+        ValidarLimiteProductosActivos(1);
 
         _context.Producto.Add(producto);
         _context.SaveChanges();
@@ -581,6 +586,8 @@ public class ProductoService
                 false,
                 null);
 
+            ValidarLimiteProductosActivos(1);
+
             _context.Producto.Add(producto);
 
             if (fila.SeguirStock.HasValue)
@@ -813,5 +820,25 @@ public class ProductoService
 
         _context.SaveChanges();
         return productos.Count;
+    }
+
+    /// <summary>
+    /// Valida que crear N productos adicionales no supere el tope de productos ACTIVOS del plan.
+    /// Solo cuenta productos ACTIVOS (inactivos/borrados lógicos no ocupan cupo).
+    /// </summary>
+    private void ValidarLimiteProductosActivos(int adicionales = 0)
+    {
+        var (_, _, _, maxProductos) = _licenciaService.ObtenerLimitesPlan();
+        // Sin licencia configurada (0) o plan ilimitado (int.MaxValue): no se enforcea.
+        if (maxProductos == int.MaxValue || maxProductos <= 0)
+            return;
+
+        var nivel = _licenciaService.ObtenerNivelActual();
+        var activos = _context.Producto.Count(p => p.ACTIVO);
+
+        if (activos + adicionales > maxProductos)
+        {
+            throw new LimiteProductosException(maxProductos, nivel);
+        }
     }
 }

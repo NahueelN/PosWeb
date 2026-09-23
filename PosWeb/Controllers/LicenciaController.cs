@@ -128,6 +128,7 @@ public class LicenciaController : ControllerBase
             MaxSucursales = limites.maxSucursales,
             MaxAdmins = limites.maxAdmins,
             MaxUsuarios = limites.maxUsuarios,
+            MaxProductos = limites.maxProductos,
             CacheValido = licencia.CacheValido,
         };
     }

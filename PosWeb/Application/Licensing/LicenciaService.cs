@@ -71,6 +71,11 @@ public class LicenciaService
             if (result == null || !result.Found)
                 return (false, "No se encontró una licencia para este email", null);
 
+            // Una licencia registrada como plan gratuito es solo un placeholder para el
+            // checkout posterior: no se activa, para no pisar la prueba gratuita local.
+            if (NormalizarPlan(result.Plan) == NivelesSuscripcion.Gratuito)
+                return (false, "No se encontró una licencia para este email", null);
+
             var machineId = await ObtenerOCrearMachineId();
 
             var request2 = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/activate")
@@ -138,6 +143,31 @@ public class LicenciaService
         return (true, trial);
     }
 
+    /// <summary>
+    /// Da de alta el email en el worker de licensing como plan gratuito (placeholder, status
+    /// pending) para que cuando el usuario actualice/contrate el plan ya exista el registro.
+    /// Fire-and-forget: si el worker falla no se propaga el error.
+    /// </summary>
+    public async Task RegistrarEmailEnWorker(string email)
+    {
+        if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+            return;
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/register")
+            {
+                Content = JsonContent.Create(new { email }, options: JsonOptions)
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
+            await _httpClient.SendAsync(request);
+        }
+        catch (HttpRequestException)
+        {
+            // No romper el registro si el worker no responde.
+        }
+    }
+
     public async Task<LicenciaConfig?> IniciarPruebaGratuita(string machineId, TimeSpan? duracion = null)
     {
         // Idempotente a propósito: si esta instalación ya tiene una LicenciaConfig (trial, paga,
@@ -196,12 +226,19 @@ public class LicenciaService
 
             if (licencia.EsTrial)
             {
-                DegradarSuscripcionABasica();
+                DegradarSuscripcionAGratuita();
                 licencia.MarcarPruebaExpirada();
                 await _context.SaveChangesAsync();
             }
 
-            return (false, "Tu prueba gratuita venció. Contratá un plan para continuar.");
+            // La prueba vence y NO bloquea: el comercio pasa a nivel Gratuito y sigue operando.
+            return (true, null);
+        }
+
+        // Plan Gratuito: estado local siempre activo, sin verificación remota ni vencimiento.
+        if (licencia.Plan == NivelesSuscripcion.Gratuito)
+        {
+            return (true, null);
         }
 
         // Vencimiento + gracia evaluado localmente, sin depender del cache de 72h ni del Worker:
@@ -297,27 +334,27 @@ public class LicenciaService
         return await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
     }
 
-    public (int maxSucursales, int maxAdmins, int maxUsuarios) ObtenerLimitesPlan()
+    public (int maxSucursales, int maxAdmins, int maxUsuarios, int maxProductos) ObtenerLimitesPlan()
     {
-        var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
-        if (licencia == null)
-            return (0, 0, 0);
-
         var admin = ObtenerAdminTitular();
         var suscripcion = admin != null
             ? _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO)
             : null;
 
         if (suscripcion != null)
+        {
+            var limites = PlanLimits.Get(suscripcion.NIVEL);
             return (suscripcion.MAX_SUCURSALES ?? int.MaxValue,
                     suscripcion.MAX_ADMIN ?? int.MaxValue,
-                    suscripcion.MAX_USUARIOS ?? int.MaxValue);
+                    suscripcion.MAX_USUARIOS ?? int.MaxValue,
+                    limites.maxProductos);
+        }
 
-        return licencia.Plan switch
-        {
-            NivelesSuscripcion.Maxima => (int.MaxValue, int.MaxValue, int.MaxValue),
-            _ => (1, int.MaxValue, 3)
-        };
+        var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
+        if (licencia != null)
+            return PlanLimits.Get(licencia.Plan);
+
+        return (0, 0, 0, 0);
     }
 
     /// <summary>
@@ -338,6 +375,24 @@ public class LicenciaService
 
         var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
         return licencia?.Plan == NivelesSuscripcion.Maxima;
+    }
+
+    /// <summary>
+    /// Nivel actual del titular (de la Suscripcion local si existe, si no de la LicenciaConfig).
+    /// </summary>
+    public string ObtenerNivelActual()
+    {
+        var admin = ObtenerAdminTitular();
+        if (admin != null)
+        {
+            var suscripcion = _context.Suscripcion
+                .FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+            if (suscripcion != null)
+                return suscripcion.NIVEL;
+        }
+
+        var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
+        return licencia?.Plan ?? NivelesSuscripcion.Gratuito;
     }
 
     public async Task<string> ObtenerOCrearMachineId()
@@ -365,20 +420,56 @@ public class LicenciaService
             ?? await _context.Usuario.Where(u => u.ROL == Roles.Admin).OrderBy(u => u.ID_USUARIO).FirstOrDefaultAsync();
     }
 
-    private void DegradarSuscripcionABasica()
+    private void DegradarSuscripcionAGratuita()
     {
         var admin = ObtenerAdminTitular();
 
-        if (admin == null)
+        if (admin != null)
+        {
+            var suscripcion = _context.Suscripcion
+                .FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+
+            if (suscripcion != null)
+            {
+                suscripcion.CambiarNivel(NivelesSuscripcion.Gratuito, 0m, 1, 1, 1);
+                suscripcion.Activar();
+                admin.ActivarSuscripcion();
+            }
+        }
+
+        // El recorte corre siempre: al pasar a Gratuito el tope baja a 500 productos activos.
+        RecortarProductosA500();
+    }
+
+    /// <summary>
+    /// Al degradar a Gratuito (500 productos activos) se desactivan aleatoriamente los sobrantes
+    /// (borrado lógico, sin borrar filas) hasta dejar 500 activos. Solo se hace en el degradado.
+    /// </summary>
+    private void RecortarProductosA500()
+    {
+        const int maximoGratuito = 500;
+        var activos = _context.Producto
+            .Where(p => p.ACTIVO)
+            .OrderBy(p => p.ID_PRODUCTO)
+            .ToList();
+
+        if (activos.Count <= maximoGratuito)
             return;
 
-        var suscripcion = _context.Suscripcion
-            .FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO);
+        var sobrantes = activos.Skip(maximoGratuito).ToList();
+        // Desactivación aleatoria: mezclar y tomar el sobrante (el orden aleatorio evita
+        // desactivar siempre los mismos; los tickets históricos conservan la referencia).
+        var rnd = new Random();
+        for (int i = sobrantes.Count - 1; i > 0; i--)
+        {
+            var j = rnd.Next(i + 1);
+            (sobrantes[i], sobrantes[j]) = (sobrantes[j], sobrantes[i]);
+        }
 
-        if (suscripcion == null)
-            return;
-
-        suscripcion.CambiarNivel(NivelesSuscripcion.Basica, 0m, 1, null, 3);
+        foreach (var producto in sobrantes)
+        {
+            producto.Desactivar();
+        }
     }
 
     private async Task SincronizarSuscripcionConLicencia(LicenciaConfig licencia)
@@ -408,6 +499,7 @@ public class LicenciaService
 
     private static string NormalizarPlan(string plan) => plan.ToLowerInvariant() switch
     {
+        "gratuito" => NivelesSuscripcion.Gratuito,
         "maxima" => NivelesSuscripcion.Maxima,
         _ => NivelesSuscripcion.Basica
     };

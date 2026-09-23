@@ -1,5 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Text;
+using PosWeb.Application.Licensing;
 using PosWeb.Application.Productos;
 using PosWeb.Data;
 using PosWeb.Testing;
@@ -51,7 +54,14 @@ public class SqliteProductoServiceTest
 
         using (var ctx = new PosDbContextLocal(options))
         {
-            var service = new ProductoService(ctx);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+            var base64Key = Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!"));
+            var encryption = new EncryptionService(base64Key);
+            var licenciaService = new LicenciaService(ctx, configuration, encryption);
+
+            var service = new ProductoService(ctx, licenciaService);
             var resultado = service.BuscarPorNombre("Coca");
             var dto = Assert.Single(resultado);
             Assert.Equal(60m, dto.Stock);

@@ -44,6 +44,9 @@ public class LicenciaEstadoDto
     /// <summary>Máximo de usuarios totales permitidos por el plan.</summary>
     public int MaxUsuarios { get; set; }
 
+    /// <summary>Máximo de productos activos permitidos por el plan.</summary>
+    public int MaxProductos { get; set; }
+
     /// <summary>Indica si el cache local de verificación sigue vigente.</summary>
     public bool CacheValido { get; set; }
 }
