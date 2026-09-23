@@ -51,17 +51,21 @@ Adaptar los planes para cumplir:
      - `Gratuito => (1, 1, 1, 500)`
      - `Basica => (1, int.MaxValue, 3, 1000)`
      - `Maxima => (int.MaxValue, int.MaxValue, int.MaxValue, 10000)`
-   - `MarcarPruebaExpirada()`: pasa a `Estado=Activa`, `Plan=Gratuito` (sin bloqueo).
+   - `MarcarPruebaExpirada()`: pasa a `Estado=Activa`, `Plan=Gratuito` **y limpia `NextBilling`/`GraceUntil`** (sin bloqueo; el Gratuito no tiene vencimiento).
 3. **`PosWeb/Application/Licensing/LicenciaService.cs`**
-   - **`VerificarAcceso()`**: el bloque de trial expirado (hoy degrada + return false) pasa a **"degradar a Gratuito + return true"**. La prueba vence → el comercio sigue operando en Gratuito.
+   - **`VerificarAcceso()`**: 
+     - Agregar rama temprana **`if (licencia.Plan == Gratuito) return (true, null)`** (antes del bloque de vencimiento): el plan Gratuito es estado local siempre activo, sin verificación remota ni vencimiento.
+     - El bloque de trial expirado (hoy degrada + return false) pasa a **"degradar a Gratuito + return true"**. La prueba vence → el comercio sigue operando en Gratuito.
    - `DegradarSuscripcionABasica()` → `DegradarSuscripcionAGratuita()`: `CambiarNivel(Gratuito, 0, 1, 1, 1)` + recorte aleatorio de productos a 500 activos.
    - `ObtenerLimitesPlan()`: agregar `maxProductos` a la tupla (derivado de `PlanLimits.Get`).
    - `NormalizarPlan()`: soportar `"gratuito"`.
    - `PermiteMercadoPago()`: sin cambios (solo `Maxima` → Gratuito/Basica confirman manual).
+   - **`BuscarYActivarPorEmail()`**: **NO activar licencias con `plan='gratuito'`** (solo basica/maxima); si el worker devuelve un plan gratuito, se ignora como "sin licencia" para no pisar la prueba gratuita local.
 4. **`PosWeb/Application/Auth/AuthService.cs`** (`Register`, titular)
    - Tras `ActivarPorEmailOPrueba`, llamar al worker `POST /register` con el mail para darlo de alta (fire-and-forget; si el worker falla, no rompe el registro).
 5. **`PosWeb/Application/Productos/ProductoService.cs`**
    - `Crear` e `ImportarProductos`: contar productos `ACTIVOS` y rechazar si `count >= limite` del plan. Nueva excepción `LimiteProductosException` (mensaje con el tope).
+   - **Inyectar `LicenciaService`** en el constructor (ambos Scoped) para consultar `maxProductos`.
 6. **`PosWeb/Program.cs`** (seed)
    - Normalización de suscripciones existentes con `AplicarLimitesPorNivel()` → ahora degrada a Gratuito.
 
@@ -76,8 +80,10 @@ Adaptar los planes para cumplir:
 
 - `PLAN_PRICES = { gratuito: 0, basica: 32500, maxima: 39990 }`.
 - `VALID_PLANS = ['gratuito', 'basica', 'maxima']`; `normalizePlan` maneja gratuito.
-- Nuevo endpoint interno **`POST /register`** (auth `POSWEB_INTERNAL_KEY`): upsert por email → `plan='gratuito'`, `status='active'`, `next_billing=NULL`. Así el `/checkout` posterior encuentra el registro y solo actualiza plan.
-- `LANDING_HTML`: 3 cards — Gratuito $0, Basico $32.500/mes, Maximo $39.990/mes con los textos de cada plan.
+- Nuevo endpoint interno **`POST /register`** (auth `POSWEB_INTERNAL_KEY`): upsert por email con **`plan='gratuito'`, `status='pending'`, `next_billing=NULL`**. 
+  - **`status='pending'`** (NO active): evita que `BuscarYActivarPorEmail`/`activate` lo active y pise la prueba gratuita local. Es solo un "placeholder" para que el `/checkout` posterior encuentre el email y actualice el plan.
+  - No debe **pisar una licencia paga existente**: si el email ya tiene basica/maxima, no se degrada a gratuito (upsert solo si no existe o si ya es gratuito/pending).
+- `LANDING_HTML` **y carpeta `landing/`** (index.html, success.html): 3 cards — Gratuito $0 (sin botón de pago, es solo referencia), Basico $32.500/mes, Maximo $39.990/mes con los textos de cada plan.
 - `success.html`: ajustar textos.
 - D1: sin migración nueva (la tabla `licenses` no cambia).
 
@@ -94,6 +100,15 @@ Adaptar los planes para cumplir:
 
 - `PosWeb.Application.Test/UsuariosSubscriptionTest.cs`: actualizar los de trial vencido (ahora **permite** acceso y degrada a Gratuito) y `PermiteMercadoPago` falso en Gratuito/Basica. Agregar tests de límite de productos (`Crear`/`Importar`), recorte a 500 al degradar, y `/register` upsert.
 - `PosWeb.Application.Test/VentaServiceTest.cs`: revisar los de venta pendiente (no cambian).
+
+## Conflictos identificados al revisar el código (2026-09-22)
+
+1. **Gratuito + bloque de vencimiento**: `VerificarAcceso` tiene un bloque `if (licencia.NextBilling.HasValue)` que marca `Expirada` y bloquea. Si al degradar a Gratuito no se limpia `NextBilling`/`GraceUntil`, el usuario gratuito quedaría bloqueado. → Resuelto con `MarcarPruebaExpirada` limpiando vencimiento + rama temprana `Plan == Gratuito`.
+2. **`/register` rompería la prueba gratuita**: si crea `status='active'`, el siguiente `BuscarYActivarPorEmail` lo activaría y el usuario arrancaría en Gratuito sin los 7 días de prueba. → Resuelto con `status='pending'` + backend que ignora plan gratuito al activar.
+3. **Landing duplicada**: hay `LANDING_HTML` embebido en el worker **y** carpeta `landing/` con precios viejos ($999/$3.999, sin Gratuito). → Actualizar ambas.
+4. **`ProductoService` no conoce el plan**: hay que inyectar `LicenciaService` para validar `maxProductos` en `Crear`/`ImportarProductos`.
+5. **`/register` vs licencia paga**: no degradar a gratuito un email que ya contrató basica/maxima (upsert condicional).
+6. **Prueba gratuita = Maxima**: la prueba sigue operando como Maxima (MP instantáneo) por 7 días; al vencer → Gratuito. Mantener `IniciarPruebaGratuita` como hoy.
 
 ## Dejar como está (a propósito)
 
