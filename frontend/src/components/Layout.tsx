@@ -440,7 +440,7 @@ export default function Layout() {
             )}
             {licBadge && (
               <a
-                href="https://posweb-licensing.chiacchio-eze01.workers.dev"
+                href={`https://vendeto.com.ar/renovar?plan=${encodeURIComponent(licResumen?.plan?.toLowerCase() ?? '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg shrink-0 no-underline ${
