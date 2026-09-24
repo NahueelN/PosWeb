@@ -366,21 +366,21 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
   {
     key: 'modulo-complementos',
     titulo: 'Complementos',
-    definicion: 'Aplicaciones externas que acompañan a PosWeb: se descargan desde vendeto.com.ar y se ejecutan sin instalar. Para que funcionen, PosWeb tiene que estar abierto; se abren en la bandeja de herramientas de Windows.',
+    definicion: 'Aplicaciones externas que acompañan a Vendeto: se descargan desde vendeto.com.ar y se ejecutan sin instalar. Para que funcionen, Vendeto tiene que estar abierto; se abren en la bandeja de herramientas de Windows.',
     items: [
       {
         key: 'concepto-barcode-scanner',
         titulo: 'Barcode Scanner',
         tipo: 'concepto',
-        definicion: 'Complemento que lee códigos de barras desde el celular (a través de la red WiFi local) y los envía a la PC como si vinieran de un lector físico. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que PosWeb esté abierto.',
-        ejemplo: 'Escaneás el código de un producto con el celular y aparece directamente en el campo de búsqueda de PosWeb.',
+        definicion: 'Complemento que lee códigos de barras desde el celular (a través de la red WiFi local) y los envía a la PC como si vinieran de un lector físico. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que Vendeto esté abierto.',
+        ejemplo: 'Escaneás el código de un producto con el celular y aparece directamente en el campo de búsqueda de Vendeto.',
         imagenes: [barcodeScanner],
       },
       {
         key: 'concepto-consulta-producto',
         titulo: 'Consulta Producto',
         tipo: 'concepto',
-        definicion: 'Complemento que consulta el precio de un producto al escanear su código de barras desde el celular. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que PosWeb esté abierto para consultar los precios.',
+        definicion: 'Complemento que consulta el precio de un producto al escanear su código de barras desde el celular. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que Vendeto esté abierto para consultar los precios.',
         ejemplo: 'Un cliente te muestra el código de un producto; lo escaneás con el celular y ves su precio sin tener que buscarlo en la PC.',
         imagenes: [consultaProducto],
       },

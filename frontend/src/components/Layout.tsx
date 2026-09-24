@@ -310,10 +310,10 @@ export default function Layout() {
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.52_0.255_278)] text-white font-bold text-[12px] tracking-tight select-none"
           style={{ boxShadow: '0 1px 4px oklch(0.52 0.255 278 / 0.35)' }}
         >
-          PW
+          V
         </div>
         <div className="flex flex-col leading-none">
-          <span className="text-[13.5px] font-bold text-white tracking-tight">PosWeb</span>
+          <span className="text-[13.5px] font-bold text-white tracking-tight">Vendeto</span>
           <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">
             v{getCurrentVersion() || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?')}
           </span>

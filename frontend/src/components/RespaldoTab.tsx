@@ -63,7 +63,7 @@ export default function RespaldoTab() {
     setRestoring(true)
     try {
       const result = await api.respaldos.importar(file)
-      notifySuccess(`Se restauró el respaldo de ${result.empresaNombre}. PosWeb se reiniciará.`)
+      notifySuccess(`Se restauró el respaldo de ${result.empresaNombre}. Vendeto se reiniciará.`)
       clearStoredSession()
       window.setTimeout(() => { void reiniciarAplicacion() }, 300)
     } catch (error) {
@@ -93,7 +93,7 @@ export default function RespaldoTab() {
           <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600"><Download size={20} /></div>
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Exportar respaldo</h2>
-            <p className="mt-1 text-sm text-slate-500">Descargá una copia de todos los datos locales de PosWeb.</p>
+            <p className="mt-1 text-sm text-slate-500">Descargá una copia de todos los datos locales de Vendeto.</p>
           </div>
         </div>
         <Button variant="primary" icon={<Download size={15} />} loading={exporting} onClick={() => { void exportar() }}>
@@ -116,7 +116,7 @@ export default function RespaldoTab() {
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 flex gap-2">
           <ShieldAlert size={18} className="shrink-0" />
-          <span><strong>Atención:</strong> al restaurar se eliminan todos los datos locales actuales. PosWeb cerrará la sesión y tendrás que ingresar con un usuario del respaldo.</span>
+          <span><strong>Atención:</strong> al restaurar se eliminan todos los datos locales actuales. Vendeto cerrará la sesión y tendrás que ingresar con un usuario del respaldo.</span>
         </div>
         <Button variant="destructive" icon={<RotateCcw size={15} />} loading={checking} disabled={!file} onClick={() => { void revisarRespaldo() }}>
           Restaurar y reemplazar datos
@@ -180,7 +180,7 @@ async function guardarConDialogoNativo(fileName: string): Promise<'saved' | 'can
   ])
   const ruta = await save({
     defaultPath: await join(await downloadDir(), fileName),
-    filters: [{ name: 'Respaldo PosWeb', extensions: ['posweb-backup'] }],
+    filters: [{ name: 'Respaldo Vendeto', extensions: ['posweb-backup'] }],
   })
   if (!ruta) return 'cancelled'
 

@@ -61,7 +61,7 @@ export default function CompraResumenModal({ data, onClose }: CompraResumenModal
         </div>
 
         <div className="resumen bg-white">
-          <div className="text-center font-bold text-gray-900">{data.empresaNombre || 'PosWeb'}</div>
+          <div className="text-center font-bold text-gray-900">{data.empresaNombre || 'Vendeto'}</div>
           <div className="text-center font-bold text-gray-900 mb-4">RESUMEN DE COMPRA</div>
           <div className="text-sm text-gray-700 mb-4 space-y-1">
             <div>Fecha: {fechaStr}</div>

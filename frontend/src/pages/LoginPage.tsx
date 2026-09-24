@@ -183,7 +183,7 @@ export default function LoginPage() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-indigo-500 flex items-center justify-center mb-4">
             <span className="text-white text-2xl font-bold">KI</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">KIO</h1>
+          <h1 className="text-2xl font-bold text-white">Vendeto</h1>
           <p className="text-slate-400 text-sm mt-1">Iniciar sesión</p>
         </div>
 

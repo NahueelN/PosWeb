@@ -78,7 +78,7 @@ function LoadingScreen({ updaterStatus }: { updaterStatus: UpdaterStatus }) {
     <div className="grid h-screen place-items-center bg-slate-900">
       <div className="text-center text-white">
         <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <p className="text-lg font-medium">Iniciando PosWeb…</p>
+        <p className="text-lg font-medium">Iniciando Vendeto…</p>
         <p className="mt-1 text-sm text-gray-400">
           {updaterStatus === 'checking' || updaterStatus === 'downloading' || updaterStatus === 'installing'
             ? 'Actualizando…'
