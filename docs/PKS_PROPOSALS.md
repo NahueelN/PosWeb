@@ -8,6 +8,26 @@
 
 ## Propuestas activas
 
+### Import de productos: dar de alta todo y recortar al final (decisión de diseño)
+
+**Origen**: Auditoría del flujo de suscripciones (2026-09-23), hallazgo en `ImportarProductos`.
+
+**Decisión**: El import de productos **no** valida el tope por fila (abortaría la importación masiva). Crea todos los productos y recién al terminar aplica `RecortarProductosAlMaximoDelPlan()`, desactivando los sobrantes hasta el tope del plan (Gratuito=500, Básico=1000, Máximo=10000). El usuario confirmó esta conducta: "que pueda dar de alta todos los productos y recién cuando termino le deshabilito hasta llegar a 500".
+
+**Estado**: Implementado y documentado en `BUS-limites-planes` (regla #4). Se registra para que futuras auditorías no lo re-discutan como bug.
+
+**Condición para reevaluar**: Solo si aparece evidencia de uso real de que el usuario espera un rechazo previo por fila (ej. métricas de imports fallidos por límite).
+
+### Fuente única del plan (nivel efectivo)
+
+**Origen**: Auditoría del flujo de suscripciones (2026-09-23), hallazgo de doble fuente de verdad (`LicenciaConfig.Plan` vs `Suscripcion.NIVEL`).
+
+**Decisión**: El nivel efectivo = `Suscripcion.NIVEL` del titular (con respaldo a `LicenciaConfig.Plan`) es la **única fuente de verdad** del plan aplicado y reportado: bloqueo, límites, MercadoPago, grisado frontend. Editar la DB local a `Plan=Gratuito` en la LicenciaConfig no escapa del bloqueo de un plan pago vencido.
+
+**Estado**: Implementado en `ObtenerNivelActual()` y documentado en `BUS-vencimiento-licencia` (regla #6) y `BUS-limites-planes`.
+
+**Condición para reevaluar**: Cuando la manipulación de la Suscripcion local se vuelva un vector real (ver ADR-suscripciones, token firmado ECDSA).
+
 ### STAND-entity-identity — Estándar de diseño de identidad de entidades
 
 **Origen**: Auditoría UX de Entity Lists (Clientes, Proveedores, Productos).
@@ -501,3 +521,8 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 | 2026-07-08 | MODEL-Insight — Conclusiones generadas a partir de datos | `knowledge_items/MODEL-Insight/` |
 | 2026-07-08 | COMP-Widget — Unidad de composición Query + Visualization + Config | `knowledge_items/COMP-Widget/` |
 | 2026-07-08 | DS-DashboardLayout — Sistema de layout para widgets | `knowledge_items/DS-DashboardLayout/` |
+| 2026-09-23 | BUS-limites-planes — Límites de planes y tope de productos | `knowledge/projects/posweb/BUS-limites-planes.md` |
+| 2026-09-23 | Actualización BUS-vencimiento-licencia (trial→Gratuito, nivel efectivo) | `knowledge/projects/posweb/BUS-vencimiento-licencia.md` |
+| 2026-09-23 | Actualización SERVICE-licensing-worker (planes, precios, `/register`) | `knowledge/projects/posweb/SERVICE-licensing-worker.md` |
+| 2026-09-23 | Actualización FLOW-suscripcion (degradación a Gratuito) | `knowledge/projects/posweb/FLOW-suscripcion.md` |
+| 2026-09-23 | Actualización ADR-suscripciones (planes Gratuito/Básico/Máximo) | `knowledge/projects/posweb/ADR-suscripciones.md` |

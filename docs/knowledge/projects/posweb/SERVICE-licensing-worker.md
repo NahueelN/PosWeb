@@ -21,7 +21,7 @@ Sources:
   - PosWeb/Controllers/LicenciaController.cs
   - PosWeb/appsettings.json
 Created: 2026-08-19
-Updated: 2026-08-19
+Updated: 2026-09-23
 Template Version: 1.0
 Tags:
   - Suscripcion
@@ -50,7 +50,7 @@ Sin un servicio cloud, no habría forma confiable de cobrar y de determinar si u
 
 | Endpoint | Propósito |
 |----------|-----------|
-| `POST /checkout` | Crea (o reutiliza) la licencia y genera una Checkout Preference; devuelve `checkout_url`. |
+| `POST /checkout` | Crea (o reutiliza) la licencia y genera una Checkout Preference; devuelve `checkout_url`. Rechaza `plan=gratuito` (el plan Gratuito no se contrata). |
 | `POST /webhook` | Recibe notificaciones de MercadoPago (pagos y, a futuro, preapproval). |
 | `POST /activate` | Vincula la licencia a un `machine_id` (una máquina por licencia). |
 | `POST /status` | Devuelve estado efectivo de la licencia (validez, `next_billing`, `grace_until`, días restantes). |
@@ -60,6 +60,7 @@ Sin un servicio cloud, no habría forma confiable de cobrar y de determinar si u
 
 | Endpoint | Propósito |
 |----------|-----------|
+| `POST /register` | Alta del email como **plan gratuito placeholder** (`status=pending`, `next_billing=NULL`). Lo llama el backend al registrarse un titular. No se activa (no pisa la prueba gratuita local) y **no degrada** una licencia paga existente. |
 | `POST /license-by-email` | Busca la licencia por email (normalizado a minúsculas). |
 | `POST /grant-license` | Otorga una licencia manualmente (operación de backoffice). |
 
@@ -67,13 +68,15 @@ Sin un servicio cloud, no habría forma confiable de cobrar y de determinar si u
 
 `pending → active → grace (48h) → expired`, más `paused` y `cancelled`. La evaluación de vigencia (`evaluarVigencia`) computa `active`/`grace`/`expired` a partir de `next_billing` en cada lectura y lo persiste (`persistirVigencia`), de modo que no depende de un cron.
 
-### 4. Precios
+### 4. Precios y planes
 
-| Plan | Precio mensual (ARS) |
-|------|----------------------|
-| `basica` | 999.99 |
-| `media` | 1999.99 |
-| `maxima` | 3999.99 |
+| Plan | Precio mensual (ARS) | Notas |
+|------|----------------------|-------|
+| `gratuito` | 0 | No se contrata: es el nivel que se obtiene al vencer la prueba. `/checkout` lo rechaza. |
+| `basica` | 32500 | |
+| `maxima` | 39990 | |
+
+`VALID_PLANS = ['gratuito', 'basica', 'maxima']`.
 
 ### 5. Webhook
 
@@ -86,12 +89,14 @@ Verifica firma `x-signature` (HMAC-SHA256 con `MP_WEBHOOK_SECRET`, opcional). Pa
 - Para crear el checkout de una licencia nueva o renovación.
 - Para consultar el estado de una licencia desde el backend (`/status`, `/license-by-email`).
 - Para activar una licencia en una máquina (`/activate`).
+- Para dar de alta un email al registrarse (`/register`), de modo que el checkout posterior reutilice el registro.
 
 ## Cuándo NO usar
 
 - No usar para cobrar las ventas del comercio (eso es el flujo QR/POS de `MercadoPagoService`, distinto).
 - No usar `grant-license` desde el cliente; es operación de backoffice.
 - No asumir auto-renovación: no hay preapproval creado hoy; la renovación es manual.
+- No activar una licencia placeholder gratuito: el backend ignora el plan `gratuito` al activar por email para no pisar la prueba gratuita local.
 
 ---
 
@@ -100,6 +105,7 @@ Verifica firma `x-signature` (HMAC-SHA256 con `MP_WEBHOOK_SECRET`, opcional). Pa
 - **D1 `preapproval_id`**: la columna existe en el schema pero hoy no se usa para preapproval real (los handlers `subscription_preapproval` / `subscription_authorized_payment` están cableados para el futuro).
 - **Email**: se normaliza a minúsculas en checkout y en todos los lookups.
 - **Firma de webhook**: `if (!secret || !signature) return true` — sin secreto configurado, se acepta todo (deuda de hardening).
+- **`/register`**: crea la fila con `status=pending` y `plan=gratuito`; si el email ya tiene una licencia paga, no la degrada. El backend llama a este endpoint con `Bearer POSWEB_INTERNAL_KEY` y fire-and-forget.
 
 ---
 
@@ -111,6 +117,8 @@ RELATIONS:
     target: ADR-suscripciones
   - type: RESPECTS
     target: BUS-vencimiento-licencia
+  - type: RESPECTS
+    target: BUS-limites-planes
   - type: USED_BY
     target: LicenciaService.cs
 ```
@@ -122,3 +130,4 @@ RELATIONS:
 | Fecha | Cambio |
 |-------|--------|
 | 2026-08-19 | Creación |
+| 2026-09-23 | Planes Gratuito/Básico/Máximo, precios actualizados, endpoint `/register` |

@@ -43,3 +43,15 @@
 | HOOK-use-media-query | USES | PAT-mapa-responsive-popup |
 | BUS-mesa-numero-titulo | RELATED | PAT-mapa-responsive-popup |
 | BUS-mesa-numero-titulo | USES | HOOK-use-media-query |
+| FLOW-suscripcion | RESPECTS | BUS-vencimiento-licencia |
+| FLOW-suscripcion | RESPECTS | BUS-limites-planes |
+| FLOW-suscripcion | USES | SERVICE-licensing-worker |
+| FLOW-suscripcion | RESPECTS | ADR-suscripciones |
+| SERVICE-licensing-worker | RESPECTS | ADR-suscripciones |
+| SERVICE-licensing-worker | RESPECTS | BUS-vencimiento-licencia |
+| SERVICE-licensing-worker | RESPECTS | BUS-limites-planes |
+| BUS-vencimiento-licencia | RESPECTS | ADR-suscripciones |
+| BUS-vencimiento-licencia | EXTENDS | BUS-limites-planes |
+| BUS-limites-planes | RESPECTS | BUS-vencimiento-licencia |
+| BUS-limites-planes | RESPECTS | ADR-suscripciones |
+| ADR-suscripciones | RESPECTS | BUS-limites-planes |

@@ -465,7 +465,7 @@ export default function Layout() {
               <span>búsqueda rápida</span>
             </div>
 
-            {avisoVencimientosHabilitado && productosPorVencer > 0 && (
+            {avisoVencimientosHabilitado && productosPorVencer > 0 && licResumen?.plan !== 'Gratuito' && (
               <button type="button" onClick={() => navigate('/vencimientos')}
                 className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 aria-label="Ver productos próximos a vencer">

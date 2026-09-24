@@ -236,12 +236,15 @@ public class LicenciaService
         }
 
         // Plan Gratuito: estado local siempre activo, sin verificación remota ni vencimiento.
-        if (licencia.Plan == NivelesSuscripcion.Gratuito)
+        // Se evalúa sobre el NIVEL EFECTIVO (Suscripcion del titular, no la LicenciaConfig):
+        // así editar la DB local a Plan=Gratuito en LicenciaConfig NO escapa del bloqueo si
+        // la Suscripcion sigue en un plan pago vencido.
+        if (ObtenerNivelActual() == NivelesSuscripcion.Gratuito)
         {
             // Defensa anti-elusión: aunque alguien edite la DB local a Gratuito (o un plan pago
             // vencido intente escapar del bloqueo), se mantiene el tope de 500 productos activos
             // de forma idempotente (si ya hay <=500 no se toca nada).
-            if (RecortarProductosA500())
+            if (RecortarProductosActivos(500))
                 await _context.SaveChangesAsync();
             return (true, null);
         }
@@ -346,14 +349,10 @@ public class LicenciaService
             ? _context.Suscripcion.FirstOrDefault(s => s.ID_USUARIO_TITULAR == admin.ID_USUARIO)
             : null;
 
+        // La tabla canónica (PlanLimits) es la fuente única: se ignora lo guardado en la
+        // Suscripcion para no mezclar fuentes divergentes (los MAX_* locales solo son copia).
         if (suscripcion != null)
-        {
-            var limites = PlanLimits.Get(suscripcion.NIVEL);
-            return (suscripcion.MAX_SUCURSALES ?? int.MaxValue,
-                    suscripcion.MAX_ADMIN ?? int.MaxValue,
-                    suscripcion.MAX_USUARIOS ?? int.MaxValue,
-                    limites.maxProductos);
-        }
+            return PlanLimits.Get(suscripcion.NIVEL);
 
         var licencia = _context.Set<LicenciaConfig>().FirstOrDefault();
         if (licencia != null)
@@ -400,6 +399,20 @@ public class LicenciaService
         return licencia?.Plan ?? NivelesSuscripcion.Gratuito;
     }
 
+    /// <summary>
+    /// Aplica el recorte de productos ACTIVOS al máximo del plan vigente. Se usa tras un import
+    /// masivo: el import da de alta todos los productos y recién al terminar se desactivan los
+    /// sobrantes hasta el tope del plan. Idempotente; retorna <c>true</c> si hubo recorte.
+    /// </summary>
+    public bool RecortarProductosAlMaximoDelPlan()
+    {
+        var (_, _, _, maxProductos) = ObtenerLimitesPlan();
+        if (maxProductos == int.MaxValue || maxProductos <= 0)
+            return false;
+
+        return RecortarProductosActivos(maxProductos);
+    }
+
     public async Task<string> ObtenerOCrearMachineId()
     {
         var existente = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
@@ -443,20 +456,19 @@ public class LicenciaService
         }
 
         // El recorte corre siempre: al pasar a Gratuito el tope baja a 500 productos activos.
-        RecortarProductosA500();
+        RecortarProductosActivos(500);
     }
 
     /// <summary>
-    /// Al degradar a Gratuito (500 productos activos) se desactivan aleatoriamente los sobrantes
-    /// (borrado lógico, sin borrar filas) hasta dejar 500 activos. Solo se hace en el degradado.
-    /// Retorna <c>true</c> si hubo recorte (requiere SaveChanges).
+    /// Desactiva (borrado lógico, sin borrar filas) los productos ACTIVOS sobrantes hasta
+    /// dejar a lo sumo <c>maximo</c> activos. Idempotente: si ya hay &lt;= maximo no toca nada.
+    /// La selección es aleatoria para no desactivar siempre los mismos; los tickets históricos
+    /// conservan la referencia. Retorna <c>true</c> si hubo recorte (requiere SaveChanges).
     /// </summary>
-    private bool RecortarProductosA500()
+    private bool RecortarProductosActivos(int maximo)
     {
-        const int maximoGratuito = 500;
-
-        // Short-circuit: si ya hay <=500 activos (caso normal en Gratuito) no se carga nada.
-        if (_context.Producto.Count(p => p.ACTIVO) <= maximoGratuito)
+        // Short-circuit: si ya hay <=maximo activos (caso normal) no se carga nada.
+        if (_context.Producto.Count(p => p.ACTIVO) <= maximo)
             return false;
 
         var activos = _context.Producto
@@ -464,10 +476,10 @@ public class LicenciaService
             .OrderBy(p => p.ID_PRODUCTO)
             .ToList();
 
-        if (activos.Count <= maximoGratuito)
+        if (activos.Count <= maximo)
             return false;
 
-        var sobrantes = activos.Skip(maximoGratuito).ToList();
+        var sobrantes = activos.Skip(maximo).ToList();
         // Desactivación aleatoria: mezclar y tomar el sobrante (el orden aleatorio evita
         // desactivar siempre los mismos; los tickets históricos conservan la referencia).
         var rnd = new Random();

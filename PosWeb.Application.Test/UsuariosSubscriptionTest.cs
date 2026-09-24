@@ -730,4 +730,99 @@ public class UsuariosSubscriptionTest
         Assert.Equal(500, context.Producto.Count(p => p.ACTIVO));
         Assert.Equal(520, context.Producto.Count());
     }
+
+    [Fact]
+    public void ImportarProductos_ConPlanGratuito_CreaTodoYRecortaAlFinalA500()
+    {
+        var context = CrearContexto(nameof(ImportarProductos_ConPlanGratuito_CreaTodoYRecortaAlFinalA500));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearGratuita(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        var service = new ProductoService(context, licenciaService);
+
+        // 520 filas válidas: el import da de alta todas y recién al terminar desactiva los
+        // sobrantes hasta el tope de Gratuito (500 activos). No debe abortar la importación.
+        var filas = new List<ProductoImportFila>();
+        for (int i = 1; i <= 520; i++)
+        {
+            filas.Add(new ProductoImportFila
+            {
+                CodigoBarras = $"779{i:D10}",
+                Descripcion = $"Producto {i}",
+                Precio = 100m,
+                Costo = 50m,
+            });
+        }
+
+        var response = service.ImportarProductos(filas, sucursalId: null);
+
+        Assert.Equal(520, response.Creados);
+        Assert.Equal(0, response.Saltados);
+        Assert.Equal(520, context.Producto.Count());
+        Assert.Equal(500, context.Producto.Count(p => p.ACTIVO));
+    }
+
+    [Fact]
+    public void ImportarProductos_ConPlanMaxima_SinTope_EfectivoNoRecorta()
+    {
+        var context = CrearContexto(nameof(ImportarProductos_ConPlanMaxima_SinTope_EfectivoNoRecorta));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearMaxima(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        var service = new ProductoService(context, licenciaService);
+
+        var filas = new List<ProductoImportFila>();
+        for (int i = 1; i <= 520; i++)
+        {
+            filas.Add(new ProductoImportFila
+            {
+                CodigoBarras = $"779{i:D10}",
+                Descripcion = $"Producto {i}",
+                Precio = 100m,
+                Costo = 50m,
+            });
+        }
+
+        var response = service.ImportarProductos(filas, sucursalId: null);
+
+        Assert.Equal(520, response.Creados);
+        Assert.Equal(520, context.Producto.Count(p => p.ACTIVO));
+    }
+
+    [Fact]
+    public void CrearProducto_ReactivandoInactivo_EnPlanGratuito_Sobre500_Rechaza()
+    {
+        var context = CrearContexto(nameof(CrearProducto_ReactivandoInactivo_EnPlanGratuito_Sobre500_Rechaza));
+        var admin = CrearUsuario(context, 1, "admin", Roles.Admin);
+        context.Suscripcion.Add(Suscripcion.CrearGratuita(admin.ID_USUARIO));
+        context.SaveChanges();
+
+        var licenciaService = CrearLicenciaService(context);
+        var service = new ProductoService(context, licenciaService);
+
+        // 500 activos + 1 inactivo con el mismo código de barras: reactivarlo excedería el tope.
+        for (int i = 1; i <= 500; i++)
+        {
+            var p = new Producto($"779{i:D10}", $"779{i:D10}", $"Producto {i}", 100m, 50m);
+            TestHelpers.SetId(p, i, "ID_PRODUCTO");
+            context.Producto.Add(p);
+        }
+        var inactivo = new Producto("7790000000999", "7790000000999", "Inactivo", 100m, 50m);
+        inactivo.Desactivar();
+        TestHelpers.SetId(inactivo, 501, "ID_PRODUCTO");
+        context.Producto.Add(inactivo);
+        context.SaveChanges();
+
+        Assert.Throws<LimiteProductosException>(() => service.Crear(new ProductoUpsertDto
+        {
+            Nombre = "Inactivo",
+            Precio = 100m,
+            Costo = 50m,
+            CodigoBarra = "7790000000999"
+        }));
+    }
 }

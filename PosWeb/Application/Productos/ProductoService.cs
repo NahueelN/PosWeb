@@ -163,6 +163,10 @@ public class ProductoService
 
         if (inactivo != null)
         {
+            // Reactivar también consume cupo del plan: un inactivo reactivado vuelve a contar
+            // como ACTIVO contra el tope (Gratuito=500, Basica=1000, Maxima=10000).
+            ValidarLimiteProductosActivos(1);
+
             inactivo.Activar();
             inactivo.CambiarCodigoProducto(codProducto);
             inactivo.CambiarCodigoBarras(dto.CodigoBarra);
@@ -586,8 +590,6 @@ public class ProductoService
                 false,
                 null);
 
-            ValidarLimiteProductosActivos(1);
-
             _context.Producto.Add(producto);
 
             if (fila.SeguirStock.HasValue)
@@ -607,6 +609,12 @@ public class ProductoService
 
         // Fase 1: persistir productos -> EF genera los ID_PRODUCTO.
         _context.SaveChanges();
+
+        // El plan limita los productos ACTIVOS. El import da de alta todo y recién al terminar
+        // se desactivan los sobrantes hasta el tope del plan (Gratuito=500, Basica=1000, etc.).
+        // Es intencional: rechazar por fila abortaría la importación masiva completa.
+        if (_licenciaService.RecortarProductosAlMaximoDelPlan())
+            _context.SaveChanges();
 
         // Fase 2: crear StockSucursal por sucursal usando los IDs ya generados.
         // Se crea una fila por cada producto creado (incluso con stock 0) para que

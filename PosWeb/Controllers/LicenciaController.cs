@@ -83,10 +83,12 @@ public class LicenciaController : ControllerBase
     {
         var local = await _licenciaService.ObtenerEstadoLocal();
 
+        // El plan reportado es el NIVEL EFECTIVO (Suscripcion del titular, no la LicenciaConfig):
+        // así el frontend (grisado, MP, límites) muestra el mismo plan que el backend aplica.
         return Ok(new LicenciaResumenDto
         {
             Activa = local?.Activa ?? false,
-            Plan = local?.Plan ?? "",
+            Plan = local == null ? "" : _licenciaService.ObtenerNivelActual(),
             Estado = local?.Estado ?? "",
             DaysRemaining = local?.NextBilling.HasValue == true
                 ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
@@ -117,7 +119,9 @@ public class LicenciaController : ControllerBase
         return new LicenciaEstadoDto
         {
             Activa = licencia.Activa,
-            Plan = licencia.Plan,
+            // Plan = nivel efectivo (Suscripcion del titular), no la LicenciaConfig, para que
+            // el frontend y el backend coincidan siempre (un solo source of truth).
+            Plan = _licenciaService.ObtenerNivelActual(),
             Estado = licencia.Estado,
             VerificadoHasta = licencia.VerifiedUntil,
             GraceHasta = licencia.GraceHastaEfectivo,
