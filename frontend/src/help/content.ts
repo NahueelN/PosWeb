@@ -14,6 +14,24 @@ import mesasCocina from './screenshots/mesas-cocina.png'
 import consultaProducto from './screenshots/consulta-producto.png'
 import barcodeScanner from './screenshots/barcode-scanner.png'
 
+export interface AyudaManualBloque {
+  tipo: 'parrafo' | 'nota' | 'pasos' | 'lista' | 'tabla' | 'faq'
+  /** parrafo / nota */
+  texto?: string
+  /** pasos (numerados) / lista (con viñetas) */
+  items?: string[]
+  /** tabla */
+  columnas?: string[]
+  filas?: string[][]
+  /** faq */
+  preguntas?: { pregunta: string; respuesta: string }[]
+}
+
+export interface AyudaManualSeccion {
+  titulo: string
+  bloques: AyudaManualBloque[]
+}
+
 export interface AyudaItem {
   /** Clave única usada en la URL ?key= */
   key: string
@@ -25,6 +43,8 @@ export interface AyudaItem {
   necesitaImagen?: boolean
   /** Capturas de pantalla, en orden de visualización */
   imagenes?: string[]
+  /** Manual detallado (secciones con párrafos, pasos, tablas y FAQ) */
+  manual?: AyudaManualSeccion[]
   relacionados?: string[]
 }
 
@@ -36,6 +56,7 @@ export interface AyudaModulo {
   ejemplo?: string
   necesitaImagen?: boolean
   imagenes?: string[]
+  manual?: AyudaManualSeccion[]
   relacionados?: string[]
   /** Solapas y conceptos que pertenecen a este módulo */
   items: AyudaItem[]
@@ -375,6 +396,183 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Complemento que lee códigos de barras desde el celular (a través de la red WiFi local) y los envía a la PC como si vinieran de un lector físico. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que Vendeto esté abierto.',
         ejemplo: 'Escaneás el código de un producto con el celular y aparece directamente en el campo de búsqueda de Vendeto.',
         imagenes: [barcodeScanner],
+        manual: [
+          {
+            titulo: '¿Qué es BarcodeToPC?',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'BarcodeToPC es un programa que convierte tu celular en un lector de códigos de barras inalámbrico para tu computadora. Instalás un único programa en la PC, lo dejás corriendo en segundo plano, y desde el celular escaneás productos que se van pegando automáticamente donde tengas el cursor: en un buscador, una planilla, un formulario, lo que sea.',
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'El celular lee el código, lo envía por la red WiFi local, y la PC lo pega solo.',
+              },
+              {
+                tipo: 'lista',
+                items: [
+                  'No requiere instalar ninguna aplicación en el celular: se usa desde el navegador.',
+                  'Funciona con Android (Chrome) y con iPhone (Safari).',
+                  'No necesita conexión a internet: todo funciona dentro de tu red WiFi local.',
+                  'La PC solo recibe los códigos y los pega: no hace falta tocar el teclado.',
+                  'Corre en segundo plano, con un ícono en la bandeja del sistema de Windows.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Requisitos',
+            bloques: [
+              {
+                tipo: 'lista',
+                items: [
+                  'Una PC con Windows.',
+                  'Un celular (Android o iPhone) con cámara.',
+                  'Que la PC y el celular estén conectados a la misma red WiFi.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'No hace falta instalar Python ni ninguna otra herramienta: BarcodeToPC.exe funciona solo, en cualquier PC con Windows.',
+              },
+            ],
+          },
+          {
+            titulo: 'Instalación',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Copiá el archivo BarcodeToPC.exe a la PC donde lo vas a usar (por ejemplo, a una carpeta en el Escritorio).',
+                  'Hacé doble clic sobre BarcodeToPC.exe para iniciarlo.',
+                  'El programa arranca sin abrir ninguna ventana: vas a verlo como un ícono nuevo en la bandeja del sistema (junto al reloj, abajo a la derecha). Si no lo ves, hacé clic en la flechita "^" para mostrar los íconos ocultos.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Como es un programa nuevo y sin firma digital, es posible que Windows muestre el aviso "Windows protegió su PC". Es normal en programas caseros. Para continuar: hacé clic en "Más información" y después en "Ejecutar de todas formas".',
+              },
+            ],
+          },
+          {
+            titulo: 'Conectar el celular (primera vez)',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Hacé clic en el ícono de BarcodeToPC en la bandeja del sistema. Se va a abrir una imagen con un código QR.',
+                  'Con la cámara del celular, escaneá ese código QR (con la app de cámara normal alcanza, no hace falta ninguna app especial). Se va a abrir la página de escaneo en el navegador.',
+                  'La primera vez, el navegador va a mostrar una advertencia de seguridad ("la conexión no es privada" o similar). Esto es esperable: BarcodeToPC usa un certificado propio para funcionar solo dentro de tu red, no uno emitido por una autoridad pública. Para continuar, tocá "Avanzado" y después "Continuar al sitio" (el texto exacto varía según el navegador).',
+                  'Cuando aparezca el aviso pidiendo permiso de cámara, tocá "Permitir". Sin este permiso la app no puede leer códigos.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Tip: agregá la página a la pantalla de inicio de tu celular (menú del navegador → "Agregar a pantalla de inicio") para abrirla como si fuera una app, sin tener que volver a escanear el QR cada vez.',
+              },
+            ],
+          },
+          {
+            titulo: 'Uso diario',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'En la PC, hacé clic en el campo donde querés que aparezcan los códigos (un buscador, una celda, un formulario).',
+                  'En el celular, abrí la página de BarcodeToPC (o el acceso directo si la agregaste a la pantalla de inicio).',
+                  'Tocá "Iniciar escaneo" y apuntá la cámara al código de barras.',
+                  'Apenas lo detecta, el código se envía solo a la PC y se pega en el campo activo.',
+                ],
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Qué pasa en la PC al recibir un código: BarcodeToPC copia el código al portapapeles y simula pegarlo (Ctrl+V) en el campo que esté activo en ese momento, y por defecto también presiona Enter, así el código queda listo para usar sin tocar nada más. Esto se puede desactivar desde el menú de la bandeja.',
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Lectura confiable, sin repeticiones: para evitar que un mismo código se envíe varias veces por error (por ejemplo, por un reflejo o el ángulo de la cámara), BarcodeToPC exige leer el mismo código dos veces seguidas antes de enviarlo, y después de cada envío espera 3 segundos antes de aceptar una nueva lectura (vas a ver una cuenta regresiva en la pantalla del celular). Esto hace que el escaneo sea un poco más lento, pero mucho más preciso.',
+              },
+            ],
+          },
+          {
+            titulo: 'Menú del ícono en la bandeja del sistema',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Haciendo clic derecho sobre el ícono de BarcodeToPC se abre un menú con estas opciones:',
+              },
+              {
+                tipo: 'tabla',
+                columnas: ['Opción', 'Qué hace'],
+                filas: [
+                  ['Mostrar código QR para conectar', 'Abre el código QR para vincular el celular (clic izquierdo normal también lo abre).'],
+                  ['Mostrar QR alternativo (por IP)', 'QR de respaldo por si el celular no logra resolver el nombre de red.'],
+                  ['Pulsar Enter después de pegar', 'Activa o desactiva el Enter automático después de cada código pegado.'],
+                  ['Iniciar con Windows', 'Hace que BarcodeToPC arranque solo cuando prendés la PC.'],
+                  ['Calibrar clic de enfoque (5s)...', 'Configura el clic automático de reenfoque.'],
+                  ['Usar clic de enfoque antes de pegar', 'Activa o desactiva el clic automático ya calibrado.'],
+                  ['Salir', 'Cierra BarcodeToPC por completo.'],
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Compatibilidad de celulares',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Celular', 'Cómo lee los códigos'],
+                filas: [
+                  ['Android (Chrome)', 'Usa el lector nativo del navegador. Rápido y sin configuración adicional.'],
+                  ['iPhone (Safari o cualquier navegador)', 'Usa una librería de lectura incluida en el propio programa (no necesita internet). Funciona igual, aunque puede ser un poco más lenta que en Android.'],
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Solución de problemas',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Problema', 'Solución'],
+                filas: [
+                  ['El navegador dice que el sitio no es seguro', 'Es normal. Tocá "Avanzado" → "Continuar al sitio".'],
+                  ['El QR no conecta o la página no carga', 'Confirmá que el celular esté en la misma red WiFi que la PC. Si el nombre de red no resuelve, probá el "QR alternativo (por IP)" del menú de la bandeja.'],
+                  ['Un código se pega en el campo equivocado', 'El programa de destino probablemente mueve el cursor solo después de cada producto. Usá la función de "clic de enfoque" (calibrala en el menú de la bandeja).'],
+                  ['Lee el mismo código varias veces', 'Esperá la cuenta regresiva de 3 segundos entre lectura y lectura; es una protección contra lecturas duplicadas.'],
+                  ['Cambié de red WiFi y dejó de andar', 'Volvé a escanear el código QR desde el ícono de la bandeja: la dirección puede haber cambiado.'],
+                  ['No se pega nada en programas abiertos como administrador', 'Por seguridad de Windows, un programa normal no puede enviar texto a uno abierto como administrador. Ejecutá BarcodeToPC como administrador también.'],
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Preguntas frecuentes',
+            bloques: [
+              {
+                tipo: 'faq',
+                preguntas: [
+                  {
+                    pregunta: '¿Necesito internet para usarlo?',
+                    respuesta: 'No. BarcodeToPC funciona completamente dentro de tu red WiFi local, incluida la lectura de códigos en iPhone.',
+                  },
+                  {
+                    pregunta: '¿Es seguro?',
+                    respuesta: 'Sí. Todo el tráfico queda dentro de tu red local: no se envía nada a internet. La advertencia de "sitio no seguro" aparece porque el certificado es generado por el propio programa (autofirmado) y no por una autoridad externa, algo normal en herramientas de uso local.',
+                  },
+                  {
+                    pregunta: '¿Puedo usarlo con varios celulares a la vez?',
+                    respuesta: 'Sí, cualquier celular conectado a la misma red puede abrir la página y enviar códigos.',
+                  },
+                  {
+                    pregunta: '¿Cómo lo cierro?',
+                    respuesta: 'Clic derecho en el ícono de la bandeja del sistema → "Salir".',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'concepto-consulta-producto',
@@ -417,6 +615,7 @@ export interface AyudaEntrada {
   ejemplo?: string
   necesitaImagen?: boolean
   imagenes?: string[]
+  manual?: AyudaManualSeccion[]
   relacionados?: string[]
 }
 
@@ -431,6 +630,7 @@ export const AYUDA_ITEMS: AyudaEntrada[] = AYUDA_MODULOS.flatMap(modulo => [
     ejemplo: modulo.ejemplo,
     necesitaImagen: modulo.necesitaImagen,
     imagenes: modulo.imagenes,
+    manual: modulo.manual,
     relacionados: modulo.relacionados,
   },
   ...modulo.items.map(item => ({
@@ -442,6 +642,7 @@ export const AYUDA_ITEMS: AyudaEntrada[] = AYUDA_MODULOS.flatMap(modulo => [
     ejemplo: item.ejemplo,
     necesitaImagen: item.necesitaImagen,
     imagenes: item.imagenes,
+    manual: item.manual,
     relacionados: item.relacionados,
   })),
 ])

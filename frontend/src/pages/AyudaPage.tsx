@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { HelpCircle, Search, ChevronDown, ChevronRight, ZoomIn, ZoomOut, X, ChevronLeft, ChevronRight as ChevronRightIcon, Maximize } from 'lucide-react'
-import { AYUDA_MODULOS, AYUDA_ITEMS, getAyudaItem, type AyudaEntrada, type AyudaItem } from '../help/content'
+import { AYUDA_MODULOS, AYUDA_ITEMS, getAyudaItem, type AyudaEntrada, type AyudaItem, type AyudaManualBloque } from '../help/content'
 
 function CapturaPendiente() {
   return (
@@ -97,6 +97,91 @@ function Lightbox({ srcs, index, onClose }: { srcs: string[]; index: number; onC
   )
 }
 
+function BloqueManual({ bloque }: { bloque: AyudaManualBloque }) {
+  if (bloque.tipo === 'parrafo' || bloque.tipo === 'nota') {
+    return bloque.tipo === 'nota' ? (
+      <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-1">Nota</p>
+        <p className="text-sm leading-relaxed text-amber-900">{bloque.texto}</p>
+      </div>
+    ) : (
+      <p className="text-sm leading-relaxed text-gray-700">{bloque.texto}</p>
+    )
+  }
+
+  if (bloque.tipo === 'pasos') {
+    return (
+      <ol className="space-y-2">
+        {bloque.items?.map((paso, i) => (
+          <li key={i} className="flex gap-3">
+            <span className="flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+              {i + 1}
+            </span>
+            <span className="text-sm leading-relaxed text-gray-700 pt-0.5">{paso}</span>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  if (bloque.tipo === 'lista') {
+    return (
+      <ul className="space-y-1.5">
+        {bloque.items?.map((item, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="text-indigo-500 mt-0.5">•</span>
+            <span className="text-sm leading-relaxed text-gray-700">{item}</span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  if (bloque.tipo === 'tabla') {
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50">
+              {bloque.columnas?.map((col, i) => (
+                <th key={i} className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {bloque.filas?.map((fila, i) => (
+              <tr key={i} className="border-t border-gray-100">
+                {fila.map((celda, j) => (
+                  <td key={j} className={`px-3 py-2 align-top text-gray-700 ${j === 0 ? 'font-medium text-gray-900' : ''}`}>
+                    {celda}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  if (bloque.tipo === 'faq') {
+    return (
+      <div className="space-y-3">
+        {bloque.preguntas?.map((pregunta, i) => (
+          <div key={i} className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+            <p className="text-sm font-semibold text-gray-900">{pregunta.pregunta}</p>
+            <p className="mt-1 text-sm leading-relaxed text-gray-700">{pregunta.respuesta}</p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return null
+}
+
 function DetalleItem({ item, onOpenImagen }: { item: AyudaEntrada; onOpenImagen: (index: number) => void }) {
   const categoriaLabel = item.tipo === 'modulo' ? 'Módulo' : item.tipo === 'solapa' ? 'Solapa' : 'Concepto'
 
@@ -145,6 +230,22 @@ function DetalleItem({ item, onOpenImagen }: { item: AyudaEntrada; onOpenImagen:
           <CapturaPendiente />
         </div>
       ) : null}
+
+      {item.manual && item.manual.length > 0 && (
+        <div className="mt-6 space-y-6">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            Manual de uso
+          </p>
+          {item.manual.map(seccion => (
+            <section key={seccion.titulo} className="space-y-3">
+              <h3 className="text-[15px] font-bold text-gray-900 tracking-tight">{seccion.titulo}</h3>
+              {seccion.bloques.map((bloque, i) => (
+                <BloqueManual key={i} bloque={bloque} />
+              ))}
+            </section>
+          ))}
+        </div>
+      )}
 
       {item.relacionados && item.relacionados.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-100">

@@ -49,6 +49,21 @@ describe('AyudaPage', () => {
     expect(screen.getByText(/vendeto\.com\.ar/)).toBeInTheDocument()
   })
 
+  it('muestra el manual detallado del Barcode Scanner', () => {
+    renderAyuda('concepto-barcode-scanner')
+    expect(screen.getByText('Manual de uso')).toBeInTheDocument()
+    expect(screen.getByText('¿Qué es BarcodeToPC?')).toBeInTheDocument()
+    expect(screen.getByText('Instalación')).toBeInTheDocument()
+    expect(screen.getByText('Solución de problemas')).toBeInTheDocument()
+    expect(screen.getByText('Preguntas frecuentes')).toBeInTheDocument()
+    expect(screen.getByText('¿Necesito internet para usarlo?')).toBeInTheDocument()
+  })
+
+  it('no muestra el manual en conceptos que no lo tienen', () => {
+    renderAyuda('concepto-venta')
+    expect(screen.queryByText('Manual de uso')).not.toBeInTheDocument()
+  })
+
   it('abre el lightbox al hacer click en una captura', async () => {
     renderAyuda('concepto-pesable')
     const user = userEvent.setup()
