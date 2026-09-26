@@ -23,6 +23,9 @@ public class LicenciaEstadoDto
     /// <summary>Estado actual: active, grace, paused, cancelled, pending.</summary>
     public string Estado { get; set; } = string.Empty;
 
+    /// <summary>Email con el que se activó o contrató la licencia (titular).</summary>
+    public string? Email { get; set; }
+
     /// <summary>Fecha hasta la cual el cache local es válido (UTC).</summary>
     public DateTime? VerificadoHasta { get; set; }
 

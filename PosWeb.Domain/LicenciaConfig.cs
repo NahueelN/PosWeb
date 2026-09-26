@@ -22,6 +22,9 @@ public class LicenciaConfig
     [Required]
     public string LicenseKey { get; set; } = string.Empty;
 
+    /// <summary>Email con el que se activó o contrató la licencia (titular).</summary>
+    public string? Email { get; set; }
+
     [Required]
     public string Plan { get; set; } = NivelesSuscripcion.Basica;
 

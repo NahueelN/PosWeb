@@ -279,6 +279,10 @@ using (var scope = app.Services.CreateScope())
     // el esquema del segmento restaurante de forma idempotente (no-op si ya existe).
     GarantizarEsquemaRestaurante(ctx);
 
+    // Ídem para la columna Email de LicenciaConfig en instalaciones legacy sin historial:
+    // Migrate() no la agrega y EF la consultaría (no such column).
+    GarantizarEmailLicencia(ctx);
+
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
@@ -491,6 +495,30 @@ CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
         using var alterGrupo = connection.CreateCommand();
         alterGrupo.CommandText = "ALTER TABLE ITEM_COMANDA ADD COLUMN GRUPO TEXT NOT NULL DEFAULT 'Principal'";
         alterGrupo.ExecuteNonQuery();
+    }
+}
+
+/// <summary>
+/// Garantiza la columna Email de LicenciaConfig en instalaciones legacy creadas con
+/// EnsureCreated (sin historial de migraciones), donde Migrate() no la aplicaría y EF
+/// fallaría al consultarla. Idempotente: no-op si la columna ya existe.
+/// </summary>
+static void GarantizarEmailLicencia(PosDbContextLocal ctx)
+{
+    var connection = ctx.Database.GetDbConnection();
+    if (connection.State != ConnectionState.Open)
+    {
+        connection.Open();
+    }
+
+    using var cmd = connection.CreateCommand();
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('LicenciaConfig') WHERE name = 'Email'";
+    var existe = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!existe)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE LicenciaConfig ADD COLUMN Email TEXT NULL";
+        alter.ExecuteNonQuery();
     }
 }
 

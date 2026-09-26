@@ -109,6 +109,7 @@ public class LicenciaService
             var licencia = new LicenciaConfig
             {
                 LicenseKey = _encryption.Encrypt(result.LicenseKey),
+                Email = email.ToLowerInvariant().Trim(),
                 Plan = NormalizarPlan(result.Plan),
                 Estado = result.Status,
                 MachineId = machineId,

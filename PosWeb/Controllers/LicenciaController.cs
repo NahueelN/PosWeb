@@ -123,6 +123,7 @@ public class LicenciaController : ControllerBase
             // el frontend y el backend coincidan siempre (un solo source of truth).
             Plan = _licenciaService.ObtenerNivelActual(),
             Estado = licencia.Estado,
+            Email = licencia.Email,
             VerificadoHasta = licencia.VerifiedUntil,
             GraceHasta = licencia.GraceHastaEfectivo,
             NextBilling = licencia.NextBilling,
