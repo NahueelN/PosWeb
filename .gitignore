@@ -385,3 +385,6 @@ mysql-data/
 *.xls
 *.xlsx
 .wrangler/cache/wrangler-account.json
+
+# Licensing worker build output (local check)
+licensing-worker/dist-check/
