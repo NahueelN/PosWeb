@@ -1,11 +1,11 @@
 {
-  "version": "1.1.22",
-  "pub_date": "2026-09-28T14:25:22Z",
+  "pub_date": "2026-09-28T14:48:20Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkloemVYUEdqSW94VGlCKyt5Z0hRRzZid0JhbmFFNUhGMktLQTVqYWtOQm8yc2J6WHVsY3BjZ2lJODMvdFNTTWRhRTEvaTRhTEpabExuaXZRNVVqU3dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjA1NTE0CWZpbGU6VmVuZGV0b18xLjEuMjJfeDY0LXNldHVwLmV4ZQpkNXRUS1VVWmFQVnc4M0xSbG1xZEtiZ2tiY1QyOFJkMk4rczJLRXFjT21ENUlQR1VOcjFZMlhXZnN5M3RtMlBMZGs3Y0xHMEIrdklmMGQvQmxLQTBDdz09Cg==",
-      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.1.22/Vendeto_1.1.22_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUDFUU3dNbXBwZkNtbzVXUUFqRCt1MlJSS2YvWEJOSWt1QWtMakhqaVlncXNWQTB0VmprV0JGTVlOcyttOEhkb1FiS05McXN4Q0FTUWdnR3oyUVR0cjJjWnhuTDdCNkEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjA2ODkyCWZpbGU6VmVuZGV0b18xLjEuMjNfeDY0LXNldHVwLmV4ZQoyc1pkaDlYaVF5TVgxYm5UcHY1Zm1JdWp5N3o3TDREL0VySnR3aXJCRzNVcnVxZ2cxb1FrWEFXMWtMb3JRTlhqZFN6U1VIVi8xbmMvczVma2VjRG9BZz09Cg==",
+      "url": "https://github.com/NahueelN/PosWeb/releases/download/v1.1.23/Vendeto_1.1.23_x64-setup.exe"
     }
   },
-  "notes": "Release v1.1.22"
+  "notes": "Release v1.1.23",
+  "version": "1.1.23"
 }
