@@ -22,3 +22,10 @@
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PosWeb"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PosWeb"
 !macroend
+
+; El update via updater no recrea el acceso directo del producto nuevo (y el hook
+; PREINSTALL borra el de PosWeb). Este hook garantiza que siempre exista el acceso
+; directo de Vendeto en el menu Inicio para que la app aparezca en la busqueda.
+!macro NSIS_HOOK_POSTINSTALL
+  CreateShortcut "$SMPROGRAMS\Vendeto.lnk" "$INSTDIR\app.exe"
+!macroend
