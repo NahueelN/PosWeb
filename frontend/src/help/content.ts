@@ -831,7 +831,6 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Vincular MercadoPago',
         tipo: 'concepto',
         definicion: 'Conexión entre la cuenta de MercadoPago del negocio y Vendeto para cobrar con QR y por transferencia. Se realiza desde el panel lateral y se autoriza en el navegador.',
-        necesitaImagen: true,
         relacionados: ['concepto-cobro-qr', 'concepto-transferencia-mp'],
         manual: [
           {
@@ -895,7 +894,6 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Cobro QR',
         tipo: 'concepto',
         definicion: 'Cobra mostrando un código QR que el cliente escanea con su app de MercadoPago. Hay dos QR: el fijo del mostrador (siempre el mismo, sin monto) y el QR de cada venta (con el monto puntual).',
-        necesitaImagen: true,
         relacionados: ['concepto-vincular-mp', 'concepto-transferencia-mp', 'concepto-plan-maxima'],
         manual: [
           {
@@ -991,7 +989,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         key: 'concepto-plan-gratuito',
         titulo: 'Plan Gratuito',
         tipo: 'concepto',
-        definicion: 'Plan sin costo para seguir operando después de la prueba. Incluye 1 usuario con acceso completo, hasta 500 productos activos y los módulos de ventas, caja y stock; el resto queda oculto.',
+        definicion: 'Plan sin costo para seguir operando después de la prueba. Incluye 1 usuario con acceso completo, hasta 500 productos activos y los módulos de ventas, caja y stock.',
         relacionados: ['concepto-prueba-gratuita'],
       },
       {
@@ -1107,7 +1105,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
             tipo: 'tabla',
             columnas: ['Plan', 'Precio', 'Usuarios', 'Productos', 'Módulos'],
             filas: [
-              ['Gratuito', '$0 / mes', '1 usuario con acceso completo', 'Hasta 500', 'Ventas, caja y stock. El resto queda oculto.'],
+              ['Gratuito', '$0 / mes', '1 usuario con acceso completo', 'Hasta 500', 'Ventas, caja y stock.'],
               ['Básica', '$32.500 / mes', 'Hasta 3 usuarios', 'Hasta 1000', 'Todos los módulos.'],
               ['Máxima', '$39.990 / mes', 'Usuarios ilimitados', 'Hasta 10000', 'Todos los módulos + MercadoPago con verificación instantánea de pagos y soporte prioritario.'],
             ],
@@ -1139,7 +1137,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
               },
               {
                 pregunta: '¿Puedo seguir usando Vendeto sin pagar?',
-                respuesta: 'Sí. Al vencer la prueba pasás a plan Gratuito: ventas, caja y stock, hasta 500 productos. Los demás módulos se ocultan.',
+                respuesta: 'Sí. Al vencer la prueba pasás a plan Gratuito: ventas, caja y stock, hasta 500 productos.',
               },
               {
                 pregunta: '¿Qué pasa si no renuevo un plan pago?',
