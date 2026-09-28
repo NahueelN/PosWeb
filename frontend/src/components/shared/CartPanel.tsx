@@ -20,21 +20,18 @@ interface CartPanelProps {
  */
 export default function CartPanel({ title, headerExtra, cartRef, children, footer }: CartPanelProps) {
   return (
-    <div
-      className="hidden lg:flex fixed right-0 top-12 bottom-0 w-1/3 flex-col z-30"
-      style={{ borderLeft: '1px solid oklch(0.91 0.008 265)', background: 'oklch(0.988 0.003 258)' }}
-    >
+    <div className="hidden lg:flex fixed right-0 top-12 bottom-0 w-1/3 flex-col z-30 border-l border-slate-200 bg-white shadow-[-8px_0_24px_-18px_rgba(15,23,42,0.35)]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-2">
-          <ShoppingCart size={14} strokeWidth={2} className="text-gray-400" />
-          <h3 className="text-[13px] font-bold text-gray-900 tracking-tight">{title}</h3>
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200 bg-slate-50/70 shrink-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <ShoppingCart size={15} strokeWidth={2} className="text-slate-400" />
+          <h3 className="shrink-0 whitespace-nowrap text-[13px] font-bold text-slate-900 tracking-tight">{title}</h3>
         </div>
         {headerExtra}
       </div>
 
       {/* Cart items */}
-      <div ref={cartRef} className="flex-1 overflow-y-auto min-h-0">
+      <div ref={cartRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
         {children}
       </div>
 

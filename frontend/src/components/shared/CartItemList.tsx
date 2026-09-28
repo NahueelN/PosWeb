@@ -29,10 +29,17 @@ export default function CartItemList({
   }
 
   return (
-    <div className="divide-y-2 divide-gray-300">
-      {items.map((item: any, idx: number) => (
-        <CartItemRow key={getKey(item, idx)} {...getItemProps(item, idx)} />
-      ))}
+    <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_72px_96px_16px] border-b border-slate-200 bg-slate-50/70 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500 xl:grid-cols-[minmax(0,1fr)_86px_120px_18px] xl:px-4">
+        <span>Producto</span>
+        <span className="text-right">Importe</span>
+        <span className="text-center">Cant.</span>
+      </div>
+      <div className="divide-y divide-slate-200">
+        {items.map((item: any, idx: number) => (
+          <CartItemRow key={getKey(item, idx)} {...getItemProps(item, idx)} />
+        ))}
+      </div>
     </div>
   )
 }

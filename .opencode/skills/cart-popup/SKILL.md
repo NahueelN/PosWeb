@@ -4,7 +4,7 @@ description: "Trigger: carrito, cart popup, pedido, alta con productos, recibir 
 license: Apache-2.0
 metadata:
   author: gentleman-programming
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Cart Popup
@@ -21,6 +21,7 @@ Use when implementing or changing a PosWeb popup that selects products into a ca
 - Filter catalog rows already present in the cart; removing an item makes it available again.
 - Do not expose purchase cost as "sale price". A receipt sale-price field must update `Producto.PRECIO`; purchase cost remains internal for `RenglonCompra` and expense calculation.
 - Disable backdrop and Escape closing when accidental loss would discard an order draft.
+- Cart row quantity controls (`+`, `−`, and Enter in the quantity input) must return focus to the product search through the row's `onEnter` accessor; the row never knows which input it is.
 
 ## Decision Gates
 
@@ -30,7 +31,7 @@ Use when implementing or changing a PosWeb popup that selects products into a ca
 | Free-text product | First Enter warns inline; confirm button or second Enter adds it as a free item. |
 | Product search arrows | Up/Down highlights and scrolls the catalog row; Enter adds that row. |
 | Search Tab | Focus the last cart quantity when items exist; otherwise focus expected date. |
-| Quantity Enter | Return focus to product search. |
+| Quantity Enter / + / − click | Return focus to product search via the row's `onEnter` (wired in `getItemProps`). |
 | Date/notes Tab | Date -> notes -> Close -> confirm action. |
 | Create mode | Show only Close and Create/Save. |
 | Edit mode | Put Share, Receive, and destructive Cancel in the footer; keep Cancel at the far left. |
@@ -51,5 +52,6 @@ Report the affected popup behavior, keyboard flow, and verification. Propose PKS
 
 - `docs/knowledge/projects/posweb/PAT-cart-flow.md`
 - `frontend/src/components/shared/CarritoPopup.tsx`
+- `frontend/src/components/shared/CartItemRow.tsx`
 - `frontend/src/components/shared/ProveedorAltaCruzada.tsx`
 - `frontend/src/pages/PedidosPage.tsx`
