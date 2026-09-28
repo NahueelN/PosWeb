@@ -41,4 +41,10 @@
     <Folder Include="Test\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="appsettings.json">
+      <LogicalName>PosWeb.appsettings.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>
