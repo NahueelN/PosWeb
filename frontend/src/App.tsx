@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DialogContainer from './components/ui/DialogContainer'
@@ -34,6 +34,7 @@ const rutasBloqueadasGratuito = new Set(['/', '/historial', '/clientes', '/compr
 
 function GratuitoGuard() {
   const { pathname } = useLocation()
+  const context = useOutletContext()
   const [plan, setPlan] = useState<string | null>(null)
   const [chequeado, setChequeado] = useState(false)
 
@@ -50,7 +51,7 @@ function GratuitoGuard() {
   if (plan === 'Gratuito' && rutasBloqueadasGratuito.has(pathname)) {
     return <Navigate to="/ventas" replace />
   }
-  return <Outlet />
+  return <Outlet context={context} />
 }
 
 function UpdaterBanner({ status, version, errorMsg }: UpdaterState) {
