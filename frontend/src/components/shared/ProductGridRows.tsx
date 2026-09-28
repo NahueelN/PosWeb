@@ -10,7 +10,7 @@ export function ProductGridHeader({ hasAction = true }: { hasAction?: boolean })
     <div
       className={[
         hasAction ? PRODUCT_ROW_GRID : PRODUCT_ROW_GRID_NO_ACTION,
-        'px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400',
+        'mb-1 border-b border-slate-200 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600',
       ].join(' ')}
     >
       <span className={HEADER_CELL}>Código</span>
