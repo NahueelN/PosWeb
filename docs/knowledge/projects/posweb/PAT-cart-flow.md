@@ -114,6 +114,12 @@ All operations — updateQuantity, removeItem, useItemSnapshot, inputRef registr
 
 This contract exists because the cart system is generic over item type. Different domains provide different item shapes. Ventas uses `{ producto: { id }, comboId? }`. Compras uses `{ productoId, costoUnitario }`. The `getId` accessor bridges domain-specific shapes to a stable identity key. Any new cart domain must define its own `getId` that returns a unique stable identifier.
 
+### Quantity Focus Contract
+
+Pressing Enter in a cart quantity input, and clicking either the `+` or `−` button on a cart row, all return focus to the product search input. Adding, removing, or editing a quantity is a momentary detour: the operator's next action is almost always to scan or search another product, so the row hands focus back.
+
+The Page provides the focus target through the `onEnter` accessor in `getItemProps` (e.g. `onEnter: () => searchInputRef.current?.focus()`). `CartItemRow` calls it after every quantity action — Enter, `+`, and `−` (including the `−`-at-min removal branch) — and never knows which input it is. A new cart domain must wire `onEnter` to its own search input or the contract silently degrades to no focus movement.
+
 ---
 
 ## Invariants
@@ -197,3 +203,4 @@ RELATIONS:
 | Fecha | Cambio |
 |-------|--------|
 | 2026-06-30 | Creación como Canonical Pattern |
+| 2026-09-28 | Contrato Quantity Focus: Enter en cantidad y click en `+`/`−` devuelven el foco al buscador de productos |

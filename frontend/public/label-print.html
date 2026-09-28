@@ -37,10 +37,13 @@
         const name = document.createElement('div')
         name.className = 'name'
         name.textContent = data.nombre
-        const price = document.createElement('div')
-        price.className = 'price'
-        price.textContent = `$${formatter.format(data.precio)}`
-        label.append(name, price)
+        label.append(name)
+        if (data.incluirPrecio !== false) {
+          const price = document.createElement('div')
+          price.className = 'price'
+          price.textContent = `$${formatter.format(data.precio)}`
+          label.append(price)
+        }
         if (data.barcodeSvg && data.codigoDeBarras) {
           const barcode = document.createElement('div')
           barcode.className = 'barcode'

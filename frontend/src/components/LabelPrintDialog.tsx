@@ -29,6 +29,7 @@ export default function LabelPrintDialog({
   const [cantidad, setCantidad] = useState('1')
   const [ancho, setAncho] = useState<58 | 80>(80)
   const [incluirCodigo, setIncluirCodigo] = useState(false)
+  const [incluirPrecio, setIncluirPrecio] = useState(true)
   const [tipoCodigo, setTipoCodigo] = useState<'ean' | 'interno'>(codigoBarra.trim() ? 'ean' : 'interno')
   const codigoRef = useRef<SVGSVGElement>(null)
 
@@ -40,6 +41,7 @@ export default function LabelPrintDialog({
       if (!etiqueta) return
       if (etiqueta.ancho === '58' || etiqueta.ancho === '80') setAncho(Number(etiqueta.ancho) as 58 | 80)
       if (etiqueta.incluirCodigo === 'true' || etiqueta.incluirCodigo === 'false') setIncluirCodigo(etiqueta.incluirCodigo === 'true')
+      if (etiqueta.incluirPrecio === 'true' || etiqueta.incluirPrecio === 'false') setIncluirPrecio(etiqueta.incluirPrecio === 'true')
       if (etiqueta.tipoCodigo === 'ean' || etiqueta.tipoCodigo === 'interno') setTipoCodigo(etiqueta.tipoCodigo)
     }).catch(() => {})
     return () => { mounted = false }
@@ -57,11 +59,12 @@ export default function LabelPrintDialog({
     renderBarcode(codigoRef.current, codigoParaEtiqueta, ancho, ancho === 80 ? 45 : 36)
   }, [incluirCodigo, codigoParaEtiqueta, ancho])
 
-  function persistir(nuevoAncho: 58 | 80, incluir: boolean, tipo: 'ean' | 'interno') {
+  function persistir(nuevoAncho: 58 | 80, incluir: boolean, incluirPrecio: boolean, tipo: 'ean' | 'interno') {
     setAncho(nuevoAncho)
     setIncluirCodigo(incluir)
+    setIncluirPrecio(incluirPrecio)
     setTipoCodigo(tipo)
-    api.preferencias.guardar({ etiquetaProducto: { ancho: String(nuevoAncho), incluirCodigo: String(incluir), tipoCodigo: tipo } }).catch(() => {})
+    api.preferencias.guardar({ etiquetaProducto: { ancho: String(nuevoAncho), incluirCodigo: String(incluir), incluirPrecio: String(incluirPrecio), tipoCodigo: tipo } }).catch(() => {})
   }
 
   async function imprimir() {
@@ -71,8 +74,12 @@ export default function LabelPrintDialog({
       notifyError('Ingresá una cantidad de etiquetas válida')
       return
     }
-    if (!codigo || !nombre.trim() || !Number.isFinite(precio) || precio <= 0) {
-      notifyError('Se necesita nombre, precio y código para imprimir una etiqueta')
+    if (!codigo || !nombre.trim()) {
+      notifyError('Se necesita nombre y código para imprimir una etiqueta')
+      return
+    }
+    if (incluirPrecio && (!Number.isFinite(precio) || precio <= 0)) {
+      notifyError('Ingresá un precio válido o desmarcá "Incluir precio"')
       return
     }
 
@@ -92,7 +99,8 @@ export default function LabelPrintDialog({
       barcodeSvg,
       codigoDeBarras,
       ancho,
-      altoMinimo: barcodeSvg ? (ancho === 80 ? 42 : 34) : (ancho === 80 ? 35 : 30),
+      incluirPrecio,
+      altoMinimo: barcodeSvg ? (ancho === 80 ? 42 : 34) : incluirPrecio ? (ancho === 80 ? 35 : 30) : (ancho === 80 ? 22 : 20),
     }
     onClose()
 
@@ -116,7 +124,7 @@ export default function LabelPrintDialog({
     const etiquetaHtml = Array.from({ length: cantidadNumero }, () => `
       <article class="label">
         <div class="name">${escapeHtml(etiqueta.nombre)}</div>
-        <div class="price">$${etiqueta.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        ${etiqueta.incluirPrecio ? `<div class="price">$${etiqueta.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : ''}
         ${etiqueta.barcodeSvg ? `<div class="barcode">${etiqueta.barcodeSvg}</div><div class="code">${escapeHtml(etiqueta.codigoDeBarras)}</div>` : ''}
       </article>`).join('')
     const printWindow = window.open('', 'posweb-label', 'width=420,height=340')
@@ -172,7 +180,7 @@ export default function LabelPrintDialog({
               <button
                 key={valor}
                 type="button"
-                onClick={() => persistir(valor as 58 | 80, incluirCodigo, tipoCodigo)}
+                onClick={() => persistir(valor as 58 | 80, incluirCodigo, incluirPrecio, tipoCodigo)}
                 className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${ancho === valor ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-gray-500 hover:bg-white'}`}
               >
                 {valor} mm
@@ -180,16 +188,21 @@ export default function LabelPrintDialog({
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <input type="checkbox" checked={incluirCodigo} onChange={e => persistir(ancho, e.target.checked, tipoCodigo)}
+            <input type="checkbox" checked={incluirPrecio} onChange={e => persistir(ancho, incluirCodigo, e.target.checked, tipoCodigo)}
+              className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)]" />
+            Incluir precio
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <input type="checkbox" checked={incluirCodigo} onChange={e => persistir(ancho, e.target.checked, incluirPrecio, tipoCodigo)}
               disabled={!codigoBarra.trim() && !codigoInterno.trim()}
               className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)]" />
             Incluir código
           </label>
-          <select value={tipoEfectivo} onChange={e => persistir(ancho, incluirCodigo, e.target.value as 'ean' | 'interno')}
+          <select value={tipoEfectivo} onChange={e => persistir(ancho, incluirCodigo, incluirPrecio, e.target.value as 'ean' | 'interno')}
             disabled={!incluirCodigo || bloqueoSinAlternativa}
-            className="h-8 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
+            className="h-8 min-w-[120px] flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400">
             <option value="ean" disabled={!hayEan}>EAN / código de barras</option>
             <option value="interno" disabled={!hayInterno}>Código interno</option>
           </select>
@@ -197,7 +210,9 @@ export default function LabelPrintDialog({
         <div className={`mx-auto border border-dashed border-gray-300 bg-gray-50 p-3 ${ancho === 80 ? 'w-[360px]' : 'w-[290px]'}`}>
           <div className="border border-black bg-white px-3 py-2.5 text-black">
             <p className={`text-center font-bold uppercase leading-tight line-clamp-2 ${ancho === 80 ? 'text-base' : 'text-sm'}`}>{nombre || 'Sin nombre'}</p>
-            <p className={`my-2 text-center font-black leading-none whitespace-nowrap ${ancho === 80 ? 'text-5xl' : 'text-4xl'}`}>${Number(precio || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            {incluirPrecio && (
+              <p className={`my-2 text-center font-black leading-none whitespace-nowrap ${ancho === 80 ? 'text-5xl' : 'text-4xl'}`}>${Number(precio || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            )}
             {incluirCodigo && codigoParaEtiqueta && (
               <>
                 <svg ref={codigoRef} className="mt-2 w-full h-auto" aria-label={`Código de barras ${codigoParaEtiqueta}`} />

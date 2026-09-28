@@ -127,7 +127,10 @@ export default function CartItemRow({
         {/* Qty controls — fixed column */}
         <div className="shrink-0 w-[88px] flex items-center justify-center gap-0.5">
           <button type="button"
-            onClick={() => cantidad <= step ? onRemove() : onCantidadChange(Math.round((cantidad - step) * Math.pow(10, decimales)) / Math.pow(10, decimales))}
+            onClick={() => {
+              if (cantidad <= step) { onRemove() } else { onCantidadChange(Math.round((cantidad - step) * Math.pow(10, decimales)) / Math.pow(10, decimales)) }
+              onEnter?.()
+            }}
             className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-[oklch(0.52_0.255_278_/_0.50)] hover:bg-[oklch(0.52_0.255_278_/_0.05)] hover:text-[oklch(0.52_0.255_278)] active:scale-90 transition-all duration-100"
             aria-label={`Reducir cantidad de ${nombre}`}
           >
@@ -179,7 +182,10 @@ export default function CartItemRow({
           />
 
           <button type="button"
-            onClick={() => onCantidadChange(Math.round((cantidad + step) * Math.pow(10, decimales)) / Math.pow(10, decimales))}
+            onClick={() => {
+              onCantidadChange(Math.round((cantidad + step) * Math.pow(10, decimales)) / Math.pow(10, decimales))
+              onEnter?.()
+            }}
             className="flex h-[20px] w-[20px] items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:border-[oklch(0.52_0.255_278_/_0.50)] hover:bg-[oklch(0.52_0.255_278_/_0.05)] hover:text-[oklch(0.52_0.255_278)] active:scale-90 transition-all duration-100"
             aria-label={`Aumentar cantidad de ${nombre}`}
           >
