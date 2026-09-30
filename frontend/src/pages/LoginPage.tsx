@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [regPassword, setRegPassword] = useState('')
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
+  const [regTipoNegocio, setRegTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
   const [registerLoading, setRegisterLoading] = useState(false)
   const [buscarLicenciaOpen, setBuscarLicenciaOpen] = useState(false)
   const [buscarLicenciaEmail, setBuscarLicenciaEmail] = useState('')
@@ -118,6 +119,7 @@ export default function LoginPage() {
         mail: regMail,
         rol: 'Admin',
         empresaNombre: regEmpresa.trim() || undefined,
+        tipoNegocio: regTipoNegocio,
       })
       if (res.licenciaEstado === 'trial') {
         notifySuccess('Prueba gratuita de 7 días activada. Ya podés iniciar sesión.')
@@ -128,6 +130,7 @@ export default function LoginPage() {
       setRegPassword('')
       setRegMail('')
       setRegEmpresa('')
+      setRegTipoNegocio('Tienda')
       setShowRegister(false)
     } catch (err: any) {
       const msg = err.message || 'Error al registrar usuario'
@@ -369,6 +372,19 @@ export default function LoginPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Nombre de empresa (opcional)"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
+              <select
+                value={regTipoNegocio}
+                onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              >
+                <option value="Tienda">Tienda</option>
+                <option value="Restaurante">Restaurante (con mesas)</option>
+              </select>
             </div>
 
             <button

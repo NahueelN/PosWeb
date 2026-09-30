@@ -29,14 +29,31 @@ public class RestauranteController : ControllerBase
     [HttpGet("config")]
     public IActionResult Config()
     {
-        return Ok(new RestauranteConfigDto { Habilitado = _restauranteService.ObtenerRestauranteHabilitado() });
+        var tipo = _restauranteService.ObtenerTipoNegocio();
+        return Ok(new RestauranteConfigDto
+        {
+            Habilitado = tipo == EmpresaConfiguracion.TipoRestaurante,
+            TipoNegocio = tipo,
+        });
     }
 
     [HttpPut("config")]
     public IActionResult SetConfig([FromBody] RestauranteConfigDto dto)
     {
-        _restauranteService.SetRestauranteHabilitado(dto.Habilitado);
-        return Ok(dto);
+        if (!string.IsNullOrWhiteSpace(dto.TipoNegocio))
+        {
+            _restauranteService.SetTipoNegocio(dto.TipoNegocio);
+        }
+        else
+        {
+            _restauranteService.SetRestauranteHabilitado(dto.Habilitado);
+        }
+
+        return Ok(new RestauranteConfigDto
+        {
+            Habilitado = _restauranteService.ObtenerRestauranteHabilitado(),
+            TipoNegocio = _restauranteService.ObtenerTipoNegocio(),
+        });
     }
 
     // Mesas

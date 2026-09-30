@@ -64,6 +64,50 @@ export interface AyudaModulo {
 
 export const AYUDA_MODULOS: AyudaModulo[] = [
   {
+    key: 'modulo-primeros-pasos',
+    titulo: 'Primeros pasos',
+    definicion: 'Guía rápida para arrancar a vender con Vendeto: dar de alta tus productos, completar los datos del negocio, abrir la caja y hacer la primera venta.',
+    relacionados: ['concepto-producto', 'concepto-caja', 'concepto-venta', 'concepto-cantidad-ideal', 'solapa-margenes', 'concepto-vincular-mp'],
+    items: [],
+    manual: [
+      {
+        titulo: 'Para arrancar a vender',
+        bloques: [
+          {
+            tipo: 'parrafo',
+            texto: 'Si recién instalaste el programa, seguí estos pasos en orden para hacer tu primera venta en pocos minutos.',
+          },
+          {
+            tipo: 'pasos',
+            items: [
+              'Dará de alta tus productos: andá a Productos y cargá lo que vendés (nombre, código de barras, precio y costo). También podés importarlos desde un Excel.',
+              'Completá los datos del negocio: en Configuración → Perfil cargá el nombre, la dirección y el teléfono, así salen correctamente en el ticket.',
+              'Abrí la caja: en el módulo Caja cargá el monto inicial y tocá "Abrir caja".',
+              'Vendé: andá a Ventas, buscá un producto por nombre o código de barras, armá el carrito, elegí el medio de pago y confirmá.',
+            ],
+          },
+          {
+            tipo: 'nota',
+            texto: 'Con el plan Gratuito podés vender y manejar caja y stock de inmediato. Los demás módulos (compras, deudas, clientes, pedidos, etc.) los vas activando a medida que los necesites.',
+          },
+        ],
+      },
+      {
+        titulo: 'Y después, ¿qué conviene configurar?',
+        bloques: [
+          {
+            tipo: 'lista',
+            items: [
+              'Cantidad ideal de stock: para que el sistema te sugiera reposiciones cuando el stock baje.',
+              'Márgenes por categoría: para que el precio de venta se calcule solo sobre el costo.',
+              'Vincular MercadoPago: para cobrar con QR y por transferencia.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     key: 'modulo-inicio',
     titulo: 'Inicio',
     definicion: 'Pantalla principal del programa. Para los administradores (Admin/SuperAdmin) muestra un dashboard interactivo con la actividad del negocio; para los usuarios con rol "Usuario" muestra solo una imagen estática de Vendeto, sin datos.',
@@ -344,7 +388,36 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Caja',
         tipo: 'concepto',
         definicion: 'Registro del dinero en efectivo del negocio durante el día. Se abre al empezar a operar (con un monto inicial) y se cierra al terminar, comparando lo esperado contra el dinero contado.',
+        necesitaImagen: true,
         relacionados: ['concepto-cierre-caja'],
+        manual: [
+          {
+            titulo: 'Abrir la caja',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá al módulo Caja y elegí la sucursal sobre la que vas a operar.',
+                  'Ingresá el monto inicial con el que arranca la caja (el efectivo que hay en el cajón al empezar).',
+                  'Tocá "Abrir caja".',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Si querés que la próxima jornada arranque con un saldo inicial fijo, podés dejar cargado el "saldo inicial del día siguiente": se ofrece automáticamente al abrir la caja del día siguiente.',
+              },
+            ],
+          },
+          {
+            titulo: 'Mientras la caja está abierta',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Con la caja abierta se muestra el avance del día: el total vendido por medio de pago, los gastos registrados y el efectivo esperado. Las ventas y los gastos se van sumando a la caja automáticamente.',
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'concepto-cierre-caja',
@@ -354,6 +427,52 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         necesitaImagen: true,
         imagenes: [cierreCaja, cierreCajaResumen],
         relacionados: ['concepto-caja'],
+        manual: [
+          {
+            titulo: 'Cerrar la caja',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Con la caja abierta, en el módulo Caja completá el cierre.',
+                  'Cargá el efectivo contado: el dinero que realmente hay en el cajón al contar.',
+                  'Cargá el monto contado en tarjetas si corresponde.',
+                  'Revisá las diferencias: el sistema compara lo contado contra lo esperado (según las ventas y los gastos) e informa si sobra o falta.',
+                  'Confirmá el cierre: se genera el ticket de cierre y la jornada queda cerrada.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Compartir el cierre',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Tocá el cierre que querés compartir (el del día al cerrar, o cualquiera de los cierres anteriores del historial).',
+                  'Se abre el detalle del cierre con el resumen financiero y el conteo de efectivo.',
+                  'Usá "Compartir" para enviarlo por mail o WhatsApp, o "Imprimir" para sacar el ticket de cierre.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Cierres anteriores',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El módulo Caja muestra el historial de cierres: la fecha del cierre, el usuario, la apertura, el monto inicial, las ventas y la ganancia.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el módulo Caja, buscá en el historial de cierres (podés filtrar por rango de fechas y ordenar por fecha, usuario, inicial, ventas o ganancia).',
+                  'Tocá un cierre para ver su detalle completo, sus movimientos y compartirlo.',
+                ],
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'solapa-caja-configuracion',
@@ -366,8 +485,8 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
   {
     key: 'modulo-mesas',
     titulo: 'Mesas',
-    definicion: 'Módulo de restaurante: administra mesas, comandas y cuentas. Permite abrir una mesa, cargar productos, unificar cuentas y cobrar.',
-    relacionados: ['concepto-mesa', 'concepto-comanda', 'solapa-mesas-cocina'],
+    definicion: 'Módulo de restaurante: administra mesas, comandas y cuentas. Permite abrir una mesa, cargar productos, unificar cuentas y cobrar. Solo está disponible si el tipo de negocio es Restaurante.',
+    relacionados: ['concepto-mesa', 'concepto-comanda', 'solapa-mesas-cocina', 'concepto-tipo-negocio'],
     items: [
       {
         key: 'concepto-mesa',
@@ -462,6 +581,60 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Permite actualizar el precio o el costo de varios productos a la vez aplicando un porcentaje de ajuste.',
       },
       {
+        key: 'solapa-productos-importacion',
+        titulo: 'Productos → Importar',
+        tipo: 'solapa',
+        definicion: 'Carga masiva de productos desde un archivo Excel (.xls/.xlsx) con el formato de articulos.xls. Se crean solo los productos nuevos; los duplicados se omiten.',
+        necesitaImagen: true,
+        relacionados: ['concepto-producto'],
+        manual: [
+          {
+            titulo: 'Formato del archivo',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El archivo debe ser un Excel (.xls o .xlsx) con el formato de articulos.xls. Cada fila es un producto con sus columnas: código de barras, descripción, marca, rubro, precio, costo, stock y si controla stock.',
+              },
+              {
+                tipo: 'nota',
+                texto: 'También podés importar productos sin código de barras si está habilitada la opción "importar sin código".',
+              },
+            ],
+          },
+          {
+            titulo: 'Cómo importar',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el módulo Productos, tocá "Importar".',
+                  'Seleccioná el archivo Excel con los productos.',
+                  'Al terminar se muestra el resultado: total de filas, productos creados y salteados.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Duplicados y filas salteadas',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Los productos cuyo código de barras ya existe (o está repetido dentro del archivo) se omiten automáticamente. Las filas con otros errores se muestran para corregirlas: editá los datos y tocá "Importar corregidos" para cargar solo esas filas.',
+              },
+            ],
+          },
+          {
+            titulo: 'Límite del plan',
+            bloques: [
+              {
+                tipo: 'nota',
+                texto: 'Si la importación supera el máximo de productos activos de tu plan, se crean todos los productos y al final se desactivan los sobrantes hasta respetar el tope del plan.',
+              },
+            ],
+          },
+        ],
+      },
+      {
         key: 'solapa-stock',
         titulo: 'Stock (Configuración)',
         tipo: 'solapa',
@@ -547,7 +720,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
     key: 'modulo-configuracion',
     titulo: 'Configuración',
     definicion: 'Configuración general del programa: perfil del usuario, alta de usuarios, compartir datos y respaldos.',
-    relacionados: ['modulo-suscripcion'],
+    relacionados: ['modulo-suscripcion', 'concepto-tipo-negocio'],
     items: [
       {
         key: 'solapa-configuracion-usuarios',
@@ -613,6 +786,82 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
               {
                 tipo: 'nota',
                 texto: 'Atención: restaurar reemplaza TODOS los datos locales actuales por los del respaldo. Verificá que sea el respaldo correcto antes de confirmar.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'solapa-margenes',
+        titulo: 'Configuración → Márgenes',
+        tipo: 'solapa',
+        definicion: 'Define el margen de ganancia sugerido por categoría. Ese porcentaje se usa para calcular el precio de venta de los productos de la categoría en base a su costo.',
+        necesitaImagen: true,
+        relacionados: ['concepto-categoria', 'concepto-producto'],
+        manual: [
+          {
+            titulo: 'Qué es el margen',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El margen es el porcentaje de ganancia que se asocia a cada categoría. Se usa como referencia para calcular el precio de venta de los productos de esa categoría.',
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Cómo se aplica al dar de alta un producto: cuando creás un producto y elegís una categoría que tiene margen definido, ese porcentaje se carga automáticamente en el campo margen del producto y el precio de venta se calcula en base al costo (costo × (1 + margen/100)). Siempre podés ajustar el margen manualmente en cada producto.',
+              },
+            ],
+          },
+          {
+            titulo: 'Asignar un margen a una categoría',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá a Configuración → Márgenes.',
+                  'Buscá la categoría y tocá "Asignar" (o "Editar" si ya tiene margen).',
+                  'Cargá el porcentaje y guardá. Se admite un valor entre 0 y 999.99.',
+                  'Dejarlo vacío quita el margen de la categoría.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Para asignar márgenes primero tenés que crear categorías (pestaña Categorías en el módulo Productos).',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-tipo-negocio',
+        titulo: 'Tipo de negocio',
+        tipo: 'concepto',
+        definicion: 'Clasificación del negocio como Tienda o Restaurante. La única diferencia entre ambas es que el tipo Restaurante tiene habilitado el módulo de Mesas.',
+        relacionados: ['modulo-mesas'],
+        manual: [
+          {
+            titulo: '¿Qué diferencia hay?',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Tipo', 'Qué incluye'],
+                filas: [
+                  ['Tienda', 'Venta de mostrador sin mesas. El menú no muestra el módulo Mesas.'],
+                  ['Restaurante', 'Habilita el módulo de Mesas: abrir mesas, cargar comandas, ver la cocina y cobrar cada cuenta. El resto funciona igual.'],
+                ],
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Es la única diferencia: el tipo de negocio define si se puede operar con mesas o no. Todo lo demás (ventas, productos, caja, clientes, etc.) es igual en ambos tipos.',
+              },
+            ],
+          },
+          {
+            titulo: 'Dónde se elige',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Al registrarte elegís el tipo de negocio. Después se puede cambiar en Configuración → Perfil → "Tipo de negocio": al cambiarlo, el módulo Mesas aparece o desaparece del menú.',
               },
             ],
           },

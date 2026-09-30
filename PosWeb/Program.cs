@@ -437,6 +437,7 @@ static void GarantizarEsquemaRestaurante(PosDbContextLocal ctx)
     cmd.CommandText = @"
 CREATE TABLE IF NOT EXISTS EMPRESA_CONFIGURACION (
     ID_EMPRESA INTEGER NOT NULL CONSTRAINT PK_EMPRESA_CONFIGURACION PRIMARY KEY,
+    TIPO_NEGOCIO TEXT NOT NULL DEFAULT 'Tienda',
     MODULO_RESTAURANTE INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS MESA (
@@ -495,6 +496,21 @@ CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
         using var alterGrupo = connection.CreateCommand();
         alterGrupo.CommandText = "ALTER TABLE ITEM_COMANDA ADD COLUMN GRUPO TEXT NOT NULL DEFAULT 'Principal'";
         alterGrupo.ExecuteNonQuery();
+    }
+
+    // Columna TIPO_NEGOCIO en EMPRESA_CONFIGURACION (solo si falta) + backfill desde el
+    // toggle de mesas existente (Restaurante habilitado => tipo Restaurante).
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('EMPRESA_CONFIGURACION') WHERE name = 'TIPO_NEGOCIO'";
+    var tipoExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!tipoExiste)
+    {
+        using var alterTipo = connection.CreateCommand();
+        alterTipo.CommandText = "ALTER TABLE EMPRESA_CONFIGURACION ADD COLUMN TIPO_NEGOCIO TEXT NOT NULL DEFAULT 'Tienda'";
+        alterTipo.ExecuteNonQuery();
+
+        using var backfillTipo = connection.CreateCommand();
+        backfillTipo.CommandText = "UPDATE EMPRESA_CONFIGURACION SET TIPO_NEGOCIO = 'Restaurante' WHERE MODULO_RESTAURANTE = 1";
+        backfillTipo.ExecuteNonQuery();
     }
 }
 

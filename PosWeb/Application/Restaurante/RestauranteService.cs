@@ -25,13 +25,39 @@ public class RestauranteService
 
     // ---------- Configuración del módulo ----------
 
-    public bool ObtenerRestauranteHabilitado()
+    public string ObtenerTipoNegocio()
     {
         var config = _context.EmpresaConfiguracion.FirstOrDefault();
-        return config?.MODULO_RESTAURANTE ?? false;
+        if (config == null)
+        {
+            return EmpresaConfiguracion.TipoTienda;
+        }
+
+        return string.IsNullOrWhiteSpace(config.TIPO_NEGOCIO)
+            ? (config.MODULO_RESTAURANTE ? EmpresaConfiguracion.TipoRestaurante : EmpresaConfiguracion.TipoTienda)
+            : config.TIPO_NEGOCIO;
+    }
+
+    public bool ObtenerRestauranteHabilitado()
+    {
+        return ObtenerTipoNegocio() == EmpresaConfiguracion.TipoRestaurante;
+    }
+
+    public void SetTipoNegocio(string tipoNegocio)
+    {
+        var config = ObtenerOCrearConfig();
+        config.SetTipoNegocio(tipoNegocio);
+        _context.SaveChanges();
     }
 
     public void SetRestauranteHabilitado(bool habilitado)
+    {
+        var config = ObtenerOCrearConfig();
+        config.SetRestauranteHabilitado(habilitado);
+        _context.SaveChanges();
+    }
+
+    private EmpresaConfiguracion ObtenerOCrearConfig()
     {
         var config = _context.EmpresaConfiguracion.FirstOrDefault();
         if (config == null)
@@ -43,8 +69,7 @@ public class RestauranteService
             _context.EmpresaConfiguracion.Add(config);
         }
 
-        config.SetRestauranteHabilitado(habilitado);
-        _context.SaveChanges();
+        return config;
     }
 
     // ---------- Mesas ----------

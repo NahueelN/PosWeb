@@ -1466,6 +1466,9 @@ public partial class PosDbContext
             entity.Property(e => e.ID_EMPRESA)
                 .HasColumnName("ID_EMPRESA");
 
+            entity.Property(e => e.TIPO_NEGOCIO)
+                .HasColumnName("TIPO_NEGOCIO");
+
             entity.Property(e => e.MODULO_RESTAURANTE)
                 .HasColumnName("MODULO_RESTAURANTE");
         });

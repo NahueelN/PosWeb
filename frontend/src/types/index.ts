@@ -180,6 +180,7 @@ export interface AjustarStockDto {
 // --- Restaurante (mesas) types ---
 export interface RestauranteConfigDto {
   habilitado: boolean
+  tipoNegocio: 'Tienda' | 'Restaurante'
 }
 
 export interface MesaDto {
@@ -338,6 +339,7 @@ export interface RegisterRequest {
   rol: string
   empresaId?: number | null
   empresaNombre?: string | null
+  tipoNegocio?: 'Tienda' | 'Restaurante'
 }
 
 export interface RegisterResponse {

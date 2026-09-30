@@ -439,6 +439,11 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("MODULO_RESTAURANTE");
 
+                    b.Property<string>("TIPO_NEGOCIO")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TIPO_NEGOCIO");
+
                     b.HasKey("ID_EMPRESA");
 
                     b.ToTable("EMPRESA_CONFIGURACION", (string)null);

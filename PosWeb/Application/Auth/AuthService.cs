@@ -300,6 +300,21 @@ public class AuthService
                 nuevoUsuario.AsignarEmpresa(empresaNueva.ID_EMPRESA);
                 _context.SaveChanges();
             }
+
+            // Tipo de negocio (Tienda/Restaurante): se guarda en la configuración de la
+            // empresa (single-tenant). Restaurante habilita el módulo de mesas.
+            var config = _context.EmpresaConfiguracion.FirstOrDefault();
+            if (config == null)
+            {
+                config = new EmpresaConfiguracion(nuevoUsuario.ID_EMPRESA ?? 1);
+                _context.EmpresaConfiguracion.Add(config);
+            }
+
+            var tipoNegocio = string.IsNullOrWhiteSpace(request.TipoNegocio)
+                ? EmpresaConfiguracion.TipoTienda
+                : request.TipoNegocio;
+            config.SetTipoNegocio(tipoNegocio);
+            _context.SaveChanges();
         }
 
         string? licenciaEstado = null;
