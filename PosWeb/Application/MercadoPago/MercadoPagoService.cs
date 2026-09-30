@@ -123,6 +123,13 @@ public class MercadoPagoService
 
             suscripcion.VincularMP(encryptedAccess, encryptedRefresh, userId);
             suscripcion.AsignarPosId("CAJA1");
+
+            var nombreTitular = await ObtenerNombreTitularAsync(accessToken, userId);
+            if (!string.IsNullOrWhiteSpace(nombreTitular))
+            {
+                suscripcion.AsignarNombreTitular(nombreTitular);
+            }
+
             _context.SaveChanges();
 
             await ConfigurarPos(accessToken, userId, suscripcion);
@@ -410,10 +417,89 @@ public class MercadoPagoService
         return new MercadoPagoEstadoDto
         {
             Vinculado = true,
-            NombreTitular = suscripcion.MP_USER_ID,
+            NombreTitular = suscripcion.MP_NOMBRE_TITULAR ?? suscripcion.MP_USER_ID,
+            Alias = suscripcion.MP_ALIAS,
             QrData = suscripcion.MP_QR_DATA,
             RequiereRevincular = EsTokenIlegible(suscripcion.MP_ACCESS_TOKEN)
         };
+    }
+
+    public async Task<MercadoPagoEstadoDto?> ObtenerEstadoAsync()
+    {
+        await GarantizarNombreTitularAsync();
+        return ObtenerEstado();
+    }
+
+    public async Task<string?> ObtenerQrDataActivoAsync()
+    {
+        await GarantizarNombreTitularAsync();
+        return ObtenerQrDataActivo();
+    }
+
+    /// <summary>
+    /// Backfill perezoso del nombre del titular para cuentas vinculadas antes de que se
+    /// guardara el nombre: lo consulta a la API de MercadoPago una sola vez y lo persiste.
+    /// </summary>
+    private async Task GarantizarNombreTitularAsync()
+    {
+        var suscripcion = _context.Suscripcion.FirstOrDefault();
+        if (suscripcion == null || !suscripcion.MP_VINCULADO || !string.IsNullOrWhiteSpace(suscripcion.MP_NOMBRE_TITULAR))
+            return;
+
+        var token = await ObtenerTokenValido();
+        if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(suscripcion.MP_USER_ID))
+            return;
+
+        var nombre = await ObtenerNombreTitularAsync(token, suscripcion.MP_USER_ID);
+        if (!string.IsNullOrWhiteSpace(nombre))
+        {
+            suscripcion.AsignarNombreTitular(nombre);
+            _context.SaveChanges();
+        }
+    }
+
+    private async Task<string?> ObtenerNombreTitularAsync(string accessToken, string userId)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient("MercadoPago");
+            var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.mercadopago.com/users/{userId}");
+            req.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+            var res = await client.SendAsync(req);
+            if (!res.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var content = await res.Content.ReadAsStringAsync();
+            var doc = JsonSerializer.Deserialize<JsonElement>(content);
+
+            var firstName = doc.TryGetProperty("first_name", out var fn) ? fn.GetString() : null;
+            var lastName = doc.TryGetProperty("last_name", out var ln) ? ln.GetString() : null;
+            var nickname = doc.TryGetProperty("nickname", out var nn) ? nn.GetString() : null;
+
+            if (!string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName))
+            {
+                return $"{firstName} {lastName}".Trim();
+            }
+
+            return string.IsNullOrWhiteSpace(nickname) ? null : nickname;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public void SetAlias(string? alias)
+    {
+        var suscripcion = _context.Suscripcion.FirstOrDefault();
+        if (suscripcion == null || !suscripcion.MP_VINCULADO)
+            return;
+
+        suscripcion.AsignarAlias(alias);
+        _context.SaveChanges();
     }
 
     private bool EsTokenIlegible(string? cifrado)
@@ -612,6 +698,7 @@ public class MercadoPagoEstadoDto
 {
     public bool Vinculado { get; set; }
     public string? NombreTitular { get; set; }
+    public string? Alias { get; set; }
     public string? QrData { get; set; }
     public bool RequiereRevincular { get; set; }
 }

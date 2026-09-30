@@ -283,6 +283,9 @@ using (var scope = app.Services.CreateScope())
     // Migrate() no la agrega y EF la consultaría (no such column).
     GarantizarEmailLicencia(ctx);
 
+    // Ídem para las columnas MP_NOMBRE_TITULAR / MP_ALIAS de SUSCRIPCION.
+    GarantizarColumnasMp(ctx);
+
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
@@ -534,6 +537,38 @@ static void GarantizarEmailLicencia(PosDbContextLocal ctx)
     {
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE LicenciaConfig ADD COLUMN Email TEXT NULL";
+        alter.ExecuteNonQuery();
+    }
+}
+
+/// <summary>
+/// Garantiza las columnas MP_NOMBRE_TITULAR / MP_ALIAS de SUSCRIPCION en instalaciones
+/// legacy creadas con EnsureCreated (sin historial de migraciones). Idempotente.
+/// </summary>
+static void GarantizarColumnasMp(PosDbContextLocal ctx)
+{
+    var connection = ctx.Database.GetDbConnection();
+    if (connection.State != ConnectionState.Open)
+    {
+        connection.Open();
+    }
+
+    using var cmd = connection.CreateCommand();
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SUSCRIPCION') WHERE name = 'MP_NOMBRE_TITULAR'";
+    var nombreExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!nombreExiste)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE SUSCRIPCION ADD COLUMN MP_NOMBRE_TITULAR TEXT NULL";
+        alter.ExecuteNonQuery();
+    }
+
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SUSCRIPCION') WHERE name = 'MP_ALIAS'";
+    var aliasExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!aliasExiste)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE SUSCRIPCION ADD COLUMN MP_ALIAS TEXT NULL";
         alter.ExecuteNonQuery();
     }
 }

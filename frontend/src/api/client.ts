@@ -690,6 +690,10 @@ export const api = {
   mercadopago: {
     authUrl: () => request<{ url: string }>('/mercadopago/auth-url'),
     estado: () => request<MercadoPagoEstadoDto>('/mercadopago/estado'),
+    setAlias: (alias: string) => request<{ alias?: string | null }>('/mercadopago/alias', {
+      method: 'PUT',
+      body: JSON.stringify({ alias: alias.trim() || null }),
+    }),
     desvincular: () => request<{ vinculado: boolean }>('/mercadopago/desvincular', {
       method: 'POST',
     }),

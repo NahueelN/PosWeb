@@ -40,6 +40,11 @@ export default function ConfiguracionPage() {
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
   const [tipoNegocio, setTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
 
+  const [mpVinculado, setMpVinculado] = useState(false)
+  const [mpTitular, setMpTitular] = useState<string | null>(null)
+  const [mpAlias, setMpAlias] = useState('')
+  const [mpAliasGuardando, setMpAliasGuardando] = useState(false)
+
   const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
   const [buscandoLicencia, setBuscandoLicencia] = useState(false)
@@ -77,6 +82,17 @@ export default function ConfiguracionPage() {
       .then(c => setTipoNegocio(c.tipoNegocio ?? (c.habilitado ? 'Restaurante' : 'Tienda')))
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!canManageUsers) return
+    api.mercadopago.estado()
+      .then(e => {
+        setMpVinculado(Boolean(e.vinculado))
+        setMpTitular(e.nombreTitular ?? null)
+        setMpAlias(e.alias ?? '')
+      })
+      .catch(() => {})
+  }, [canManageUsers])
 
   const guardarEmpresa = useCallback(async (datos = datosEmpresa()) => {
     if (!empresa || (
@@ -118,6 +134,18 @@ export default function ConfiguracionPage() {
     notifySuccess(v === '' ? 'Ahora se preguntará cada vez' : 'Preferencia de WhatsApp guardada')
   }
 
+  const handleGuardarAliasMp = async () => {
+    setMpAliasGuardando(true)
+    try {
+      await api.mercadopago.setAlias(mpAlias)
+      notifySuccess('Alias de MercadoPago guardado')
+    } catch {
+      notifyError('No se pudo guardar el alias')
+    } finally {
+      setMpAliasGuardando(false)
+    }
+  }
+
   const handleBuscarLicencia = async () => {
     const email = perfil?.mail
     if (!email) {
@@ -143,7 +171,7 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
@@ -197,8 +225,9 @@ export default function ConfiguracionPage() {
 
       {tab === 'perfil' && (
         <>
-          <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900">Datos de la empresa</h2>
+          <div className="grid gap-6 lg:grid-cols-2 items-start">
+            <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Datos de la empresa</h2>
             {loading ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
                 Cargando...
@@ -295,6 +324,50 @@ export default function ConfiguracionPage() {
             )}
           </div>
 
+          <div className="space-y-6">
+          {canManageUsers && (
+            <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">MercadoPago</h2>
+              {!mpVinculado ? (
+                <p className="text-sm text-slate-500">
+                  No hay una cuenta de MercadoPago vinculada. Vinculala desde el panel lateral ("Vincular MP").
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {mpTitular && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 uppercase mb-1">Titular de la cuenta</label>
+                      <p className="text-sm font-medium text-slate-700">{mpTitular}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Alias de la cuenta</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      El alias que los clientes usan para transferirte. Como MercadoPago no lo expone, lo configurás acá y se muestra al cobrar por transferencia.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={mpAlias}
+                        onChange={e => setMpAlias(e.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                        placeholder="Ej: ventas.mp"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { void handleGuardarAliasMp() }}
+                        disabled={mpAliasGuardando}
+                        className="px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                      >
+                        {mpAliasGuardando ? 'Guardando...' : 'Guardar alias'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="bg-white rounded-xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-slate-900">Licencia</h2>
@@ -357,6 +430,8 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
             )}
+          </div>
+          </div>
           </div>
         </>
       )}

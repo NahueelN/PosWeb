@@ -916,6 +916,7 @@ export interface LicenciaResumen {
 export interface MercadoPagoEstadoDto {
   vinculado: boolean
   nombreTitular?: string
+  alias?: string | null
   qrData?: string | null
   requiereRevincular?: boolean
 }

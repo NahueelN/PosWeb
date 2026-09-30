@@ -1393,6 +1393,14 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("TEXT")
                         .HasColumnName("MP_USER_ID");
 
+                    b.Property<string>("MP_NOMBRE_TITULAR")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_NOMBRE_TITULAR");
+
+                    b.Property<string>("MP_ALIAS")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_ALIAS");
+
                     b.Property<bool>("MP_VINCULADO")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
