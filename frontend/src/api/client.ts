@@ -754,6 +754,12 @@ export const api = {
         body: JSON.stringify({ estado }),
       }),
 
+    cambiarEstadoItems: (items: number[], estado: string) =>
+      request<{ actualizados: number }>(`/restaurante/items/estado-batch`, {
+        method: 'PUT',
+        body: JSON.stringify({ items, estado }),
+      }),
+
     unificar: (desde: number, hacia: number) =>
       request<SesionMesaDto>(`/restaurante/sesiones/${desde}/unificar/${hacia}`, {
         method: 'POST',

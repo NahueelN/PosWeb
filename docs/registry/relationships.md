@@ -55,3 +55,11 @@
 | BUS-limites-planes | RESPECTS | BUS-vencimiento-licencia |
 | BUS-limites-planes | RESPECTS | ADR-suscripciones |
 | ADR-suscripciones | RESPECTS | BUS-limites-planes |
+| BUS-mesa-cobro | RESPECTS | BUS-venta |
+| BUS-mesa-cobro | RELATED | PAT-cart-flow |
+| BUS-mesa-cobro | RELATED | SERVICE-restaurante |
+| BUS-mesa-cobro | RELATED | BUS-mesa-numero-titulo |
+| SERVICE-restaurante | USES | VentaService |
+| SERVICE-restaurante | RESPECTS | BUS-mesa-cobro |
+| SERVICE-restaurante | RESPECTS | BUS-mesa-numero-titulo |
+| SERVICE-restaurante | RELATED | PAT-mapa-responsive-popup |

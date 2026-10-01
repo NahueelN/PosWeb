@@ -129,6 +129,19 @@ public class RestauranteController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("items/estado-batch")]
+    public IActionResult CambiarEstadoItems([FromBody] CambiarEstadoItemsRequest req)
+    {
+        if (req.Items == null || req.Items.Length == 0)
+            return BadRequest(new { error = "Debe indicar al menos un item" });
+
+        if (string.IsNullOrWhiteSpace(req.Estado))
+            return BadRequest(new { error = "Estado requerido" });
+
+        var actualizados = _restauranteService.CambiarEstadoItems(req.Items, req.Estado);
+        return Ok(new { actualizados });
+    }
+
     [HttpPost("sesiones/{desde:int}/unificar/{hacia:int}")]
     public IActionResult Unificar(int desde, int hacia)
     {

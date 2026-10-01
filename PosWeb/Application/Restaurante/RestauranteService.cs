@@ -293,6 +293,22 @@ public class RestauranteService
         _context.SaveChanges();
     }
 
+    public int CambiarEstadoItems(int[] itemIds, string estado)
+    {
+        if (itemIds == null || itemIds.Length == 0)
+            throw new ArgumentException("Debe indicar al menos un item");
+
+        foreach (var itemId in itemIds.Distinct())
+        {
+            var item = _context.ItemComanda.Find(itemId)
+                ?? throw new ItemComandaNoEncontradaException(itemId);
+            item.CambiarEstado(estado);
+        }
+
+        _context.SaveChanges();
+        return itemIds.Length;
+    }
+
     public SesionMesaDto UnificarSesiones(int desdeSesionId, int haciaSesionId)
     {
         if (desdeSesionId == haciaSesionId)
@@ -312,6 +328,10 @@ public class RestauranteService
 
         foreach (var item in items)
             item.MoverA(haciaSesionId);
+
+        // La sesión origen queda libre: al unificar se cierra la cuenta de la mesa de origen
+        // para que la mesa no quede ocupada con una comanda vacía.
+        desde.Cancelar();
 
         _context.SaveChanges();
 
