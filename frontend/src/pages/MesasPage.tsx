@@ -1893,14 +1893,14 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
   const [pendiente, setPendiente] = useState<{ ventaId: number; qrData?: string | null } | null>(null)
   const [mpEstado, setMpEstado] = useState<MercadoPagoEstadoDto | null>(null)
   const [verificacionInstantanea, setVerificacionInstantanea] = useState(false)
-  const [tiempoRestante, setTiempoRestante] = useState(300)
+  const [tiempoRestante, setTiempoRestante] = useState(600)
   const [mpConfirmando, setMpConfirmando] = useState(false)
 
   if (sesion !== prevSesion) {
     setPrevSesion(sesion)
     setMonto((sesion?.total ?? 0).toFixed(2))
     setPendiente(null)
-    setTiempoRestante(300)
+    setTiempoRestante(600)
   }
 
   useEffect(() => {
@@ -1989,7 +1989,7 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
           pendienteMedioId: medioId,
         })
         setPendiente({ ventaId: res.ventaId, qrData: res.qrData })
-        setTiempoRestante(300)
+        setTiempoRestante(600)
       } catch (e: unknown) {
         notifyError(errorMessage(e, 'No se pudo iniciar el cobro'))
       } finally {

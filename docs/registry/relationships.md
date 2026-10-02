@@ -63,3 +63,8 @@
 | SERVICE-restaurante | RESPECTS | BUS-mesa-cobro |
 | SERVICE-restaurante | RESPECTS | BUS-mesa-numero-titulo |
 | SERVICE-restaurante | RELATED | PAT-mapa-responsive-popup |
+| SERVICE-mercadopago | RESPECTS | BUS-mp-verificacion |
+| SERVICE-mercadopago | USES | VentaService |
+| SERVICE-mercadopago | RESPECTS | BUS-vencimiento-licencia |
+| BUS-mp-verificacion | RESPECTS | BUS-vencimiento-licencia |
+| BUS-mp-verificacion | RELATED | SERVICE-mercadopago |

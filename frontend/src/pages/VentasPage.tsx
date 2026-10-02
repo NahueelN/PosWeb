@@ -50,7 +50,7 @@ export default function VentasPage() {
   const [resultado, setResultado] = useState<VentaResultadoDto | null>(null)
   const [ultimosItems, setUltimosItems] = useState<Item[]>([])
   const [ventaPendienteId, setVentaPendienteId] = useState<number | null>(null)
-  const [mpTimeout, setMpTimeout] = useState(300)
+  const [mpTimeout, setMpTimeout] = useState(600)
   const [mpEstado, setMpEstado] = useState<MercadoPagoEstadoDto | null>(null)
   const [mpConfirmando, setMpConfirmando] = useState(false)
   const [qrData, setQrData] = useState<string | null>(null)
@@ -478,7 +478,7 @@ const [recibio, setRecibio] = useState<string>(() => {
         allowSinStock,
       })
       setVentaPendienteId(res.ventaId)
-      setMpTimeout(300)
+      setMpTimeout(600)
       setQrData(res.qrData || null)
       setStep('esperando_transferencia')
     } catch (e: any) {

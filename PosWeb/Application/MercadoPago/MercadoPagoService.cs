@@ -21,12 +21,14 @@ public class MercadoPagoService
 
     private static string? _pendingState;
     private static string? _pendingCodeVerifier;
+    private static DateTime _pendingStateUtc = DateTime.MinValue;
 
     private static readonly object TokenMutex = new();
     private static DateTime _ultimoLogTokenIlegible = DateTime.MinValue;
     private static DateTime _ultimoIntentoRefresh = DateTime.MinValue;
     private const int LogIlegibleIntervalMin = 10;
     private const int RefreshRetryIntervalMin = 5;
+    private static readonly TimeSpan StateExpiracion = TimeSpan.FromMinutes(10);
 
     public MercadoPagoService(
         PosDbContextLocal context,
@@ -39,8 +41,8 @@ public class MercadoPagoService
         _encryption = encryption;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        _clientId = configuration["MercadoPago:ClientId"] ?? "1875010169186045";
-        _clientSecret = configuration["MercadoPago:ClientSecret"] ?? "5BdGZf0MULwFUiTnLuU8omWi2Ewrz0v9";
+        _clientId = configuration["MercadoPago:ClientId"] ?? string.Empty;
+        _clientSecret = configuration["MercadoPago:ClientSecret"] ?? string.Empty;
         _redirectUri = configuration["MercadoPago:RedirectUri"] ?? "https://eze-chiacchio.github.io/mp-redirect/";
 
         _logger.LogInformation(
@@ -52,14 +54,15 @@ public class MercadoPagoService
 
     public string GenerarAuthUrl()
     {
-        if (string.IsNullOrEmpty(_clientId))
+        if (string.IsNullOrEmpty(_clientId) || string.IsNullOrEmpty(_clientSecret))
         {
-            _logger.LogError("MercadoPago ClientId is empty — OAuth will fail");
-            throw new InvalidOperationException("MercadoPago ClientId no configurado. Revisá appsettings.json.");
+            _logger.LogError("MercadoPago ClientId/ClientSecret no configurados — OAuth fallará");
+            throw new InvalidOperationException("MercadoPago ClientId/ClientSecret no configurados. Revisá appsettings.json o las variables de entorno.");
         }
 
         _pendingState = Guid.NewGuid().ToString("N");
         _pendingCodeVerifier = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        _pendingStateUtc = DateTime.UtcNow;
 
         var codeChallenge = Base64UrlEncode(SHA256.HashData(Encoding.UTF8.GetBytes(_pendingCodeVerifier)));
 
@@ -83,6 +86,9 @@ public class MercadoPagoService
     {
         if (state != _pendingState)
             return (false, "Estado OAuth inválido. Posible ataque CSRF.");
+
+        if (DateTime.UtcNow - _pendingStateUtc > StateExpiracion)
+            return (false, "El enlace de vinculación expiró. Volvé a intentar desde el panel lateral.");
 
         if (string.IsNullOrWhiteSpace(code))
             return (false, "Código de autorización vacío");
@@ -319,7 +325,7 @@ public class MercadoPagoService
                 total_amount = montoStr,
                 external_reference = externalReference,
                 description = $"Compra {externalReference}",
-                expiration_time = "PT15M",
+                expiration_time = "PT10M",
                 config = new
                 {
                     qr = new
@@ -367,8 +373,8 @@ public class MercadoPagoService
                     total_amount = montoStr,
                     external_reference = externalReference,
                     description = $"Compra {externalReference}",
-                    expiration_time = "PT15M",
-                    config = new { qr = new { external_pos_id = suscripcion.MP_POS_ID, mode = "dynamic" } },
+                    expiration_time = "PT10M",
+                    config = new { qr = new { external_pos_id = suscripcion.MP_POS_ID, mode = "static" } },
                     transactions = new { payments = new[] { new { amount = montoStr } } }
                 });
                 client = _httpClientFactory.CreateClient("MercadoPago");
