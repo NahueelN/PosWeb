@@ -8,6 +8,7 @@
   },
   "vars": {
     "FROM_EMAIL": "hola@vendeto.com.ar",
-    "FROM_NAME": "Vendeto"
+    "FROM_NAME": "Vendeto",
+    "CONTACT_TO": "soporte@vendeto.com.ar"
   }
 }
