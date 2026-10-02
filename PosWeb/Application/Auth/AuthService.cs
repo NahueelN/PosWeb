@@ -4,6 +4,7 @@ using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
 using System.Net.Mail;
+using System.Security.Cryptography;
 
 namespace PosWeb.Application.Auth;
 
@@ -12,12 +13,17 @@ public class AuthService
     private readonly PosDbContextLocal _context;
     private readonly JwtTokenService _jwtTokenService;
     private readonly LicenciaService _licenciaService;
+    private readonly MailerService _mailerService;
 
-    public AuthService(PosDbContextLocal context, JwtTokenService jwtTokenService, LicenciaService licenciaService)
+    private static readonly TimeSpan CodigoExpiracion = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan ReintentoMinimo = TimeSpan.FromSeconds(60);
+
+    public AuthService(PosDbContextLocal context, JwtTokenService jwtTokenService, LicenciaService licenciaService, MailerService mailerService)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
         _licenciaService = licenciaService;
+        _mailerService = mailerService;
     }
 
     public async Task<LoginResponseDto> Login(LoginRequestDto request)
@@ -421,4 +427,139 @@ public class AuthService
     var (exito, _, _) = await _licenciaService.BuscarYActivarPorEmail(usuario.MAIL);
     return exito;
   }
+
+    /// <summary>
+    /// Solicita un código de recuperación para el email indicado. Siempre responde lo mismo
+    /// (anti-enumeración): si el email no corresponde a un usuario, no se envía nada pero el
+    /// mensaje es idéntico. Genera un código de 6 dígitos, lo guarda hasheado (BCrypt) con
+    /// expiración de 15 min y limita el reenvío a 1 por minuto por usuario.
+    /// </summary>
+    public async Task SolicitarRecuperacion(string email)
+    {
+        var mail = email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (!MailValido(mail))
+            return;
+
+        var usuario = _context.Usuario.FirstOrDefault(u => u.MAIL != null && u.MAIL.ToLower() == mail);
+        if (usuario == null)
+            return;
+
+        // Throttle: si ya se generó un código en el último minuto, no se envía otro.
+        var umbralReintento = DateTime.UtcNow.Subtract(ReintentoMinimo);
+        var reciente = _context.PasswordResetToken
+            .Any(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && !t.USADO
+                && t.EXPIRA_UTC > DateTime.UtcNow
+                && t.CREATED_UTC > umbralReintento);
+        if (reciente)
+            return;
+
+        // Invalida cualquier token previo del usuario (un solo código vigente).
+        var previos = _context.PasswordResetToken
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO)
+            .ToList();
+        foreach (var previo in previos)
+            previo.MarcarUsado();
+
+        var codigo = GenerarCodigo(6);
+        var token = new PasswordResetToken(
+            usuario.ID_USUARIO,
+            BCrypt.Net.BCrypt.HashPassword(codigo),
+            DateTime.UtcNow.Add(CodigoExpiracion));
+
+        _context.PasswordResetToken.Add(token);
+        _context.SaveChanges();
+
+        var enviado = await _mailerService.Enviar(
+            mail,
+            "Código para restablecer tu contraseña - Vendeto",
+            HtmlCodigo(codigo),
+            TextoCodigo(codigo));
+
+        // Si el envío falla, el código no llega: se descarta para que el reintento del usuario
+        // (que ahora sí recibirá uno) no deje códigos huérfanos acumulados.
+        if (!enviado)
+        {
+            token.MarcarUsado();
+            _context.SaveChanges();
+        }
+    }
+
+    /// <summary>
+    /// Valida el código de recuperación y cambia la contraseña del usuario. Mensajes genéricos
+    /// para no filtrar si el email o el código existen. Límite de 5 intentos por token.
+    /// </summary>
+    public void ResetearPassword(string email, string codigo, string nuevaPassword)
+    {
+        var mail = email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (!MailValido(mail) || string.IsNullOrWhiteSpace(codigo))
+            throw new ArgumentException("Código inválido o expirado");
+
+        if (string.IsNullOrWhiteSpace(nuevaPassword) || nuevaPassword.Length < 6)
+            throw new ArgumentException("La contraseña debe tener al menos 6 caracteres");
+
+        var usuario = _context.Usuario.FirstOrDefault(u => u.MAIL != null && u.MAIL.ToLower() == mail);
+        if (usuario == null)
+            throw new ArgumentException("Código inválido o expirado");
+
+        var token = _context.PasswordResetToken
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO && t.EXPIRA_UTC > DateTime.UtcNow)
+            .OrderByDescending(t => t.CREATED_UTC)
+            .FirstOrDefault();
+        if (token == null || !token.EsValido())
+            throw new ArgumentException("Código inválido o expirado");
+
+        if (!BCrypt.Net.BCrypt.Verify(codigo, token.TOKEN_HASH))
+        {
+            token.RegistrarIntento();
+            _context.SaveChanges();
+            throw new ArgumentException("Código inválido o expirado");
+        }
+
+        usuario.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(nuevaPassword));
+        token.MarcarUsado();
+
+        // Se invalidan todos los tokens restantes del usuario.
+        var restantes = _context.PasswordResetToken
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO)
+            .ToList();
+        foreach (var t in restantes)
+            t.MarcarUsado();
+
+        _context.SaveChanges();
+    }
+
+    private static bool MailValido(string mail)
+    {
+        if (string.IsNullOrWhiteSpace(mail))
+            return false;
+        try
+        {
+            _ = new MailAddress(mail);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GenerarCodigo(int longitud)
+    {
+        var codigo = string.Concat(Enumerable.Range(0, longitud).Select(_ => RandomNumberGenerator.GetInt32(0, 10).ToString()));
+        return codigo;
+    }
+
+    private static string TextoCodigo(string codigo) =>
+        $"Tu código para restablecer la contraseña de Vendeto es: {codigo}\n\n" +
+        "Este código expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.";
+
+    private static string HtmlCodigo(string codigo) =>
+        $"<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:0 auto\">" +
+        "<h2 style=\"color:#1f2937\">Vendeto</h2>" +
+        "<p>Usá el siguiente código para restablecer tu contraseña:</p>" +
+        $"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px;color:#4f46e5;text-align:center\">{codigo}</p>" +
+        "<p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p></div>";
 }

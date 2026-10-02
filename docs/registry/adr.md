@@ -11,3 +11,4 @@
 | ADR-project-commands-family | Project Commands as a Conceptual Family (CMD-*) | Active | Project | Medium | `knowledge/projects/posweb/ADR-project-commands-family.md` |
 | ADR-suscripciones | Suscripciones y licencias — checkout manual mensual con cumplimiento local | Active | Project | Critical | `knowledge/projects/posweb/ADR-suscripciones.md` |
 | ADR-ticket-resultado-landing | El resultado de venta es una landing, no un popup | Active | Project | High | `knowledge/projects/posweb/ADR-ticket-resultado-landing.md` |
+| ADR-mailer-worker-dedicado | Dedicated mailer worker + local password recovery validation | Active | Project | High | `knowledge/projects/posweb/ADR-mailer-worker-dedicado.md` |

@@ -24,10 +24,12 @@ export default function LoginPage() {
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
-  const [buscarLicenciaOpen, setBuscarLicenciaOpen] = useState(false)
-  const [buscarLicenciaEmail, setBuscarLicenciaEmail] = useState('')
-  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
-  const [buscarLicenciaNoEncontrada, setBuscarLicenciaNoEncontrada] = useState(false)
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recEmail, setRecEmail] = useState('')
+  const [recCodigo, setRecCodigo] = useState('')
+  const [recNuevaPassword, setRecNuevaPassword] = useState('')
+  const [recPaso, setRecPaso] = useState<'email' | 'codigo'>('email')
+  const [recLoading, setRecLoading] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -144,35 +146,53 @@ export default function LoginPage() {
     }
   }
 
-  async function handleBuscarLicencia() {
-    if (!buscarLicenciaEmail.includes('@') || !buscarLicenciaEmail.includes('.')) {
+  async function handleSolicitarCodigo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!recEmail.includes('@') || !recEmail.includes('.')) {
       notifyError('Ingresá un email válido')
       return
     }
-    setBuscandoLicencia(true)
-    setBuscarLicenciaNoEncontrada(false)
+    setRecLoading(true)
     try {
-      await api.licencia.activarPorEmail({ email: buscarLicenciaEmail.trim() })
-      notifySuccess('Licencia activada. Ya podés iniciar sesión.')
-      setBuscarLicenciaOpen(false)
-      setBuscarLicenciaEmail('')
+      await api.auth.forgotPassword({ email: recEmail.trim() })
+      setRecPaso('codigo')
+      notifySuccess('Si el email está registrado, recibirás un código de recuperación.')
     } catch (err: any) {
-      const msg = err.message || 'No se pudo encontrar la licencia'
-      const finalMsg = ((): string => {
-        try {
-          const parts = msg.split(': ')
-          const parsed = JSON.parse(parts[parts.length - 1])
-          return parsed.error || msg
-        } catch {
-          return msg
-        }
-      })()
-      notifyError(finalMsg)
-      if (finalMsg.includes('No se encontró')) {
-        setBuscarLicenciaNoEncontrada(true)
-      }
+      const msg = err.message || 'Error al solicitar el código'
+      notifyError(msg)
     } finally {
-      setBuscandoLicencia(false)
+      setRecLoading(false)
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (recCodigo.trim().length !== 6) {
+      notifyError('Ingresá el código de 6 dígitos')
+      return
+    }
+    if (recNuevaPassword.length < 6) {
+      notifyError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+    setRecLoading(true)
+    try {
+      await api.auth.resetPassword({
+        email: recEmail.trim(),
+        codigo: recCodigo.trim(),
+        nuevaPassword: recNuevaPassword,
+      })
+      notifySuccess('Contraseña actualizada. Ya podés iniciar sesión.')
+      setRecEmail('')
+      setRecCodigo('')
+      setRecNuevaPassword('')
+      setRecPaso('email')
+      setShowRecovery(false)
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo restablecer la contraseña'
+      notifyError(msg)
+    } finally {
+      setRecLoading(false)
     }
   }
 
@@ -187,7 +207,7 @@ export default function LoginPage() {
           <p className="text-slate-400 text-sm mt-1">Iniciar sesión</p>
         </div>
 
-        {!showRegister && (
+        {!showRegister && !showRecovery && (
           <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
@@ -264,59 +284,13 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              {buscarLicenciaOpen ? (
-                <div className="space-y-2 text-left">
-                  <p className="text-xs text-slate-500">
-                    ¿Pagaste recientemente? Ingresá tu email para validar la licencia.
-                  </p>
-                  <input
-                    type="email"
-                    value={buscarLicenciaEmail}
-                    onChange={e => setBuscarLicenciaEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="tu@email.com"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleBuscarLicencia}
-                      disabled={buscandoLicencia}
-                      className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-                    >
-                      {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setBuscarLicenciaOpen(false); setBuscarLicenciaEmail(''); setBuscarLicenciaNoEncontrada(false) }}
-                      className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                  {buscarLicenciaNoEncontrada && (
-                    <p className="text-xs text-slate-500">
-                      No encontramos una licencia para ese email.{' '}
-                      <a
-                        href="https://posweb-licensing.chiacchio-eze01.workers.dev"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline font-medium"
-                      >
-                        Ver planes y contratar
-                      </a>
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => { setBuscarLicenciaOpen(true); setBuscarLicenciaNoEncontrada(false) }}
-                  className="text-xs text-indigo-500 hover:underline"
-                >
-                  Buscar licencia
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => { setShowRecovery(true); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword('') }}
+                className="text-xs text-slate-500 hover:text-indigo-600 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
           </form>
         )}
@@ -387,6 +361,90 @@ export default function LoginPage() {
               className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >
               Cancelar registro
+            </button>
+          </form>
+        )}
+
+        {showRecovery && (
+          <form onSubmit={recPaso === 'email' ? handleSolicitarCodigo : handleResetPassword} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900">Recuperar contraseña</h2>
+
+            {recPaso === 'email' ? (
+              <>
+                <p className="text-sm text-slate-500">
+                  Ingresá el email con el que te registraste. Te enviaremos un código de 6 dígitos para restablecer tu contraseña.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={recEmail}
+                    onChange={e => setRecEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="tu@email.com"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={recLoading}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                >
+                  {recLoading ? 'Enviando...' : 'Enviar código'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500">
+                  Revisá tu email e ingresá el código de 6 dígitos junto con tu nueva contraseña.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Código</label>
+                  <input
+                    type="text"
+                    value={recCodigo}
+                    onChange={e => setRecCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center tracking-[0.5em] font-mono text-lg"
+                    placeholder="••••••"
+                    required
+                    autoFocus
+                    inputMode="numeric"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nueva contraseña</label>
+                  <input
+                    type="password"
+                    value={recNuevaPassword}
+                    onChange={e => setRecNuevaPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={recLoading}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                >
+                  {recLoading ? 'Restableciendo...' : 'Restablecer contraseña'}
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { setShowRecovery(false); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword('') }}
+              className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
+            >
+              Volver al inicio de sesión
             </button>
           </form>
         )}

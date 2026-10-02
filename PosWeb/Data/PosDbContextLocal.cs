@@ -41,6 +41,7 @@ public class PosDbContextLocal : DbContext
     public DbSet<SesionMesa> SesionMesa { get; set; }
     public DbSet<ItemComanda> ItemComanda { get; set; }
     public DbSet<EmpresaConfiguracion> EmpresaConfiguracion { get; set; }
+    public DbSet<PasswordResetToken> PasswordResetToken { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

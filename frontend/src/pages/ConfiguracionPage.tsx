@@ -9,7 +9,7 @@ import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import AltaUsuarioTab from '../components/AltaUsuarioTab'
 import RespaldoTab from '../components/RespaldoTab'
-import type { EmpresaDto, UsuarioListadoDto, LicenciaEstado } from '../types'
+import type { EmpresaDto, LicenciaEstado } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 
@@ -40,11 +40,7 @@ export default function ConfiguracionPage() {
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
   const [restauranteHabilitado, setRestauranteHabilitado] = useState(false)
 
-  const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
-  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
-  const [licenciaNoEncontrada, setLicenciaNoEncontrada] = useState(false)
-
   const esGratuito = licencia?.plan === 'Gratuito'
 
   const datosEmpresa = useCallback(() => ({
@@ -69,7 +65,6 @@ export default function ConfiguracionPage() {
       .catch(() => notifyError('Error al cargar empresa'))
       .finally(() => setLoading(false))
     api.licencia.estado().then(setLicencia).catch(() => {})
-    api.auth.me().then(setPerfil).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -111,35 +106,11 @@ export default function ConfiguracionPage() {
     notifySuccess(v === '' ? 'Ahora se preguntará cada vez' : 'Preferencia de mail guardada')
   }
 
-  const handleWhatsAppPrefChange = (value: string) => {
+const handleWhatsAppPrefChange = (value: string) => {
     const v = value as WhatsAppMethod | ''
     setWhatsappPref(v)
     persistWhatsAppPref(v === '' ? null : v)
     notifySuccess(v === '' ? 'Ahora se preguntará cada vez' : 'Preferencia de WhatsApp guardada')
-  }
-
-  const handleBuscarLicencia = async () => {
-    const email = perfil?.mail
-    if (!email) {
-      notifyError('No tenés un mail configurado en tu cuenta')
-      return
-    }
-    setBuscandoLicencia(true)
-    setLicenciaNoEncontrada(false)
-    try {
-      await api.licencia.activarPorEmail({ email })
-      notifySuccess('Licencia activada')
-      const estado = await api.licencia.estado()
-      setLicencia(estado)
-    } catch (err: any) {
-      const msg = err.message || 'No se pudo activar la licencia'
-      notifyError(msg)
-      if (msg.includes('No se encontró')) {
-        setLicenciaNoEncontrada(true)
-      }
-    } finally {
-      setBuscandoLicencia(false)
-    }
   }
 
   return (
@@ -296,30 +267,7 @@ export default function ConfiguracionPage() {
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-slate-900">Licencia</h2>
-              <button
-                onClick={handleBuscarLicencia}
-                disabled={buscandoLicencia}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-              >
-                {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
-              </button>
-            </div>
-
-            {licenciaNoEncontrada && (
-              <p className="text-xs text-slate-500 mb-3">
-                No encontramos una licencia para <strong>{perfil?.mail}</strong>.{' '}
-                <a
-                  href="https://posweb-licensing.chiacchio-eze01.workers.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 hover:underline font-medium"
-                >
-                  Ver planes y contratar
-                </a>
-              </p>
-            )}
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Licencia</h2>
 
             {!licencia ? (
               <p className="text-sm text-slate-500">Sin licencia configurada.</p>

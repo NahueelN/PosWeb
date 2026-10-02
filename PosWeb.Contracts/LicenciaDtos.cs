@@ -1,15 +1,6 @@
 namespace PosWeb.Contracts;
 
 /// <summary>
-/// Request para activar una licencia a partir del email con el que se contrató.
-/// </summary>
-public class ActivarLicenciaPorEmailRequest
-{
-    /// <summary>Email asociado a la licencia comprada.</summary>
-    public string Email { get; set; } = string.Empty;
-}
-
-/// <summary>
 /// Estado completo de la licencia activa en esta máquina.
 /// </summary>
 public class LicenciaEstadoDto

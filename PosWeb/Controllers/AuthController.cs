@@ -76,4 +76,22 @@ public class AuthController : ControllerBase
 
         return Ok(usuario);
     }
+
+    [HttpPost("forgot-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+    {
+        await _authService.SolicitarRecuperacion(request.Email);
+
+        // Mensaje genérico deliberado (anti-enumeración): no revela si el email existe.
+        return Ok(new { message = "Si el email está registrado, recibirás un código para restablecer tu contraseña." });
+    }
+
+    [HttpPost("reset-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public IActionResult ResetPassword([FromBody] ResetPasswordRequestDto request)
+    {
+        _authService.ResetearPassword(request.Email, request.Codigo, request.NuevaPassword);
+        return Ok(new { message = "Contraseña actualizada. Ya podés iniciar sesión." });
+    }
 }

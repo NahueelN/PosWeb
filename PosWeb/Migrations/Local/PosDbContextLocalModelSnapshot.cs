@@ -837,6 +837,45 @@ namespace PosWeb.Migrations.Local
                     b.ToTable("PAGO_DEUDA", (string)null);
                 });
 
+            modelBuilder.Entity("PosWeb.Domain.PasswordResetToken", b =>
+                {
+                    b.Property<int>("ID_TOKEN")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_TOKEN");
+
+                    b.Property<DateTime>("CREATED_UTC")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("CREATED_UTC");
+
+                    b.Property<DateTime>("EXPIRA_UTC")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("EXPIRA_UTC");
+
+                    b.Property<int>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<int>("INTENTOS")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("INTENTOS");
+
+                    b.Property<string>("TOKEN_HASH")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TOKEN_HASH");
+
+                    b.Property<bool>("USADO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("USADO");
+
+                    b.HasKey("ID_TOKEN");
+
+                    b.HasIndex("ID_USUARIO");
+
+                    b.ToTable("PASSWORD_RESET_TOKEN", (string)null);
+                });
+
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
                 {
                     b.Property<int>("ID_PEDIDO")
@@ -1823,6 +1862,15 @@ namespace PosWeb.Migrations.Local
                         .IsRequired();
 
                     b.Navigation("Deuda");
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PasswordResetToken", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>

@@ -55,3 +55,16 @@
 | BUS-limites-planes | RESPECTS | BUS-vencimiento-licencia |
 | BUS-limites-planes | RESPECTS | ADR-suscripciones |
 | ADR-suscripciones | RESPECTS | BUS-limites-planes |
+| SERVICE-mailer-worker | RESPECTS | ADR-mailer-worker-dedicado |
+| SERVICE-mailer-worker | RESPECTS | BUS-recuperacion-contrasena |
+| SERVICE-mailer-worker | USES | FLOW-recuperacion-contrasena |
+| FLOW-recuperacion-contrasena | RESPECTS | BUS-recuperacion-contrasena |
+| FLOW-recuperacion-contrasena | USES | SERVICE-mailer-worker |
+| FLOW-recuperacion-contrasena | RESPECTS | ADR-mailer-worker-dedicado |
+| FLOW-recuperacion-contrasena | RELATED | FLOW-suscripcion |
+| BUS-recuperacion-contrasena | RESPECTS | ADR-mailer-worker-dedicado |
+| BUS-recuperacion-contrasena | USED_BY | FLOW-recuperacion-contrasena |
+| BUS-recuperacion-contrasena | USES | SERVICE-mailer-worker |
+| ADR-mailer-worker-dedicado | RELATED | SERVICE-licensing-worker |
+| ADR-mailer-worker-dedicado | RELATED | ADR-db-hybrid |
+| ADR-mailer-worker-dedicado | EXTENDS | SERVICE-mailer-worker |

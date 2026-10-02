@@ -350,6 +350,16 @@ export interface RegisterResponse {
   licenciaEstado?: string | null
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  email: string
+  codigo: string
+  nuevaPassword: string
+}
+
 export interface UsuarioInfo {
   id: number
   nombre: string
@@ -882,10 +892,6 @@ export interface MovimientoCuentaDto {
   compraId?: number
   usuario?: string
   anulado?: boolean
-}
-
-export interface ActivarLicenciaPorEmailRequest {
-  email: string
 }
 
 export interface LicenciaEstado {

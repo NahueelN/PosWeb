@@ -25,7 +25,7 @@ Sources:
   - licensing-worker/src/index.ts
   - landing/index.html
 Created: 2026-08-19
-Updated: 2026-09-23
+Updated: 2026-10-02
 Template Version: 1.0
 Tags:
   - Suscripcion
@@ -77,7 +77,7 @@ Sin licencia paga al registrarse → `trial` (7 días, plan Máxima) → vence �
 
 4. **Vencimiento de la prueba**: la prueba vence y **NO bloquea**: el comercio pasa a plan Gratuito (recorte de productos activos a 500) y sigue operando. `VerificarAcceso` devuelve `true`.
 
-5. **Activación por email** ("Buscar licencia"): `POST /licencia/activar-por-email` → `license-by-email` + `activate` vinculan la licencia al `machine_id` local y sincronizan la `Suscripcion` (límites por plan). Un plan gratuito placeholder **no** se activa (se ignora para no pisar la prueba local).
+5. **Activación automática**: la activación por email ocurre sin acción del usuario. En `Login`, `VerificarOActivarLicencia` llama `BuscarYActivarPorEmail(usuario.MAIL)` solo si `VerificarAcceso` falla; en el registro, `ActivarPorEmailOPrueba` lo hace al alta. Internamente: `license-by-email` + `activate` vinculan la licencia al `machine_id` local y sincronizan la `Suscripcion` (límites por plan). Un plan gratuito placeholder **no** se activa (se ignora para no pisar la prueba local). No existe botón "Buscar licencia" (retirado en 2026-10-02 por vestigial).
 
 6. **Verificación continua**: el middleware de `Program.cs` y `Login` llaman `VerificarAcceso` en cada request. Con cache offline de 72h, más evaluación local de gracia/vencimiento y anti-rollback de reloj. La rama Gratuito retorna siempre `true` (sin verificación remota ni vencimiento), con recorte defensivo de productos a 500.
 
@@ -90,8 +90,8 @@ Sin licencia paga al registrarse → `trial` (7 días, plan Máxima) → vence �
 ## Páginas involucradas
 
 - `landing/index.html` + `licensing-worker` (landing servida por el Worker).
-- `frontend/src/pages/LoginPage.tsx` (registro + "Buscar licencia").
-- `frontend/src/pages/ConfiguracionPage.tsx` (estado de licencia + "Buscar licencia"; solapas ocultas en Gratuito).
+- `frontend/src/pages/LoginPage.tsx` (registro).
+- `frontend/src/pages/ConfiguracionPage.tsx` (estado de licencia; solapas ocultas en Gratuito).
 - `frontend/src/components/Layout.tsx` (badge de vencimiento/renovación + grisado de módulos en Gratuito).
 - `frontend/src/App.tsx` (`GratuitoGuard`: redirige rutas bloqueadas a `/ventas`).
 
@@ -126,3 +126,4 @@ RELATIONS:
 |-------|--------|
 | 2026-08-19 | Creación |
 | 2026-09-23 | Prueba vence a Gratuito sin bloqueo; `/register` al registrarse; grisado de módulos; nivel efectivo |
+| 2026-10-02 | Activación automática (sin botón "Buscar licencia", retirado por vestigial) |

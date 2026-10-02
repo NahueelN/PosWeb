@@ -119,6 +119,7 @@ builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<StockSucursalService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<MailerService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();

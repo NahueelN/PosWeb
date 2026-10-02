@@ -1266,6 +1266,43 @@ public partial class PosDbContext
                 .HasForeignKey(p => p.ID_USUARIO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ---- PASSWORD RESET TOKEN ----
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.ToTable("PASSWORD_RESET_TOKEN");
+
+            entity.HasKey(t => t.ID_TOKEN);
+
+            entity.Property(t => t.ID_TOKEN)
+                .HasColumnName("ID_TOKEN");
+
+            entity.Property(t => t.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(t => t.TOKEN_HASH)
+                .HasColumnName("TOKEN_HASH")
+                .IsRequired();
+
+            entity.Property(t => t.EXPIRA_UTC)
+                .HasColumnName("EXPIRA_UTC");
+
+            entity.Property(t => t.USADO)
+                .HasColumnName("USADO");
+
+            entity.Property(t => t.INTENTOS)
+                .HasColumnName("INTENTOS");
+
+            entity.Property(t => t.CREATED_UTC)
+                .HasColumnName("CREATED_UTC");
+
+            entity.HasIndex(t => t.ID_USUARIO);
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(t => t.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     internal static void SeedLocalData(ModelBuilder modelBuilder)
