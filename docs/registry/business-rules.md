@@ -12,3 +12,5 @@
 | BUS-vencimiento-licencia | Reglas de vencimiento, gracia y renovación de licencias | Active | Project | Critical | `knowledge/projects/posweb/BUS-vencimiento-licencia.md` |
 | BUS-limites-planes | Límites de planes (Gratuito/Básico/Máximo) y tope de productos | Active | Project | High | `knowledge/projects/posweb/BUS-limites-planes.md` |
 | BUS-mesa-numero-titulo | Mesa: número numérico obligatorio + título opcional | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-numero-titulo.md` |
+| BUS-mesa-cobro | Reglas del cobro de cuenta de mesa (restaurante) | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-cobro.md` |
+| BUS-mp-verificacion | Verificación de pagos MercadoPago (QR automática, transferencia manual) | Active | Project | High | `knowledge/projects/posweb/BUS-mp-verificacion.md` |

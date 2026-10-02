@@ -101,6 +101,12 @@ export default function TransferenciaEspera({
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
               {modoQr ? 'Pago con QR' : 'Datos de la cuenta'}
             </p>
+            {!modoQr && mpEstado?.alias && (
+              <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-500">Alias de la cuenta</p>
+                <p className="text-lg font-bold text-indigo-700 tabular-nums">{mpEstado.alias}</p>
+              </div>
+            )}
             {!modoQr && mpEstado?.nombreTitular && (
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-gray-400">MP:</span>

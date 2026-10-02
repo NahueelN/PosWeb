@@ -283,6 +283,9 @@ using (var scope = app.Services.CreateScope())
     // Migrate() no la agrega y EF la consultaría (no such column).
     GarantizarEmailLicencia(ctx);
 
+    // Ídem para las columnas MP_NOMBRE_TITULAR / MP_ALIAS de SUSCRIPCION.
+    GarantizarColumnasMp(ctx);
+
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
@@ -437,6 +440,7 @@ static void GarantizarEsquemaRestaurante(PosDbContextLocal ctx)
     cmd.CommandText = @"
 CREATE TABLE IF NOT EXISTS EMPRESA_CONFIGURACION (
     ID_EMPRESA INTEGER NOT NULL CONSTRAINT PK_EMPRESA_CONFIGURACION PRIMARY KEY,
+    TIPO_NEGOCIO TEXT NOT NULL DEFAULT 'Tienda',
     MODULO_RESTAURANTE INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS MESA (
@@ -496,6 +500,21 @@ CREATE TABLE IF NOT EXISTS ITEM_COMANDA (
         alterGrupo.CommandText = "ALTER TABLE ITEM_COMANDA ADD COLUMN GRUPO TEXT NOT NULL DEFAULT 'Principal'";
         alterGrupo.ExecuteNonQuery();
     }
+
+    // Columna TIPO_NEGOCIO en EMPRESA_CONFIGURACION (solo si falta) + backfill desde el
+    // toggle de mesas existente (Restaurante habilitado => tipo Restaurante).
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('EMPRESA_CONFIGURACION') WHERE name = 'TIPO_NEGOCIO'";
+    var tipoExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!tipoExiste)
+    {
+        using var alterTipo = connection.CreateCommand();
+        alterTipo.CommandText = "ALTER TABLE EMPRESA_CONFIGURACION ADD COLUMN TIPO_NEGOCIO TEXT NOT NULL DEFAULT 'Tienda'";
+        alterTipo.ExecuteNonQuery();
+
+        using var backfillTipo = connection.CreateCommand();
+        backfillTipo.CommandText = "UPDATE EMPRESA_CONFIGURACION SET TIPO_NEGOCIO = 'Restaurante' WHERE MODULO_RESTAURANTE = 1";
+        backfillTipo.ExecuteNonQuery();
+    }
 }
 
 /// <summary>
@@ -518,6 +537,38 @@ static void GarantizarEmailLicencia(PosDbContextLocal ctx)
     {
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE LicenciaConfig ADD COLUMN Email TEXT NULL";
+        alter.ExecuteNonQuery();
+    }
+}
+
+/// <summary>
+/// Garantiza las columnas MP_NOMBRE_TITULAR / MP_ALIAS de SUSCRIPCION en instalaciones
+/// legacy creadas con EnsureCreated (sin historial de migraciones). Idempotente.
+/// </summary>
+static void GarantizarColumnasMp(PosDbContextLocal ctx)
+{
+    var connection = ctx.Database.GetDbConnection();
+    if (connection.State != ConnectionState.Open)
+    {
+        connection.Open();
+    }
+
+    using var cmd = connection.CreateCommand();
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SUSCRIPCION') WHERE name = 'MP_NOMBRE_TITULAR'";
+    var nombreExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!nombreExiste)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE SUSCRIPCION ADD COLUMN MP_NOMBRE_TITULAR TEXT NULL";
+        alter.ExecuteNonQuery();
+    }
+
+    cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SUSCRIPCION') WHERE name = 'MP_ALIAS'";
+    var aliasExiste = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    if (!aliasExiste)
+    {
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE SUSCRIPCION ADD COLUMN MP_ALIAS TEXT NULL";
         alter.ExecuteNonQuery();
     }
 }

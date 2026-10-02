@@ -805,6 +805,12 @@ public partial class PosDbContext
                 .HasColumnName("MP_USER_ID")
                 .HasMaxLength(50);
 
+            entity.Property(s => s.MP_NOMBRE_TITULAR)
+                .HasColumnName("MP_NOMBRE_TITULAR");
+
+            entity.Property(s => s.MP_ALIAS)
+                .HasColumnName("MP_ALIAS");
+
             entity.Property(s => s.MP_VINCULADO)
                 .HasColumnName("MP_VINCULADO")
                 .IsRequired()
@@ -1465,6 +1471,9 @@ public partial class PosDbContext
 
             entity.Property(e => e.ID_EMPRESA)
                 .HasColumnName("ID_EMPRESA");
+
+            entity.Property(e => e.TIPO_NEGOCIO)
+                .HasColumnName("TIPO_NEGOCIO");
 
             entity.Property(e => e.MODULO_RESTAURANTE)
                 .HasColumnName("MODULO_RESTAURANTE");

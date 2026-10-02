@@ -60,15 +60,25 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
 
     [HttpGet("estado")]
     [Authorize]
-    public IActionResult Estado()
+    public async Task<IActionResult> Estado()
     {
         if (!EsAdmin()) return Forbid();
 
-        var estado = _mpService.ObtenerEstado();
+        var estado = await _mpService.ObtenerEstadoAsync();
         if (estado == null)
-            return Ok(new { vinculado = false, requiereRevincular = false, nombreTitular = (string?)null, qrData = (string?)null });
+            return Ok(new { vinculado = false, requiereRevincular = false, nombreTitular = (string?)null, alias = (string?)null, qrData = (string?)null });
 
         return Ok(estado);
+    }
+
+    [HttpPut("alias")]
+    [Authorize]
+    public IActionResult SetAlias([FromBody] SetAliasRequest request)
+    {
+        if (!EsAdmin()) return Forbid();
+
+        _mpService.SetAlias(request.Alias);
+        return Ok(new { alias = request.Alias });
     }
 
     [HttpPost("desvincular")]
@@ -96,11 +106,11 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
 
     [HttpGet("qr")]
     [Authorize]
-    public IActionResult Qr()
+    public async Task<IActionResult> Qr()
     {
         if (!EsAdmin()) return Forbid();
 
-        var qrData = _mpService.ObtenerQrDataActivo();
+        var qrData = await _mpService.ObtenerQrDataActivoAsync();
         if (qrData == null)
             return NotFound(new { error = "QR no disponible. Asegurate de haber vinculado MP correctamente." });
 
@@ -118,4 +128,9 @@ h2{color:#16a34a;margin:0 0 8px} p{color:#64748b;margin:0}</style></head>
 public class VerificarPagoRequest
 {
     public decimal Monto { get; set; }
+}
+
+public class SetAliasRequest
+{
+    public string? Alias { get; set; }
 }

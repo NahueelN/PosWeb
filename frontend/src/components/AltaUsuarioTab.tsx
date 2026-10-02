@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
@@ -13,7 +14,6 @@ export default function AltaUsuarioTab() {
   const [password, setPassword] = useState('')
   const [mail, setMail] = useState('')
   const [rol, setRol] = useState<'UsuarioComun' | 'Admin'>('UsuarioComun')
-  const [empresaId, setEmpresaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
@@ -24,6 +24,10 @@ export default function AltaUsuarioTab() {
   const [cambiandoSuscripcionId, setCambiandoSuscripcionId] = useState<number | null>(null)
   const [confirmBaja, setConfirmBaja] = useState<{ id: number; nombre: string } | null>(null)
   const [confirmSuscripcion, setConfirmSuscripcion] = useState<{ id: number; nombre: string; activa: boolean } | null>(null)
+  const [confirmRol, setConfirmRol] = useState<{ id: number; nombre: string; rol: 'Admin' | 'UsuarioComun' } | null>(null)
+  const [cambiandoRolId, setCambiandoRolId] = useState<number | null>(null)
+  const [menuAcciones, setMenuAcciones] = useState<{ id: number; top: number; left: number } | null>(null)
+  const [ocultarDadosDeBaja, setOcultarDadosDeBaja] = useState(true)
   const [usuarios, setUsuarios] = useState<UsuarioListadoDto[]>([])
 
   useEffect(() => {
@@ -55,14 +59,12 @@ export default function AltaUsuarioTab() {
         password,
         mail,
         rol,
-        empresaId: rol === 'Admin' && empresaId ? parseInt(empresaId) : null,
       })
       notifySuccess(`Usuario ${rol === 'Admin' ? 'admin' : 'común'} creado correctamente.`)
       setUsuario('')
       setPassword('')
       setMail('')
       setRol('UsuarioComun')
-      setEmpresaId('')
       await loadUsuarios()
     } catch (err: any) {
       const msg = err.message || 'Error al crear usuario'
@@ -129,7 +131,52 @@ export default function AltaUsuarioTab() {
     }
   }
 
+  async function handleCambiarRol(usuarioId: number, nombreUsuario: string, rol: 'Admin' | 'UsuarioComun') {
+    setListError('')
+    setSuccess('')
+    setCambiandoRolId(usuarioId)
+
+    try {
+      await api.usuarios.cambiarRol(usuarioId, rol)
+      setSuccess(`Rol de ${nombreUsuario} cambiado a ${rol === 'Admin' ? 'admin' : 'usuario común'} correctamente.`)
+      await loadUsuarios()
+    } catch (err: any) {
+      const msg = err.message || 'Error al cambiar el rol'
+      try {
+        const parts = msg.split(': ')
+        const jsonPart = parts[parts.length - 1]
+        const parsed = JSON.parse(jsonPart)
+        setListError(parsed.error || msg)
+      } catch {
+        setListError(msg)
+      }
+    } finally {
+      setCambiandoRolId(null)
+      setConfirmRol(null)
+    }
+  }
+
   if (user?.rol === 'UsuarioComun') return null
+
+  function onAccion(usuarioItem: UsuarioListadoDto, accion: string) {
+    if (!accion) return
+    setMenuAcciones(null)
+    switch (accion) {
+      case 'baja':
+        setConfirmBaja({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario })
+        break
+      case 'hacer-admin':
+        setConfirmRol({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario, rol: 'Admin' })
+        break
+      case 'hacer-usuario':
+        setConfirmRol({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario, rol: 'UsuarioComun' })
+        break
+      case 'suspender':
+      case 'reactivar':
+        setConfirmSuscripcion({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario, activa: accion === 'reactivar' })
+        break
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -196,19 +243,6 @@ export default function AltaUsuarioTab() {
             </select>
           </div>
 
-          {rol === 'Admin' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Empresa ID</label>
-              <input
-                type="number"
-                value={empresaId}
-                onChange={e => setEmpresaId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Opcional"
-              />
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
@@ -263,7 +297,17 @@ export default function AltaUsuarioTab() {
             <h2 className="text-lg font-semibold text-slate-900">Usuarios registrados</h2>
             <p className="text-sm text-slate-500">Listado actualizado desde la base de datos.</p>
           </div>
-          <button
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={ocultarDadosDeBaja}
+                onChange={e => setOcultarDadosDeBaja(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Ocultar dados de baja
+            </label>
+            <button
             type="button"
             onClick={loadUsuarios}
             disabled={loadingList}
@@ -271,6 +315,7 @@ export default function AltaUsuarioTab() {
           >
             {loadingList ? 'Actualizando...' : 'Refrescar'}
           </button>
+          </div>
         </div>
 
         {loadingList ? (
@@ -281,8 +326,13 @@ export default function AltaUsuarioTab() {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             No hay usuarios cargados.
           </div>
-        ) : (
+        ) : (() => {
+          const usuariosVisibles = (ocultarDadosDeBaja ? usuarios.filter(u => u.activo) : usuarios).filter(u => u.nombreUsuario !== 'admin')
+          return (
           <div className="overflow-x-auto">
+            {usuariosVisibles.length === 0 && (
+              <p className="text-sm text-slate-400 py-4">No hay usuarios que mostrar con el filtro actual.</p>
+            )}
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead>
                 <tr className="text-left text-slate-500">
@@ -290,7 +340,6 @@ export default function AltaUsuarioTab() {
                   <th className="py-2 pr-4 font-medium">Mail</th>
                   <th className="py-2 pr-4 font-medium">Rol</th>
                   <th className="py-2 pr-4 font-medium">Supervisor</th>
-                  <th className="py-2 pr-4 font-medium">Empresa</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
                   <th className="py-2 pr-4 font-medium">Nivel</th>
                   <th className="py-2 pr-4 font-medium">Costo</th>
@@ -301,7 +350,7 @@ export default function AltaUsuarioTab() {
                 </tr>
               </thead>
               <tbody className="divide-y-2 divide-slate-300">
-                {usuarios.map(usuarioItem => (
+                {usuariosVisibles.map(usuarioItem => (
                   <tr key={usuarioItem.id}>
                     <td className="py-3 pr-4 font-medium text-slate-900">{usuarioItem.nombreUsuario}</td>
                     <td className="py-3 pr-4 text-slate-600">{usuarioItem.mail || '-'}</td>
@@ -322,9 +371,6 @@ export default function AltaUsuarioTab() {
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
                       {usuarioItem.usuarioResponsableNombre || '-'}
-                    </td>
-                    <td className="py-3 pr-4 text-slate-600">
-                      {usuarioItem.empresaId ?? '-'}
                     </td>
                     <td className="py-3 pr-4">
                       <span
@@ -369,54 +415,76 @@ export default function AltaUsuarioTab() {
                       {usuarioItem.pinConfigurado ? 'Configurado' : 'No configurado'}
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="flex flex-wrap gap-2">
-                        {usuarioItem.activo && usuarioItem.rol === 'UsuarioComun' ? (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmBaja({ id: usuarioItem.id, nombre: usuarioItem.nombreUsuario })}
-                            disabled={desactivandoId === usuarioItem.id}
-                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-                          >
-                            {desactivandoId === usuarioItem.id ? 'Dando de baja...' : 'Dar de baja'}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">Sin baja</span>
-                        )}
-
-                        {usuarioItem.activo && usuarioItem.rol === 'Admin' ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmSuscripcion({
-                                id: usuarioItem.id,
-                                nombre: usuarioItem.nombreUsuario,
-                                activa: !usuarioItem.suscripcionActiva,
-                              })
+                      {(() => {
+                        const acciones: { value: string; label: string }[] = []
+                        if (usuarioItem.activo) {
+                          if (usuarioItem.rol === 'UsuarioComun') {
+                            acciones.push({ value: 'hacer-admin', label: 'Hacer admin' })
+                            acciones.push({ value: 'baja', label: 'Dar de baja' })
+                          } else if (usuarioItem.rol === 'Admin') {
+                            acciones.push({
+                              value: usuarioItem.suscripcionActiva ? 'suspender' : 'reactivar',
+                              label: usuarioItem.suscripcionActiva ? 'Suspender suscripción' : 'Reactivar suscripción',
+                            })
+                            if (!usuarioItem.esTitular && user?.id !== usuarioItem.id) {
+                              acciones.push({ value: 'hacer-usuario', label: 'Hacer usuario' })
                             }
-                            disabled={cambiandoSuscripcionId === usuarioItem.id}
-                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-                              usuarioItem.suscripcionActiva
-                                ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {cambiandoSuscripcionId === usuarioItem.id
-                              ? 'Actualizando...'
-                              : usuarioItem.suscripcionActiva
-                                ? 'Suspender suscripción'
-                                : 'Reactivar suscripción'}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </div>
+                          }
+                        }
+                        if (acciones.length === 0) {
+                          return <span className="text-xs text-slate-400">—</span>
+                        }
+                        const abierto = menuAcciones?.id === usuarioItem.id
+                        const ocupado =
+                          desactivandoId === usuarioItem.id ||
+                          cambiandoRolId === usuarioItem.id ||
+                          cambiandoSuscripcionId === usuarioItem.id
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                if (abierto) { setMenuAcciones(null); return }
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuAcciones({ id: usuarioItem.id, top: rect.bottom + 4, left: rect.right })
+                              }}
+                              disabled={ocupado}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                            >
+                              Acciones
+                              <ChevronDown size={12} className={`transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                            </button>
+                            {abierto && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setMenuAcciones(null)} />
+                                <div
+                                  className="fixed z-50 mt-0.5 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                                  style={{ top: menuAcciones!.top, left: menuAcciones!.left, transform: 'translateX(-100%)' }}
+                                >
+                                  {acciones.map(a => (
+                                    <button
+                                      key={a.value}
+                                      type="button"
+                                      onClick={() => onAccion(usuarioItem, a.value)}
+                                      className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                      {a.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )
+                      })()}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+          )
+        })()}
       </div>
 
       <ConfirmDialog
@@ -439,6 +507,18 @@ export default function AltaUsuarioTab() {
         confirmVariant={confirmSuscripcion?.activa ? 'confirm' : 'destructive'}
         onCancel={() => setConfirmSuscripcion(null)}
         onConfirm={() => { if (confirmSuscripcion) void handleCambiarSuscripcion(confirmSuscripcion.id, confirmSuscripcion.nombre, confirmSuscripcion.activa) }}
+      />
+
+      <ConfirmDialog
+        open={confirmRol != null}
+        title="Cambiar rol"
+        description={confirmRol
+          ? `¿${confirmRol.rol === 'Admin' ? 'hacer administrador a' : 'convertir en usuario común a'} ${confirmRol.nombre}?`
+          : ''}
+        confirmLabel={confirmRol?.rol === 'Admin' ? 'Hacer Admin' : 'Hacer usuario'}
+        confirmVariant="confirm"
+        onCancel={() => setConfirmRol(null)}
+        onConfirm={() => { if (confirmRol) void handleCambiarRol(confirmRol.id, confirmRol.nombre, confirmRol.rol) }}
       />
     </div>
   )

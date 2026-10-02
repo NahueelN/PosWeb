@@ -25,13 +25,39 @@ public class RestauranteService
 
     // ---------- Configuración del módulo ----------
 
-    public bool ObtenerRestauranteHabilitado()
+    public string ObtenerTipoNegocio()
     {
         var config = _context.EmpresaConfiguracion.FirstOrDefault();
-        return config?.MODULO_RESTAURANTE ?? false;
+        if (config == null)
+        {
+            return EmpresaConfiguracion.TipoTienda;
+        }
+
+        return string.IsNullOrWhiteSpace(config.TIPO_NEGOCIO)
+            ? (config.MODULO_RESTAURANTE ? EmpresaConfiguracion.TipoRestaurante : EmpresaConfiguracion.TipoTienda)
+            : config.TIPO_NEGOCIO;
+    }
+
+    public bool ObtenerRestauranteHabilitado()
+    {
+        return ObtenerTipoNegocio() == EmpresaConfiguracion.TipoRestaurante;
+    }
+
+    public void SetTipoNegocio(string tipoNegocio)
+    {
+        var config = ObtenerOCrearConfig();
+        config.SetTipoNegocio(tipoNegocio);
+        _context.SaveChanges();
     }
 
     public void SetRestauranteHabilitado(bool habilitado)
+    {
+        var config = ObtenerOCrearConfig();
+        config.SetRestauranteHabilitado(habilitado);
+        _context.SaveChanges();
+    }
+
+    private EmpresaConfiguracion ObtenerOCrearConfig()
     {
         var config = _context.EmpresaConfiguracion.FirstOrDefault();
         if (config == null)
@@ -43,8 +69,7 @@ public class RestauranteService
             _context.EmpresaConfiguracion.Add(config);
         }
 
-        config.SetRestauranteHabilitado(habilitado);
-        _context.SaveChanges();
+        return config;
     }
 
     // ---------- Mesas ----------
@@ -268,6 +293,22 @@ public class RestauranteService
         _context.SaveChanges();
     }
 
+    public int CambiarEstadoItems(int[] itemIds, string estado)
+    {
+        if (itemIds == null || itemIds.Length == 0)
+            throw new ArgumentException("Debe indicar al menos un item");
+
+        foreach (var itemId in itemIds.Distinct())
+        {
+            var item = _context.ItemComanda.Find(itemId)
+                ?? throw new ItemComandaNoEncontradaException(itemId);
+            item.CambiarEstado(estado);
+        }
+
+        _context.SaveChanges();
+        return itemIds.Length;
+    }
+
     public SesionMesaDto UnificarSesiones(int desdeSesionId, int haciaSesionId)
     {
         if (desdeSesionId == haciaSesionId)
@@ -287,6 +328,10 @@ public class RestauranteService
 
         foreach (var item in items)
             item.MoverA(haciaSesionId);
+
+        // La sesión origen queda libre: al unificar se cierra la cuenta de la mesa de origen
+        // para que la mesa no quede ocupada con una comanda vacía.
+        desde.Cancelar();
 
         _context.SaveChanges();
 

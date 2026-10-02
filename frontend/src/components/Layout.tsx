@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import ProductLookupModal from './ProductLookupModal'
-import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight, BellRing, HelpCircle } from 'lucide-react'
+import { Menu, MapPin, ChevronDown, LogOut, Link2, QrCode, ChevronsLeft, ChevronsRight, BellRing, HelpCircle, X } from 'lucide-react'
 import { getCurrentVersion } from '../versionCheck'
 
 declare const __APP_VERSION__: string
@@ -151,6 +151,16 @@ export default function Layout() {
   const [avisoVencimientosHabilitado, setAvisoVencimientosHabilitado] = useState(false)
   const [productosPorVencer, setProductosPorVencer] = useState(0)
   const [versionVencimientos, setVersionVencimientos] = useState(0)
+
+  // Banner de bienvenida/ayuda: se muestra hasta que el usuario lo cierra.
+  const [mostrarBannerAyuda, setMostrarBannerAyuda] = useState(() => {
+    try { return localStorage.getItem('ayuda-banner-dismissed') !== '1' } catch { return true }
+  })
+
+  function cerrarBannerAyuda() {
+    setMostrarBannerAyuda(false)
+    try { localStorage.setItem('ayuda-banner-dismissed', '1') } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     const v = getCurrentVersion()
@@ -513,6 +523,31 @@ export default function Layout() {
         </header>
 
         <div className="flex-1 overflow-auto min-h-0 flex flex-col p-4 sm:p-5 [scrollbar-gutter:stable]">
+          {mostrarBannerAyuda && (
+            <div className="relative mb-3 shrink-0 rounded-xl border border-indigo-200 bg-indigo-50 pl-4 pr-9 py-3">
+              <div className="absolute -top-2 right-4 h-3 w-3 rotate-45 border-l border-t border-indigo-200 bg-indigo-50" aria-hidden="true" />
+              <p className="text-[13px] leading-snug text-indigo-900">
+                ¿Primera vez? Ante cualquier duda podés revisar la sección de{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/ayuda')}
+                  className="font-bold text-[oklch(0.52_0.255_278)] underline decoration-2 underline-offset-2 hover:text-[oklch(0.45_0.22_278)]"
+                >
+                  Ayuda
+                </button>
+                .
+              </p>
+              <button
+                type="button"
+                onClick={cerrarBannerAyuda}
+                className="absolute right-1.5 top-1.5 rounded-md p-1 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
+                aria-label="Cerrar aviso"
+                title="Cerrar"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
           <Outlet context={{ sucursal }} />
         </div>
       </main>

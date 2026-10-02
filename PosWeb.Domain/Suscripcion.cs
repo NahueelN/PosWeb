@@ -55,6 +55,10 @@ public class Suscripcion
 
     public string? MP_USER_ID { get; private set; }
 
+    public string? MP_NOMBRE_TITULAR { get; private set; }
+
+    public string? MP_ALIAS { get; private set; }
+
     public bool MP_VINCULADO { get; private set; }
 
     public DateTime? MP_FECHA_VINC { get; private set; }
@@ -210,11 +214,23 @@ public class Suscripcion
         MP_FECHA_VINC = DateTime.UtcNow;
     }
 
+    public void AsignarNombreTitular(string? nombreTitular)
+    {
+        MP_NOMBRE_TITULAR = string.IsNullOrWhiteSpace(nombreTitular) ? null : nombreTitular.Trim();
+    }
+
+    public void AsignarAlias(string? alias)
+    {
+        MP_ALIAS = string.IsNullOrWhiteSpace(alias) ? null : alias.Trim();
+    }
+
     public void DesvincularMP()
     {
         MP_ACCESS_TOKEN = null;
         MP_REFRESH_TOKEN = null;
         MP_USER_ID = null;
+        MP_NOMBRE_TITULAR = null;
+        MP_ALIAS = null;
         MP_VINCULADO = false;
         MP_FECHA_VINC = null;
     }

@@ -38,7 +38,12 @@ export default function ConfiguracionPage() {
   const [saving, setSaving] = useState(false)
   const [mailPref, setMailPref] = useState<MailMethod | ''>(getMailPref() ?? '')
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
-  const [restauranteHabilitado, setRestauranteHabilitado] = useState(false)
+  const [tipoNegocio, setTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
+
+  const [mpVinculado, setMpVinculado] = useState(false)
+  const [mpTitular, setMpTitular] = useState<string | null>(null)
+  const [mpAlias, setMpAlias] = useState('')
+  const [mpAliasGuardando, setMpAliasGuardando] = useState(false)
 
   const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
@@ -74,9 +79,20 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     api.restaurante.config()
-      .then(c => setRestauranteHabilitado(c.habilitado))
+      .then(c => setTipoNegocio(c.tipoNegocio ?? (c.habilitado ? 'Restaurante' : 'Tienda')))
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!canManageUsers) return
+    api.mercadopago.estado()
+      .then(e => {
+        setMpVinculado(Boolean(e.vinculado))
+        setMpTitular(e.nombreTitular ?? null)
+        setMpAlias(e.alias ?? '')
+      })
+      .catch(() => {})
+  }, [canManageUsers])
 
   const guardarEmpresa = useCallback(async (datos = datosEmpresa()) => {
     if (!empresa || (
@@ -118,6 +134,18 @@ export default function ConfiguracionPage() {
     notifySuccess(v === '' ? 'Ahora se preguntará cada vez' : 'Preferencia de WhatsApp guardada')
   }
 
+  const handleGuardarAliasMp = async () => {
+    setMpAliasGuardando(true)
+    try {
+      await api.mercadopago.setAlias(mpAlias)
+      notifySuccess('Alias de MercadoPago guardado')
+    } catch {
+      notifyError('No se pudo guardar el alias')
+    } finally {
+      setMpAliasGuardando(false)
+    }
+  }
+
   const handleBuscarLicencia = async () => {
     const email = perfil?.mail
     if (!email) {
@@ -143,7 +171,7 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
@@ -197,8 +225,9 @@ export default function ConfiguracionPage() {
 
       {tab === 'perfil' && (
         <>
-          <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900">Datos de la empresa</h2>
+          <div className="grid gap-6 lg:grid-cols-2 items-start">
+            <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Datos de la empresa</h2>
             {loading ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
                 Cargando...
@@ -267,33 +296,77 @@ export default function ConfiguracionPage() {
                 <p className="text-xs text-slate-500">{saving ? 'Guardando cambios...' : 'Los cambios se guardan al salir de cada campo.'}</p>
                 {canManageUsers && !esGratuito && (
                   <div className="border-t border-slate-100 pt-4">
-                    <label className="flex items-center justify-between gap-3 cursor-pointer">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">Módulo restaurante (mesas)</p>
-                        <p className="text-xs text-slate-500">Habilita la operación por mesas en el menú. La venta de mesa se cobra sin descontar stock.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={restauranteHabilitado}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
+                      <p className="text-xs text-slate-500 mb-2">Restaurante habilita el módulo de mesas en el menú. La venta de mesa se cobra sin descontar stock.</p>
+                      <select
+                        value={tipoNegocio}
                         onChange={e => {
-                          const on = e.target.checked
-                          setRestauranteHabilitado(on)
-                          api.restaurante.setConfig(on)
+                          const tipo = e.target.value as 'Tienda' | 'Restaurante'
+                          setTipoNegocio(tipo)
+                          api.restaurante.setConfig(tipo)
                             .then(() => window.location.reload())
                             .catch((err: unknown) => {
                               const msg = err instanceof Error ? err.message : String(err)
-                              notifyError(`No se pudo guardar el módulo restaurante: ${msg}`)
-                              setRestauranteHabilitado(!on)
+                              notifyError(`No se pudo guardar el tipo de negocio: ${msg}`)
+                              setTipoNegocio(tipoNegocio)
                             })
                         }}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      >
+                        <option value="Tienda">Tienda</option>
+                        <option value="Restaurante">Restaurante (con mesas)</option>
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          <div className="space-y-6">
+          {canManageUsers && (
+            <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">MercadoPago</h2>
+              {!mpVinculado ? (
+                <p className="text-sm text-slate-500">
+                  No hay una cuenta de MercadoPago vinculada. Vinculala desde el panel lateral ("Vincular MP").
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {mpTitular && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 uppercase mb-1">Titular de la cuenta</label>
+                      <p className="text-sm font-medium text-slate-700">{mpTitular}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Alias de la cuenta</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      El alias que los clientes usan para transferirte. Como MercadoPago no lo expone, lo configurás acá y se muestra al cobrar por transferencia.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={mpAlias}
+                        onChange={e => setMpAlias(e.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                        placeholder="Ej: ventas.mp"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { void handleGuardarAliasMp() }}
+                        disabled={mpAliasGuardando}
+                        className="px-3 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                      >
+                        {mpAliasGuardando ? 'Guardando...' : 'Guardar alias'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-white rounded-xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-3">
@@ -357,6 +430,8 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
             )}
+          </div>
+          </div>
           </div>
         </>
       )}

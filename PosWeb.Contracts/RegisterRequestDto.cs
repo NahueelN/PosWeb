@@ -8,4 +8,5 @@ public class RegisterRequestDto
     public string Rol { get; set; } = string.Empty;
     public int? EmpresaId { get; set; }
     public string? EmpresaNombre { get; set; }
+    public string? TipoNegocio { get; set; }
 }

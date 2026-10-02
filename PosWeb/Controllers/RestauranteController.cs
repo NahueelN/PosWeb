@@ -29,14 +29,31 @@ public class RestauranteController : ControllerBase
     [HttpGet("config")]
     public IActionResult Config()
     {
-        return Ok(new RestauranteConfigDto { Habilitado = _restauranteService.ObtenerRestauranteHabilitado() });
+        var tipo = _restauranteService.ObtenerTipoNegocio();
+        return Ok(new RestauranteConfigDto
+        {
+            Habilitado = tipo == EmpresaConfiguracion.TipoRestaurante,
+            TipoNegocio = tipo,
+        });
     }
 
     [HttpPut("config")]
     public IActionResult SetConfig([FromBody] RestauranteConfigDto dto)
     {
-        _restauranteService.SetRestauranteHabilitado(dto.Habilitado);
-        return Ok(dto);
+        if (!string.IsNullOrWhiteSpace(dto.TipoNegocio))
+        {
+            _restauranteService.SetTipoNegocio(dto.TipoNegocio);
+        }
+        else
+        {
+            _restauranteService.SetRestauranteHabilitado(dto.Habilitado);
+        }
+
+        return Ok(new RestauranteConfigDto
+        {
+            Habilitado = _restauranteService.ObtenerRestauranteHabilitado(),
+            TipoNegocio = _restauranteService.ObtenerTipoNegocio(),
+        });
     }
 
     // Mesas
@@ -110,6 +127,19 @@ public class RestauranteController : ControllerBase
 
         _restauranteService.CambiarEstadoItem(itemId, req.Estado);
         return NoContent();
+    }
+
+    [HttpPut("items/estado-batch")]
+    public IActionResult CambiarEstadoItems([FromBody] CambiarEstadoItemsRequest req)
+    {
+        if (req.Items == null || req.Items.Length == 0)
+            return BadRequest(new { error = "Debe indicar al menos un item" });
+
+        if (string.IsNullOrWhiteSpace(req.Estado))
+            return BadRequest(new { error = "Estado requerido" });
+
+        var actualizados = _restauranteService.CambiarEstadoItems(req.Items, req.Estado);
+        return Ok(new { actualizados });
     }
 
     [HttpPost("sesiones/{desde:int}/unificar/{hacia:int}")]

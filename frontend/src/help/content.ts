@@ -64,16 +64,161 @@ export interface AyudaModulo {
 
 export const AYUDA_MODULOS: AyudaModulo[] = [
   {
+    key: 'modulo-primeros-pasos',
+    titulo: 'Primeros pasos',
+    definicion: 'Guía rápida para arrancar a vender con Vendeto: dar de alta tus productos, completar los datos del negocio, abrir la caja y hacer la primera venta.',
+    relacionados: ['concepto-producto', 'concepto-caja', 'concepto-venta', 'concepto-cantidad-ideal', 'solapa-margenes', 'concepto-vincular-mp'],
+    items: [],
+    manual: [
+      {
+        titulo: 'Para arrancar a vender',
+        bloques: [
+          {
+            tipo: 'parrafo',
+            texto: 'Si recién instalaste el programa, seguí estos pasos en orden para hacer tu primera venta en pocos minutos.',
+          },
+          {
+            tipo: 'pasos',
+            items: [
+              'Dará de alta tus productos: andá a Productos y cargá lo que vendés (nombre, código de barras, precio y costo). También podés importarlos desde un Excel.',
+              'Completá los datos del negocio: en Configuración → Perfil cargá el nombre, la dirección y el teléfono, así salen correctamente en el ticket.',
+              'Abrí la caja: en el módulo Caja cargá el monto inicial y tocá "Abrir caja".',
+              'Vendé: andá a Ventas, buscá un producto por nombre o código de barras, armá el carrito, elegí el medio de pago y confirmá.',
+            ],
+          },
+          {
+            tipo: 'nota',
+            texto: 'Con el plan Gratuito podés vender y manejar caja y stock de inmediato. Los demás módulos (compras, deudas, clientes, pedidos, etc.) los vas activando a medida que los necesites.',
+          },
+        ],
+      },
+      {
+        titulo: 'Y después, ¿qué conviene configurar?',
+        bloques: [
+          {
+            tipo: 'lista',
+            items: [
+              'Cantidad ideal de stock: para que el sistema te sugiera reposiciones cuando el stock baje.',
+              'Márgenes por categoría: para que el precio de venta se calcule solo sobre el costo.',
+              'Vincular MercadoPago: para cobrar con QR y por transferencia.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     key: 'modulo-inicio',
     titulo: 'Inicio',
-    definicion: 'Pantalla principal del programa. Para los administradores muestra un dashboard con la actividad del negocio; para el resto, una pantalla de bienvenida.',
-    items: [],
+    definicion: 'Pantalla principal del programa. Para los administradores (Admin/SuperAdmin) muestra un dashboard interactivo con la actividad del negocio; para los usuarios con rol "Usuario" muestra solo una imagen estática de Vendeto, sin datos.',
+    relacionados: ['concepto-dashboard', 'concepto-inicio-usuario', 'concepto-atajos-teclado'],
+    items: [
+      {
+        key: 'concepto-dashboard',
+        titulo: 'Dashboard de Inicio',
+        tipo: 'concepto',
+        definicion: 'Pantalla de Inicio que ven los administradores: un tablero personalizable con la actividad del negocio (ventas del día, estado de caja, meta diaria, alertas, actividad reciente, rankings y gráficos).',
+        necesitaImagen: true,
+        relacionados: ['modulo-caja', 'modulo-ventas'],
+        manual: [
+          {
+            titulo: 'Información sensible',
+            bloques: [
+              {
+                tipo: 'nota',
+                texto: 'El dashboard muestra dinero y métricas del negocio (ventas, facturación, caja, costos). Es información sensible: solo lo ven los administradores (Admin/SuperAdmin).',
+              },
+            ],
+          },
+          {
+            titulo: 'Widgets disponibles',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Tipo de widget', 'Qué muestra'],
+                filas: [
+                  ['KPI (indicador)', 'Ventas del día, estado de caja, meta diaria, ticket promedio y otros números con tendencia.'],
+                  ['Alertas', 'Alertas urgentes priorizadas (por ejemplo, stock bajo).'],
+                  ['Actividad reciente', 'Últimas ventas, compras, movimientos de caja y gastos registrados.'],
+                  ['Rankings', 'Productos más vendidos (top productos).'],
+                  ['Gráficos', 'Evolución de ventas en barras, líneas o torta.'],
+                  ['Listas y tablas', 'Resúmenes y detalle de datos en listas o tablas.'],
+                  ['Progreso y medidor', 'Cumplimiento de meta y otros indicadores visuales.'],
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Personalizar el dashboard',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Tocá el botón "+" para agregar un widget: elegí el módulo (Inicio, Ventas, Caja, etc.) y el widget que querés ver.',
+                  'Mové y redimensioná los widgets arrastrándolos con el mouse.',
+                  'Usá la edición de cada widget para ajustar sus opciones (colores, límites, período).',
+                  'Con "Restablecer" volvés el dashboard a su estado original.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'El orden y el tamaño de los widgets se guardan en la propia PC (no se sincronizan entre equipos) y se filtran por la sucursal activa.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-inicio-usuario',
+        titulo: 'Inicio para usuarios',
+        tipo: 'concepto',
+        definicion: 'Pantalla que ven los usuarios con rol "Usuario" (UsuarioComun) al entrar: una imagen estática de Vendeto, sin información del negocio. Las métricas y el dinero son solo para administradores.',
+        relacionados: ['solapa-configuracion-usuarios'],
+        manual: [
+          {
+            titulo: '¿Por qué no se ve el dashboard?',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El dashboard muestra datos sensibles del negocio (ventas, dinero, métricas). Por privacidad, los usuarios con rol "Usuario" no acceden a esa información: al entrar a Inicio solo ven la imagen estática de Vendeto.',
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Si necesitás que un usuario vea las métricas, un administrador debe cambiarle el rol a Admin desde Configuración → Usuarios.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-atajos-teclado',
+        titulo: 'Atajos de teclado',
+        tipo: 'concepto',
+        definicion: 'Teclas que aceleran tareas frecuentes, disponibles en cualquier pantalla de Vendeto.',
+        manual: [
+          {
+            titulo: 'Atajos disponibles',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Tecla', 'Qué hace'],
+                filas: [
+                  ['F2', 'Abre la búsqueda rápida de productos desde cualquier pantalla.'],
+                  ['Ctrl + Enter (o Cmd + Enter)', 'En la pantalla de venta, confirma la venta si hay un medio de pago elegido y productos en el carrito.'],
+                  ['Escape', 'En el carrito de venta, vuelve el foco al buscador de productos.'],
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   },
   {
     key: 'modulo-ventas',
     titulo: 'Ventas',
     definicion: 'Registra las ventas del día: buscás productos, armás el carrito, elegís el medio de pago y confirmás. Al finalizar se puede imprimir el ticket.',
-    relacionados: ['concepto-venta', 'concepto-multipago'],
+    relacionados: ['concepto-venta', 'concepto-multipago', 'concepto-vincular-mp', 'concepto-cobro-qr', 'concepto-transferencia-mp', 'concepto-venta-credito'],
     items: [
       {
         key: 'concepto-venta',
@@ -89,13 +234,45 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Una misma venta se puede cobrar con más de un medio de pago. Por ejemplo: $3.000 en efectivo y el resto con tarjeta. El sistema reparte el total entre los medios elegidos.',
         ejemplo: 'Total $5.000 → $2.000 en efectivo y $3.000 con tarjeta de débito.',
         necesitaImagen: true,
-        relacionados: ['concepto-venta'],
+        relacionados: ['concepto-venta', 'concepto-cobro-qr', 'concepto-transferencia-mp'],
       },
       {
         key: 'concepto-sucursal',
         titulo: 'Sucursal',
         tipo: 'concepto',
         definicion: 'Cada local del negocio. El stock y las cajas se manejan por sucursal, y las ventas se registran en la sucursal activa. Al operar se elige la sucursal sobre la que se trabaja.',
+      },
+      {
+        key: 'concepto-venta-credito',
+        titulo: 'Venta a crédito',
+        tipo: 'concepto',
+        definicion: 'Venta en la que el cliente no paga todo el monto en el momento: la diferencia queda registrada como deuda a su nombre (cuenta corriente) y se puede saldar después en el módulo Deudas.',
+        necesitaImagen: true,
+        relacionados: ['concepto-deuda', 'concepto-cliente', 'modulo-deudas'],
+        manual: [
+          {
+            titulo: '¿Cómo funciona?',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Al cobrar una venta, si el monto recibido es menor al total y no hay un cliente seleccionado, el sistema te pide elegir o crear un cliente: es obligatorio para poder registrar la parte no pagada como deuda.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'Armá el carrito y cargá el monto que el cliente paga (por ejemplo, una parte o un anticipo).',
+                  'Elegí o creá el cliente que se lleva la venta a crédito.',
+                  'Confirmá la venta: el saldo sin pagar queda como deuda a nombre del cliente.',
+                  'Cuando el cliente venga a pagar, registrá el pago en Deudas → Clientes para saldar (o reducir) el saldo.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'La deuda generada se ve y se administra en el módulo Deudas, pestaña Clientes. También se puede cobrar una cuenta de restaurante (mesa) a crédito eligiendo un cliente al momento de cobrar.',
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -144,8 +321,59 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         key: 'concepto-pedido',
         titulo: 'Pedido',
         tipo: 'concepto',
-        definicion: 'Lista de productos sugeridos para reponer según la cantidad ideal de stock. Se puede armar, editar la cantidad y enviar al proveedor por WhatsApp o mail.',
+        definicion: 'Lista de productos para reponer según la cantidad ideal de stock. Se puede armar, editar la cantidad y enviar al proveedor por WhatsApp o mail.',
+        necesitaImagen: true,
         relacionados: ['concepto-cantidad-ideal'],
+        manual: [
+          {
+            titulo: 'Sugerencias según la cantidad ideal',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El pedido se apoya en la cantidad ideal de cada producto (configurada en Stock). Al armar un pedido, la pestaña "Alertas" muestra los productos que están por debajo del 20% de su cantidad ideal.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el módulo Pedidos, tocá "Nuevo pedido" y elegí el proveedor.',
+                  'Abrí la pestaña "Alertas": cada producto alertado muestra cuántas unidades conviene reponer.',
+                  'Tocá "+ Agregar X" sobre el producto: se agrega al pedido con la cantidad sugerida (cantidad ideal menos el stock actual).',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Para que el sistema sugiera reposiciones, los productos deben tener definida su cantidad ideal. Más información en "Cantidad ideal".',
+              },
+            ],
+          },
+          {
+            titulo: 'Armar y enviar el pedido',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Agregá los productos que necesitás (desde la búsqueda o desde las alertas) y ajustá las cantidades.',
+                  'Completá la fecha esperada y las observaciones si corresponde.',
+                  'Enviá el pedido al proveedor por WhatsApp o por mail.',
+                  'También podés guardarlo como pendiente para enviarlo o recibirlo después.',
+                ],
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Si no tenés el proveedor cargado, podés usar "Proveedor ocasional" o crear uno nuevo en el momento. El pedido queda con estado Pendiente, y al completarse pasa a Completado.',
+              },
+            ],
+          },
+          {
+            titulo: 'Recibir el pedido',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Cuando llega la mercadería, abrís el pedido y marcás qué se recibió: podés indicar cantidades recibidas, faltantes y los precios reales. Al confirmar la recepción se actualiza el stock de los productos.',
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -160,7 +388,36 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Caja',
         tipo: 'concepto',
         definicion: 'Registro del dinero en efectivo del negocio durante el día. Se abre al empezar a operar (con un monto inicial) y se cierra al terminar, comparando lo esperado contra el dinero contado.',
+        necesitaImagen: true,
         relacionados: ['concepto-cierre-caja'],
+        manual: [
+          {
+            titulo: 'Abrir la caja',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá al módulo Caja y elegí la sucursal sobre la que vas a operar.',
+                  'Ingresá el monto inicial con el que arranca la caja (el efectivo que hay en el cajón al empezar).',
+                  'Tocá "Abrir caja".',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Si querés que la próxima jornada arranque con un saldo inicial fijo, podés dejar cargado el "saldo inicial del día siguiente": se ofrece automáticamente al abrir la caja del día siguiente.',
+              },
+            ],
+          },
+          {
+            titulo: 'Mientras la caja está abierta',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Con la caja abierta se muestra el avance del día: el total vendido por medio de pago, los gastos registrados y el efectivo esperado. Las ventas y los gastos se van sumando a la caja automáticamente.',
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'concepto-cierre-caja',
@@ -170,6 +427,52 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         necesitaImagen: true,
         imagenes: [cierreCaja, cierreCajaResumen],
         relacionados: ['concepto-caja'],
+        manual: [
+          {
+            titulo: 'Cerrar la caja',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Con la caja abierta, en el módulo Caja completá el cierre.',
+                  'Cargá el efectivo contado: el dinero que realmente hay en el cajón al contar.',
+                  'Cargá el monto contado en tarjetas si corresponde.',
+                  'Revisá las diferencias: el sistema compara lo contado contra lo esperado (según las ventas y los gastos) e informa si sobra o falta.',
+                  'Confirmá el cierre: se genera el ticket de cierre y la jornada queda cerrada.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Compartir el cierre',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Tocá el cierre que querés compartir (el del día al cerrar, o cualquiera de los cierres anteriores del historial).',
+                  'Se abre el detalle del cierre con el resumen financiero y el conteo de efectivo.',
+                  'Usá "Compartir" para enviarlo por mail o WhatsApp, o "Imprimir" para sacar el ticket de cierre.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Cierres anteriores',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El módulo Caja muestra el historial de cierres: la fecha del cierre, el usuario, la apertura, el monto inicial, las ventas y la ganancia.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el módulo Caja, buscá en el historial de cierres (podés filtrar por rango de fechas y ordenar por fecha, usuario, inicial, ventas o ganancia).',
+                  'Tocá un cierre para ver su detalle completo, sus movimientos y compartirlo.',
+                ],
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'solapa-caja-configuracion',
@@ -182,8 +485,8 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
   {
     key: 'modulo-mesas',
     titulo: 'Mesas',
-    definicion: 'Módulo de restaurante: administra mesas, comandas y cuentas. Permite abrir una mesa, cargar productos, unificar cuentas y cobrar.',
-    relacionados: ['concepto-mesa', 'concepto-comanda', 'solapa-mesas-cocina'],
+    definicion: 'Módulo de restaurante: administra mesas, comandas y cuentas. Permite abrir una mesa, cargar productos, unificar cuentas y cobrar. Solo está disponible si el tipo de negocio es Restaurante.',
+    relacionados: ['concepto-mesa', 'concepto-comanda', 'solapa-mesas-cocina', 'concepto-tipo-negocio'],
     items: [
       {
         key: 'concepto-mesa',
@@ -251,7 +554,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         ejemplo: 'Si un producto tiene cantidad ideal de 50 y el stock actual es 12, el módulo de Pedidos sugiere comprar 38 unidades.',
         necesitaImagen: true,
         imagenes: [cantidadIdealUbicacion, cantidadIdealStock, cantidadIdealPedido],
-        relacionados: ['modulo-pedidos'],
+        relacionados: ['modulo-pedidos', 'concepto-pedido'],
       },
       {
         key: 'concepto-categoria',
@@ -276,6 +579,60 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Productos → Actualización masiva',
         tipo: 'solapa',
         definicion: 'Permite actualizar el precio o el costo de varios productos a la vez aplicando un porcentaje de ajuste.',
+      },
+      {
+        key: 'solapa-productos-importacion',
+        titulo: 'Productos → Importar',
+        tipo: 'solapa',
+        definicion: 'Carga masiva de productos desde un archivo Excel (.xls/.xlsx) con el formato de articulos.xls. Se crean solo los productos nuevos; los duplicados se omiten.',
+        necesitaImagen: true,
+        relacionados: ['concepto-producto'],
+        manual: [
+          {
+            titulo: 'Formato del archivo',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El archivo debe ser un Excel (.xls o .xlsx) con el formato de articulos.xls. Cada fila es un producto con sus columnas: código de barras, descripción, marca, rubro, precio, costo, stock y si controla stock.',
+              },
+              {
+                tipo: 'nota',
+                texto: 'También podés importar productos sin código de barras si está habilitada la opción "importar sin código".',
+              },
+            ],
+          },
+          {
+            titulo: 'Cómo importar',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el módulo Productos, tocá "Importar".',
+                  'Seleccioná el archivo Excel con los productos.',
+                  'Al terminar se muestra el resultado: total de filas, productos creados y salteados.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Duplicados y filas salteadas',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Los productos cuyo código de barras ya existe (o está repetido dentro del archivo) se omiten automáticamente. Las filas con otros errores se muestran para corregirlas: editá los datos y tocá "Importar corregidos" para cargar solo esas filas.',
+              },
+            ],
+          },
+          {
+            titulo: 'Límite del plan',
+            bloques: [
+              {
+                tipo: 'nota',
+                texto: 'Si la importación supera el máximo de productos activos de tu plan, se crean todos los productos y al final se desactivan los sobrantes hasta respetar el tope del plan.',
+              },
+            ],
+          },
+        ],
       },
       {
         key: 'solapa-stock',
@@ -363,6 +720,7 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
     key: 'modulo-configuracion',
     titulo: 'Configuración',
     definicion: 'Configuración general del programa: perfil del usuario, alta de usuarios, compartir datos y respaldos.',
+    relacionados: ['modulo-suscripcion', 'concepto-tipo-negocio'],
     items: [
       {
         key: 'solapa-configuracion-usuarios',
@@ -381,6 +739,133 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         titulo: 'Configuración → Respaldo',
         tipo: 'solapa',
         definicion: 'Crea respaldos de la base de datos local y restaura copias previas.',
+        necesitaImagen: true,
+        manual: [
+          {
+            titulo: 'Qué es un respaldo',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Un respaldo es una copia de todos los datos locales de Vendeto en un archivo con extensión .posweb-backup. Sirve para resguardar la información y para pasarla a otra PC.',
+              },
+              {
+                tipo: 'nota',
+                texto: 'La solapa Datos y respaldo solo está disponible para administradores en planes de pago (Básica o Máxima).',
+              },
+            ],
+          },
+          {
+            titulo: 'Exportar (crear un respaldo)',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá a Configuración → Datos y respaldo.',
+                  'Tocá "Exportar respaldo".',
+                  'Elegí dónde guardar el archivo .posweb-backup (o se descarga automáticamente).',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Guardá los respaldos fuera de la PC (en un disco externo o en la nube) para no perderlos si el equipo falla.',
+              },
+            ],
+          },
+          {
+            titulo: 'Importar (restaurar)',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá a Configuración → Datos y respaldo.',
+                  'Tocá "Seleccionar archivo" y elegí un archivo .posweb-backup.',
+                  'Tocá "Restaurar y reemplazar datos": se validan los datos del respaldo (empresa, documento).',
+                  'Confirmá la restauración. Al terminar, Vendeto se reinicia y hay que volver a ingresar con un usuario del respaldo.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Atención: restaurar reemplaza TODOS los datos locales actuales por los del respaldo. Verificá que sea el respaldo correcto antes de confirmar.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'solapa-margenes',
+        titulo: 'Configuración → Márgenes',
+        tipo: 'solapa',
+        definicion: 'Define el margen de ganancia sugerido por categoría. Ese porcentaje se usa para calcular el precio de venta de los productos de la categoría en base a su costo.',
+        necesitaImagen: true,
+        relacionados: ['concepto-categoria', 'concepto-producto'],
+        manual: [
+          {
+            titulo: 'Qué es el margen',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'El margen es el porcentaje de ganancia que se asocia a cada categoría. Se usa como referencia para calcular el precio de venta de los productos de esa categoría.',
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Cómo se aplica al dar de alta un producto: cuando creás un producto y elegís una categoría que tiene margen definido, ese porcentaje se carga automáticamente en el campo margen del producto y el precio de venta se calcula en base al costo (costo × (1 + margen/100)). Siempre podés ajustar el margen manualmente en cada producto.',
+              },
+            ],
+          },
+          {
+            titulo: 'Asignar un margen a una categoría',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Andá a Configuración → Márgenes.',
+                  'Buscá la categoría y tocá "Asignar" (o "Editar" si ya tiene margen).',
+                  'Cargá el porcentaje y guardá. Se admite un valor entre 0 y 999.99.',
+                  'Dejarlo vacío quita el margen de la categoría.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'Para asignar márgenes primero tenés que crear categorías (pestaña Categorías en el módulo Productos).',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-tipo-negocio',
+        titulo: 'Tipo de negocio',
+        tipo: 'concepto',
+        definicion: 'Clasificación del negocio como Tienda o Restaurante. La única diferencia entre ambas es que el tipo Restaurante tiene habilitado el módulo de Mesas.',
+        relacionados: ['modulo-mesas'],
+        manual: [
+          {
+            titulo: '¿Qué diferencia hay?',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Tipo', 'Qué incluye'],
+                filas: [
+                  ['Tienda', 'Venta de mostrador sin mesas. El menú no muestra el módulo Mesas.'],
+                  ['Restaurante', 'Habilita el módulo de Mesas: abrir mesas, cargar comandas, ver la cocina y cobrar cada cuenta. El resto funciona igual.'],
+                ],
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'Es la única diferencia: el tipo de negocio define si se puede operar con mesas o no. Todo lo demás (ventas, productos, caja, clientes, etc.) es igual en ambos tipos.',
+              },
+            ],
+          },
+          {
+            titulo: 'Dónde se elige',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Al registrarte elegís el tipo de negocio. Después se puede cambiar en Configuración → Perfil → "Tipo de negocio": al cambiarlo, el módulo Mesas aparece o desaparece del menú.',
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -581,6 +1066,335 @@ export const AYUDA_MODULOS: AyudaModulo[] = [
         definicion: 'Complemento que consulta el precio de un producto al escanear su código de barras desde el celular. Se descarga desde vendeto.com.ar, se ejecuta sin instalar y queda en la bandeja de herramientas de Windows. Requiere que Vendeto esté abierto para consultar los precios.',
         ejemplo: 'Un cliente te muestra el código de un producto; lo escaneás con el celular y ves su precio sin tener que buscarlo en la PC.',
         imagenes: [consultaProducto],
+      },
+    ],
+  },
+  {
+    key: 'modulo-mercadopago',
+    titulo: 'MercadoPago',
+    definicion: 'Vincula la cuenta de MercadoPago del negocio para cobrar con QR y por transferencia, sin depender de un banco propio. La vinculación y el QR de mostrador se administran desde el panel lateral.',
+    relacionados: ['concepto-vincular-mp', 'concepto-cobro-qr', 'concepto-transferencia-mp'],
+    items: [
+      {
+        key: 'concepto-vincular-mp',
+        titulo: 'Vincular MercadoPago',
+        tipo: 'concepto',
+        definicion: 'Conexión entre la cuenta de MercadoPago del negocio y Vendeto para cobrar con QR y por transferencia. Se realiza desde el panel lateral y se autoriza en el navegador.',
+        relacionados: ['concepto-cobro-qr', 'concepto-transferencia-mp'],
+        manual: [
+          {
+            titulo: '¿Para qué sirve?',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Al vincular tu cuenta de MercadoPago, los cobros por QR y por transferencia se dirigen a esa cuenta, sin necesidad de tener un banco propio configurado. El cliente paga con MercadoPago y el dinero cae en la cuenta vinculada.',
+              },
+            ],
+          },
+          {
+            titulo: 'Primera vinculación',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el panel lateral (menú de la izquierda), tocá "Vincular MP".',
+                  'Se abre el navegador con la página de autorización de MercadoPago.',
+                  'Ingresá a la cuenta de MercadoPago que querés usar y autorizá el acceso.',
+                  'Al volver a Vendeto ya quedás vinculado: el titular de la cuenta aparece en los cobros por transferencia.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'La vinculación se autoriza en el navegador donde esté logueada tu cuenta de MercadoPago. Si el navegador no abre solo, copiá el link que se genera al tocar "Vincular MP" y pegalo en el navegador.',
+              },
+            ],
+          },
+          {
+            titulo: 'Cambiar de cuenta (segunda vinculación)',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Cada nueva autorización reemplaza (pisa) a la anterior: solo queda activa la última cuenta que vinculaste. La cuenta reemplazada deja de recibir los cobros QR y las transferencias.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'Tocá "Vincular MP" en el panel lateral y esperá a que se abra el navegador con el link de autorización.',
+                  'Copiá ese link (la URL de MercadoPago en la barra del navegador).',
+                  'Abrí otro perfil de navegador (o una sesión distinta) donde esté logueada la cuenta de MercadoPago nueva.',
+                  'Pegá el link, autorizá y volvé a Vendeto: el titular de QR y transferencias pasa a ser la nueva cuenta.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Revinculación',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Si en la venta o en el QR aparece el aviso "MercadoPago requiere volver a vincularse", la confirmación automática de los pagos puede fallar. Volvé a vincular desde el panel lateral (primera vinculación o cambio de cuenta) para que vuelva a funcionar.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-cobro-qr',
+        titulo: 'Cobro QR',
+        tipo: 'concepto',
+        definicion: 'Cobra mostrando un código QR que el cliente escanea con su app de MercadoPago. Hay dos QR: el fijo del mostrador (siempre el mismo, sin monto) y el QR de cada venta (con el monto puntual).',
+        relacionados: ['concepto-vincular-mp', 'concepto-transferencia-mp', 'concepto-plan-maxima'],
+        manual: [
+          {
+            titulo: 'QR de mostrador (fijo)',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Es el QR permanente de tu negocio: no tiene monto y sirve para cobrar cualquier importe. Imprimilo y pegalo en el mostrador para que los clientes lo escaneen y paguen.',
+              },
+              {
+                tipo: 'pasos',
+                items: [
+                  'En el panel lateral, tocá "Ver QR".',
+                  'Se abre el QR de tu cuenta vinculada.',
+                  'Imprimilo: es siempre el mismo, no cambia entre cobros.',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'El QR del mostrador depende de la cuenta vinculada: si cambiás de cuenta de MercadoPago, el QR fijo pasa a ser el de la nueva cuenta.',
+              },
+            ],
+          },
+          {
+            titulo: 'Cobrar con QR en la venta',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Armá el carrito y elegí "QR" como medio de pago.',
+                  'Se abre la pantalla de cobro con un QR que incluye el monto de esa venta.',
+                  'Mostrale el QR al cliente para que lo escanee con MercadoPago.',
+                ],
+              },
+              {
+                tipo: 'parrafo',
+                texto: 'En el plan Máxima el pago se detecta automáticamente y la venta se confirma sola. En los demás planes, se confirma manualmente cuando el cliente te avisa que pagó.',
+              },
+              {
+                tipo: 'nota',
+                texto: 'No confundas el QR fijo del mostrador (sin monto, para imprimir) con el QR de la venta (con el monto puntual, que se muestra en pantalla).',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-transferencia-mp',
+        titulo: 'Cobro por transferencia',
+        tipo: 'concepto',
+        definicion: 'Cobro en el que el cliente transfiere el monto a la cuenta de MercadoPago vinculada. El vendedor ve el titular y el importe, y confirma la venta cuando el cliente avisa que transfirió.',
+        necesitaImagen: true,
+        relacionados: ['concepto-vincular-mp', 'concepto-cobro-qr'],
+        manual: [
+          {
+            titulo: 'Cobrar por transferencia',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Armá el carrito y elegí "Transferencia" como medio de pago.',
+                  'Se muestra la cuenta de MercadoPago vinculada (titular) y el monto a transferir.',
+                  'Decile al cliente que transfiera ese monto a la cuenta que se muestra.',
+                  'Cuando el cliente confirme que transfirió, tocá "Confirmar".',
+                ],
+              },
+              {
+                tipo: 'nota',
+                texto: 'La transferencia no se verifica automáticamente: la venta se confirma manualmente cuando el cliente te avisa que hizo el pago. No se confirma sola.',
+              },
+            ],
+          },
+          {
+            titulo: 'Tiempo de espera',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'La pantalla de espera de la transferencia vence a los 5 minutos. Si el tiempo se agota sin confirmar, la venta pendiente se cancela y hay que volver a armarla.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'modulo-suscripcion',
+    titulo: 'Suscripción y planes',
+    definicion: 'Modelo de planes de Vendeto (Gratuito, Básica y Máxima), la prueba gratuita de 7 días, y cómo se activa, renueva y vence la licencia de cada negocio.',
+    relacionados: ['concepto-plan-gratuito', 'concepto-plan-basica', 'concepto-plan-maxima', 'concepto-prueba-gratuita', 'concepto-activar-licencia', 'concepto-vencimiento-renovacion'],
+    items: [
+      {
+        key: 'concepto-plan-gratuito',
+        titulo: 'Plan Gratuito',
+        tipo: 'concepto',
+        definicion: 'Plan sin costo para seguir operando después de la prueba. Incluye 1 usuario con acceso completo, hasta 500 productos activos y los módulos de ventas, caja y stock.',
+        relacionados: ['concepto-prueba-gratuita'],
+      },
+      {
+        key: 'concepto-plan-basica',
+        titulo: 'Plan Básica',
+        tipo: 'concepto',
+        definicion: 'Plan de pago mensual ($32.500) con hasta 3 usuarios, hasta 1000 productos activos y todos los módulos habilitados.',
+        relacionados: ['concepto-activar-licencia'],
+      },
+      {
+        key: 'concepto-plan-maxima',
+        titulo: 'Plan Máxima',
+        tipo: 'concepto',
+        definicion: 'Plan de pago mensual ($39.990) con usuarios ilimitados, hasta 10000 productos activos, verificación instantánea de pagos de MercadoPago y soporte prioritario.',
+        relacionados: ['concepto-cobro-qr', 'concepto-activar-licencia'],
+      },
+      {
+        key: 'concepto-prueba-gratuita',
+        titulo: 'Prueba gratuita',
+        tipo: 'concepto',
+        definicion: 'Período de 7 días con plan Máxima que arranca al registrarte en la aplicación. Al vencer, el comercio pasa a plan Gratuito y sigue operando sin bloqueo, con el límite de 500 productos.',
+        relacionados: ['concepto-plan-gratuito'],
+      },
+      {
+        key: 'concepto-activar-licencia',
+        titulo: 'Activar licencia',
+        tipo: 'concepto',
+        definicion: 'Proceso para dejar activada una licencia de pago en tu instalación: se compra en vendeto.com.ar con el mismo mail del registro y luego se activa con "Buscar licencia" en la aplicación.',
+        relacionados: ['concepto-vencimiento-renovacion', 'modulo-suscripcion'],
+        manual: [
+          {
+            titulo: 'Primer pago (contratar)',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Entrá a vendeto.com.ar y elegí la suscripción (Básica o Máxima).',
+                  'Completá el pago e ingresá el mismo mail con el que te registraste en la aplicación.',
+                  'No es necesario que sea el mismo mail que la cuenta de MercadoPago con la que pagás: puede ser distinto.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Activar en la aplicación',
+            bloques: [
+              {
+                tipo: 'pasos',
+                items: [
+                  'Con el pago aprobado, en la aplicación tocá "Buscar licencia" (en la pantalla de login o en Configuración → Perfil).',
+                  'Ingresá el mismo mail del registro.',
+                  'La licencia se vincula a esa instalación y se activan los límites del plan.',
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Renovar',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'La renovación se puede hacer de dos formas:',
+              },
+              {
+                tipo: 'lista',
+                items: [
+                  'Desde vendeto.com.ar: volvé a pagar el plan con el mismo mail. Se extiende la misma licencia, no se crea una nueva.',
+                  'Desde el banner del encabezado: el aviso de vencimiento de la prueba o licencia (aparece con 3 días o menos restantes) lleva directo a renovar.',
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'concepto-vencimiento-renovacion',
+        titulo: 'Vencimiento y renovación',
+        tipo: 'concepto',
+        definicion: 'Reglas de vencimiento de la licencia: cada pago extiende la licencia 30 días, hay 48 horas de gracia y, pasada la gracia, un plan pago vencido bloquea el acceso. El banner del encabezado avisa los días restantes.',
+        relacionados: ['concepto-activar-licencia'],
+        manual: [
+          {
+            titulo: 'Cómo funciona',
+            bloques: [
+              {
+                tipo: 'tabla',
+                columnas: ['Momento', 'Qué pasa'],
+                filas: [
+                  ['Pago aprobado', 'La licencia se extiende 30 días desde su vencimiento vigente (o desde hoy si ya estaba vencida).'],
+                  ['Vence la licencia paga', 'Empieza un período de gracia de 48 horas en el que se sigue operando.'],
+                  ['Pasada la gracia', 'El acceso se bloquea hasta renovar. La prueba gratuita no bloquea: al vencer pasa a plan Gratuito.'],
+                ],
+              },
+            ],
+          },
+          {
+            titulo: 'Aviso y renovación',
+            bloques: [
+              {
+                tipo: 'parrafo',
+                texto: 'Cuando faltan 3 días o menos, en el encabezado aparece un banner que indica los días restantes (o "prueba — vence en X días"). Ese banner lleva directo a renovar en vendeto.com.ar.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    manual: [
+      {
+        titulo: 'Los planes',
+        bloques: [
+          {
+            tipo: 'tabla',
+            columnas: ['Plan', 'Precio', 'Usuarios', 'Productos', 'Módulos'],
+            filas: [
+              ['Gratuito', '$0 / mes', '1 usuario con acceso completo', 'Hasta 500', 'Ventas, caja y stock.'],
+              ['Básica', '$32.500 / mes', 'Hasta 3 usuarios', 'Hasta 1000', 'Todos los módulos.'],
+              ['Máxima', '$39.990 / mes', 'Usuarios ilimitados', 'Hasta 10000', 'Todos los módulos + MercadoPago con verificación instantánea de pagos y soporte prioritario.'],
+            ],
+          },
+        ],
+      },
+      {
+        titulo: 'Qué pasa cuando vence cada plan',
+        bloques: [
+          {
+            tipo: 'tabla',
+            columnas: ['Situación', 'Qué pasa'],
+            filas: [
+              ['Vence la prueba gratuita (7 días)', 'Se pasa a plan Gratuito y se sigue operando sin bloqueo (ventas, caja y stock). Los productos se recortan a 500.'],
+              ['Vence un plan pago (Básica o Máxima)', 'Primero hay 48 horas de gracia en las que se sigue operando. Pasada la gracia, el acceso se bloquea hasta renovar.'],
+            ],
+          },
+        ],
+      },
+      {
+        titulo: 'Preguntas frecuentes',
+        bloques: [
+          {
+            tipo: 'faq',
+            preguntas: [
+              {
+                pregunta: '¿Cómo empiezo?',
+                respuesta: 'Al registrarte en la aplicación se inicia una prueba gratuita de 7 días con el plan Máxima.',
+              },
+              {
+                pregunta: '¿Puedo seguir usando Vendeto sin pagar?',
+                respuesta: 'Sí. Al vencer la prueba pasás a plan Gratuito: ventas, caja y stock, hasta 500 productos.',
+              },
+              {
+                pregunta: '¿Qué pasa si no renuevo un plan pago?',
+                respuesta: 'Tenés 48 horas de gracia y después el acceso se bloquea hasta que renueves.',
+              },
+            ],
+          },
+        ],
       },
     ],
   },

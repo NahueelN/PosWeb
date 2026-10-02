@@ -10,9 +10,10 @@ import Dialog from '../components/ui/Dialog'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import MontoInput from '../components/shared/MontoInput'
 import TicketResultado from './venta/TicketResultado'
+import TransferenciaEspera from './venta/TransferenciaEspera'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Search, Plus, X, Minus, Printer, Trash2, Pencil, Check, Undo2, UtensilsCrossed, Banknote, ArrowRightLeft, RefreshCw, ChevronRight, GripVertical, CreditCard, Smartphone, QrCode, HelpCircle } from 'lucide-react'
-import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda } from '../types'
+import type { MesaDto, SesionMesaDto, ItemComandaDto, MedioPagoDto, VentaResultadoDto, ProductoDto, ComboDto, ClienteDto, GrupoComanda, MercadoPagoEstadoDto } from '../types'
 
 const GRUPOS_COMANDA: GrupoComanda[] = ['Entrada', 'Principal', 'Postre', 'Otros']
 const TAMANO_BASE_MESA = 112
@@ -252,7 +253,7 @@ export default function MesasPage() {
     const pendientes = sesion.items.filter(i => i.estado === 'Pendiente')
     if (pendientes.length === 0) { notifyError('No hay items pendientes para enviar'); return }
     try {
-      for (const it of pendientes) await api.restaurante.cambiarEstadoItem(it.id, 'EnCocina')
+      await api.restaurante.cambiarEstadoItems(pendientes.map(i => i.id), 'EnCocina')
       await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), pendientes)
       await cargar()
     } catch (e: unknown) {
@@ -272,7 +273,7 @@ export default function MesasPage() {
     const pendientes = sesion.items.filter(i => i.grupo === grupo && i.estado === 'Pendiente')
     if (pendientes.length === 0) { notifyError('No hay items pendientes en este grupo'); return }
     try {
-      for (const it of pendientes) await api.restaurante.cambiarEstadoItem(it.id, 'EnCocina')
+      await api.restaurante.cambiarEstadoItems(pendientes.map(i => i.id), 'EnCocina')
       await imprimirComanda(sesion.mesaNumero || String(sesion.mesaId), pendientes, grupo)
       await cargar()
     } catch (e: unknown) {
@@ -294,6 +295,7 @@ export default function MesasPage() {
   async function moverItemGrupo(itemId: number, grupo: GrupoComanda) {
     const item = sesionSeleccionada?.items.find(i => i.id === itemId)
     if (!item || item.grupo === grupo) return
+    if (item.estado !== 'Pendiente') { notifyError('Solo se puede mover de grupo un item que aún no se envió a cocina'); return }
     try {
       await api.restaurante.actualizarItem(itemId, { cantidad: item.cantidad, nota: item.nota ?? undefined, grupo })
       setSesiones(prev => prev.map(s => {
@@ -1887,15 +1889,63 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
   const [cobrando, setCobrando] = useState(false)
   const [prevSesion, setPrevSesion] = useState<SesionMesaDto | null>(sesion)
 
+  // Pago pendiente (QR/transferencia): la mesa queda ocupada hasta confirmar el pago.
+  const [pendiente, setPendiente] = useState<{ ventaId: number; qrData?: string | null } | null>(null)
+  const [mpEstado, setMpEstado] = useState<MercadoPagoEstadoDto | null>(null)
+  const [verificacionInstantanea, setVerificacionInstantanea] = useState(false)
+  const [tiempoRestante, setTiempoRestante] = useState(600)
+  const [mpConfirmando, setMpConfirmando] = useState(false)
+
   if (sesion !== prevSesion) {
     setPrevSesion(sesion)
     setMonto((sesion?.total ?? 0).toFixed(2))
+    setPendiente(null)
+    setTiempoRestante(600)
   }
 
   useEffect(() => {
     if (!sesion) return
     api.clientes.listar('', 1, 50).then(r => setClientes(r.items)).catch(() => {})
   }, [sesion])
+
+  useEffect(() => {
+    api.mercadopago.estado().then(setMpEstado).catch(() => setMpEstado(null))
+    api.licencia.resumen().then(r => setVerificacionInstantanea(r.plan === 'Maxima')).catch(() => setVerificacionInstantanea(false))
+  }, [])
+
+  // Cuenta regresiva de la espera del pago.
+  useEffect(() => {
+    if (!pendiente) return
+    const timer = setInterval(() => {
+      setTiempoRestante(t => {
+        if (t <= 1) { clearInterval(timer); return 0 }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [pendiente])
+
+  // Al agotarse el tiempo se cancela la venta pendiente (la mesa conserva sus items).
+  useEffect(() => {
+    if (!pendiente || tiempoRestante > 0) return
+    void (async () => {
+      try { await api.ventas.cancelarPendiente(pendiente.ventaId, true) } catch { /* ignore */ }
+      setPendiente(null)
+      notifyError('Tiempo de espera agotado.')
+    })()
+  }, [tiempoRestante, pendiente, notifyError])
+
+  // Verificación automática del pago (plan Máxima).
+  useEffect(() => {
+    if (!pendiente) return
+    const poll = setInterval(async () => {
+      try {
+        const res = await api.ventas.estado(pendiente.ventaId)
+        if (res.estado === 'Completada') { clearInterval(poll); void confirmarPendiente() }
+      } catch { /* ignore */ }
+    }, 3000)
+    return () => clearInterval(poll)
+  }, [pendiente]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const medio = mediosPago.find(m => m.id === medioId)
 
@@ -1907,13 +1957,54 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
     5: <QrCode size={16} strokeWidth={1.75} />,
   }
 
+  async function confirmarPendiente() {
+    if (!pendiente) return
+    setMpConfirmando(true)
+    try {
+      const res = await api.ventas.confirmarTransferencia(pendiente.ventaId)
+      setPendiente(null)
+      onCobrado(res)
+    } catch (e: unknown) {
+      notifyError(errorMessage(e, 'No se pudo confirmar el pago'))
+    } finally {
+      setMpConfirmando(false)
+    }
+  }
+
+  async function cancelarPendiente(esTimeout = false) {
+    if (!pendiente) return
+    try { await api.ventas.cancelarPendiente(pendiente.ventaId, esTimeout) } catch { /* ignore */ }
+    setPendiente(null)
+  }
+
   async function cobrar() {
     if (!sesion) return
+    const esPendiente = medioId === 4 || medioId === 5
+    if (esPendiente) {
+      setCobrando(true)
+      try {
+        const res = await api.restaurante.cobrar(sesion.id, {
+          clienteId: clienteId ?? undefined,
+          esperarTransferencia: true,
+          pendienteMedioId: medioId,
+        })
+        setPendiente({ ventaId: res.ventaId, qrData: res.qrData })
+        setTiempoRestante(600)
+      } catch (e: unknown) {
+        notifyError(errorMessage(e, 'No se pudo iniciar el cobro'))
+      } finally {
+        setCobrando(false)
+      }
+      return
+    }
     if (montoNum <= 0) { notifyError('Monto inválido'); return }
     if (montoNum < sesion.total && !clienteId) { notifyError('Si el pago es menor al total, elegí un cliente (genera deuda)'); return }
     setCobrando(true)
     try {
-      const pago: { medioPagoId: number; monto: number; conCambio?: number } = { medioPagoId: medioId, monto: montoNum }
+      const pago: { medioPagoId: number; monto: number; conCambio?: number } = {
+        medioPagoId: medioId,
+        monto: montoNum < sesion.total ? montoNum : sesion.total,
+      }
       if (medio?.pagaVuelto && montoNum > sesion.total) pago.conCambio = montoNum
       const res = await api.restaurante.cobrar(sesion.id, { pagos: [pago], clienteId: clienteId ?? undefined })
       onCobrado(res)
@@ -1922,6 +2013,22 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
     } finally {
       setCobrando(false)
     }
+  }
+
+  if (pendiente && sesion) {
+    return (
+      <TransferenciaEspera
+        total={sesion.total}
+        mpEstado={mpEstado}
+        tiempoRestante={tiempoRestante}
+        onConfirmar={() => void confirmarPendiente()}
+        onCancelar={() => void cancelarPendiente(false)}
+        loading={mpConfirmando}
+        modoQr={medioId === 5}
+        qrData={pendiente.qrData ?? null}
+        verificacionInstantanea={verificacionInstantanea}
+      />
+    )
   }
 
   return (

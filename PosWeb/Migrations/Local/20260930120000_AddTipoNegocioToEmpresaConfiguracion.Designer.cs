@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PosWeb.Data;
 
@@ -10,9 +11,11 @@ using PosWeb.Data;
 namespace PosWeb.Migrations.Local
 {
     [DbContext(typeof(PosDbContextLocal))]
-    partial class PosDbContextLocalModelSnapshot : ModelSnapshot
+    [Migration("20260930120000_AddTipoNegocioToEmpresaConfiguracion")]
+    partial class AddTipoNegocioToEmpresaConfiguracion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.13");
@@ -1392,14 +1395,6 @@ namespace PosWeb.Migrations.Local
                         .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("MP_USER_ID");
-
-                    b.Property<string>("MP_NOMBRE_TITULAR")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("MP_NOMBRE_TITULAR");
-
-                    b.Property<string>("MP_ALIAS")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("MP_ALIAS");
 
                     b.Property<bool>("MP_VINCULADO")
                         .ValueGeneratedOnAdd()
