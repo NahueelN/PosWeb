@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import CartHost from '../CartHost'
 import { useCart } from '../../../hooks/useCart'
@@ -129,5 +131,39 @@ describe('CartHost', () => {
     }
     renderWithRouter(<TestWithItems />)
     expect(screen.getByText('Test Item')).toBeInTheDocument()
+  })
+
+  it('returns focus to the product search after clearing the cart', async () => {
+    const user = userEvent.setup()
+
+    const TestWithSearch = () => {
+      const configRef = useRef<ReturnType<typeof setupCart> | null>(null)
+      const searchInputRef = useRef<HTMLInputElement>(null)
+      if (!configRef.current) {
+        configRef.current = setupCart()
+        configRef.current.config.storage.setItem(configRef.current.config.storageKey, JSON.stringify([
+          { id: 1, cantidad: 1, precio: 100, nombre: 'Test Item' },
+        ]))
+      }
+      const cart = useCart<TestItem>(configRef.current.config)
+
+      return (
+        <CartHost<TestItem>
+          cart={cart}
+          confirmLabel="Confirmar"
+          onConfirm={vi.fn()}
+          searchInputRef={searchInputRef}
+          getItemProps={(item) => ({ nombre: item.nombre, precioUnitario: `$${item.precio}`, subtotal: `$${item.precio}`, cantidad: item.cantidad, onCantidadChange: () => {}, onRemove: () => {} })}
+        >
+          <input ref={searchInputRef} aria-label="Buscar productos" />
+        </CartHost>
+      )
+    }
+
+    renderWithRouter(<TestWithSearch />)
+    await user.click(screen.getByRole('button', { name: 'Vaciar carrito' }))
+    await user.click(screen.getByRole('button', { name: 'Vaciar', exact: true }))
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Buscar productos' })).toHaveFocus())
   })
 })

@@ -150,6 +150,12 @@ export default function CartHost<T extends CartItemBase>({
     setTimeout(nextAfterMonto, 0)
   }
 
+  const handleClearCart = () => {
+    cart.clearCart()
+    setShowClearConfirm(false)
+    setTimeout(() => searchInputRef?.current?.focus(), 0)
+  }
+
   const displayTitle = title ?? (cart.items.length > 0 ? `Productos (${cart.items.length})` : 'Productos')
   const leftContent = pageShell ? (
     <PageShell title={pageShell.title} subtitle={pageShell.subtitle} caja={pageShell.caja} helpKey={pageShell.helpKey}>
@@ -228,7 +234,7 @@ export default function CartHost<T extends CartItemBase>({
         footer={
           <>
             <Button variant="secondary" size="md" onClick={() => setShowClearConfirm(false)}>Cancelar</Button>
-            <Button variant="destructive" size="md" onClick={() => { cart.clearCart(); setShowClearConfirm(false) }}>Vaciar</Button>
+            <Button variant="destructive" size="md" onClick={handleClearCart}>Vaciar</Button>
           </>
         }
       />
