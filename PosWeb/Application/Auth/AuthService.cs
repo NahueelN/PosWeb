@@ -66,6 +66,11 @@ public class AuthService
             throw new CredencialesInvalidasException();
         }
 
+        if (!usuario.EsEmailConfirmado())
+        {
+            throw new EmailNoConfirmadoException();
+        }
+
         var (token, expires) = _jwtTokenService.GenerarToken(usuario, request.SucursalId);
 
         return new LoginResponseDto
@@ -122,6 +127,11 @@ public class AuthService
             throw new CredencialesInvalidasException();
         }
 
+        if (!usuario.EsEmailConfirmado())
+        {
+            throw new EmailNoConfirmadoException();
+        }
+
         var (token, expires) = _jwtTokenService.GenerarToken(usuario, request.SucursalId);
 
         return new LoginResponseDto
@@ -162,6 +172,7 @@ public class AuthService
             EsTitular = usuario.ES_TITULAR,
             Activo = usuario.ACTIVO,
             PinConfigurado = !string.IsNullOrEmpty(usuario.PIN_HASH),
+            EmailConfirmado = usuario.EsEmailConfirmado(),
         };
     }
 
@@ -283,7 +294,8 @@ public class AuthService
             mail,
             usuarioResponsableId: usuarioResponsableId,
             empresaId: empresaId,
-            esTitular: esTitular);
+            esTitular: esTitular,
+            emailConfirmado: false);
 
         _context.Usuario.Add(nuevoUsuario);
         _context.SaveChanges();
@@ -335,8 +347,22 @@ public class AuthService
             Rol = nuevoUsuario.ROL,
             UsuarioResponsableId = nuevoUsuario.ID_USUARIO_RESP,
             EsTitular = nuevoUsuario.ES_TITULAR,
-            LicenciaEstado = licenciaEstado
+            LicenciaEstado = licenciaEstado,
+            EmailConfirmado = nuevoUsuario.EsEmailConfirmado()
         };
+    }
+
+    /// <summary>
+    /// Envía (o reenvía) el código de confirmación del email al usuario recién registrado.
+    /// Fire-and-forget por diseño: si el envío falla el usuario puede reenviarlo desde el login.
+    /// </summary>
+    public async Task EnviarCodigoConfirmacionAlRegistrar(int idUsuario)
+    {
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == idUsuario);
+        if (usuario == null || usuario.EsEmailConfirmado() || string.IsNullOrWhiteSpace(usuario.MAIL))
+            return;
+
+        await SolicitarConfirmacionEmail(usuario.MAIL);
     }
 
     private void ValidarCupoSuscripcion(string rol, int? currentUserId)
@@ -436,6 +462,20 @@ public class AuthService
     /// </summary>
     public async Task SolicitarRecuperacion(string email)
     {
+        await SolicitarCodigo(email, PasswordResetToken.PropositoReset, "Código para restablecer tu contraseña - Vendeto", HtmlCodigo, TextoCodigo);
+    }
+
+    /// <summary>
+    /// Solicita (o reenvía) el código de confirmación de cuenta. Siempre responde lo mismo
+    /// (anti-enumeración). Aplica el mismo throttle de 1/min por usuario que la recuperación.
+    /// </summary>
+    public async Task SolicitarConfirmacionEmail(string email)
+    {
+        await SolicitarCodigo(email, PasswordResetToken.PropositoConfirmacion, "Confirmá tu email - Vendeto", HtmlCodigoConfirmacion, TextoCodigoConfirmacion);
+    }
+
+    private async Task SolicitarCodigo(string email, string proposito, string asunto, Func<string, string> html, Func<string, string> texto)
+    {
         var mail = email?.Trim().ToLowerInvariant() ?? string.Empty;
 
         if (!MailValido(mail))
@@ -445,19 +485,20 @@ public class AuthService
         if (usuario == null)
             return;
 
-        // Throttle: si ya se generó un código en el último minuto, no se envía otro.
+        // Throttle: si ya se generó un código del mismo propósito en el último minuto, no se envía otro.
         var umbralReintento = DateTime.UtcNow.Subtract(ReintentoMinimo);
         var reciente = _context.PasswordResetToken
             .Any(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && t.PROPOSITO == proposito
                 && !t.USADO
                 && t.EXPIRA_UTC > DateTime.UtcNow
                 && t.CREATED_UTC > umbralReintento);
         if (reciente)
             return;
 
-        // Invalida cualquier token previo del usuario (un solo código vigente).
+        // Invalida cualquier token previo del mismo propósito (un solo código vigente por tipo).
         var previos = _context.PasswordResetToken
-            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO)
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && t.PROPOSITO == proposito && !t.USADO)
             .ToList();
         foreach (var previo in previos)
             previo.MarcarUsado();
@@ -466,16 +507,13 @@ public class AuthService
         var token = new PasswordResetToken(
             usuario.ID_USUARIO,
             BCrypt.Net.BCrypt.HashPassword(codigo),
-            DateTime.UtcNow.Add(CodigoExpiracion));
+            DateTime.UtcNow.Add(CodigoExpiracion),
+            proposito);
 
         _context.PasswordResetToken.Add(token);
         _context.SaveChanges();
 
-        var enviado = await _mailerService.Enviar(
-            mail,
-            "Código para restablecer tu contraseña - Vendeto",
-            HtmlCodigo(codigo),
-            TextoCodigo(codigo));
+        var enviado = await _mailerService.Enviar(mail, asunto, html(codigo), texto(codigo));
 
         // Si el envío falla, el código no llega: se descarta para que el reintento del usuario
         // (que ahora sí recibirá uno) no deje códigos huérfanos acumulados.
@@ -484,6 +522,54 @@ public class AuthService
             token.MarcarUsado();
             _context.SaveChanges();
         }
+    }
+
+    /// <summary>
+    /// Valida el código de confirmación y marca el email del usuario como confirmado.
+    /// Mensajes genéricos para no filtrar si el email o el código existen.
+    /// </summary>
+    public void ConfirmarEmail(string email, string codigo)
+    {
+        var mail = email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (!MailValido(mail) || string.IsNullOrWhiteSpace(codigo))
+            throw new ArgumentException("Código inválido o expirado");
+
+        var usuario = _context.Usuario.FirstOrDefault(u => u.MAIL != null && u.MAIL.ToLower() == mail);
+        if (usuario == null)
+            throw new ArgumentException("Código inválido o expirado");
+
+        if (usuario.EsEmailConfirmado())
+            return;
+
+        var token = _context.PasswordResetToken
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && t.PROPOSITO == PasswordResetToken.PropositoConfirmacion
+                && !t.USADO && t.EXPIRA_UTC > DateTime.UtcNow)
+            .OrderByDescending(t => t.CREATED_UTC)
+            .FirstOrDefault();
+        if (token == null || !token.EsValido())
+            throw new ArgumentException("Código inválido o expirado");
+
+        if (!BCrypt.Net.BCrypt.Verify(codigo, token.TOKEN_HASH))
+        {
+            token.RegistrarIntento();
+            _context.SaveChanges();
+            throw new ArgumentException("Código inválido o expirado");
+        }
+
+        usuario.ConfirmarEmail();
+        token.MarcarUsado();
+
+        // Se invalidan los tokens de confirmación restantes del usuario.
+        var restantes = _context.PasswordResetToken
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && t.PROPOSITO == PasswordResetToken.PropositoConfirmacion && !t.USADO)
+            .ToList();
+        foreach (var t in restantes)
+            t.MarcarUsado();
+
+        _context.SaveChanges();
     }
 
     /// <summary>
@@ -505,7 +591,9 @@ public class AuthService
             throw new ArgumentException("Código inválido o expirado");
 
         var token = _context.PasswordResetToken
-            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO && t.EXPIRA_UTC > DateTime.UtcNow)
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && t.PROPOSITO == PasswordResetToken.PropositoReset
+                && !t.USADO && t.EXPIRA_UTC > DateTime.UtcNow)
             .OrderByDescending(t => t.CREATED_UTC)
             .FirstOrDefault();
         if (token == null || !token.EsValido())
@@ -523,7 +611,8 @@ public class AuthService
 
         // Se invalidan todos los tokens restantes del usuario.
         var restantes = _context.PasswordResetToken
-            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO && !t.USADO)
+            .Where(t => t.ID_USUARIO == usuario.ID_USUARIO
+                && t.PROPOSITO == PasswordResetToken.PropositoReset && !t.USADO)
             .ToList();
         foreach (var t in restantes)
             t.MarcarUsado();
@@ -562,4 +651,15 @@ public class AuthService
         "<p>Usá el siguiente código para restablecer tu contraseña:</p>" +
         $"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px;color:#4f46e5;text-align:center\">{codigo}</p>" +
         "<p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p></div>";
+
+    private static string TextoCodigoConfirmacion(string codigo) =>
+        $"Tu código para confirmar tu email de Vendeto es: {codigo}\n\n" +
+        "Este código expira en 15 minutos. Si no te registraste en Vendeto, ignorá este mensaje.";
+
+    private static string HtmlCodigoConfirmacion(string codigo) =>
+        $"<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:0 auto\">" +
+        "<h2 style=\"color:#1f2937\">Vendeto</h2>" +
+        "<p>Confirmá tu email ingresando el siguiente código:</p>" +
+        $"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px;color:#4f46e5;text-align:center\">{codigo}</p>" +
+        "<p>Expira en 15 minutos. Si no te registraste en Vendeto, ignorá este mensaje.</p></div>";
 }

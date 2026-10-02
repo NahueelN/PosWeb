@@ -68,3 +68,11 @@
 | ADR-mailer-worker-dedicado | RELATED | SERVICE-licensing-worker |
 | ADR-mailer-worker-dedicado | RELATED | ADR-db-hybrid |
 | ADR-mailer-worker-dedicado | EXTENDS | SERVICE-mailer-worker |
+| BUS-confirmacion-email | RELATED | BUS-recuperacion-contrasena |
+| BUS-confirmacion-email | USED_BY | FLOW-confirmacion-email |
+| BUS-confirmacion-email | RESPECTS | ADR-mailer-worker-dedicado |
+| FLOW-confirmacion-email | RESPECTS | BUS-confirmacion-email |
+| FLOW-confirmacion-email | RELATED | FLOW-recuperacion-contrasena |
+| FLOW-confirmacion-email | USES | SERVICE-mailer-worker |
+| FLOW-confirmacion-email | RESPECTS | ADR-mailer-worker-dedicado |
+| BUS-recuperacion-contrasena | RELATED | BUS-confirmacion-email |

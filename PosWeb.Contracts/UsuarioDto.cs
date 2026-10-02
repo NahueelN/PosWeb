@@ -20,4 +20,5 @@ public class UsuarioDto
     public int? MaxAdmins { get; set; }
     public int? MaxUsuarios { get; set; }
     public bool PinConfigurado { get; set; }
+    public bool EmailConfirmado { get; set; }
 }

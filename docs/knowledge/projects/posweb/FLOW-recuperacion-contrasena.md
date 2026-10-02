@@ -84,6 +84,7 @@ MailerWorker → ZeptoMail → email con código de 6 dígitos
 ## Reglas de negocio aplicables
 
 - `BUS-recuperacion-contrasena` (todas sus invariantes).
+- El mecanismo de código es compartido con la confirmación de email (token con `PROPOSITO`); ver `FLOW-confirmacion-email` y `BUS-confirmacion-email`.
 
 ---
 
@@ -107,6 +108,8 @@ RELATIONS:
     target: ADR-mailer-worker-dedicado
   - type: RELATED
     target: FLOW-suscripcion
+  - type: RELATED
+    target: FLOW-confirmacion-email
 ```
 
 ---

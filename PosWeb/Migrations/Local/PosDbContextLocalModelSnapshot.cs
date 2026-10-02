@@ -860,6 +860,12 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("INTENTOS");
 
+                    b.Property<string>("PROPOSITO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PROPOSITO");
+
                     b.Property<string>("TOKEN_HASH")
                         .IsRequired()
                         .HasColumnType("TEXT")
@@ -1528,6 +1534,12 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ACTIVO");
 
+                    b.Property<bool>("EMAIL_CONFIRMADO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true)
+                        .HasColumnName("EMAIL_CONFIRMADO");
+
                     b.Property<bool>("ES_TITULAR")
                         .HasColumnType("INTEGER");
 
@@ -1594,6 +1606,7 @@ namespace PosWeb.Migrations.Local
                         {
                             ID_USUARIO = 1,
                             ACTIVO = true,
+                            EMAIL_CONFIRMADO = true,
                             ES_TITULAR = false,
                             MAIL = "admin@posweb.com",
                             NOMBRE_USUARIO = "admin",

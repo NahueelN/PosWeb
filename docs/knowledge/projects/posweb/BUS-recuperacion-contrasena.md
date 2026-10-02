@@ -50,13 +50,15 @@ Reglas invariantes que debe respetar toda implementación de recuperación de co
 
 7. **Throttle de reenvío**: a lo sumo 1 código por minuto por usuario (`CREATED_UTC` vs reintento mínimo). Previene spam de email.
 
-8. **Invalida tokens previos**: solicitar un nuevo código invalida (marca usado) los anteriores del mismo usuario. Solo hay un código vigente por usuario.
+8. **Invalida tokens previos del mismo propósito**: solicitar un nuevo código invalida (marca usado) los anteriores del mismo `PROPOSITO` del usuario. Solo hay un código vigente por tipo por usuario.
 
 9. **Password mínima de 6 caracteres**: la nueva contraseña valida los mismos criterios que el registro (`Register`).
 
 10. **El envío fallido descarta el token**: si el mailer no responde, el token se marca usado para que el reintento del usuario genere uno nuevo sin dejar códigos huérfanos. El mensaje al usuario es idéntico.
 
 11. **La validación es local**: el mailer solo entrega; nunca valida ni guarda el código. La autoridad de la identidad sigue siendo la SQLite local (coherente con el modelo offline-first y con la confianza en los datos locales).
+
+12. **PROPOSITO aísla los flujos**: la tabla `PASSWORD_RESET_TOKEN` es un mecanismo genérico de código por email. `PROPOSITO` (`reset` | `confirmacion`) separa los flujos: un token de recuperación no confirma un email ni viceversa. Toda consulta filtra por `PROPOSITO`. Ver `BUS-confirmacion-email` para las reglas del flujo de confirmación.
 
 ---
 
@@ -70,6 +72,8 @@ RELATIONS:
     target: FLOW-recuperacion-contrasena
   - type: USES
     target: SERVICE-mailer-worker
+  - type: RELATED
+    target: BUS-confirmacion-email
 ```
 
 ---
@@ -79,3 +83,4 @@ RELATIONS:
 | Fecha | Cambio |
 |-------|--------|
 | 2026-10-02 | Creación |
+| 2026-10-02 | Token genérico con PROPOSITO; invalidación por propósito; relación con BUS-confirmacion-email |

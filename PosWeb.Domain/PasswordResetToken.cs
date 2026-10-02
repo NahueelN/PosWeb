@@ -3,16 +3,23 @@ using System.ComponentModel.DataAnnotations;
 namespace PosWeb.Domain;
 
 /// <summary>
-/// Token de un solo uso para la recuperación de contraseña. Vive solo en la base local
-/// (como el resto de la identidad de PosWeb): el mailer solo envía el código al mailbox;
-/// la validación y el cambio de password son locales.
+/// Token de un solo uso para verificación por email: recuperación de contraseña
+/// (PROPOSITO = "reset") o confirmación de cuenta (PROPOSITO = "confirmacion").
+/// Vive solo en la base local (como el resto de la identidad de PosWeb): el mailer
+/// solo envía el código al mailbox; la validación es local.
 /// </summary>
 public class PasswordResetToken
 {
+    public const string PropositoReset = "reset";
+    public const string PropositoConfirmacion = "confirmacion";
+
     [Key]
     public int ID_TOKEN { get; private set; }
 
     public int ID_USUARIO { get; private set; }
+
+    /// <summary>Para qué se generó: "reset" (contraseña) o "confirmacion" (email).</summary>
+    public string PROPOSITO { get; private set; } = PropositoReset;
 
     /// <summary>Hash del código (BCrypt, como PASSWORD_HASH). Nunca el código en claro.</summary>
     public string TOKEN_HASH { get; private set; } = null!;
@@ -29,9 +36,10 @@ public class PasswordResetToken
 
     protected PasswordResetToken() { }
 
-    public PasswordResetToken(int idUsuario, string tokenHash, DateTime expiraUtc)
+    public PasswordResetToken(int idUsuario, string tokenHash, DateTime expiraUtc, string proposito = PropositoReset)
     {
         ID_USUARIO = idUsuario;
+        PROPOSITO = proposito;
         TOKEN_HASH = tokenHash;
         EXPIRA_UTC = expiraUtc;
         USADO = false;

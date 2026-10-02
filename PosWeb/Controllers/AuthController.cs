@@ -51,6 +51,11 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.Register(request, currentUserId);
+
+            // Fire-and-forget: si el envío falla, el usuario puede reenviar el código desde el login.
+            if (!result.EmailConfirmado)
+                _ = Task.Run(() => _authService.EnviarCodigoConfirmacionAlRegistrar(result.Id));
+
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -93,5 +98,23 @@ public class AuthController : ControllerBase
     {
         _authService.ResetearPassword(request.Email, request.Codigo, request.NuevaPassword);
         return Ok(new { message = "Contraseña actualizada. Ya podés iniciar sesión." });
+    }
+
+    [HttpPost("reenviar-codigo")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public async Task<IActionResult> ReenviarCodigo([FromBody] ForgotPasswordRequestDto request)
+    {
+        await _authService.SolicitarConfirmacionEmail(request.Email);
+
+        // Mensaje genérico deliberado (anti-enumeración): no revela si el email existe ni si ya confirmó.
+        return Ok(new { message = "Si el email está registrado y pendiente de confirmación, recibirás un código." });
+    }
+
+    [HttpPost("confirmar-cuenta")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public IActionResult ConfirmarCuenta([FromBody] ConfirmarEmailRequestDto request)
+    {
+        _authService.ConfirmarEmail(request.Email, request.Codigo);
+        return Ok(new { message = "Email confirmado. Ya podés iniciar sesión." });
     }
 }

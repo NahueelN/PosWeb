@@ -348,6 +348,7 @@ export interface RegisterResponse {
   usuarioResponsableId?: number | null
   empresaId?: number | null
   licenciaEstado?: string | null
+  emailConfirmado?: boolean
 }
 
 export interface ForgotPasswordRequest {
@@ -358,6 +359,11 @@ export interface ResetPasswordRequest {
   email: string
   codigo: string
   nuevaPassword: string
+}
+
+export interface ConfirmarEmailRequest {
+  email: string
+  codigo: string
 }
 
 export interface UsuarioInfo {

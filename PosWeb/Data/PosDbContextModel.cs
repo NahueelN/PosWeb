@@ -196,6 +196,10 @@ public partial class PosDbContext
             entity.Property(u => u.SUSCRIPCION_ACTIVA)
                 .HasColumnName("SUSCRIPCION_ACTIVA");
 
+            entity.Property(u => u.EMAIL_CONFIRMADO)
+                .HasColumnName("EMAIL_CONFIRMADO")
+                .HasDefaultValue(true);
+
             entity.Property(u => u.PIN_HASH)
                 .HasColumnName("PIN_HASH");
 
@@ -1280,6 +1284,11 @@ public partial class PosDbContext
             entity.Property(t => t.ID_USUARIO)
                 .HasColumnName("ID_USUARIO");
 
+            entity.Property(t => t.PROPOSITO)
+                .HasColumnName("PROPOSITO")
+                .HasMaxLength(20)
+                .IsRequired();
+
             entity.Property(t => t.TOKEN_HASH)
                 .HasColumnName("TOKEN_HASH")
                 .IsRequired();
@@ -1336,6 +1345,7 @@ public partial class PosDbContext
                 MAIL = "admin@posweb.com",
                 SUSCRIPCION_ACTIVA = false,
                 ES_TITULAR = false,
+                EMAIL_CONFIRMADO = true,
                 PIN_HASH = (string?)null,
                 ID_USUARIO_RESP = (int?)null,
                 ACTIVO = true

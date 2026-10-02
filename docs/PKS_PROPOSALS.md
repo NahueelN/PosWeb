@@ -540,3 +540,6 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 | 2026-10-02 | BUS-recuperacion-contrasena — Reglas de recuperación de contraseña | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |
 | 2026-10-02 | FLOW-recuperacion-contrasena — Flujo de recuperación de contraseña | `knowledge/projects/posweb/FLOW-recuperacion-contrasena.md` |
 | 2026-10-02 | ADR-mailer-worker-dedicado — Worker dedicado de email + validación local | `knowledge/projects/posweb/ADR-mailer-worker-dedicado.md` |
+| 2026-10-02 | BUS-confirmacion-email — Reglas de confirmación de email de cuenta | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
+| 2026-10-02 | FLOW-confirmacion-email — Flujo de confirmación de email | `knowledge/projects/posweb/FLOW-confirmacion-email.md` |
+| 2026-10-02 | Actualización BUS-recuperacion-contrasena (token genérico con PROPOSITO) | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |

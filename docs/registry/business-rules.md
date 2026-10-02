@@ -13,3 +13,4 @@
 | BUS-limites-planes | Límites de planes (Gratuito/Básico/Máximo) y tope de productos | Active | Project | High | `knowledge/projects/posweb/BUS-limites-planes.md` |
 | BUS-mesa-numero-titulo | Mesa: número numérico obligatorio + título opcional | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-numero-titulo.md` |
 | BUS-recuperacion-contrasena | Password recovery rules | Active | Project | High | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |
+| BUS-confirmacion-email | Email confirmation rules | Active | Project | High | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
