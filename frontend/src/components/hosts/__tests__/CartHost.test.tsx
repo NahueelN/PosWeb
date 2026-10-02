@@ -162,7 +162,7 @@ describe('CartHost', () => {
 
     renderWithRouter(<TestWithSearch />)
     await user.click(screen.getByRole('button', { name: 'Vaciar carrito' }))
-    await user.click(screen.getByRole('button', { name: 'Vaciar', exact: true }))
+    await user.click(screen.getByRole('button', { name: /^Vaciar$/ }))
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Buscar productos' })).toHaveFocus())
   })
