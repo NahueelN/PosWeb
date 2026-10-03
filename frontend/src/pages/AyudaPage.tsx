@@ -275,7 +275,7 @@ export default function AyudaPage() {
   const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
   const detalleRef = useRef<HTMLDivElement>(null)
 
-  const keyActiva = params.get('key') ?? 'modulo-inicio'
+  const keyActiva = params.get('key') ?? 'modulo-primeros-pasos'
   const itemActivo = getAyudaItem(keyActiva) ?? AYUDA_ITEMS[0]
 
   const modulosFiltrados = useMemo<{ modulo: (typeof AYUDA_MODULOS)[number]; coincide: boolean; items: AyudaItem[] }[]>(() => {
@@ -295,16 +295,7 @@ export default function AyudaPage() {
     }).filter(m => m.coincide)
   }, [busqueda])
 
-  // Al buscar, abrir todos los módulos que coinciden para que se vean los resultados.
-  useEffect(() => {
-    if (!busqueda.trim()) return
-    setModulosAbiertos(prev => {
-      const next = { ...prev }
-      modulosFiltrados.forEach(m => { next[m.modulo.key] = true })
-      return next
-    })
-  }, [busqueda, modulosFiltrados])
-
+  // Al buscar, los módulos que coinciden se muestran abiertos para que se vean los resultados.
   useEffect(() => {
     detalleRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }, [keyActiva])
@@ -346,9 +337,10 @@ export default function AyudaPage() {
             {modulosFiltrados.length === 0 && (
               <p className="text-xs text-gray-400 px-2 py-3">Sin resultados</p>
             )}
-            {modulosFiltrados.map(({ modulo, items }) => {
-              const abierto = modulosAbiertos[modulo.key]
-              const hayItems = busqueda.trim() ? items.length > 0 : modulo.items.length > 0
+            {modulosFiltrados.map(({ modulo, items, coincide }) => {
+              const buscando = !!busqueda.trim()
+              const abierto = modulosAbiertos[modulo.key] || (buscando && coincide)
+              const hayItems = buscando ? items.length > 0 : modulo.items.length > 0
               const estaActivo = modulo.key === keyActiva ||
                 modulo.items.some(i => i.key === keyActiva)
               return (

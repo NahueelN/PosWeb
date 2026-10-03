@@ -591,7 +591,7 @@ namespace PosWeb.Migrations.Local
 
                     b.HasKey("Id");
 
-                    b.ToTable("LicenciaConfig");
+                    b.ToTable("LicenciaConfig", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>

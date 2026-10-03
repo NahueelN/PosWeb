@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [regPassword, setRegPassword] = useState('')
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
+  const [regTipoNegocio, setRegTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
   const [registerLoading, setRegisterLoading] = useState(false)
   const [showRecovery, setShowRecovery] = useState(false)
   const [recEmail, setRecEmail] = useState('')
@@ -135,11 +136,13 @@ export default function LoginPage() {
         mail: regMail,
         rol: 'Admin',
         empresaNombre: regEmpresa.trim() || undefined,
+        tipoNegocio: regTipoNegocio,
       })
       setRegUsuario('')
       setRegPassword('')
       setRegMail('')
       setRegEmpresa('')
+      setRegTipoNegocio('Tienda')
       setShowRegister(false)
 
       if (res.emailConfirmado === false) {
@@ -407,6 +410,19 @@ export default function LoginPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Nombre de empresa (opcional)"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
+              <select
+                value={regTipoNegocio}
+                onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              >
+                <option value="Tienda">Tienda</option>
+                <option value="Restaurante">Restaurante (con mesas)</option>
+              </select>
             </div>
 
             <button

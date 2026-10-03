@@ -15,7 +15,6 @@ public class TransferenciaPollingService : BackgroundService
     private readonly ILogger<TransferenciaPollingService> _logger;
     private const int PollingIntervalMs = 5000;
     private const int IdleIntervalMs = 30000;
-    private const decimal ToleranciaMatching = 0.01m;
     private static readonly object LogMutex = new();
     private static DateTime _ultimoLogSinToken = DateTime.MinValue;
     private const int LogSinTokenIntervalMin = 10;
@@ -77,19 +76,20 @@ public class TransferenciaPollingService : BackgroundService
             return false;
         }
 
+        var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
+        var client = httpClientFactory.CreateClient("MercadoPago");
+
         foreach (var venta in ventasPendientes)
         {
             if (ct.IsCancellationRequested) break;
 
-            bool encontrado;
-            if (!string.IsNullOrEmpty(venta.REFERENCIA_MP))
-            {
-                encontrado = await BuscarPorReferencia(token, venta.REFERENCIA_MP, ct);
-            }
-            else
-            {
-                encontrado = await BuscarPagoReciente(token, venta.TOTAL, ct);
-            }
+            // Solo se auto-confirman los cobros QR, que llevan external_reference y se atan
+            // al pago. Las transferencias (sin referencia) se confirman manualmente: el
+            // matching por monto no ata el pago a la venta.
+            if (string.IsNullOrEmpty(venta.REFERENCIA_MP))
+                continue;
+
+            var encontrado = await BuscarPorReferencia(client, token, venta.REFERENCIA_MP, ct);
 
             if (encontrado)
             {
@@ -117,17 +117,15 @@ public class TransferenciaPollingService : BackgroundService
             "MercadoPago: hay ventas pendientes pero el token no está disponible (sin vincular o requiere revincular). Las transferencias esperarán confirmación manual.");
     }
 
-    private static async Task<bool> BuscarPorReferencia(string accessToken, string referencia, CancellationToken ct)
+    private static async Task<bool> BuscarPorReferencia(HttpClient client, string accessToken, string referencia, CancellationToken ct)
     {
         try
         {
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+            var req = new HttpRequestMessage(HttpMethod.Get,
+                $"https://api.mercadopago.com/v1/payments/search?external_reference={Uri.EscapeDataString(referencia)}&status=approved&limit=5");
+            req.Headers.Add("Authorization", $"Bearer {accessToken}");
 
-            var url = $"https://api.mercadopago.com/v1/payments/search?external_reference={Uri.EscapeDataString(referencia)}&status=approved&limit=5";
-
-            var response = await client.GetAsync(url, ct);
+            var response = await client.SendAsync(req, ct);
             if (!response.IsSuccessStatusCode) return false;
 
             var content = await response.Content.ReadAsStringAsync(ct);
@@ -135,48 +133,6 @@ public class TransferenciaPollingService : BackgroundService
 
             if (!doc.TryGetProperty("results", out var results)) return false;
             return results.GetArrayLength() > 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static async Task<bool> BuscarPagoReciente(string accessToken, decimal montoEsperado, CancellationToken ct)
-    {
-        try
-        {
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
-
-            var desde = DateTime.UtcNow.AddMinutes(-10).ToString("o");
-            var hasta = DateTime.UtcNow.ToString("o");
-
-            var url = $"https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&begin_date={Uri.EscapeDataString(desde)}&end_date={Uri.EscapeDataString(hasta)}&status=approved&limit=30";
-
-            var response = await client.GetAsync(url, ct);
-            if (!response.IsSuccessStatusCode) return false;
-
-            var content = await response.Content.ReadAsStringAsync(ct);
-            var doc = JsonSerializer.Deserialize<JsonElement>(content);
-
-            if (!doc.TryGetProperty("results", out var results)) return false;
-
-            var minimo = montoEsperado * (1 - ToleranciaMatching);
-            var maximo = montoEsperado * (1 + ToleranciaMatching);
-
-            foreach (var payment in results.EnumerateArray())
-            {
-                if (payment.TryGetProperty("transaction_amount", out var amountProp) &&
-                    amountProp.TryGetDecimal(out var amount))
-                {
-                    if (amount >= minimo && amount <= maximo)
-                        return true;
-                }
-            }
-
-            return false;
         }
         catch
         {

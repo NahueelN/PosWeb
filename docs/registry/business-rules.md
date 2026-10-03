@@ -14,3 +14,5 @@
 | BUS-mesa-numero-titulo | Mesa: número numérico obligatorio + título opcional | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-numero-titulo.md` |
 | BUS-recuperacion-contrasena | Password recovery rules | Active | Project | High | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |
 | BUS-confirmacion-email | Email confirmation rules | Active | Project | High | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
+| BUS-mesa-cobro | Reglas del cobro de cuenta de mesa (restaurante) | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-cobro.md` |
+| BUS-mp-verificacion | Verificación de pagos MercadoPago (QR automática, transferencia manual) | Active | Project | High | `knowledge/projects/posweb/BUS-mp-verificacion.md` |

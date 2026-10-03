@@ -120,6 +120,47 @@ public class UsuariosController : ControllerBase
         return _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == usuario.ID_USUARIO_RESPONSABLE.Value) ?? usuario;
     }
 
+    [HttpPut("{id:int}/rol")]
+    public IActionResult CambiarRol(int id, [FromBody] CambiarRolRequest request)
+    {
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == id);
+        if (usuario == null)
+        {
+            return NotFound($"El usuario con ID {id} no existe");
+        }
+
+        if (request.Rol != Roles.Admin && request.Rol != Roles.UsuarioComun)
+        {
+            return BadRequest("El rol debe ser Admin o UsuarioComun");
+        }
+
+        if (usuario.ROL == Roles.SuperAdmin)
+        {
+            return BadRequest("No se puede cambiar el rol de un SuperAdmin");
+        }
+
+        if (usuario.ROL == request.Rol)
+        {
+            return Ok(new { id = usuario.ID_USUARIO, rol = usuario.ROL });
+        }
+
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdValue, out var currentUserId) && currentUserId == usuario.ID_USUARIO)
+        {
+            return BadRequest("No podés cambiar tu propio rol");
+        }
+
+        if (usuario.ES_TITULAR && request.Rol != Roles.Admin)
+        {
+            return BadRequest("El titular de la suscripción no puede dejar de ser administrador");
+        }
+
+        usuario.CambiarRol(request.Rol);
+        _context.SaveChanges();
+
+        return Ok(new { id = usuario.ID_USUARIO, rol = usuario.ROL });
+    }
+
     [HttpDelete("{id:int}")]
     public IActionResult Desactivar(int id)
     {
@@ -210,3 +251,4 @@ public class UsuariosController : ControllerBase
 }
 
 public record CambiarSuscripcionRequest(bool Activa);
+public record CambiarRolRequest(string Rol);

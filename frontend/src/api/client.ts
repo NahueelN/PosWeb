@@ -401,6 +401,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ activa }),
     }),
+    cambiarRol: (id: number, rol: 'Admin' | 'UsuarioComun') => request<{ id: number; rol: string }>(`/usuarios/${id}/rol`, {
+      method: 'PUT',
+      body: JSON.stringify({ rol }),
+    }),
   },
 
   // Cajas
@@ -697,6 +701,10 @@ export const api = {
   mercadopago: {
     authUrl: () => request<{ url: string }>('/mercadopago/auth-url'),
     estado: () => request<MercadoPagoEstadoDto>('/mercadopago/estado'),
+    setAlias: (alias: string) => request<{ alias?: string | null }>('/mercadopago/alias', {
+      method: 'PUT',
+      body: JSON.stringify({ alias: alias.trim() || null }),
+    }),
     desvincular: () => request<{ vinculado: boolean }>('/mercadopago/desvincular', {
       method: 'POST',
     }),
@@ -710,9 +718,9 @@ export const api = {
   // Restaurante (mesas)
   restaurante: {
     config: () => request<RestauranteConfigDto>('/restaurante/config'),
-    setConfig: (habilitado: boolean) => request<RestauranteConfigDto>('/restaurante/config', {
+    setConfig: (tipoNegocio: 'Tienda' | 'Restaurante') => request<RestauranteConfigDto>('/restaurante/config', {
       method: 'PUT',
-      body: JSON.stringify({ habilitado }),
+      body: JSON.stringify({ tipoNegocio }),
     }),
 
     listarMesas: (sucursalId: number) =>
@@ -755,6 +763,12 @@ export const api = {
       request<void>(`/restaurante/items/${itemId}/estado`, {
         method: 'PUT',
         body: JSON.stringify({ estado }),
+      }),
+
+    cambiarEstadoItems: (items: number[], estado: string) =>
+      request<{ actualizados: number }>(`/restaurante/items/estado-batch`, {
+        method: 'PUT',
+        body: JSON.stringify({ items, estado }),
       }),
 
     unificar: (desde: number, hacia: number) =>
