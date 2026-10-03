@@ -122,7 +122,7 @@ export default function ConfiguracionPage() {
     notifySuccess(v === '' ? 'Ahora se preguntará cada vez' : 'Preferencia de mail guardada')
   }
 
-const handleWhatsAppPrefChange = (value: string) => {
+  const handleWhatsAppPrefChange = (value: string) => {
     const v = value as WhatsAppMethod | ''
     setWhatsappPref(v)
     persistWhatsAppPref(v === '' ? null : v)

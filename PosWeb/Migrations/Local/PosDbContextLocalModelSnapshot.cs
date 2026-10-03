@@ -439,6 +439,11 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("MODULO_RESTAURANTE");
 
+                    b.Property<string>("TIPO_NEGOCIO")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TIPO_NEGOCIO");
+
                     b.HasKey("ID_EMPRESA");
 
                     b.ToTable("EMPRESA_CONFIGURACION", (string)null);
@@ -1432,6 +1437,14 @@ namespace PosWeb.Migrations.Local
                         .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("MP_USER_ID");
+
+                    b.Property<string>("MP_NOMBRE_TITULAR")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_NOMBRE_TITULAR");
+
+                    b.Property<string>("MP_ALIAS")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MP_ALIAS");
 
                     b.Property<bool>("MP_VINCULADO")
                         .ValueGeneratedOnAdd()
