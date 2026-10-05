@@ -66,8 +66,9 @@ public class LicenciaController : ControllerBase
             Activa = local?.Activa ?? false,
             Plan = local == null ? "" : _licenciaService.ObtenerNivelActual(),
             Estado = local?.Estado ?? "",
+            NextBilling = local?.NextBilling,
             DaysRemaining = local?.NextBilling.HasValue == true
-                ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
+                ? (int)Math.Ceiling((local.NextBilling.Value - DateTime.UtcNow).TotalDays)
                 : null,
             GraceHasta = local?.GraceHastaEfectivo,
         });
@@ -104,7 +105,7 @@ public class LicenciaController : ControllerBase
             GraceHasta = licencia.GraceHastaEfectivo,
             NextBilling = licencia.NextBilling,
             DaysRemaining = licencia.NextBilling.HasValue
-                ? (int)(licencia.NextBilling.Value - DateTime.UtcNow).TotalDays
+                ? (int)Math.Ceiling((licencia.NextBilling.Value - DateTime.UtcNow).TotalDays)
                 : null,
             MaxSucursales = limites.maxSucursales,
             MaxAdmins = limites.maxAdmins,

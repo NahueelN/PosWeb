@@ -921,6 +921,7 @@ export interface LicenciaResumen {
   activa: boolean
   plan: string
   estado: string
+  nextBilling: string | null
   daysRemaining: number | null
   graceHasta: string | null
 }

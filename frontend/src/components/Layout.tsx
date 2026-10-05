@@ -231,20 +231,42 @@ export default function Layout() {
   }, []);
 
   const licBadge = (() => {
-    if (!licResumen?.activa || licResumen.daysRemaining == null || licResumen.daysRemaining > 3) return null
-    if (licResumen.daysRemaining <= 0) {
-      const hours = licResumen.graceHasta
-        ? Math.max(0, Math.ceil((new Date(licResumen.graceHasta).getTime() - Date.now()) / 3600000))
-        : 0
+    if (!licResumen?.activa || !licResumen.nextBilling) return null
+
+    const HORA = 3600000
+    const DIA = 24 * HORA
+    const now = Date.now()
+    const nextBilling = new Date(licResumen.nextBilling).getTime()
+    const esTrial = licResumen.estado === 'trial'
+
+    // La prueba gratuita no se revoca: al vencer pasa al plan Gratuito. Solo se avisa el cierre.
+    if (esTrial) {
+      if (nextBilling - now > 3 * DIA) return null
+      const dias = Math.max(0, Math.ceil((nextBilling - now) / DIA))
+      return {
+        text: `Prueba — vence en ${dias} ${dias === 1 ? 'día' : 'días'}`,
+        tone: 'warn' as const,
+      }
+    }
+
+    // Vencida de verdad: recién cuando pasó el vencimiento (ventana de gracia de 48h).
+    // Antes se disparaba con menos de 24h restantes por truncar los días a entero.
+    if (nextBilling <= now) {
+      const graceHasta = licResumen.graceHasta
+        ? new Date(licResumen.graceHasta).getTime()
+        : nextBilling + 48 * HORA
+      const hours = Math.max(0, Math.ceil((graceHasta - now) / HORA))
       return {
         text: `Tu licencia está vencida, renovala o tu acceso será revocado en ${hours} horas`,
         tone: 'expired' as const,
       }
     }
+
+    // Vigente: aviso en los últimos 3 días, contando el día parcial (sin truncar).
+    const dias = Math.ceil((nextBilling - now) / DIA)
+    if (dias > 3) return null
     return {
-      text: licResumen.estado === 'trial'
-        ? `Prueba — vence en ${licResumen.daysRemaining} días`
-        : `Vence en ${licResumen.daysRemaining} días`,
+      text: `Vence en ${dias} ${dias === 1 ? 'día' : 'días'}`,
       tone: 'warn' as const,
     }
   })()

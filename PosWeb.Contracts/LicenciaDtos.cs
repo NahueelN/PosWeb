@@ -59,7 +59,10 @@ public class LicenciaResumenDto
     /// <summary>Estado actual de la licencia (permite detectar la prueba gratuita).</summary>
     public string Estado { get; set; } = string.Empty;
 
-    /// <summary>Días restantes hasta el vencimiento.</summary>
+    /// <summary>Fecha del próximo vencimiento (UTC). Null si no aplica (p. ej. plan Gratuito).</summary>
+    public DateTime? NextBilling { get; set; }
+
+    /// <summary>Días restantes hasta el vencimiento (redondeo hacia arriba; 0 o negativo si ya venció).</summary>
     public int? DaysRemaining { get; set; }
 
     /// <summary>Fecha límite del período de gracia (UTC). Null si no aplica.</summary>
