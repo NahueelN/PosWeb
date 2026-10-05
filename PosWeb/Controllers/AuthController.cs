@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using PosWeb.Application.Auth;
 using PosWeb.Contracts;
 using PosWeb.Domain;
@@ -11,10 +12,12 @@ namespace PosWeb.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, IServiceScopeFactory scopeFactory)
     {
         _authService = authService;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpPost("login")]
@@ -53,8 +56,16 @@ public class AuthController : ControllerBase
             var result = await _authService.Register(request, currentUserId);
 
             // Fire-and-forget: si el envío falla, el usuario puede reenviar el código desde el login.
+            // Se crea un scope propio porque el DbContext del request se dispone al terminar la acción.
             if (!result.EmailConfirmado)
-                _ = Task.Run(() => _authService.EnviarCodigoConfirmacionAlRegistrar(result.Id));
+            {
+                _ = Task.Run(async () =>
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var authService = scope.ServiceProvider.GetRequiredService<AuthService>();
+                    await authService.EnviarCodigoConfirmacionAlRegistrar(result.Id);
+                });
+            }
 
             return Ok(result);
         }
