@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { Package } from 'lucide-react'
 
 interface Props {
   searchQuery: string
@@ -10,6 +11,10 @@ interface Props {
   searchInputRef?: React.RefObject<HTMLInputElement | null>
   /** Llamado al presionar Enter con texto o pegar un código de barras */
   onBarcodeLookup?: (codigo: string) => void
+  /** Muestra u oculta los productos empaque/bulto */
+  showEmpaques?: boolean
+  /** Alterna la visibilidad de los empaques */
+  onToggleEmpaques?: (value: boolean) => void
 }
 
 function isEan(codigo: string): boolean {
@@ -37,6 +42,8 @@ export default function ProductCardPanel({
   searchPlaceholder = 'Buscá producto por código de barra o nombre…',
   searchInputRef: externalSearchRef,
   onBarcodeLookup,
+  showEmpaques = false,
+  onToggleEmpaques,
 }: Props) {
   const internalSearchRef = useRef<HTMLInputElement>(null!)
   const gridRef = useRef<HTMLDivElement>(null!)
@@ -109,7 +116,8 @@ export default function ProductCardPanel({
   return (
     <div className="space-y-4">
       {/* Search bar */}
-      <div className="relative">
+      <div className="flex items-stretch gap-2">
+      <div className="relative flex-1">
         <svg
           className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -157,6 +165,22 @@ export default function ProductCardPanel({
             </svg>
           </button>
         )}
+      </div>
+      {onToggleEmpaques && (
+        <button
+          type="button"
+          onClick={() => onToggleEmpaques(!showEmpaques)}
+          title={showEmpaques ? 'Ocultar empaques' : 'Mostrar empaques'}
+          className={`shrink-0 px-4 rounded-xl border flex items-center gap-2 text-sm font-medium transition-colors ${
+            showEmpaques
+              ? 'bg-indigo-600 border-indigo-600 text-white'
+              : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+          }`}
+        >
+          <Package size={18} strokeWidth={2} />
+          Empaques
+        </button>
+      )}
       </div>
 
       {/* Keyboard hints */}

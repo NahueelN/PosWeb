@@ -12,6 +12,7 @@ import { useNotification } from '../context/NotificationContext'
 import BarcodePrintDialog from './BarcodePrintDialog'
 import LabelPrintDialog from './LabelPrintDialog'
 import VencimientosProductoModal from './VencimientosProductoModal'
+import { esCodigoBarraCompleto } from '../lib/codigoBarra'
 
 function FieldSection({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
@@ -344,8 +345,14 @@ export default function ProductFormModal({
   useEffect(() => {
     api.categorias.listar().then(setCategorias).catch(() => {})
     api.unidadesMedida.listar().then(setUnidades).catch(() => {})
-    api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
   }, [])
+
+  // Refrescar los productos unidad cada vez que se abre el modal,
+  // para incluir los recién creados y poder seleccionarlos en un bulto.
+  useEffect(() => {
+    if (!open) return
+    api.productos.listar(undefined, undefined).then(ps => setProductosBulto(ps.filter(p => !p.esBulto))).catch(() => {})
+  }, [open])
 
   // Días de anticipación configurados por el usuario (para el aviso de vencimiento)
   useEffect(() => {
@@ -501,7 +508,17 @@ export default function ProductFormModal({
     return () => clearTimeout(timer)
   }, [open, context, codigoBarra, nombre, marca, contenido, precio, costo, stock, categoriaId, unidadMedidaId, descripcion, margen, esPesable, esBulto, productoBultoId, editingProduct, prefillData, initialCodigo])
 
-  // Barcode uniqueness check (debounced)
+  async function verificarCodigoExistente(codigo: string) {
+    try {
+      const existing = await api.productos.obtenerPorBarra(codigo)
+      setBarcodeStatus(existing ? 'taken' : 'available')
+    } catch {
+      setBarcodeStatus('available')
+    }
+  }
+
+  // Barcode uniqueness check (debounced) — solo códigos numéricos completos.
+  // Los no numéricos se validan al pegar o al salir del campo (ver onPasteCapture/onBlur).
   useEffect(() => {
     const codigo = codigoBarra.trim()
     if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
@@ -509,21 +526,18 @@ export default function ProductFormModal({
       setBarcodeStatus('idle')
       return
     }
+    // No consultar mientras se escribe/pega un código parcial: solo con el código completo.
+    if (!esCodigoBarraCompleto(codigo)) {
+      setBarcodeStatus('idle')
+      return
+    }
     setBarcodeStatus('checking')
-    barcodeTimerRef.current = setTimeout(async () => {
-      try {
-        const existing = await api.productos.obtenerPorBarra(codigo)
-        if (existing) setBarcodeStatus('taken')
-        else setBarcodeStatus('available')
-      } catch {
-        setBarcodeStatus('available')
-      }
-    }, 400)
+    barcodeTimerRef.current = setTimeout(() => { void verificarCodigoExistente(codigo) }, 400)
     return () => { if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current) }
   }, [codigoBarra, prefillData])
 
-  async function buscarCodigoEnCatalogo() {
-    const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
+  async function buscarCodigoEnCatalogo(codigoRaw?: string) {
+    const codigo = (codigoRaw ?? codigoBarra).replace(/[\r\n\s]/g, '')
     if (!/^\d{8,14}$/.test(codigo) || isEditing || prefillData?.codigoBarras) return
     if (lookingUpBarcode || lastLookedUpRef.current === codigo) return
 
@@ -600,7 +614,7 @@ export default function ProductFormModal({
     const costoNum = Number(costo)
 
     if (!esBulto && !codigoBarra.trim() && !codigoProducto.trim()) {
-      notifyError('Debe proporcionar código de barras o código personalizado')
+      notifyError('Debe proporcionar código de barras o código interno')
       return
     }
     if (!nombre.trim()) {
@@ -689,8 +703,9 @@ export default function ProductFormModal({
   if (!open) return null
 
   const isReadonlyCodigo = !!(prefillData?.codigoBarras) || isEditing
+  const tieneCodigo = !!codigoBarra.trim() || !!codigoProducto.trim()
   const canSubmit = nombre.trim()
-    && (isEditing || esPesable || esBulto || (barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
+    && (isEditing || esBulto || (tieneCodigo && barcodeStatus !== 'checking' && barcodeStatus !== 'taken'))
 
   return (
     <><Dialog
@@ -746,7 +761,8 @@ export default function ProductFormModal({
               </DialogPrimaryField>
 
               {/* Código de barras + Código interno */}
-              <div className="grid grid-cols-2 gap-1.5 mt-2">
+              <div className={`grid ${esBulto ? 'grid-cols-1' : 'grid-cols-2'} gap-1.5 mt-2`}>
+                {!esBulto && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Código de barras
@@ -765,14 +781,33 @@ export default function ProductFormModal({
                         e.stopPropagation()
                         void buscarCodigoEnCatalogo()
                       }}
+                      onPasteCapture={e => {
+                        if (isEditing || prefillData?.codigoBarras) return
+                        const texto = e.clipboardData.getData('text/plain').trim()
+                        if (!texto) return
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const codigo = /^\d+$/.test(texto) ? texto.replace(/[\r\n\s]/g, '') : texto
+                        setCodigoBarra(codigo)
+                        lastLookedUpRef.current = null
+                        if (/^\d{8,14}$/.test(codigo)) {
+                          void buscarCodigoEnCatalogo(codigo)
+                        } else {
+                          void verificarCodigoExistente(codigo)
+                        }
+                      }}
                       onBlur={() => {
-                        const codigo = codigoBarra.replace(/[\r\n\s]/g, '')
-                        if (/^\d{8,14}$/.test(codigo) && !isEditing && !prefillData?.codigoBarras) {
+                        if (isEditing || prefillData?.codigoBarras) return
+                        const raw = codigoBarra.trim()
+                        if (!raw) return
+                        if (/^\d{8,14}$/.test(raw.replace(/[\r\n\s]/g, ''))) {
                           void buscarCodigoEnCatalogo()
+                        } else if (!/^\d+$/.test(raw)) {
+                          // Los códigos no numéricos no se debouncean: se validan al salir del campo.
+                          void verificarCodigoExistente(raw)
                         }
                       }}
                       readOnly={isReadonlyCodigo}
-                      required
                       data-field="codigoBarra"
                       className={`w-full h-7 px-1.5 border rounded-md text-sm font-mono pr-12 outline-none transition-all duration-150 ${
                         isReadonlyCodigo
@@ -806,6 +841,7 @@ export default function ProductFormModal({
                     <p className="text-[11px] text-green-600 mt-0.5">Código disponible</p>
                   )}
                 </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Código interno
@@ -825,6 +861,11 @@ export default function ProductFormModal({
                   />
                 </div>
               </div>
+              {!esBulto && !codigoBarra.trim() && !codigoProducto.trim() && (
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Completá código de barras o código interno (al menos uno)
+                </p>
+              )}
             </FieldSection>
 
             {/* ── 2. CLASIFICACIÓN Y ATRIBUTOS ── */}
@@ -846,7 +887,14 @@ export default function ProductFormModal({
                   <input
                     type="checkbox"
                     checked={esBulto}
-                    onChange={e => { setEsBulto(e.target.checked); if (e.target.checked) setEsPesable(false) }}
+                    onChange={e => {
+                      setEsBulto(e.target.checked)
+                      if (e.target.checked) {
+                        setEsPesable(false)
+                        setCodigoBarra('')
+                        setBarcodeStatus('idle')
+                      }
+                    }}
                     data-field="esBulto"
                     disabled={esPesable || isEditing}
                     className="w-3.5 h-3.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary-ring)] transition-shadow disabled:opacity-40"
