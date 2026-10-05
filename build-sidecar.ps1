@@ -52,3 +52,9 @@ $size = (Get-Item $targetExe).Length / 1MB
 Write-Host "Sidecar size: $([math]::Round($size, 1)) MB" -ForegroundColor Gray
 
 Write-Host "=== Sidecar build complete ===" -ForegroundColor Cyan
+
+Write-Host "=== Building Vendeto Mobile sidecar ===" -ForegroundColor Cyan
+& (Join-Path $ProjectRoot "mobile-client\build-sidecar.ps1") -Configuration $Configuration
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}

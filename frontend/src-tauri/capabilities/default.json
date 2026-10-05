@@ -16,6 +16,10 @@
           "sidecar": true
         },
         {
+          "name": "binaries/vendeto-mobile",
+          "sidecar": true
+        },
+        {
           "name": "taskkill",
           "cmd": "taskkill",
           "args": true

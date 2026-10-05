@@ -45,7 +45,8 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/posweb-backend"
+      "binaries/posweb-backend",
+      "binaries/vendeto-mobile"
     ]
   },
   "plugins": {

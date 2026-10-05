@@ -4,12 +4,12 @@ use keyring::Entry;
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
-struct SidecarProcess(Mutex<Option<tauri_plugin_shell::process::CommandChild>>);
+struct SidecarProcesses(Mutex<Vec<tauri_plugin_shell::process::CommandChild>>);
 
-impl Drop for SidecarProcess {
+impl Drop for SidecarProcesses {
     fn drop(&mut self) {
         if let Ok(mut guard) = self.0.lock() {
-            if let Some(child) = guard.take() {
+            for child in guard.drain(..) {
                 let _ = child.kill();
             }
         }
@@ -77,16 +77,21 @@ fn cerrar_ventana_impresion(webview_window: tauri::WebviewWindow) -> Result<(), 
 }
 
 #[tauri::command]
-fn kill_sidecar(state: tauri::State<SidecarProcess>) {
+fn kill_sidecars(state: tauri::State<SidecarProcesses>) {
     if let Ok(mut guard) = state.0.lock() {
-        if let Some(child) = guard.take() {
-            log::info!("[Tauri] Killing posweb-backend sidecar before update...");
-            let _ = child.kill();
+        if !guard.is_empty() {
+            log::info!("[Tauri] Killing sidecars before update...");
+            for child in guard.drain(..) {
+                let _ = child.kill();
+            }
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "posweb-backend.exe"])
                 .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-mobile.exe"])
+                .output();
         } else {
-            log::info!("[Tauri] Sidecar already stopped, nothing to kill");
+            log::info!("[Tauri] Sidecars already stopped, nothing to kill");
         }
     }
 }
@@ -103,7 +108,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            kill_sidecar,
+            kill_sidecars,
             reiniciar_aplicacion,
             guardar_credenciales,
             guardar_usuario,
@@ -125,6 +130,9 @@ pub fn run() {
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "posweb-backend.exe"])
                 .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-mobile.exe"])
+                .output();
 
             // Log sidecar spawn
             log::info!("[Tauri] Spawning posweb-backend sidecar...");
@@ -132,15 +140,13 @@ pub fn run() {
             // Spawn .NET backend as sidecar
             let sidecar = app.shell().sidecar("posweb-backend")
                 .expect("failed to create sidecar command");
-            let (mut rx, child) = sidecar.spawn()
+            let (mut backend_rx, backend_child) = sidecar.spawn()
                 .expect("failed to spawn backend sidecar");
-
-            app.manage(SidecarProcess(Mutex::new(Some(child))));
 
             // Log backend output
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_shell::process::CommandEvent;
-                while let Some(event) = rx.recv().await {
+                while let Some(event) = backend_rx.recv().await {
                     match event {
                         CommandEvent::Stdout(line) => {
                             log::info!("[backend] {}", String::from_utf8_lossy(&line));
@@ -155,6 +161,37 @@ pub fn run() {
                     }
                 }
             });
+
+            log::info!("[Tauri] Spawning vendeto-mobile sidecar...");
+            let mobile_sidecar = app.shell().sidecar("vendeto-mobile")
+                .expect("failed to create Vendeto Mobile sidecar command");
+            let (mut mobile_rx, mobile_child) = match mobile_sidecar.spawn() {
+                Ok(process) => process,
+                Err(error) => {
+                    let _ = backend_child.kill();
+                    return Err(error.into());
+                }
+            };
+
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_shell::process::CommandEvent;
+                while let Some(event) = mobile_rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            log::info!("[vendeto-mobile] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            log::error!("[vendeto-mobile] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            log::warn!("[Tauri] vendeto-mobile sidecar exited with code {:?}", payload.code);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+
+            app.manage(SidecarProcesses(Mutex::new(vec![backend_child, mobile_child])));
 
             Ok(())
         })
