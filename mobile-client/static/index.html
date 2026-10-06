@@ -7,6 +7,7 @@
   <style>
     :root { --ink:#071323; --panel:#101f34; --panel-raised:#142842; --app-surface:#14355a; --field:#091728; --line:#29405d; --line-strong:#3d5c80; --blue:#1479f3; --blue-hover:#2c8aff; --text:#f5f8ff; --muted:#a7b5c9; --money:#69efa7; --danger:#ff8d9d; --danger-surface:#2a121c; --radius-control:12px; --focus-ring:0 0 0 3px #5da0ff3d; }
     * { box-sizing:border-box }
+    [hidden] { display:none !important }
     body { margin:0; min-height:100vh; background:var(--ink); color:var(--text); font-family:Inter,system-ui,sans-serif }
     button,input,select { font:inherit }
     button { min-height:42px; border:1px solid transparent; cursor:pointer; touch-action:manipulation; transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease }
@@ -28,25 +29,25 @@
     .i-menu::before { content:"\e5d2" }
     .i-pos::before { content:"\f17e" }
     .i-scan::before { content:"\f206" }
-    .shell { max-width:560px; margin:auto; min-height:100vh; padding:18px 16px 32px; background:radial-gradient(circle at top right,#14355a 0,transparent 40%),var(--ink) }
-    .brand { margin:12px 0 26px } .brand img { display:block; width:158px; height:auto }
-    .drawer .brand { margin:6px 0 18px } .drawer .brand img { width:132px }
-    .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:20px; box-shadow:0 16px 38px #0004 }
-    h1 { margin:0 0 6px; font-size:23px } p { color:var(--muted); margin:0 0 20px; line-height:1.45 }
-    label { display:block; margin:15px 0 6px; font-size:13px; color:#c7d3e6 }
+    .shell { max-width:560px; margin:auto; min-height:100vh; padding:12px 14px 24px; background:radial-gradient(circle at top right,#14355a 0,transparent 40%),var(--ink) }
+    .brand { margin:10px 0 18px } .brand img { display:block; width:136px; height:auto }
+    .drawer .brand { margin:6px 0 14px } .drawer .brand img { width:118px }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:17px; padding:16px; box-shadow:0 16px 38px #0004 }
+    h1 { margin:0 0 4px; font-size:23px } p { color:var(--muted); margin:0 0 14px; line-height:1.45 }
+    label { display:block; margin:11px 0 5px; font-size:13px; color:#c7d3e6 }
     input,select { width:100%; min-height:44px; padding:11px 12px; border-radius:var(--radius-control); border:1px solid var(--line); color:var(--text); background:var(--field); outline:none; transition:border-color .16s ease,box-shadow .16s ease,background .16s ease }
     input:hover,select:hover { border-color:var(--line-strong) }
     input:focus,select:focus { border-color:var(--blue); box-shadow:var(--focus-ring) }
     input:disabled,select:disabled { color:#5f7086; background:#0a1626; border-color:#1d2f47 }
     button:disabled { opacity:.45 }
-    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px }
     .inline { display:flex; gap:8px } .inline input { flex:1 } .inline button { width:auto; white-space:nowrap }
-    label.check { display:flex; align-items:center; gap:10px; margin-top:18px; font-size:14px; color:var(--text); cursor:pointer }
+    label.check { display:flex; align-items:center; gap:10px; margin-top:14px; font-size:14px; color:var(--text); cursor:pointer }
     input[type=checkbox] { width:20px; min-width:20px; min-height:0; height:20px; margin:0; padding:0; border:0; accent-color:var(--blue); cursor:pointer }
-    details { margin-top:18px; border-top:1px solid var(--line); padding-top:14px }
+    details { margin-top:14px; border-top:1px solid var(--line); padding-top:11px }
     summary { cursor:pointer; font-size:13px; font-weight:700; color:#c7d3e6; list-style:none }
     summary::before { content:'▸ ' } details[open] summary::before { content:'▾ ' }
-    .btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px }
+    .btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px }
     .primary,.secondary,.danger,.ghost,.icon,.scan { border-radius:var(--radius-control); font-weight:750 }
     .primary { border-color:var(--blue); color:#041224; background:var(--blue); box-shadow:0 7px 16px #0d6dd04d }
     .primary:not(:disabled):hover { background:var(--blue-hover); border-color:var(--blue-hover) }
@@ -58,46 +59,118 @@
     .ghost { border-color:transparent; background:transparent; color:var(--muted); box-shadow:none }
     .ghost:not(:disabled):hover { background:#17304c; color:var(--text) }
     .error { min-height:18px; color:var(--danger); font-size:13px }
-    .warn { background:#3a2a12; border:1px solid #7f5f24; color:#ffd79a; border-radius:12px; padding:12px; font-size:13px; margin-bottom:14px }
-    .helper { color:var(--muted); font-size:12px; margin-top:8px }
-    .loading { color:var(--muted); font-size:13px; padding:16px 0 }
-    .warnline { display:block; color:#ffd79a; font-size:12px; margin-top:6px }
+    .warn { background:#3a2a12; border:1px solid #7f5f24; color:#ffd79a; border-radius:12px; padding:10px; font-size:13px; margin-bottom:11px }
+    .helper { color:var(--muted); font-size:12px; margin-top:6px }
+    .loading { color:var(--muted); font-size:13px; padding:12px 0 }
+    .warnline { display:block; color:#ffd79a; font-size:12px; margin-top:5px }
     .badge { display:inline-block; margin-left:8px; padding:2px 7px; border-radius:7px; font-size:11px; font-weight:700; background:#3a2a12; color:#ffd79a }
-    .checkrow { display:flex; align-items:center; gap:12px; margin-top:18px }
+    .checkrow { display:flex; align-items:center; gap:10px; margin-top:13px }
     .checkrow label.check { margin-top:0; flex:1 }
-    .fechaRow { display:flex; gap:8px; align-items:center; margin-top:10px }
+    .fechaRow { display:flex; gap:6px; align-items:center; margin-top:7px }
     .fechaRow input { flex:1 } .fechaRow button { width:auto }
-    .app { display:none } .top { display:flex; align-items:center; gap:10px; margin:-18px -16px 0; padding:18px 16px 16px; background:var(--app-surface) } .top h1 { flex:1; font-size:21px } .top-mark { width:42px; height:42px; object-fit:contain; padding:5px }
+    .app { display:none } .top { display:flex; align-items:center; gap:9px; margin:-12px -14px 0; padding:8px 14px; background:var(--app-surface) } .top h1 { flex:1; font-size:19px } .top-mark { width:30px; height:30px; object-fit:contain; padding:3px }
     .icon { color:var(--text); background:#14243a; border-color:#35516f; padding:8px 10px; font-size:16px; display:inline-flex; align-items:center; justify-content:center; box-shadow:none }
     .icon:not(:disabled):hover { background:#1b3452; border-color:#577796 }
-    .fab { position:fixed; right:max(20px,calc((100vw - 560px)/2 + 20px)); bottom:calc(18px + env(safe-area-inset-bottom)); z-index:2; width:56px; min-height:56px; height:56px; padding:0; border:1px solid var(--blue); border-radius:18px; color:#041224; background:var(--blue); box-shadow:0 12px 26px #06132380; display:inline-flex; align-items:center; justify-content:center }
+    .fab { position:fixed; right:max(18px,calc((100vw - 560px)/2 + 18px)); bottom:calc(14px + env(safe-area-inset-bottom)); z-index:2; width:52px; min-height:52px; height:52px; padding:0; border:1px solid var(--blue); border-radius:17px; color:#041224; background:var(--blue); box-shadow:0 12px 26px #06132380; display:inline-flex; align-items:center; justify-content:center }
     .fab:not(:disabled):hover { background:var(--blue-hover); border-color:var(--blue-hover) }
-    .fab .msi { font-size:28px }
-    .search { position:sticky; top:0; z-index:2; display:flex; gap:8px; margin:0 -16px 10px; padding:10px 16px 12px; background:var(--app-surface); border-bottom:1px solid var(--line); box-shadow:0 10px 18px -18px #000 } .scan { border-color:#315e8e; background:#1d3a5e; color:#a9d2ff; width:52px; display:inline-flex; align-items:center; justify-content:center; box-shadow:none }
+    .fab .msi { font-size:26px }
+    .search { position:sticky; top:0; z-index:2; display:flex; gap:8px; margin:0 -14px 8px; padding:7px 14px 8px; background:var(--app-surface); border-bottom:1px solid var(--line); box-shadow:0 10px 18px -18px #000 } .scan { border-color:#315e8e; background:#1d3a5e; color:#a9d2ff; width:48px; display:inline-flex; align-items:center; justify-content:center; box-shadow:none }
     .scan:not(:disabled):hover { background:#254a74; border-color:#6197ca }
-    .count { color:var(--muted); font-size:13px; margin:8px 0 12px }
-    #products { padding-bottom:84px }
-    .product { width:100%; text-align:left; margin:10px 0; padding:15px; border:1px solid var(--line); border-radius:15px; background:#122239; color:var(--text); box-shadow:none }
+    .count { color:var(--muted); font-size:12px; margin:5px 0 7px }
+    #products { padding-bottom:74px }
+    .product { width:100%; text-align:left; margin:6px 0; padding:11px 12px; border:1px solid var(--line); border-radius:13px; background:#122239; color:var(--text); box-shadow:none }
     .product:not(:disabled):hover { border-color:#416383; background:#142842 }
-    .product strong { display:block; font-size:17px } .product .row { display:flex; justify-content:space-between; gap:10px; margin-top:8px; color:var(--muted); font-size:13px }
-    .product .price { color:var(--money); font-weight:800; font-size:18px }
-    .cart { margin:14px 0 } .item { display:flex; align-items:center; gap:10px; padding:13px; margin:10px 0; border:1px solid var(--line); border-radius:15px; background:#122239 }
+    .product strong { display:block; font-size:16px } .product .row { display:flex; justify-content:space-between; gap:10px; margin-top:5px; color:var(--muted); font-size:12px }
+    .product .price { color:var(--money); font-weight:800; font-size:17px }
+    .cart { margin:10px 0 } .item { display:flex; align-items:center; gap:10px; padding:10px; margin:6px 0; border:1px solid var(--line); border-radius:13px; background:#122239 }
     .item .info { flex:1; min-width:0 } .item .info strong { display:block; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-    .item .info span { color:var(--muted); font-size:13px }
+    .item .info span { color:var(--muted); font-size:12px }
     .qty { display:flex; align-items:center; gap:6px } .qty button { width:34px; min-height:34px; height:34px; padding:0; border-radius:9px; border-color:var(--line); background:#0d1d30; color:var(--text); font-size:18px; box-shadow:none }
     .qty button:not(:disabled):hover { border-color:#577796; background:#17304c }
     .qty span { min-width:26px; text-align:center; font-weight:700 }
     .item .sub { color:var(--money); font-weight:800; min-width:78px; text-align:right }
-    .totales { display:flex; justify-content:space-between; padding:6px 0; color:var(--muted); font-size:14px }
-    .totales.total { color:var(--text); font-weight:800; font-size:19px; border-top:1px solid var(--line); margin-top:8px; padding-top:12px }
+    .totales { display:flex; justify-content:space-between; padding:4px 0; color:var(--muted); font-size:13px }
+    .totales.total { color:var(--text); font-weight:800; font-size:18px; border-top:1px solid var(--line); margin-top:6px; padding-top:9px }
     .totales.total b { color:var(--money) }
-    .medios { display:grid; grid-template-columns:1fr 1fr; gap:10px }
-    .medio { min-height:46px; padding:12px 10px; border:1px solid var(--line); border-radius:14px; background:#0d1d30; color:var(--text); text-align:center; font-size:13px; font-weight:700; box-shadow:none }
+    .medios { display:grid; grid-template-columns:1fr 1fr; gap:8px }
+    .medio { min-height:42px; padding:9px 8px; border:1px solid var(--line); border-radius:13px; background:#0d1d30; color:var(--text); text-align:center; font-size:13px; font-weight:700; box-shadow:none }
     .medio:not(:disabled):hover { border-color:#577796; background:#17304c }
     .medio.sel { border-color:var(--blue); background:#1479f326; color:#a9d2ff; box-shadow:inset 0 0 0 1px #1479f34d }
-    .drawer { display:none; position:fixed; inset:0 auto 0 0; width:250px; padding:22px 14px; z-index:4; background:#091728; border-right:1px solid var(--line) }
-    .drawer.open { display:block } .drawer a { display:flex; align-items:center; gap:12px; padding:13px; margin:6px 0; border-radius:10px; color:var(--text); text-decoration:none }
-    .drawer a .msi { font-size:20px; color:var(--muted) }
+    #ventas { padding-bottom:72px }
+    .sale-result { position:relative; min-height:64px; padding:9px 52px 9px 12px }
+    .sale-result .sale-product-main { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-width:0 }
+    .sale-result .sale-product-main strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px }
+    .sale-result .sale-product-main .price { flex:0 0 auto; font-size:16px }
+    .sale-product-meta { display:flex; gap:8px; margin-top:4px; color:var(--muted); font-size:11px; line-height:1.2 }
+    .sale-product-meta span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+    .sale-product-meta span + span { margin-left:auto; text-align:right }
+    .sale-add { position:absolute; right:10px; top:50%; width:34px; height:34px; transform:translateY(-50%); display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:var(--money); color:#082318; font-size:25px; font-weight:500 }
+    .sale-cart-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 9px }
+    .sale-cart-heading h2 { margin:0; font-size:20px }
+    .sale-cart-heading h2 span { color:var(--muted); font-weight:400; font-size:15px }
+    .clear-cart { min-height:38px; padding:6px 10px; display:inline-flex; align-items:center; gap:6px }
+    .clear-cart .trash-icon { width:18px; height:18px; flex-basis:18px; transform:none }
+    .empty-cart { padding:22px 16px; border:1px dashed var(--line-strong); border-radius:15px; color:var(--muted); text-align:center; line-height:1.45 }
+    .item { position:relative }
+    .item-remove { position:absolute; top:6px; right:6px; width:28px; min-height:28px; height:28px; padding:0; border-color:#613644; border-radius:9px; color:#ffb3c0; background:#2a121c; box-shadow:none; display:inline-flex; align-items:center; justify-content:center }
+    .item-remove .msi { font-size:16px }
+    #carrito .item { display:grid; grid-template-columns:1fr auto; grid-template-areas:"info info" "qty remove"; gap:6px 10px; align-items:center; padding:9px 11px; margin:5px 0 }
+    #carrito .item .info { grid-area:info; min-width:0; padding:0 }
+    .cart-product-main { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-width:0 }
+    #carrito .item .cart-product-main strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:16px; padding:0 }
+    #carrito .item .cart-product-main .sub { flex:0 0 auto; color:var(--money); font-size:17px; padding:0 }
+    .cart-meta { display:block; overflow:hidden; margin-top:2px; color:var(--muted); font-size:12px; line-height:1.25; text-overflow:ellipsis; white-space:nowrap }
+    .cart-meta.stock-warning { color:#ffd79a }
+    #carrito .item .qty { grid-area:qty }
+    #carrito .item .item-remove { position:static; grid-area:remove; width:38px; min-height:38px; height:38px }
+    #saleCartPanel { padding-bottom:176px }
+    .sale-summary { position:fixed; left:50%; bottom:calc(60px + env(safe-area-inset-bottom)); z-index:3; width:min(100%,560px); transform:translateX(-50%); display:grid; grid-template-columns:1fr auto; gap:5px 12px; align-items:center; margin:0; padding:8px 14px; border:0; border-top:1px solid var(--line); border-radius:0; background:#0a192bf5; box-shadow:0 -10px 24px -16px #020a14a6; backdrop-filter:blur(10px) }
+    .sale-summary strong { display:block; font-size:17px }
+    .sale-summary span { display:block; margin-top:2px; color:var(--muted); font-size:12px }
+    .sale-summary b { color:var(--money); font-size:21px }
+    .sale-summary button { grid-column:1 / -1; width:100%; min-height:44px; font-size:16px }
+    .checkout-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 9px }
+    .checkout-heading h2,.checkout-label { margin:0; font-size:17px }
+    .checkout-heading .secondary { min-height:36px; padding:5px 9px; border-radius:10px; font-size:13px }
+    .checkout-total { margin-bottom:10px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:13px; text-align:center; background:var(--panel) }
+    .checkout-total span { display:block; color:var(--muted); font-size:12px }
+    .checkout-total b { display:block; margin-top:2px; color:var(--money); font-size:27px; line-height:1.05 }
+    #saleCheckoutPanel .medios { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin:8px 0 10px }
+    #saleCheckoutPanel .medio { min-height:48px; padding:6px 4px; border-radius:11px; font-size:11px; line-height:1.15 }
+    #saleCheckoutPanel .medio.sel { box-shadow:inset 0 0 0 1px #1479f34d, 0 5px 14px -12px #1479f }
+    .payment-details { margin-top:2px; padding:10px; border:1px solid var(--line); border-radius:14px; background:#0b1a2d }
+    .payment-details > label, .payment-details > .helper { font-size:12px; color:#c7d3e6; font-weight:400 }
+    .payment-details > label { display:block; margin-bottom:5px }
+    .amount-input { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px }
+    .amount-input button { min-height:44px; padding:0 12px; white-space:nowrap; font-size:13px }
+    .amount-input .amount-clear { background:transparent; box-shadow:none }
+    .amount-input .amount-clear:not(:disabled):hover { background:#142842 }
+    .quick-amount-label { display:block; margin-top:8px; color:var(--muted); font-size:11px; font-weight:700 }
+    .cash-shortcuts { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:5px 0 8px }
+    .cash-shortcuts button { min-height:38px; padding:5px; border-color:var(--line-strong); border-radius:10px; color:var(--text); background:#142842; font-size:13px; font-weight:700; box-shadow:none }
+    .cash-shortcuts button:not(:disabled):hover { background:#1b3452; border-color:#577796 }
+    .cash-shortcuts button:disabled { opacity:.48 }
+    .change-card { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-top:0; padding:9px 11px; border:1px solid #315f66; border-radius:11px; background:#0d292c; color:#c8ffe0 }
+    .change-card.is-short { border-color:#7f5f24; background:#2b2112; color:#ffd79a }
+    .change-card span { font-size:12px; font-weight:700 }
+    .change-card b { color:var(--money); font-size:19px }
+    .change-card.is-short b { color:#ffd79a }
+    #saleCheckoutPanel { padding-bottom:calc(78px + env(safe-area-inset-bottom)) }
+    .checkout-footer { position:fixed; left:50%; bottom:0; z-index:4; width:min(100%,560px); transform:translateX(-50%); padding:8px 14px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:#0a192bf5; box-shadow:0 -10px 24px -16px #020a14a6; backdrop-filter:blur(10px) }
+    .checkout-confirm { width:100%; min-height:46px; margin:0; font-size:15px }
+    .sale-tabs { position:fixed; left:50%; bottom:0; z-index:4; width:min(100%,560px); transform:translateX(-50%); display:grid; grid-template-columns:1fr 1fr; padding:5px 14px calc(5px + env(safe-area-inset-bottom)); background:#0a192bf5; border-top:1px solid var(--line); backdrop-filter:blur(10px) }
+    .sale-tab { min-height:50px; padding:5px 8px; border:0; border-radius:12px; color:var(--muted); background:transparent; box-shadow:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:11px; font-weight:700 }
+    .sale-tab.active { color:#b9ddff; background:#1479f326 }
+    .sale-tab .msi { font-size:21px }
+    .sale-tab-icon { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round }
+    .sale-tab-count { position:absolute; margin:-22px 0 0 22px; min-width:18px; padding:1px 5px; border-radius:10px; color:white; background:#ff4d68; font-size:10px; line-height:1.2 }
+    .toast { position:fixed; left:50%; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:5; display:flex; align-items:center; gap:8px; max-width:calc(100% - 28px); padding:9px 13px; border:1px solid #2c5f96; border-radius:13px; background:#0e2440f5; color:#b9ddff; box-shadow:0 14px 30px -18px #000; backdrop-filter:blur(10px); font-size:13px; font-weight:700; opacity:0; transform:translateX(-50%) translateY(8px); transition:opacity .16s ease, transform .16s ease }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0) }
+    .toast .msi { font-size:18px; color:#8bc0ff; flex:0 0 auto }
+    .toast-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:#c7d3e6 }
+    .drawer { display:none; position:fixed; inset:0 auto 0 0; width:250px; padding:18px 12px; z-index:4; background:#091728; border-right:1px solid var(--line) }
+    .drawer.open { display:block } .drawer a { display:flex; align-items:center; gap:11px; padding:11px; margin:4px 0; border-radius:10px; color:var(--text); text-decoration:none }
+    .drawer a .msi { font-size:19px; color:var(--muted) }
     .drawer a.active .msi { color:#8bc0ff }
     .drawer a.active { background:#1479f326; color:#8bc0ff } .logout { position:absolute; bottom:22px; left:14px; right:14px; color:var(--muted) }
     .scrim { display:none; position:fixed; inset:0; z-index:3; background:#00000080 } .scrim.open { display:block }
@@ -107,27 +180,45 @@
     .sheet .head { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:18px 16px 12px; border-bottom:1px solid #1b334f; background:#0a192b } .sheet .head h1 { flex:1; margin:0 }
     .sheet .body { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:6px 16px 18px }
     .sheet .footer { flex:0 0 auto; display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:#0a192bf2; border-top:1px solid #1b334f; backdrop-filter:blur(8px) }
-    .sheet .footer button { padding:13px 6px; font-size:13px; display:inline-flex; align-items:center; justify-content:center; gap:5px }
+    .sheet .footer button { padding:11px 6px; font-size:13px; display:inline-flex; align-items:center; justify-content:center; gap:5px }
     .sheet .footer .msi { font-size:17px }
     .trash-icon { width:17px; height:17px; flex:0 0 17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; transform:translateY(1px) }
     /* Densidad compacta: el formulario debe entrar completo en una pantalla,
        dejando visibles las variantes avanzadas al final. */
-    .sheet .head { padding:14px 16px 8px } .sheet .head h1 { font-size:20px }
-    .sheet .body { padding:2px 16px 10px }
-    .sheet .card { padding:16px; border-radius:16px }
-    .sheet label { margin:10px 0 4px; font-size:12px }
+    .sheet .head { padding:11px 14px 6px } .sheet .head h1 { font-size:18px }
+    .sheet .body { padding:0 14px 8px }
+    .sheet .card { padding:13px; border-radius:14px }
+    .sheet label { margin:8px 0 3px; font-size:12px }
     .sheet input,.sheet select { padding:11px }
     .sheet .grid2 { gap:8px }
-    .sheet .checkrow { margin-top:12px }
-    .sheet .fechaRow { margin-top:8px; gap:6px }
-    .sheet details { margin-top:12px; padding-top:10px }
+    .sheet .checkrow { margin-top:10px }
+    .sheet .fechaRow { margin-top:6px; gap:5px }
+    .sheet details { margin-top:10px; padding-top:8px }
     .sheet summary { font-size:12px }
-    .sheet .footer { padding:10px 16px calc(10px + env(safe-area-inset-bottom)) }
-    .btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px }
+    .sheet .footer { padding:8px 14px calc(8px + env(safe-area-inset-bottom)) }
+    .confirm-dialog { display:none; position:fixed; inset:0; z-index:7; align-items:center; justify-content:center; padding:20px 14px; background:#020a14ad; backdrop-filter:blur(3px) }
+    .confirm-dialog.open { display:flex }
+    .confirm-dialog .inner { display:flex; flex-direction:column; width:min(100%,420px); max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); overflow:hidden; border:1px solid #345574; border-radius:18px; background:#0c1c31; box-shadow:0 24px 56px #000b }
+    .confirm-dialog .head { display:flex; align-items:center; gap:10px; padding:13px 14px 10px; border-bottom:1px solid #29405d; background:#10243d }
+    .confirm-dialog .head h1 { flex:1; margin:0; font-size:18px }
+    .confirm-dialog .body { overflow-y:auto; padding:14px }
+    .confirm-dialog .body .card { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none }
+    .confirm-dialog .body .dialog-note:last-child { margin-bottom:0 }
+    .confirm-dialog .footer { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px 14px; border-top:1px solid #29405d; background:#0d1d30 }
+    .confirm-dialog .footer button { min-height:42px; padding:8px 6px; font-size:13px }
     .scanner { display:none; position:fixed; inset:0; z-index:6; background:#000 } .scanner.open { display:block }
     .scanner video { width:100%; height:100%; object-fit:cover }
     .scanner .frame { position:absolute; left:8%; right:8%; top:32%; height:26%; border:2px solid #69efa7; border-radius:16px; box-shadow:0 0 0 100vmax #00000066 }
-    .scanner .bar { position:absolute; top:0; left:0; right:0; bottom:auto; padding:14px; display:flex; align-items:center; gap:10px; background:#000000a8; border:0 }
+    .scanner .bar { position:absolute; top:0; left:0; right:0; bottom:auto; padding:10px; display:flex; align-items:center; gap:10px; background:#000000a8; border:0 }
+    .conflict-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line) }
+    .conflict-item:last-child { border-bottom:0 }
+    .conflict-item strong { display:block; font-size:15px }
+    .conflict-item .cart-meta { margin-top:2px }
+    .conflict-item .stock-badge { flex:0 0 auto; padding:3px 8px; border-radius:9px; background:#3a2a12; color:#ffd79a; font-size:12px; font-weight:800 }
+    .warn strong { display:block; margin-bottom:4px; font-size:13px }
+    .warn label { margin:9px 0 4px }
+    .warn select { margin-top:0 }
+    .dialog-note { margin:0 0 8px; color:var(--muted); font-size:13px; line-height:1.45 }
     .scanner .bar span { flex:1; font-size:14px }
   </style>
 </head>
@@ -172,31 +263,49 @@
     <section class="app" id="ventas">
       <div class="top">
         <button class="icon menuBtn" aria-label="Abrir menú"><span class="msi i-menu"></span></button>
-        <h1>Nueva venta</h1>
+        <h1>Ventas</h1>
+        <img class="top-mark" src="/assets/vendeto-mark.png" alt="Vendeto">
       </div>
       <div id="cajaAviso"></div>
-      <div class="search">
-        <input id="ventaQuery" placeholder="Buscar o escanear producto" enterkeyhint="search">
-        <button class="scan" data-target="sales" title="Escanear código" aria-label="Escanear código"><span class="msi i-scan"></span></button>
+      <div id="saleProductsPanel">
+        <div class="search">
+          <input id="ventaQuery" placeholder="Buscar o escanear producto" enterkeyhint="search">
+          <button class="scan" data-target="sales" title="Escanear código" aria-label="Escanear código"><span class="msi i-scan"></span></button>
+        </div>
+        <div class="count" id="ventaCount"></div>
+        <div id="ventaResultados"></div>
+        <div class="error" id="ventaProductError"></div>
       </div>
-      <div class="count" id="ventaCount"></div>
-      <div id="ventaResultados"></div>
-      <div id="carrito"></div>
-      <div class="card" id="pagoCard" style="display:none">
-        <div class="totales"><span>Productos</span><span id="tCantidad">0</span></div>
-        <div class="totales total"><span>Total</span><b id="tTotal">$0</b></div>
-        <label>Medio de pago</label>
+      <div id="saleCartPanel" hidden>
+        <div class="sale-cart-heading"><h2>Carrito <span id="cartHeadingCount">· 0 productos</span></h2><button class="secondary clear-cart" id="clearCart"><svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 13h10l1-13"/></svg>Vaciar</button></div>
+        <div id="carrito"></div>
+        <div class="sale-summary" id="cartSummary" hidden>
+          <div><strong>Total</strong><span id="cartSummaryCount">0 productos</span></div>
+          <b id="cartSummaryTotal">$0</b>
+          <button class="primary" id="startCheckout">Cobrar</button>
+        </div>
+      </div>
+      <div id="saleCheckoutPanel" hidden>
+        <div class="checkout-heading"><h2>Cobrar</h2><button class="secondary" id="checkoutBack">← Volver</button></div>
+        <div class="checkout-total"><span>Total a cobrar</span><b id="checkoutTotal">$0</b></div>
+        <h2 class="checkout-label">Medio de pago</h2>
         <div class="medios" id="medios"></div>
-        <div id="efectivoBox" style="display:none">
-          <label>Monto recibido</label>
-          <input id="montoRecibido" type="number" step="0.01" min="0" inputmode="decimal">
-          <div class="totales" style="margin-top:10px"><span>Vuelto</span><span id="tVuelto">$0</span></div>
+        <div class="payment-details" id="efectivoBox">
+          <label id="montoRecibidoLabel" for="montoRecibido">Monto del pago</label>
+          <div class="amount-input"><input id="montoRecibido" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej.: 2.200,00" aria-describedby="efectivoAyuda"><button type="button" class="primary" id="totalAmountRecibido">Total</button><button type="button" class="secondary amount-clear" id="clearMontoRecibido">Limpiar</button></div>
+          <div class="helper" id="efectivoAyuda">Elegí un medio para cargar el importe.</div>
+          <span class="quick-amount-label">Sumar importe</span>
+          <div class="cash-shortcuts"><button data-amount-add="100">+$100</button><button data-amount-add="500">+$500</button><button data-amount-add="1000">+$1.000</button><button data-amount-add="2000">+$2.000</button><button data-amount-add="10000">+$10.000</button><button data-amount-add="20000">+$20.000</button></div>
+          <div class="change-card" id="paymentSummary"><span id="pagoResumenLabel">Saldo pendiente</span><b id="tVuelto">$0</b></div>
         </div>
         <div class="error" id="ventaError"></div>
-        <div class="btns" style="grid-template-columns:1fr">
-          <button class="primary" id="confirmar">Confirmar venta</button>
-        </div>
+        <div class="checkout-footer"><button class="primary checkout-confirm" id="confirmar">Confirmar venta</button></div>
       </div>
+      <div class="toast" id="cartToast" role="status" aria-live="polite" hidden><span class="msi i-check" aria-hidden="true"></span><strong>Agregado</strong><span class="toast-text" id="cartToastText"></span></div>
+      <nav class="sale-tabs" id="saleTabs" aria-label="Navegación de venta">
+        <button class="sale-tab active" id="saleProductsTab"><span class="msi i-inventory"></span>Productos</button>
+        <button class="sale-tab" id="saleCartTab"><svg class="sale-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h2l.7 4.2M6.2 7.2h13.3l-1.4 7H8.2L6.2 7.2Zm2.4 10.6a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Zm8.4 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z"/></svg><span class="sale-tab-count" id="cartTabCount" hidden>0</span>Carrito</button>
+      </nav>
     </section>
   </main>
 
@@ -204,7 +313,7 @@
 
   <section class="sheet" id="sheet">
     <div class="inner">
-      <div class="head"><h1 id="sheetTitle">Editar producto</h1><button class="icon" id="closeSheet">Cerrar</button></div>
+      <div class="head"><h1 id="sheetTitle">Editar producto</h1></div>
       <div class="body">
         <div class="card">
         <form id="productForm">
@@ -265,7 +374,60 @@
         <div class="totales"><span>Recibido</span><span id="kRecibido"></span></div>
         <div class="totales total"><span>Total</span><b id="kTotal"></b></div>
         <div class="totales"><span>Vuelto</span><span id="kVuelto"></span></div>
+        <div class="totales" id="kDeudaRow" hidden><span>Deuda</span><span id="kDeuda"></span></div>
         <div class="btns" style="grid-template-columns:1fr"><button class="primary" id="nuevaVenta">Nueva venta</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="confirm-dialog" id="stockConfirm" role="dialog" aria-modal="true" aria-label="Stock insuficiente">
+    <div class="inner">
+      <div class="head"><h1>Stock insuficiente</h1><button class="icon" id="stockCancel" aria-label="Cerrar">Cerrar</button></div>
+      <div class="body">
+        <div class="card">
+          <p class="dialog-note">Estos productos no alcanzan para completar la venta:</p>
+          <div id="stockConflictList"></div>
+          <p class="dialog-note">PosWeb permite continuar igualmente. Se va a descontar igual el stock de la sucursal.</p>
+        </div>
+      </div>
+      <div class="footer" style="grid-template-columns:1fr 1fr">
+        <button class="secondary" id="stockBack">Cancelar</button>
+        <button class="primary" id="stockContinue">Vender igual</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="confirm-dialog" id="debtConfirm" role="dialog" aria-modal="true" aria-label="Pago menor al total">
+    <div class="inner">
+      <div class="head"><h1>Pago menor al total</h1><button class="icon" id="debtCancel" aria-label="Cerrar">Cerrar</button></div>
+      <div class="body">
+        <div class="card">
+          <div class="warn"><strong>Se va a registrar una deuda</strong><span class="warnline" id="debtHint"></span></div>
+          <label for="debtClient">Cliente para generar deuda</label>
+          <select id="debtClient"><option value="">Cargando clientes…</option></select>
+          <p class="dialog-note">Elegí el cliente antes de confirmar la venta pendiente.</p>
+          <div class="error" id="debtConfirmError"></div>
+        </div>
+      </div>
+      <div class="footer" style="grid-template-columns:1fr 1fr">
+        <button class="secondary" id="debtBack">Cancelar</button>
+        <button class="primary" id="debtContinue">Registrar deuda</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="confirm-dialog" id="clearCartConfirm" role="dialog" aria-modal="true" aria-label="Vaciar carrito">
+    <div class="inner">
+      <div class="head"><h1>Vaciar carrito</h1><button class="icon" id="clearCartCancel" aria-label="Cerrar">Cerrar</button></div>
+      <div class="body">
+        <div class="card">
+          <p class="dialog-note" id="clearCartConfirmText"></p>
+          <p class="dialog-note">Esta acción no se puede deshacer.</p>
+        </div>
+      </div>
+      <div class="footer" style="grid-template-columns:1fr 1fr">
+        <button class="secondary" id="clearCartBack">Cancelar</button>
+        <button class="danger" id="clearCartContinue">Vaciar carrito</button>
       </div>
     </div>
   </section>
@@ -282,12 +444,27 @@
     const auth = () => ({ Authorization: 'Bearer ' + localStorage.getItem(tokenKey) });
     const jsonAuth = () => ({ ...auth(), 'Content-Type': 'application/json' });
     const $ = (id) => document.getElementById(id);
-    const money = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const roundMoney = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
+    const money = (n) => '$' + roundMoney(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const moneyInput = (n) => roundMoney(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function parseMoney(value) {
+      const raw = String(value ?? '').trim().replace(/[^\d,.-]/g, '');
+      if (!raw) return 0;
+      const normalized = raw.includes(',')
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : /^\d{1,3}(?:\.\d{3})+$/.test(raw) ? raw.replace(/\./g, '') : raw;
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? roundMoney(parsed) : Number.NaN;
+    }
     const PAGE_SIZE = 20;
 
     let products = [], shown = 0, centralId, editing = null, catalogos = null;
-    let ventaProducts = [], cart = [], medios = [], cajaAbierta = false, selectedMedio = null, scanTarget = 'products';
+    let ventaProducts = [], cart = [], medios = [], debtClients = [], cajaAbierta = false, selectedMedio = null, scanTarget = 'products', saleTab = 'products';
     let fechas = [];
+    let pendingAllowSinStock = false;
+    let pendingDebtApproval = false;
+    let debtClientsState = 'idle';
+    let ignoreNextPop = false;
 
     async function request(url, options = {}) {
       const r = await fetch(url, options);
@@ -329,7 +506,7 @@
 
     function card(p) {
       return `<button class="product" data-id="${p.id}"><strong>${p.nombre}${p.esPesable ? '<span class="badge">por kg</span>' : ''}</strong>
-        <div class="row"><span class="price">${money(p.precio)}</span><span>Stock: ${p.stock}</span></div>
+        <div class="row"><span class="price">${money(p.precio)}</span></div>
         <div class="row"><span>${p.marca || 'Sin marca'}</span><span>${p.codigoBarra || p.codigoProducto || ''}</span></div></button>`;
     }
 
@@ -410,20 +587,66 @@
 
     function hideTicket() { $('ticket').classList.remove('open') }
 
+    function presetCheckoutAmount() {
+      pendingDebtApproval = false;
+      $('montoRecibido').value = moneyInput(total());
+    }
+
+    function openCheckout() {
+      if (!cart.length) return;
+      presetCheckoutAmount();
+      $('saleProductsPanel').hidden = true;
+      $('saleCartPanel').hidden = true;
+      $('saleCheckoutPanel').hidden = false;
+      $('saleTabs').hidden = true;
+      $('cajaAviso').hidden = true;
+      pendingAllowSinStock = false;
+      pendingDebtApproval = false;
+      $('debtClient').value = '';
+      renderMedios();
+      updateVuelto();
+      window.scrollTo(0, 0);
+      pushLayer();
+    }
+
+    function hideCheckout() {
+      $('saleCheckoutPanel').hidden = true;
+      $('saleTabs').hidden = false;
+      $('cajaAviso').hidden = false;
+      setSaleTab('cart');
+    }
+
+    function closeCheckout() { if (isCheckoutOpen()) history.back(); else hideCheckout() }
+
     const isScannerOpen = () => $('scanner').classList.contains('open');
     const isSheetOpen = () => $('sheet').classList.contains('open');
     const isTicketOpen = () => $('ticket').classList.contains('open');
+    const isStockConfirmOpen = () => $('stockConfirm').classList.contains('open');
+    const isDebtConfirmOpen = () => $('debtConfirm').classList.contains('open');
+    const isClearCartConfirmOpen = () => $('clearCartConfirm').classList.contains('open');
+    const isCheckoutOpen = () => !$('saleCheckoutPanel').hidden;
     const isDrawerOpen = () => $('drawer').classList.contains('open');
     const isSalesView = () => $('ventas').style.display === 'block';
 
     /* Cada capa que se abre agrega una entrada al historial, así el botón atrás
        siempre tiene a dónde volver y deshace la última acción en lugar de salir. */
-    function pushLayer() { history.pushState({ vendeto: true }, '') }
+    function pushLayer() { hideCartToast(); history.pushState({ vendeto: true }, '') }
+
+    /* Cierra una capa que YA fue ocultada y consume su entrada de historial
+       sin ejecutar el undo de la capa de abajo (p. ej. mantener abierto el cobro). */
+    function consumeLayer() {
+      ignoreNextPop = true;
+      history.back();
+    }
 
     function undoLastAction() {
+      if (isClearCartConfirmOpen()) { hideClearCartConfirm(); return true }
+      if (isDebtConfirmOpen()) { hideDebtConfirm(); return true }
+      if (isStockConfirmOpen()) { hideStockConfirm(); return true }
       if (isScannerOpen()) { stopScanner(); return true }
       if (isSheetOpen()) { hideSheet(); return true }
       if (isTicketOpen()) { hideTicket(); return true }
+      if (isCheckoutOpen()) { hideCheckout(); return true }
       if (isDrawerOpen()) { hideDrawer(); return true }
       if (isSalesView()) { setView('products'); return true }
       return false;
@@ -432,6 +655,7 @@
     window.addEventListener('popstate', () => {
       // Si algo se deshizo, el retroceso fue una navegación normal: no se toca el historial.
       // Solo en la raíz se repone la entrada para que la app no se cierre.
+      if (ignoreNextPop) { ignoreNextPop = false; return }
       if (!undoLastAction()) history.pushState({ vendeto: true }, '');
     });
 
@@ -503,9 +727,33 @@
     }
 
     /* ---------- Ventas ---------- */
-    async function loadSales() {
+    function setSaleTab(tab) {
+      saleTab = tab;
+      const products = tab === 'products';
+      if (!products) hideCartToast();
+      $('saleProductsPanel').hidden = !products;
+      $('saleCartPanel').hidden = products;
+      $('saleProductsTab').classList.toggle('active', products);
+      $('saleCartTab').classList.toggle('active', !products);
+      window.scrollTo(0, 0);
+    }
+
+    async function loadSales(preserveDraft = false) {
+      // Al volver a Ventas se reanuda el carrito, la solapa y Cobrar tal como estaban.
+      // El refresco real queda para el primer acceso y para después de una venta confirmada.
+      if (preserveDraft && (ventaProducts.length || cart.length || selectedMedio || isCheckoutOpen())) {
+        if (isCheckoutOpen()) presetCheckoutAmount();
+        renderMedios();
+        renderVenta();
+        if (!isCheckoutOpen()) setSaleTab(saleTab);
+        return;
+      }
+
       $('ventaResultados').innerHTML = '<div class="loading">Cargando productos…</div>';
       $('ventaCount').textContent = 'Cargando…';
+      $('saleCheckoutPanel').hidden = true;
+      $('saleTabs').hidden = false;
+      $('cajaAviso').hidden = false;
       const [lista, caja, listaMedios] = await Promise.all([
         request(`/api/productos?sucursalId=${centralId}`, { headers: auth() }),
         request(`/api/cajas/activa?sucursalId=${centralId}`, { headers: auth() }).catch(() => ({ activa: false })),
@@ -519,107 +767,293 @@
         '<div class="warn">La caja está cerrada. Abrila en Vendeto para poder registrar la venta.</div>';
       renderMedios();
       renderVenta();
+      setSaleTab('products');
     }
 
     function renderMedios() {
       $('medios').innerHTML = medios.map(m =>
         `<button class="medio ${selectedMedio?.id === m.id ? 'sel' : ''}" data-id="${m.id}">${m.nombre}</button>`).join('') ||
         '<div class="helper">No hay medios de pago activos.</div>';
+
+      // El layout de cobro se mantiene estable: seleccionar un medio cambia el contexto,
+      // no hace saltar ni desaparecer los controles.
+      const tieneMedio = Boolean(selectedMedio);
       const pagaVuelto = Boolean(selectedMedio?.pagaVuelto);
-      $('efectivoBox').style.display = pagaVuelto ? 'block' : 'none';
+      $('montoRecibido').disabled = !tieneMedio;
+      $('clearMontoRecibido').disabled = !tieneMedio;
+      $('totalAmountRecibido').disabled = !tieneMedio;
+      document.querySelectorAll('.cash-shortcuts button').forEach(button => { button.disabled = !tieneMedio });
+      $('montoRecibidoLabel').textContent = pagaVuelto ? 'Monto recibido' : 'Monto del pago';
+      $('efectivoAyuda').textContent = !tieneMedio
+        ? 'Elegí un medio para cargar el importe.'
+        : pagaVuelto
+          ? 'Podés ingresar 2.200,00 o 2200.'
+          : 'Ingresá el importe acreditado. Podés registrar saldo pendiente.';
       updateVuelto();
     }
 
-    const total = () => cart.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0);
+    const total = () => roundMoney(cart.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0));
 
     function updateVuelto() {
-      const recibido = Number($('montoRecibido').value || 0);
-      const vuelto = selectedMedio?.pagaVuelto ? Math.max(0, recibido - total()) : 0;
-      $('tVuelto').textContent = money(vuelto);
+      const recibido = parseMoney($('montoRecibido').value);
+      const totalVenta = total();
+      const tieneMonto = Number.isFinite(recibido);
+      const pagaVuelto = Boolean(selectedMedio?.pagaVuelto);
+      const diferencia = tieneMonto ? roundMoney(recibido - totalVenta) : -totalVenta;
+      const falta = diferencia < -0.005;
+      const resumen = $('paymentSummary');
+
+      resumen.classList.toggle('is-short', Boolean(selectedMedio) && falta);
+      if (!selectedMedio) {
+        $('pagoResumenLabel').textContent = 'Saldo pendiente';
+        $('tVuelto').textContent = money(totalVenta);
+      } else if (falta) {
+        $('pagoResumenLabel').textContent = 'Falta';
+        $('tVuelto').textContent = money(Math.abs(diferencia));
+      } else if (pagaVuelto) {
+        $('pagoResumenLabel').textContent = 'Vuelto';
+        $('tVuelto').textContent = money(Math.max(0, diferencia));
+      } else {
+        $('pagoResumenLabel').textContent = 'Pago completo';
+        $('tVuelto').textContent = money(0);
+      }
+    }
+
+    async function loadDebtClients(force = false) {
+      if (debtClientsState === 'loading') return;
+      if (debtClientsState === 'done' && !force) return;
+      if (debtClientsState === 'error' && !force) return;
+      debtClientsState = 'loading';
+      $('debtClient').innerHTML = '<option value="">Cargando clientes…</option>';
+      try {
+        const result = await request('/api/clientes?pageSize=50', { headers: auth() });
+        debtClients = result.items || [];
+        debtClientsState = 'done';
+        $('debtClient').innerHTML = debtClients.length
+          ? '<option value="">Elegí un cliente</option>' + debtClients.map(c => `<option value="${c.id}">${c.nombre}${c.numeroDocumento ? ` · ${c.numeroDocumento}` : ''}</option>`).join('')
+          : '<option value="">No hay clientes cargados</option>';
+      } catch (e) {
+        debtClientsState = 'error';
+        $('debtClient').innerHTML = '<option value="">No se pudieron cargar los clientes</option>';
+        $('debtConfirmError').textContent = e.message;
+      }
+    }
+
+    function stockConflictItems() {
+      return cart.filter(i => i.producto.seguirStock !== false && i.cantidad > i.producto.stock);
+    }
+
+    function showStockConfirm(items) {
+      $('stockConflictList').innerHTML = items.map(i =>
+        `<div class="conflict-item"><div><strong>${i.producto.nombre}</strong><span class="cart-meta">Disponible: ${i.producto.stock}</span></div><span class="stock-badge">Pedís ${i.cantidad}</span></div>`
+      ).join('');
+      $('stockConfirm').classList.add('open');
+      pushLayer();
+    }
+
+    function hideStockConfirm() { $('stockConfirm').classList.remove('open'); }
+
+    function closeStockConfirm() {
+      const wasOpen = isStockConfirmOpen();
+      hideStockConfirm();
+      if (wasOpen) consumeLayer();
+    }
+
+    function showDebtConfirm(totalVenta, recibido) {
+      pendingDebtApproval = false;
+      $('debtConfirmError').textContent = '';
+      $('debtHint').textContent = `Cobrás ${money(recibido)} de ${money(totalVenta)}. Quedan ${money(totalVenta - recibido)} pendientes.`;
+      $('debtConfirm').classList.add('open');
+      loadDebtClients();
+      pushLayer();
+    }
+
+    function hideDebtConfirm() {
+      pendingDebtApproval = false;
+      $('debtConfirm').classList.remove('open');
+    }
+
+    function closeDebtConfirm() {
+      const wasOpen = isDebtConfirmOpen();
+      hideDebtConfirm();
+      $('debtClient').value = '';
+      $('debtConfirmError').textContent = '';
+      if (wasOpen) consumeLayer();
+    }
+
+    function showClearCartConfirm() {
+      if (!cart.length) return;
+      const items = cart.reduce((sum, item) => sum + item.cantidad, 0);
+      $('clearCartConfirmText').textContent = `Vas a quitar ${items} ${items === 1 ? 'producto' : 'productos'} del carrito.`;
+      $('clearCartConfirm').classList.add('open');
+      pushLayer();
+    }
+
+    function hideClearCartConfirm() { $('clearCartConfirm').classList.remove('open'); }
+
+    function closeClearCartConfirm() {
+      const wasOpen = isClearCartConfirmOpen();
+      hideClearCartConfirm();
+      if (wasOpen) consumeLayer();
     }
 
     function renderVenta() {
+      // Cualquier cambio del carrito invalida el permiso "vender igual" sin stock,
+      // para que la próxima confirmación vuelva a pedirlo.
+      pendingAllowSinStock = false;
+      pendingDebtApproval = false;
       const q = $('ventaQuery').value.trim().toLowerCase();
-      const found = q ? ventaProducts.filter(p => matches(p, q)).slice(0, 8) : [];
+      const found = (q ? ventaProducts.filter(p => matches(p, q)) : ventaProducts).slice(0, 20);
       $('ventaCount').textContent = q ? `${found.length} coincidencias` : `${ventaProducts.length} productos disponibles`;
-      $('ventaResultados').innerHTML = found.map(p =>
-        `<button class="product" data-add="${p.id}"><strong>${p.nombre}</strong>
-          <div class="row"><span class="price">${money(p.precio)}</span><span>Stock: ${p.stock}</span></div>
-          <div class="row"><span>${p.marca || 'Sin marca'}</span><span>${p.codigoBarra || p.codigoProducto || ''}</span></div></button>`).join('');
-
-      $('carrito').innerHTML = cart.map((i, index) => {
-        const excede = i.producto.seguirStock && i.cantidad > i.producto.stock;
-        return `<div class="item">
-          <div class="info"><strong>${i.producto.nombre}</strong><span>${money(i.producto.precio)} c/u</span>
-            ${excede ? `<span class="warnline">Supera el stock disponible (${i.producto.stock})</span>` : ''}</div>
-          <div class="qty"><button data-dec="${index}">−</button><span>${i.cantidad}</span><button data-inc="${index}">+</button></div>
-          <div class="sub">${money(i.producto.precio * i.cantidad)}</div>
-        </div>`;
+      $('ventaResultados').innerHTML = found.map(p => {
+        const secondary = [p.marca, p.codigoBarra || p.codigoProducto].filter(Boolean).join(' · ') || 'Sin marca';
+        return `<button class="product sale-result" data-add="${p.id}">
+          <div class="sale-product-main"><strong>${p.nombre}</strong><span class="price">${money(p.precio)}</span></div>
+          <div class="sale-product-meta"><span>${secondary}</span></div>
+          <span class="sale-add" aria-hidden="true">+</span></button>`;
       }).join('');
 
+      $('carrito').innerHTML = cart.length ? cart.map((i, index) => {
+        const excede = i.producto.seguirStock !== false && i.cantidad > i.producto.stock;
+        const metadata = `${money(i.producto.precio)} c/u${i.producto.seguirStock ? ` · Stock: ${i.producto.stock}` : ''}`;
+        return `<div class="item">
+          <div class="info"><div class="cart-product-main"><strong>${i.producto.nombre}</strong><span class="sub">${money(i.producto.precio * i.cantidad)}</span></div>
+            <span class="cart-meta${excede ? ' stock-warning' : ''}">${metadata}</span></div>
+          <div class="qty"><button data-dec="${index}" aria-label="Restar una unidad de ${i.producto.nombre}">−</button><span>${i.cantidad}</span><button data-inc="${index}" aria-label="Sumar una unidad de ${i.producto.nombre}">+</button></div>
+          <button class="item-remove" data-remove="${index}" aria-label="Quitar ${i.producto.nombre}"><span class="msi i-close"></span></button>
+        </div>`;
+      }).join('') : '<div class="empty-cart">Tu carrito está vacío.<br>Agregá productos desde la pestaña Productos.</div>';
+
       const items = cart.reduce((sum, i) => sum + i.cantidad, 0);
-      $('tCantidad').textContent = String(items);
-      $('tTotal').textContent = money(total());
-      $('pagoCard').style.display = cart.length ? 'block' : 'none';
-      if (!Number($('montoRecibido').value)) $('montoRecibido').value = total().toFixed(2);
+      $('cartHeadingCount').textContent = `· ${items} ${items === 1 ? 'producto' : 'productos'}`;
+      $('cartTabCount').textContent = String(items);
+      $('cartTabCount').hidden = !items;
+      $('cartSummaryCount').textContent = `${items} ${items === 1 ? 'producto' : 'productos'}`;
+      $('cartSummaryTotal').textContent = money(total());
+      $('checkoutTotal').textContent = money(total());
+      $('cartSummary').hidden = !cart.length;
+      $('startCheckout').textContent = `Cobrar ${money(total())}`;
+      if (!Number.isFinite(parseMoney($('montoRecibido').value)) || !parseMoney($('montoRecibido').value)) $('montoRecibido').value = moneyInput(total());
       updateVuelto();
     }
 
-    function addToCart(producto) {
+    let cartToastTimer = 0;
+
+    function showCartToast(text) {
+      const el = $('cartToast');
+      $('cartToastText').textContent = text;
+      el.hidden = false;
+      el.offsetHeight; // fuerza reflow para que la transición arranque desde el estado inicial
+      el.classList.add('show');
+      clearTimeout(cartToastTimer);
+      cartToastTimer = setTimeout(hideCartToast, 2400);
+    }
+
+    function hideCartToast() {
+      clearTimeout(cartToastTimer);
+      const el = $('cartToast');
+      el.classList.remove('show');
+      el.hidden = true;
+    }
+
+    function addToCart(producto, toastDelay = 0) {
       const existing = cart.find(i => i.producto.id === producto.id);
       if (existing) existing.cantidad += 1;
       else cart.push({ producto, cantidad: 1 });
+      const linea = cart.find(i => i.producto.id === producto.id);
+      const toastText = `${producto.nombre} ×${linea.cantidad}`;
       $('ventaQuery').value = '';
       renderVenta();
+      if (toastDelay) setTimeout(() => showCartToast(toastText), toastDelay);
+      else showCartToast(toastText);
     }
 
-    function addByBarcode(codigo) {
+    function addByBarcode(codigo, toastDelay = 0) {
       const code = String(codigo || '').trim();
       const product = ventaProducts.find(p =>
         String(p.codigoBarra || '') === code || String(p.codigoProducto || '') === code);
       if (!product) {
-        $('ventaError').textContent = `No se encontró un producto con el código ${code}.`;
+        $('ventaProductError').textContent = `No se encontró un producto con el código ${code}.`;
         return;
       }
-      $('ventaError').textContent = '';
-      addToCart(product);
+      $('ventaProductError').textContent = '';
+      addToCart(product, toastDelay);
+      return product;
     }
 
     async function confirmarVenta() {
       $('ventaError').textContent = '';
       if (!cart.length) return $('ventaError').textContent = 'Agregá al menos un producto.';
-      if (!cajaAbierta) return $('ventaError').textContent = 'La caja está cerrada.';
-      if (!selectedMedio) return $('ventaError').textContent = 'Elegí un medio de pago.';
+      if (!selectedMedio) return $('ventaError').textContent = 'Seleccioná un medio de pago antes de confirmar.';
 
+      // PosWeb re-verifica la caja antes de confirmar, no solo al entrar.
+      if (!cajaAbierta) {
+        try {
+          const caja = await request(`/api/cajas/activa?sucursalId=${centralId}`, { headers: auth() });
+          cajaAbierta = Boolean(caja?.activa);
+        } catch { cajaAbierta = false }
+        if (!cajaAbierta)
+          return $('ventaError').textContent = 'No hay caja abierta. Abrila en Vendeto para poder registrar la venta.';
+      }
+
+      // Stock insuficiente: exige confirmación explícita antes de mandar allowSinStock.
+      if (!pendingAllowSinStock) {
+        const sinStock = stockConflictItems();
+        if (sinStock.length) { showStockConfirm(sinStock); return }
+      }
+      const allowSinStock = pendingAllowSinStock;
       const totalVenta = total();
-      const recibido = selectedMedio.pagaVuelto ? Number($('montoRecibido').value || 0) : totalVenta;
-      if (selectedMedio.pagaVuelto && recibido < totalVenta)
-        return $('ventaError').textContent = 'El monto recibido es menor al total.';
+      const parsedRecibido = parseMoney($('montoRecibido').value);
+      const recibido = Number.isFinite(parsedRecibido) && parsedRecibido > 0 ? parsedRecibido : totalVenta;
+
+      // Pago menor al total: se confirma en un popup, igual que el conflicto de stock.
+      const parcial = recibido + 0.005 < totalVenta;
+      let clienteId = null;
+      if (parcial) {
+        clienteId = Number($('debtClient').value) || null;
+        if (!pendingDebtApproval || !clienteId) {
+          showDebtConfirm(totalVenta, recibido);
+          return;
+        }
+      }
+
+      const pago = { medioPagoId: selectedMedio.id, monto: roundMoney(Math.min(recibido, totalVenta)) };
+      if (selectedMedio.pagaVuelto && recibido > totalVenta) pago.conCambio = recibido;
 
       const payload = {
         sucursalId: centralId,
         items: cart.map(i => ({ productoId: i.producto.id, cantidad: i.cantidad })),
-        pagos: [{ medioPagoId: selectedMedio.id, monto: recibido, conCambio: selectedMedio.pagaVuelto ? recibido : null }],
+        pagos: [pago],
+        allowSinStock,
       };
+      if (clienteId) payload.clienteId = clienteId;
 
       $('confirmar').disabled = true;
       $('confirmar').textContent = 'Confirmando…';
       try {
-        const res = await request('/api/ventas', { method: 'POST', headers: jsonAuth(), body: JSON.stringify(payload) });
-        $('kNumero').textContent = `#${res.ventaId}`;
+        const res = await request('/api/ventas', { method: 'POST', headers: jsonAuth(), body: JSON.stringify(payload) });        $('kNumero').textContent = `#${res.ventaId}`;
         $('kMedio').textContent = selectedMedio.nombre;
         $('kRecibido').textContent = money(recibido);
         $('kTotal').textContent = money(res.total ?? totalVenta);
         $('kVuelto').textContent = money(res.cambio ?? 0);
+        $('kDeudaRow').hidden = !res.deudaMonto;
+        $('kDeuda').textContent = res.deudaMonto ? `${money(res.deudaMonto)}${res.clienteNombre ? ` · ${res.clienteNombre}` : ''}` : '';
+        hideCheckout();
         $('ticket').classList.add('open');
         pushLayer();
         cart = [];
         selectedMedio = null;
         $('montoRecibido').value = '';
+        $('debtClient').value = '';
         await loadSales();
+        setSaleTab('products');
       } catch (e) {
         $('ventaError').textContent = e.message;
       } finally {
+        // Los permisos explícitos se consumen por intento: si el envío falla,
+        // el próximo intento vuelve a exigir la confirmación correspondiente.
+        pendingAllowSinStock = false;
+        pendingDebtApproval = false;
         $('confirmar').disabled = false;
         $('confirmar').textContent = 'Confirmar venta';
       }
@@ -638,7 +1072,7 @@
       $('ventas').style.display = view === 'sales' ? 'block' : 'none';
       $('navProductos').classList.toggle('active', view === 'products');
       $('navVentas').classList.toggle('active', view === 'sales');
-      if (view === 'sales') loadSales().catch(e => $('ventaError').textContent = e.message);
+      if (view === 'sales') loadSales(true).catch(e => $('ventaError').textContent = e.message);
     }
 
     function closeDrawer() { if (isDrawerOpen()) history.back(); else hideDrawer() }
@@ -672,7 +1106,8 @@
       pendingCount = 0;
       cooldownUntil = now + COOLDOWN_MS;
       stopScanner();
-      if (scanTarget === 'sales') addByBarcode(value);
+      consumeLayer();
+      if (scanTarget === 'sales') addByBarcode(value, 180);
       else if (scanTarget === 'new-product') {
         $('fCodigoBarra').value = value;
         $('fCodigoBarra').dispatchEvent(new Event('blur'));
@@ -790,7 +1225,11 @@
     });
 
     $('carrito').addEventListener('click', (e) => {
-      const inc = e.target.closest('[data-inc]'), dec = e.target.closest('[data-dec]');
+      const inc = e.target.closest('[data-inc]'), dec = e.target.closest('[data-dec]'), remove = e.target.closest('[data-remove]');
+      if (remove) {
+        cart.splice(Number(remove.dataset.remove), 1);
+        return renderVenta();
+      }
       if (inc) { cart[Number(inc.dataset.inc)].cantidad += 1; return renderVenta() }
       if (dec) {
         const index = Number(dec.dataset.dec);
@@ -804,19 +1243,86 @@
       const button = e.target.closest('.medio');
       if (!button) return;
       selectedMedio = medios.find(m => String(m.id) === button.dataset.id) || null;
-      if (selectedMedio?.pagaVuelto && !Number($('montoRecibido').value))
-        $('montoRecibido').value = total().toFixed(2);
+      pendingDebtApproval = false;
+      if (!Number.isFinite(parseMoney($('montoRecibido').value)) || !parseMoney($('montoRecibido').value))
+        $('montoRecibido').value = moneyInput(total());
       renderMedios();
     });
 
-    $('montoRecibido').addEventListener('input', updateVuelto);
+    $('montoRecibido').addEventListener('input', () => { pendingDebtApproval = false; updateVuelto() });
+    function setAmountToTotal() {
+      pendingDebtApproval = false;
+      $('montoRecibido').value = moneyInput(total());
+      updateVuelto();
+    }
+    $('totalAmountRecibido').addEventListener('click', setAmountToTotal);
+    function clearMontoRecibido(e) {
+      e?.preventDefault();
+      pendingDebtApproval = false;
+      $('montoRecibido').value = '';
+      updateVuelto();
+    }
+    // En táctil limpia durante pointerdown sin mover el foco al input.
+    $('clearMontoRecibido').addEventListener('pointerdown', clearMontoRecibido);
+    // Conserva el mismo comportamiento para teclado y lectores de pantalla.
+    $('clearMontoRecibido').addEventListener('click', clearMontoRecibido);
+    document.querySelector('.cash-shortcuts').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-amount-add]');
+      if (!button) return;
+      const actual = parseMoney($('montoRecibido').value);
+      const incremento = Number(button.dataset.amountAdd);
+      pendingDebtApproval = false;
+      $('montoRecibido').value = moneyInput((Number.isFinite(actual) ? actual : 0) + incremento);
+      updateVuelto();
+    });
     $('confirmar').onclick = confirmarVenta;
+    $('stockBack').onclick = closeStockConfirm;
+    $('stockCancel').onclick = closeStockConfirm;
+    $('stockContinue').onclick = () => {
+      hideStockConfirm();
+      pendingAllowSinStock = true;
+      consumeLayer();
+      void confirmarVenta();
+    };
+    $('debtBack').onclick = closeDebtConfirm;
+    $('debtCancel').onclick = closeDebtConfirm;
+    $('debtContinue').onclick = () => {
+      if (!Number($('debtClient').value)) {
+        $('debtConfirmError').textContent = 'Elegí un cliente para registrar la deuda.';
+        $('debtClient').focus();
+        return;
+      }
+      $('debtConfirmError').textContent = '';
+      hideDebtConfirm();
+      pendingDebtApproval = true;
+      consumeLayer();
+      void confirmarVenta();
+    };
+    $('debtClient').addEventListener('focus', () => { if (debtClientsState === 'error') loadDebtClients(true) });
+    $('debtClient').addEventListener('change', () => {
+      if ($('debtClient').value) {
+        $('ventaError').textContent = '';
+        $('debtConfirmError').textContent = '';
+      }
+    });
+    $('clearCartBack').onclick = closeClearCartConfirm;
+    $('clearCartCancel').onclick = closeClearCartConfirm;
+    $('clearCartContinue').onclick = () => {
+      hideClearCartConfirm();
+      cart = [];
+      renderVenta();
+      consumeLayer();
+    };
+    $('startCheckout').onclick = openCheckout;
+    $('checkoutBack').onclick = closeCheckout;
+    $('clearCart').onclick = showClearCartConfirm;
     $('closeTicket').onclick = () => { if (isTicketOpen()) history.back(); else hideTicket() };
     $('nuevaVenta').onclick = () => { if (isTicketOpen()) history.back(); else hideTicket() };
     $('closeScanner').onclick = () => { if (isScannerOpen()) history.back(); else stopScanner() };
     $('newProduct').onclick = () => openSheet(null);
+    $('saleProductsTab').onclick = () => setSaleTab('products');
+    $('saleCartTab').onclick = () => setSaleTab('cart');
     $('scanProductBarcode').onclick = () => openScanner('new-product');
-    $('closeSheet').onclick = closeSheet;
     $('fCodigoBarra').addEventListener('blur', async () => {
       const code = $('fCodigoBarra').value.trim();
       if (!/^\d{8,14}$/.test(code)) return;

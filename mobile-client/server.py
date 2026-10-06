@@ -21,7 +21,7 @@ POSWEB_API_BASE = os.getenv("POSWEB_API_BASE", "http://127.0.0.1:5196/api")
 STATIC_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "static"
 CERT_DIR = Path(os.getenv("APPDATA", tempfile.gettempdir())) / "VendetoMobile"
 PUBLIC_API_PATHS = ("/sucursales", "/auth/login")
-AUTHENTICATED_API_PREFIXES = ("/productos", "/categorias", "/unidades-medida", "/medios-pago", "/cajas", "/ventas", "/stock")
+AUTHENTICATED_API_PREFIXES = ("/productos", "/categorias", "/unidades-medida", "/medios-pago", "/cajas", "/ventas", "/stock", "/clientes")
 
 
 async def health(_: web.Request) -> web.Response:
