@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import { obtenerCredenciales, guardarCredenciales } from '../lib/credenciales'
+import PasswordInput from '../components/ui/PasswordInput'
 import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [showRegister, setShowRegister] = useState(false)
   const [regUsuario, setRegUsuario] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [regPassword2, setRegPassword2] = useState('')
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
   const [regTipoNegocio, setRegTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
@@ -29,6 +31,7 @@ export default function LoginPage() {
   const [recEmail, setRecEmail] = useState('')
   const [recCodigo, setRecCodigo] = useState('')
   const [recNuevaPassword, setRecNuevaPassword] = useState('')
+  const [recNuevaPassword2, setRecNuevaPassword2] = useState('')
   const [recPaso, setRecPaso] = useState<'email' | 'codigo'>('email')
   const [recLoading, setRecLoading] = useState(false)
   const [showConfirmacion, setShowConfirmacion] = useState(false)
@@ -127,6 +130,10 @@ export default function LoginPage() {
 
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (regPassword !== regPassword2) {
+      notifyError('Las contraseñas no coinciden')
+      return
+    }
     setRegisterLoading(true)
 
     try {
@@ -140,6 +147,7 @@ export default function LoginPage() {
       })
       setRegUsuario('')
       setRegPassword('')
+      setRegPassword2('')
       setRegMail('')
       setRegEmpresa('')
       setRegTipoNegocio('Tienda')
@@ -200,6 +208,10 @@ export default function LoginPage() {
       notifyError('La contraseña debe tener al menos 6 caracteres')
       return
     }
+    if (recNuevaPassword !== recNuevaPassword2) {
+      notifyError('Las contraseñas no coinciden')
+      return
+    }
     setRecLoading(true)
     try {
       await api.auth.resetPassword({
@@ -211,6 +223,7 @@ export default function LoginPage() {
       setRecEmail('')
       setRecCodigo('')
       setRecNuevaPassword('')
+      setRecNuevaPassword2('')
       setRecPaso('email')
       setShowRecovery(false)
     } catch (err: any) {
@@ -291,8 +304,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -353,7 +365,7 @@ export default function LoginPage() {
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => { setShowRecovery(true); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword('') }}
+                onClick={() => { setShowRecovery(true); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword(''); setRecNuevaPassword2('') }}
                 className="text-xs text-slate-500 hover:text-indigo-600 hover:underline"
               >
                 ¿Olvidaste tu contraseña?
@@ -366,63 +378,75 @@ export default function LoginPage() {
           <form onSubmit={handleRegisterSubmit} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">Crear administrador</h2>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
-              <input
-                type="text"
-                value={regUsuario}
-                onChange={e => setRegUsuario(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-                autoFocus
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+                <input
+                  type="text"
+                  value={regUsuario}
+                  onChange={e => setRegUsuario(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  autoFocus
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-              <input
-                type="password"
-                value={regPassword}
-                onChange={e => setRegPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-                minLength={6}
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mail</label>
+                <input
+                  type="email"
+                  value={regMail}
+                  onChange={e => setRegMail(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mail</label>
-              <input
-                type="email"
-                value={regMail}
-                onChange={e => setRegMail(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                <PasswordInput
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  minLength={6}
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Empresa</label>
-              <input
-                type="text"
-                value={regEmpresa}
-                onChange={e => setRegEmpresa(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Nombre de empresa (opcional)"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Repetir contraseña</label>
+                <PasswordInput
+                  value={regPassword2}
+                  onChange={e => setRegPassword2(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  minLength={6}
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
-              <select
-                value={regTipoNegocio}
-                onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              >
-                <option value="Tienda">Tienda</option>
-                <option value="Restaurante">Restaurante (con mesas)</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Empresa</label>
+                <input
+                  type="text"
+                  value={regEmpresa}
+                  onChange={e => setRegEmpresa(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
+                <select
+                  value={regTipoNegocio}
+                  onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                >
+                  <option value="Tienda">Tienda</option>
+                  <option value="Restaurante">Restaurante (con mesas)</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -498,10 +522,21 @@ export default function LoginPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Nueva contraseña</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={recNuevaPassword}
                     onChange={e => setRecNuevaPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Repetir contraseña</label>
+                  <PasswordInput
+                    value={recNuevaPassword2}
+                    onChange={e => setRecNuevaPassword2(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Mínimo 6 caracteres"
                     required
@@ -521,7 +556,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => { setShowRecovery(false); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword('') }}
+              onClick={() => { setShowRecovery(false); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword(''); setRecNuevaPassword2('') }}
               className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >
               Volver al inicio de sesión

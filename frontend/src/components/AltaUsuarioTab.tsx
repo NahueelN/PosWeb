@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import ConfirmDialog from './ui/ConfirmDialog'
+import PasswordInput from './ui/PasswordInput'
 import type { UsuarioListadoDto, LicenciaEstado } from '../types'
 
 export default function AltaUsuarioTab() {
@@ -210,8 +211,7 @@ export default function AltaUsuarioTab() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
