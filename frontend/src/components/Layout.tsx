@@ -338,12 +338,11 @@ export default function Layout() {
     <>
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/[0.08] shrink-0">
-        <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.52_0.255_278)] text-white font-bold text-[12px] tracking-tight select-none"
-          style={{ boxShadow: '0 1px 4px oklch(0.52 0.255 278 / 0.35)' }}
-        >
-          V
-        </div>
+        <img
+          src="/vendeto-icono-blanco.png"
+          alt="Vendeto"
+          className="h-7 w-7 shrink-0 object-contain"
+        />
         <div className="flex flex-col leading-none">
           <span className="text-[13.5px] font-bold text-white tracking-tight">Vendeto</span>
           <span className="text-[9.5px] text-white/25 font-medium mt-[3px] tracking-wide uppercase">
