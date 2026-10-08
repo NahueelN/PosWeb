@@ -1340,13 +1340,13 @@ public partial class PosDbContext
             new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos", ACTIVO = true }
         );
 
-        // Seed admin user (password: admin123)
+        // Seed admin user (password: 7$0W6bD6@Z&)
         modelBuilder.Entity<Usuario>().HasData(
             new
             {
                 ID_USUARIO = 1,
                 NOMBRE_USUARIO = "admin",
-                PASSWORD_HASH = "$2a$11$K4YfGqJ1e4YHIpRMTfoxYO0R9i0RDxG.h1X0As95JXQOYGMjs4eIy",
+                PASSWORD_HASH = "$2a$11$bJl/b2YWoBxnQbPJSksQre64K0bAbj0YnleO2rVYXNRtlpll4JBjG",
                 ROL = "SuperAdmin",
                 MAIL = "admin@posweb.com",
                 SUSCRIPCION_ACTIVA = false,
