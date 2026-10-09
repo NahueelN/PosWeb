@@ -56,6 +56,15 @@ export interface PositionedInstance extends LayoutInstance {
   y: number
 }
 
+// ── Dashboard Tab (pestaña del dashboard) ────────────────────────
+// Cada pestaña tiene título propio y su propio layout de widgets.
+
+export interface DashboardTab {
+  id: string
+  title: string
+  layout: LayoutInstance[]
+}
+
 // ── Computed Layout Cell (for rendering) ────────────────────────
 
 export interface LayoutCell {

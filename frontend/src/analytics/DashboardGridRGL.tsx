@@ -51,6 +51,8 @@ function compactBidirectional(items: LayoutInstance[], cols: number, maxRows: nu
       }
     }
     if (!placed) {
+      // No hay espacio dentro de maxRows: conservar la posición original
+      // (ya era no-solapada) en lugar de generar superposiciones.
       compacted.push(item)
     }
   }
@@ -92,10 +94,12 @@ export default function DashboardGridRGL({
   const rowHeight = ROW_HEIGHT_PX
 
   // Altura del contenedor según el contenido real del layout, crece para permitir scroll.
+  // Se reservan filas extra al final para que el drag tenga espacio libre (sin "bloqueos").
+  const EXTRA_DRAG_ROWS = 2
   const contentHeight = useMemo(() => {
     const maxRow = layout.reduce((m, i) => Math.max(m, (i.y ?? 1) + i.h - 1), 1)
     const capped = Math.max(1, Math.min(maxRow, rows))
-    return capped * (rowHeight + MARGIN_Y) + MARGIN_Y
+    return (capped + EXTRA_DRAG_ROWS) * (rowHeight + MARGIN_Y) + MARGIN_Y
   }, [layout, rows])
 
   const defMap = useMemo(() => {
@@ -189,27 +193,24 @@ export default function DashboardGridRGL({
         compactType="vertical"
         preventCollision={false}
         allowOverlap={false}
-        isBounded
         useCSSTransforms
-        draggableHandle=".widget-drag-handle"
         onDragStop={handleDragStop}
         onResizeStop={handleResizeStop}
       >
         {layout.map((inst) => {
           const widget = widgetMap.get(inst.id)
           return (
-            <div key={inst.id} className="group relative rounded-xl min-h-0 min-w-0">
-              {/* Drag handle — always visible so widgets feel draggable */}
-              {onRemove && (
-                <div className="widget-drag-handle absolute top-2 left-2 z-20 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity">
-                  <div className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 transition-colors">
-                    <GripVertical size={11} className="text-gray-400" />
-                  </div>
+            <div key={inst.id} className="group relative rounded-xl min-h-0 min-w-0 cursor-grab active:cursor-grabbing">
+              {/* Afordance de arrastre: la card completa es draggable */}
+              <div className="pointer-events-none absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-5 h-5 flex items-center justify-center rounded-md bg-black/[0.03]">
+                  <GripVertical size={11} className="text-gray-400" />
                 </div>
-              )}
+              </div>
 
               {onEdit && (
                 <button
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onEdit(inst.id) }}
                   className="absolute top-2 right-2 z-20 transition-opacity"
                 >
@@ -221,6 +222,7 @@ export default function DashboardGridRGL({
 
               {onRemove && (
                 <button
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); handleRemoveLocal(inst.id) }}
                   className="absolute top-2 right-2 z-20 transition-opacity"
                   style={{ right: onEdit ? '32px' : undefined }}
@@ -232,7 +234,7 @@ export default function DashboardGridRGL({
               )}
 
               <motion.div
-                className="h-full min-h-0 min-w-0 bg-white rounded-xl border border-gray-300 shadow-card overflow-hidden"
+                className="h-full min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200/70 shadow-card overflow-hidden"
                 initial={firstRender.current ? false : { opacity: 0, scale: 0.95, y: 8 }}
                 animate={
                   exiting.has(inst.id)

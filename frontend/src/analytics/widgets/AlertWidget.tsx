@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import type { Widget } from '../types'
 import { Package, Wallet, FileText, Users, AlertTriangle, CircleCheck, ChevronRight } from 'lucide-react'
+import WidgetHeader from './WidgetHeader'
+import { getWidgetAccent } from './chrome'
 
 interface Props {
   widget: Widget
@@ -9,6 +11,8 @@ interface Props {
 export default function AlertWidget({ widget }: Props) {
   const navigate = useNavigate()
   const row = widget.dataset.rows[0] ?? {}
+  const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
 
   const alerts = [
     {
@@ -55,15 +59,13 @@ export default function AlertWidget({ widget }: Props) {
 
   return (
     <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 to-rose-300" />
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {alerts.length > 0 ? `${alerts.length} activas` : 'Todo en orden'}
-          </p>
-        </div>
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader
+        accent={accent}
+        title={widget.title}
+        icon={config.icon}
+        subtitle={alerts.length > 0 ? `${alerts.length} activas` : 'Todo en orden'}
+      />
 
       {alerts.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-4">

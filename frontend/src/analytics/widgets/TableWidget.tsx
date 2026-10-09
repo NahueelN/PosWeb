@@ -1,6 +1,8 @@
 import type { Widget, DatasetColumn } from '../types'
 import { formatCurrency, formatDate } from '../../formats'
 import { Package, Table as TableIcon } from 'lucide-react'
+import WidgetHeader from './WidgetHeader'
+import { getWidgetAccent } from './chrome'
 
 interface Props {
   widget: Widget
@@ -31,14 +33,18 @@ function isNumeric(column: DatasetColumn): boolean {
 function GenericTable({ widget }: Props) {
   const columns = widget.dataset.columns ?? []
   const rows = widget.dataset.rows ?? []
+  const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
 
   return (
     <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 to-emerald-300" />
-      <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-        <span className="text-[10px] text-gray-400">{rows.length} filas</span>
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader
+        accent={accent}
+        title={widget.title}
+        icon={config.icon}
+        subtitle={`${rows.length} filas`}
+      />
 
       {rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-300">
@@ -52,14 +58,14 @@ function GenericTable({ widget }: Props) {
       ) : (
         <div className="flex-1 overflow-auto -mx-1">
           <table className="w-full text-[11px] border-collapse">
-            <thead className="sticky top-0 bg-white z-10">
+            <thead className="sticky top-0 z-10">
               <tr>
-                {columns.map((c) => (
+                {columns.map((c, ci) => (
                   <th
                     key={c.name}
-                    className={`px-2 py-1.5 font-semibold text-gray-400 border-b border-gray-100 whitespace-nowrap ${
+                    className={`px-2.5 py-2 font-semibold text-[10px] uppercase tracking-wider text-slate-400 bg-slate-50/95 backdrop-blur border-b border-slate-200/80 whitespace-nowrap ${
                       isNumeric(c) ? 'text-right' : 'text-left'
-                    }`}
+                    } ${ci === 0 ? 'rounded-tl-lg' : ''} ${ci === columns.length - 1 ? 'rounded-tr-lg' : ''}`}
                   >
                     {c.label ?? c.name}
                   </th>
@@ -68,12 +74,21 @@ function GenericTable({ widget }: Props) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={i} className="hover:bg-gray-50/70 transition-colors">
-                  {columns.map((c) => (
+                <tr
+                  key={i}
+                  className={`transition-colors ${
+                    i % 2 === 1 ? 'bg-slate-50/50' : ''
+                  } ${accent.rowHover}`}
+                >
+                  {columns.map((c, ci) => (
                     <td
                       key={c.name}
-                      className={`px-2 py-1.5 border-b border-gray-50 max-w-[160px] truncate ${
-                        isNumeric(c) ? 'text-right font-medium text-gray-900' : 'text-gray-600'
+                      className={`px-2.5 py-1.5 border-b border-slate-100 max-w-[160px] truncate ${
+                        isNumeric(c)
+                          ? 'text-right font-medium text-slate-800 tabular-nums'
+                          : ci === 0
+                            ? 'text-slate-700 font-medium'
+                            : 'text-slate-500'
                       }`}
                     >
                       {formatCell(r[c.name], c)}
@@ -95,7 +110,9 @@ function TopProductosTable({ widget }: Props) {
   const data = widget.dataset.rows
   const maxCant = Math.max(...data.map((p) => (p['cantidad'] as number) ?? 0), 1)
 
-  const period = widget.config?.period
+  const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
+  const period = config.period
   const periodoTexto = period === '7' ? 'la última semana' : period === '30' ? 'el último mes' : 'hoy'
   const sinVentasTexto = period === '7' ? 'esta semana' : period === '30' ? 'este mes' : 'hoy'
 
@@ -109,13 +126,13 @@ function TopProductosTable({ widget }: Props) {
 
   return (
     <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 to-emerald-300" />
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">Los más vendidos de {periodoTexto}</p>
-        </div>
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader
+        accent={accent}
+        title={widget.title}
+        icon={config.icon}
+        subtitle={`Los más vendidos de ${periodoTexto}`}
+      />
 
       {data.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-300">

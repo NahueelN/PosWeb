@@ -144,6 +144,20 @@ Un componente de visualización **no debe ramificar por la identidad de negocio*
 
 Ramificar por identidad acopla los widgets a entidades de negocio (anti-pattern) y hace que las queries nuevas no se rendericen sin tocar el componente. Agregar una fuente de datos nueva debe requerir **cero cambios** en los componentes de visualización.
 
+### Sistema de acentos y header unificado
+
+Todos los widgets comparten el mismo sistema visual. Vive en `frontend/src/analytics/widgets/chrome.ts` y `WidgetHeader.tsx`:
+
+- **`WidgetAccent`**: tokens de color (spine, chip, barras, hover) por nombre (`indigo`, `sky`, `blue`, `emerald`, `teal`, `violet`, `purple`, `amber`, `rose`, `gray`).
+- **`getWidgetAccent(config.color, definitionId)`**: el acento se deriva de `config.color` (si el usuario lo eligió) y, si no, de un **default por `definitionId`** (`DEFAULT_ACCENT`). Así cada fuente de datos tiene identidad de color coherente sin hardcodear gradientes en los componentes.
+- **`resolveWidgetIcon(config.icon)`**: resuelve el nombre del ícono de la definición a un componente Lucide.
+- **`WidgetHeader`**: encabezado unificado (chip de ícono + título + subtítulo + slot derecho) usado por todos los widgets.
+
+Invariantes:
+1. Ningún widget hardcodea gradientes ni su header por separado: usa `getWidgetAccent` + `WidgetHeader`.
+2. Agregar una fuente de datos nueva solo requiere indicar su ícono (`Icon` en la `WidgetDefinition`) y (opcional) su acento por defecto en `DEFAULT_ACCENT`.
+3. El color general de una fuente puede sobreescribirse por instancia vía el parámetro `color`.
+
 ## Backend: WidgetFactory
 
 ```csharp

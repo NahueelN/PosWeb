@@ -142,7 +142,7 @@ Response: { definitions: [...], widgets: [...] }
 
 ### Persistencia
 
-Las WidgetInstances se guardan en **localStorage** (key: `dashboard-instances`).
+El dashboard se organiza en **pestañas** (máx. 5) guardadas en **localStorage** (key: `dashboard-tabs-v1`). Cada pestaña tiene título propio y su propio array de WidgetInstance (layout). Al migrar desde el formato previo (`dashboard-layout-v4`, un único array de instancias) se crea una única pestaña "Inicio".
 No hay persistencia en base de datos todavía.
 
 ### Componentes
@@ -201,6 +201,7 @@ PAT-DashboardBuilder
 - ✅ WidgetDefinitionRegistry (catálogo de 23 fuentes: KPIs, charts, rankings, alerts, lists + finanzas, operaciones y equipo)
 - ✅ DashboardBuilderService (ejecuta queries por instancia)
 - ✅ WidgetInstances en localStorage
+- ✅ Múltiples pestañas (máx. 5) con título propio y layout independiente
 - ✅ WidgetPicker (flujo de 4 pasos)
 - ✅ DashboardPage consume instancias
 - ✅ CRUD de instancias (agregar, eliminar, reordenar)

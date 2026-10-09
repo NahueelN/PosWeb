@@ -1,6 +1,8 @@
 import type { Widget } from '../types'
 import { formatCurrency, formatTime } from '../../formats'
 import { Receipt, FileText, Wallet, AlertTriangle, Clock, Package, Users } from 'lucide-react'
+import WidgetHeader from './WidgetHeader'
+import { getWidgetAccent } from './chrome'
 
 const iconMap: Record<string, React.ElementType> = {
   venta: Receipt,
@@ -29,6 +31,8 @@ interface Props {
 
 export default function ListWidget({ widget }: Props) {
   const data = widget.dataset.rows
+  const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
 
   if (widget.definitionId === 'resumen') {
     const row = data[0] ?? {}
@@ -40,8 +44,8 @@ export default function ListWidget({ widget }: Props) {
 
     return (
       <div className="p-3.5 h-full flex flex-col justify-center relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 to-teal-300" />
-        <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide mb-3">{widget.title}</h3>
+        <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+        <WidgetHeader accent={accent} title={widget.title} icon={config.icon} />
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.label} className="flex items-center justify-between">
@@ -51,7 +55,7 @@ export default function ListWidget({ widget }: Props) {
                 </div>
                 <span className="text-xs text-gray-500">{item.label}</span>
               </div>
-              <span className="text-sm font-bold text-gray-900">{item.value}</span>
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{item.value}</span>
             </div>
           ))}
         </div>
@@ -61,13 +65,13 @@ export default function ListWidget({ widget }: Props) {
 
   return (
     <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 to-teal-300" />
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">Últimos movimientos</p>
-        </div>
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader
+        accent={accent}
+        title={widget.title}
+        icon={config.icon}
+        subtitle="Últimos movimientos"
+      />
 
       {data.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-4">

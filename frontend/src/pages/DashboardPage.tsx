@@ -6,11 +6,13 @@ import { PageShell } from '../components/shared'
 import Button from '../components/ui/Button'
 import { formatTime } from '../formats'
 import type { DashboardResponse, Widget, WidgetType } from '../analytics/types'
-import type { LayoutInstance, GridSize } from '../analytics/grid/types'
+import type { LayoutInstance, GridSize, DashboardTab } from '../analytics/grid/types'
 import { columnsForWidth, GRID_COLS, GRID_ROWS } from '../analytics/grid/types'
-import { GridEngine, createLocalStorageRepository, DEFAULT_LAYOUT, resolveLayout } from '../analytics/grid'
-import type { DashboardRepository } from '../analytics/grid'
+import { GridEngine, createLocalStorageTabsRepository, DEFAULT_LAYOUT, resolveLayout } from '../analytics/grid'
+import type { DashboardTabsRepository } from '../analytics/grid'
+import { MAX_TABS } from '../analytics/grid'
 import DashboardGridRGL from '../analytics/DashboardGridRGL'
+import DashboardTabs from '../analytics/DashboardTabs'
 import WidgetPicker from '../analytics/WidgetPicker'
 import WidgetEditor from '../analytics/WidgetEditor'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -29,7 +31,7 @@ function useGridColumns(): number {
   return cols
 }
 
-const repo: DashboardRepository = createLocalStorageRepository()
+const repo: DashboardTabsRepository = createLocalStorageTabsRepository()
 
 /* ─── Load-time helpers (RGL doesn't validate/correct initial layouts) ── */
 
@@ -45,6 +47,23 @@ function ensurePositions(instances: LayoutInstance[], cols: number): LayoutInsta
     const pos = posMap.get(inst.id)
     return pos ? { ...inst, x: pos.x, y: pos.y } : { ...inst, x: 1, y: 1 }
   })
+}
+
+function normalizeLayout(layout: LayoutInstance[]): LayoutInstance[] {
+  const positioned = ensurePositions(layout, GRID_COLS)
+  if (hasOverlapsOrOutOfBounds(positioned, GRID_COLS, GRID_ROWS)) {
+    const cells = GridEngine.computeLayout(positioned, GRID_COLS, GRID_ROWS)
+    return cells.map((c) => ({ ...c.instance, x: c.x, y: c.y }))
+  }
+  return positioned
+}
+
+function buildInitialTabs(): DashboardTab[] {
+  const loaded = repo.load()
+  if (loaded.length === 0) {
+    return [{ id: 'tab-inicio', title: 'Inicio', layout: normalizeLayout(DEFAULT_LAYOUT) }]
+  }
+  return loaded.map((t) => ({ ...t, layout: normalizeLayout(t.layout) }))
 }
 
 function hasOverlapsOrOutOfBounds(layout: LayoutInstance[], cols: number, rows: number): boolean {
@@ -112,18 +131,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [layout, setLayout] = useState<LayoutInstance[]>(() => {
-    const saved = repo.load()
-    const base = saved.length > 0 ? saved : DEFAULT_LAYOUT
-    const positioned = ensurePositions(base, GRID_COLS)
-    if (hasOverlapsOrOutOfBounds(positioned, GRID_COLS, GRID_ROWS)) {
-      const cells = GridEngine.computeLayout(positioned, GRID_COLS, GRID_ROWS)
-      const fixed = cells.map(c => ({ ...c.instance, x: c.x, y: c.y }))
-      repo.save(fixed)
-      return fixed
-    }
-    return positioned
-  })
+  const [tabs, setTabs] = useState<DashboardTab[]>(buildInitialTabs)
+  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id ?? 'tab-inicio')
+  const [layout, setLayout] = useState<LayoutInstance[]>(() => tabs[0]?.layout ?? [])
   const prevLayoutRef = useRef<LayoutInstance[]>([])
   useEffect(() => { prevLayoutRef.current = layout }, [layout])
   const [layoutGeneration, setLayoutGeneration] = useState(0)
@@ -140,6 +150,14 @@ export default function DashboardPage() {
   const [showPicker, setShowPicker] = useState(false)
   const [editingInstance, setEditingInstance] = useState<LayoutInstance | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmRemoveTab, setConfirmRemoveTab] = useState<DashboardTab | null>(null)
+  const [pendingAdd, setPendingAdd] = useState<{
+    definitionId: string
+    widgetType: WidgetType
+    size: GridSize
+    config: Record<string, any>
+    pestañas: string[]
+  } | null>(null)
   const gridCols = useGridColumns()
 
   useEffect(() => {
@@ -196,9 +214,16 @@ export default function DashboardPage() {
     cargar()
   }, [sucursalId, cargar])
 
+  // Sincronizar la pestaña activa con el layout actual
   useEffect(() => {
-    repo.save(layout)
+    setTabs(prev => prev.map(t => (t.id === activeTabId ? { ...t, layout } : t)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout])
+
+  // Persistir las pestañas completas (incluye títulos)
+  useEffect(() => {
+    repo.save(tabs)
+  }, [tabs])
 
   const widgets: Widget[] = useMemo(() => dashboard?.widgets ?? [], [dashboard])
   const definitions = useMemo(() => dashboard?.definitions ?? [], [dashboard])
@@ -212,9 +237,33 @@ export default function DashboardPage() {
     return map
   }, [layout])
 
+  // Widgets que ya existen en otras pestañas (definitionId -> títulos).
+  const widgetsEnOtrasPestanias = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const t of tabs) {
+      if (t.id === activeTabId) continue
+      for (const inst of t.layout) {
+        const lista = map.get(inst.definitionId) ?? []
+        if (!lista.includes(t.title)) lista.push(t.title)
+        map.set(inst.definitionId, lista)
+      }
+    }
+    return map
+  }, [tabs, activeTabId])
+
   /* ── CRUD ── */
 
   function handleAddWidget(definitionId: string, widgetType: WidgetType, size: GridSize, config: Record<string, any>) {
+    // Si el widget ya existe en otra pestaña, avisamos antes de agregarlo.
+    const pestañas = widgetsEnOtrasPestanias.get(definitionId) ?? []
+    if (pestañas.length > 0) {
+      setPendingAdd({ definitionId, widgetType, size, config, pestañas })
+      return
+    }
+    doAddWidget(definitionId, widgetType, size, config)
+  }
+
+  function doAddWidget(definitionId: string, widgetType: WidgetType, size: GridSize, config: Record<string, any>) {
     const slot = findFreeSlot(layout, size.w, size.h, GRID_COLS)
     if (!slot) {
       notifyError('No hay espacio disponible en el dashboard')
@@ -222,7 +271,7 @@ export default function DashboardPage() {
     }
 
     const inst: LayoutInstance = {
-      id: `w-${Date.now()}`,
+      id: `w-${activeTabId}-${Date.now()}`,
       definitionId,
       widgetType,
       w: size.w,
@@ -251,12 +300,53 @@ export default function DashboardPage() {
   }
 
   function aplicarReset() {
-    repo.clear()
     const resetLayout = ensurePositions(DEFAULT_LAYOUT, GRID_COLS)
     setLayout(resetLayout)
+    setTabs(prev => prev.map(t => (t.id === activeTabId ? { ...t, layout: resetLayout } : t)))
     setLayoutGeneration(g => g + 1)
     cargar(resetLayout.map((i) => ({ ...i, x: i.x!, y: i.y! })))
     setConfirmReset(false)
+  }
+
+  /* ── Pestañas ── */
+
+  function handleSelectTab(id: string) {
+    if (id === activeTabId) return
+    const tab = tabs.find((t) => t.id === id)
+    if (!tab) return
+    setActiveTabId(id)
+    setLayout(tab.layout)
+    cargar(tab.layout.map((i) => ({ ...i, x: i.x!, y: i.y! })))
+  }
+
+  function handleAddTab() {
+    if (tabs.length >= MAX_TABS) return
+    const id = `tab-${Date.now()}`
+    setTabs(prev => [...prev, { id, title: `Pestaña ${prev.length + 1}`, layout: [] }])
+    setActiveTabId(id)
+    setLayout([])
+    cargar([])
+  }
+
+  function handleRenameTab(id: string, title: string) {
+    setTabs(prev => prev.map(t => (t.id === id ? { ...t, title } : t)))
+  }
+
+  function handleRemoveTab(id: string) {
+    if (tabs.length <= 1) return
+    const idx = tabs.findIndex((t) => t.id === id)
+    const next = tabs.filter((t) => t.id !== id)
+    setTabs(next)
+    if (id === activeTabId) {
+      const fallback = next[Math.max(0, idx - 1)] ?? next[0]
+      setActiveTabId(fallback.id)
+      setLayout(fallback.layout)
+      cargar(fallback.layout.map((i) => ({ ...i, x: i.x!, y: i.y! })))
+    }
+  }
+
+  function handleRequestRemoveTab(tab: DashboardTab) {
+    setConfirmRemoveTab(tab)
   }
 
   function handleUpdateWidget(instanceId: string, size: GridSize, config: Record<string, any>) {
@@ -317,18 +407,29 @@ export default function DashboardPage() {
           </div>
         }
       >
-        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-100">
-          <DashboardGridRGL
-            key={layoutGeneration}
-            layout={renderLayout}
-            widgets={widgets}
-            definitions={definitions}
-            gridCols={gridCols}
-            rows={gridRows}
-            onRemove={handleRemoveWidget}
-            onEdit={handleEditWidget}
-            onLayoutChange={handleRGLLayoutChange}
+        <div className="flex-1 min-h-0 flex flex-col bg-slate-100">
+          <DashboardTabs
+            tabs={tabs}
+            activeId={activeTabId}
+            maxTabs={MAX_TABS}
+            onSelect={handleSelectTab}
+            onAdd={handleAddTab}
+            onRename={handleRenameTab}
+            onRemove={handleRequestRemoveTab}
           />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <DashboardGridRGL
+              key={layoutGeneration}
+              layout={renderLayout}
+              widgets={widgets}
+              definitions={definitions}
+              gridCols={gridCols}
+              rows={gridRows}
+              onRemove={handleRemoveWidget}
+              onEdit={handleEditWidget}
+              onLayoutChange={handleRGLLayoutChange}
+            />
+          </div>
         </div>
       </PageShell>
 
@@ -369,10 +470,42 @@ export default function DashboardPage() {
       <ConfirmDialog
         open={confirmReset}
         title="Restablecer dashboard"
-        description="¿Restablecer el dashboard al diseño predeterminado? Se descartará el layout actual."
+        description="¿Restablecer la pestaña activa al diseño predeterminado? Se descartará el layout actual de esa pestaña."
         confirmLabel="Restablecer"
         onCancel={() => setConfirmReset(false)}
         onConfirm={aplicarReset}
+      />
+
+      <ConfirmDialog
+        open={confirmRemoveTab != null}
+        title="Eliminar pestaña"
+        description={confirmRemoveTab
+          ? `¿Eliminar la pestaña «${confirmRemoveTab.title}» y todos sus widgets? Esta acción no se puede deshacer.`
+          : ''}
+        confirmLabel="Eliminar"
+        confirmVariant="destructive"
+        onCancel={() => setConfirmRemoveTab(null)}
+        onConfirm={() => {
+          if (confirmRemoveTab) handleRemoveTab(confirmRemoveTab.id)
+          setConfirmRemoveTab(null)
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingAdd != null}
+        title="Widget en otra pestaña"
+        description={pendingAdd
+          ? `Este widget ya está agregado en ${pendingAdd.pestañas.map(p => `«${p}»`).join(' y ')}. ¿Querés agregarlo igual en esta pestaña?`
+          : ''}
+        confirmLabel="Agregar igual"
+        cancelLabel="Cancelar"
+        onCancel={() => setPendingAdd(null)}
+        onConfirm={() => {
+          if (pendingAdd) {
+            doAddWidget(pendingAdd.definitionId, pendingAdd.widgetType, pendingAdd.size, pendingAdd.config)
+          }
+          setPendingAdd(null)
+        }}
       />
     </div>
   )

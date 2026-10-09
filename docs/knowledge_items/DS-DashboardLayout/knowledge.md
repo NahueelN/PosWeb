@@ -3,6 +3,7 @@ id: DS-DashboardLayout
 status: Active
 tags: [analytics, dashboard, layout, design-system, ui]
 created: 2026-07-08
+updated: 2026-10-08
 ---
 
 # DS-DashboardLayout
@@ -165,6 +166,10 @@ Opciones de persistencia:
 - **Backend**: API REST (requiere auth, soporta sharing)
 - **Local**: localStorage (rápido, sin sharing)
 - **IndexedDB**: Para layouts complejos con muchos widgets
+
+### Pestañas (tabs)
+
+El Dashboard soporta hasta 5 pestañas. Cada pestaña es un **layout independiente** con un `title` propio (`DashboardTab { id, title, layout }`). La persistencia almacena el conjunto de pestañas (títulos + posiciones), no un layout único. El backend no conoce pestañas: cada una se envía como una lista plana de instancias al `POST /dashboard/build`.
 
 ## Boundary: DashboardLayout vs. Widget
 
