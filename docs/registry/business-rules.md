@@ -16,3 +16,5 @@
 | BUS-confirmacion-email | Email confirmation rules | Active | Project | High | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
 | BUS-mesa-cobro | Reglas del cobro de cuenta de mesa (restaurante) | Active | Project | High | `knowledge/projects/posweb/BUS-mesa-cobro.md` |
 | BUS-mp-verificacion | Verificación de pagos MercadoPago (QR automática, transferencia manual) | Active | Project | High | `knowledge/projects/posweb/BUS-mp-verificacion.md` |
+| BUS-acceso-informacion-sensible | Información comercial de gestión restringida a Admin/SuperAdmin | Active | Project | High | `knowledge/projects/posweb/BUS-acceso-informacion-sensible.md` |
+| BUS-metricas-financieras | Definición de rentabilidad, margen y flujo de caja del dashboard | Active | Project | High | `knowledge/projects/posweb/BUS-metricas-financieras.md` |

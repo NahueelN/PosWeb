@@ -3,6 +3,7 @@ id: PAT-WidgetPlatform
 status: Active
 tags: [analytics, dashboard, widget, architecture, platform, visualization]
 created: 2026-07-17
+updated: 2026-10-08
 ---
 
 # PAT-WidgetPlatform
@@ -132,6 +133,16 @@ switch (widget.type) {
 
 **Nuevo Widget = agregar tipo al enum + crear componente + agregar case al switch.**
 Zero cambios en el Dashboard.
+
+### Regla de renderizado: el Dataset es la fuente, no la identidad
+
+Un componente de visualización **no debe ramificar por la identidad de negocio** del widget (ni por el `id` de instancia ni por el `definitionId`), salvo para variantes puramente de presentación. Debe renderizar a partir de los **metadatos del Dataset** (`columns[].type`, `columns[].label`, `columns[].format`, `rows`, `summary`).
+
+- Un `KPI` toma su valor y subtítulo de las columnas, formateando según su `type` (`currency`, `percentage`, `number`, `date`).
+- Una `TABLE` construye sus encabezados y celdas desde `columns`.
+- Un `BAR_CHART`/`PIE_CHART` usa las columnas `label`/`value`.
+
+Ramificar por identidad acopla los widgets a entidades de negocio (anti-pattern) y hace que las queries nuevas no se rendericen sin tocar el componente. Agregar una fuente de datos nueva debe requerir **cero cambios** en los componentes de visualización.
 
 ## Backend: WidgetFactory
 

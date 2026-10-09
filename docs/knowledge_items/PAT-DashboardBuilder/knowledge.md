@@ -3,6 +3,7 @@ id: PAT-DashboardBuilder
 status: Active
 tags: [analytics, dashboard, widget, architecture, platform, visualization, builder]
 created: 2026-07-17
+updated: 2026-10-08
 ---
 
 # PAT-DashboardBuilder
@@ -197,7 +198,7 @@ PAT-DashboardBuilder
 
 ## Estado de implementación
 
-- ✅ WidgetDefinitionRegistry (catálogo de 10 fuentes)
+- ✅ WidgetDefinitionRegistry (catálogo de 23 fuentes: KPIs, charts, rankings, alerts, lists + finanzas, operaciones y equipo)
 - ✅ DashboardBuilderService (ejecuta queries por instancia)
 - ✅ WidgetInstances en localStorage
 - ✅ WidgetPicker (flujo de 4 pasos)

@@ -30,7 +30,7 @@ interface Props {
 export default function ListWidget({ widget }: Props) {
   const data = widget.dataset.rows
 
-  if (widget.id === 'resumen') {
+  if (widget.definitionId === 'resumen') {
     const row = data[0] ?? {}
     const items = [
       { label: 'Ventas', value: ((row['ventas'] as number) ?? 0).toString(), icon: Receipt, textColor: 'text-indigo-500', bgColor: 'from-indigo-50 to-indigo-100' },

@@ -63,6 +63,7 @@ export interface WidgetConfig {
 
 export interface Widget {
   id: string
+  definitionId?: string
   title: string
   type: WidgetType
   dataset: Dataset

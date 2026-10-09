@@ -486,6 +486,16 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 
 **Condición para reevaluar**: Solo si el usuario puede comprar la licencia con un email distinto al MAIL de su cuenta de forma habitual (hoy el flujo de registro vincula el email de compra con el de la cuenta). En ese caso, reintroducir la activación manual como endpoint autenticado, no público.
 
+### Dashboard de inicio para usuarios no-admin
+
+**Estado**: Descartada
+
+**Origen**: Análisis de mejoras del dashboard de inicio (2026-10-08), hallazgo en `InicioPage` (placeholder para roles no-admin).
+
+**Motivo**: Se evaluó construir un dashboard de inicio diferenciado para `UsuarioComun` (cajeros/vendedores). Se descartó porque el dashboard es una vista de **gestión analítica** del negocio (KPIs comerciales, tendencias, facturación) reservada a `Admin`/`SuperAdmin`. Un home no-admin con KPIs comerciales violaría esa regla. Esto **no** afecta a los flujos operativos: el cierre de caja y el registro de ventas siguen exponiendo los totales necesarios al operador. El placeholder actual (`InicioPage`) es la conducta correcta. Registrado como `BUS-acceso-informacion-sensible`.
+
+**Condición para reevaluar**: Solo si aparece un caso de uso de home no-admin con información estrictamente operativa (ej. tareas del turno: pedidos pendientes, novedades), sin exponer indicadores comerciales de gestión.
+
 ---
 
 ## Investigaciones
@@ -543,3 +553,5 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 | 2026-10-02 | BUS-confirmacion-email — Reglas de confirmación de email de cuenta | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
 | 2026-10-02 | FLOW-confirmacion-email — Flujo de confirmación de email | `knowledge/projects/posweb/FLOW-confirmacion-email.md` |
 | 2026-10-02 | Actualización BUS-recuperacion-contrasena (token genérico con PROPOSITO) | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |
+| 2026-10-08 | BUS-acceso-informacion-sensible — Información comercial de gestión restringida a Admin/SuperAdmin | `knowledge/projects/posweb/BUS-acceso-informacion-sensible.md` |
+| 2026-10-08 | BUS-metricas-financieras — Definición de rentabilidad, margen y flujo de caja del dashboard | `knowledge/projects/posweb/BUS-metricas-financieras.md` |

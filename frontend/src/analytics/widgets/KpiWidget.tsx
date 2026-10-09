@@ -1,11 +1,16 @@
-import type { Widget } from '../types'
-import { formatCurrency } from '../../formats'
+import type { Widget, DatasetColumn } from '../types'
+import { formatCurrency, formatDate } from '../../formats'
 import {
-  DollarSign, Wallet, TrendingUp, BarChart3, Target,
-  ArrowUpRight, ArrowDownRight, Minus
+  DollarSign, Wallet, TrendingUp, BarChart3, Target, Landmark, Scale,
+  ArrowLeftRight, Boxes, Percent, CreditCard, Users, Clock, UserCheck,
+  Package, ArrowUpRight, ArrowDownRight, Minus,
 } from 'lucide-react'
 
 const iconMap: Record<string, React.ElementType> = {
+  // Lucide names (vienen del WidgetDefinition)
+  DollarSign, Wallet, TrendingUp, BarChart3, Target, Landmark, Scale,
+  ArrowLeftRight, Boxes, Percent, CreditCard, Users, Clock, UserCheck, Package,
+  // Compatibilidad con claves legacy
   dollar: DollarSign,
   wallet: Wallet,
   trending: TrendingUp,
@@ -20,6 +25,22 @@ const accentMap: Record<string, { bar: string; iconBg: string; iconText: string 
   purple:  { bar: 'from-violet-400 to-violet-300', iconBg: 'from-violet-50 to-violet-100', iconText: 'text-violet-500' },
   amber:   { bar: 'from-amber-400 to-amber-300', iconBg: 'from-amber-50 to-amber-100', iconText: 'text-amber-500' },
   gray:    { bar: 'from-gray-300 to-gray-200', iconBg: 'from-gray-50 to-gray-100', iconText: 'text-gray-400' },
+}
+
+function formatValue(value: unknown, column: DatasetColumn | undefined): string {
+  if (value == null) return '—'
+  switch (column?.type) {
+    case 'currency':
+      return formatCurrency(value as number)
+    case 'percentage':
+      return `${value}%`
+    case 'number':
+      return Number(value).toLocaleString('es-AR')
+    case 'date':
+      return formatDate(String(value))
+    default:
+      return String(value)
+  }
 }
 
 function VariacionBadge({ value }: { value: number | null }) {
@@ -51,32 +72,48 @@ export default function KpiWidget({ widget }: Props) {
   const row = widget.dataset.rows[0] ?? {}
   const summary = widget.dataset.summary
   const config = widget.config ?? {}
+  const columns = widget.dataset.columns ?? []
 
-  const Icon = iconMap[config.icon ?? 'dollar'] ?? DollarSign
+  const Icon = iconMap[config.icon ?? ''] ?? DollarSign
   const accent = accentMap[config.color ?? 'indigo'] ?? accentMap.indigo
 
-  const total = row['total'] ?? summary?.total ?? 0
   const variacion = row['variacionVentas'] ?? summary?.growth ?? null
 
   let value: string
   let sub: string | undefined
 
-  switch (widget.id) {
+  switch (widget.definitionId) {
+    // ── Widgets históricos (display específico) ──
     case 'ventas-hoy':
-      value = formatCurrency(total)
+      value = formatCurrency(row['total'] ?? summary?.total ?? 0)
       sub = `${row['cantidad'] ?? 0} ventas`
       break
     case 'caja':
-      value = formatCurrency(row['montoInicial'] ?? total)
+      value = formatCurrency(row['montoInicial'] ?? summary?.total ?? 0)
       sub = row['estado'] === 'Abierta' ? 'Abierta' : 'Cerrada'
       break
     case 'meta':
       value = `${row['porcentaje'] ?? 0}%`
-      sub = formatCurrency(row['metaDiaria'] ?? total)
+      sub = formatCurrency(row['metaDiaria'] ?? summary?.total ?? 0)
       break
-    default:
-      value = formatCurrency(total)
+    // ── Genérico: derivado de los metadatos de columna (PAT-WidgetPlatform) ──
+    default: {
+      const numericCols = columns.filter((c) =>
+        c.type === 'currency' || c.type === 'percentage' || c.type === 'number')
+      const valueCol = numericCols[0] ?? columns[0]
+      value = formatValue(row[valueCol?.name ?? ''], valueCol)
+
+      const subCol = columns.find((c) => c.name !== valueCol?.name)
+      if (subCol) {
+        const raw = row[subCol.name]
+        if (raw != null) {
+          sub = subCol.type === 'string'
+            ? String(raw)
+            : `${formatValue(raw, subCol)} ${subCol.label ?? subCol.name}`
+        }
+      }
       break
+    }
   }
 
   return (
