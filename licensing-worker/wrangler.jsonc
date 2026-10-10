@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "posweb-licensing",
+  "account_id": "7b16f3cf005444cd4476fa3a1fa86c15",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
   "observability": {
