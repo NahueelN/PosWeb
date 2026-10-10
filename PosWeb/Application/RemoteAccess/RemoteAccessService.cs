@@ -63,7 +63,7 @@ public class RemoteAccessService
     {
         if (!IsConfigured()) return RemoteAccessTokenResult.Failure("Acceso remoto no configurado");
         var identity = await _licensing.ObtenerIdentidadRemotaAsync();
-        if (identity == null) return RemoteAccessTokenResult.Failure("Acceso remoto no configurado");
+        if (identity == null) return RemoteAccessTokenResult.Failure("Se requiere una licencia activa para usar el acceso remoto");
 
         try
         {
@@ -84,7 +84,7 @@ public class RemoteAccessService
     {
         if (!IsConfigured()) return RemoteAccessResult.NotConfigured();
         var identity = await _licensing.ObtenerIdentidadRemotaAsync();
-        if (identity == null) return RemoteAccessResult.NotConfigured();
+        if (identity == null) return RemoteAccessResult.LicenseRequired();
 
         try
         {
@@ -104,8 +104,8 @@ public class RemoteAccessService
 
             var error = JsonSerializer.Deserialize<WorkerError>(content, JsonOptions)?.Error;
             if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or HttpStatusCode.Conflict)
-                return string.IsNullOrWhiteSpace(error) ? RemoteAccessResult.Unavailable() : RemoteAccessResult.WorkerError((int)response.StatusCode, error);
-            return RemoteAccessResult.Unavailable(error);
+                return string.IsNullOrWhiteSpace(error) ? RemoteAccessResult.Unavailable() : RemoteAccessResult.WorkerError((int)response.StatusCode, ToSpanishUxError(error));
+            return RemoteAccessResult.Unavailable(string.IsNullOrWhiteSpace(error) ? null : ToSpanishUxError(error));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -123,6 +123,19 @@ public class RemoteAccessService
     };
 
     private bool IsConfigured() => !string.IsNullOrWhiteSpace(_url) && !string.IsNullOrWhiteSpace(_key);
+
+    private static string ToSpanishUxError(string error) => error switch
+    {
+        "Invalid request" => "La solicitud de acceso remoto no es válida",
+        "Slug unavailable" => "El subdominio elegido no está disponible",
+        "Deactivate first" => "Primero desactivá el acceso remoto actual",
+        "Licensing unavailable" => "El servicio de licencias no está disponible",
+        "Invalid license or device" => "La licencia o el dispositivo no permiten usar el acceso remoto",
+        "Provisioning in progress" => "El acceso remoto se está configurando",
+        "Remote access is not active" => "El acceso remoto no está activo",
+        "Connector token unavailable" => "No se pudo obtener la configuración del conector",
+        _ => "No se pudo completar la operación de acceso remoto"
+    };
 
     private HttpRequestMessage Request(string path, object body)
     {

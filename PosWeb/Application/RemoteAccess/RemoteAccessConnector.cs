@@ -52,6 +52,7 @@ public sealed class RemoteAccessConnector : IRemoteAccessConnector
             if (!token.IsSuccess || string.IsNullOrWhiteSpace(token.Token))
             {
                 State = new RemoteAccessConnectorDto { State = "error", Error = token.Error ?? "No se pudo obtener la configuración del conector" };
+                _ = RestartAfterDelayAsync(_restartCancellation.Token);
                 return;
             }
 

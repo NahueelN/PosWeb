@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,7 @@ using PosWeb.Application.Licensing;
 using PosWeb.Application.RemoteAccess;
 using PosWeb.Data;
 using PosWeb.Domain;
+using PosWeb.Controllers;
 
 namespace PosWeb.Application.Test.RemoteAccess;
 
@@ -60,6 +62,29 @@ public class RemoteAccessServiceTest
         Assert.Equal(RemoteAccessResultKind.NotConfigured, result.Kind);
     }
 
+    [Fact]
+    public async Task StatusAsync_MissingLicense_ReturnsLicenseRequiredWithoutHttpCall()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
+        var service = CreateService(ConfiguredValues(), handler, addLicense: false);
+
+        var result = await service.StatusAsync();
+
+        Assert.Equal(RemoteAccessResultKind.LicenseRequired, result.Kind);
+        Assert.Equal("Se requiere una licencia activa para usar el acceso remoto", result.Error);
+    }
+
+    [Fact]
+    public void LicenseRequired_MapsToConflict()
+    {
+        var controller = new RemoteAccessController(null!);
+        var method = typeof(RemoteAccessController).GetMethod("ToActionResult", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        var response = Assert.IsType<Microsoft.AspNetCore.Mvc.ConflictObjectResult>(method.Invoke(controller, [RemoteAccessResult.LicenseRequired()]));
+
+        Assert.Equal(409, response.StatusCode);
+    }
+
     [Theory]
     [InlineData("inactive")]
     [InlineData("provisioning")]
@@ -80,15 +105,30 @@ public class RemoteAccessServiceTest
     }
 
     [Fact]
-    public async Task ActivateAsync_PassesThroughWorkerValidationError()
+    public async Task ActivateAsync_MapsInvalidLicenseError()
     {
-        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.Forbidden, "{\"error\":\"Licencia inválida\"}"));
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.Forbidden, "{\"error\":\"Invalid license or device\"}"));
 
         var result = await service.ActivateAsync("tienda");
 
         Assert.Equal(RemoteAccessResultKind.WorkerError, result.Kind);
         Assert.Equal(403, result.StatusCode);
-        Assert.Equal("Licencia inválida", result.Error);
+        Assert.Equal("La licencia o el dispositivo no permiten usar el acceso remoto", result.Error);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, "Invalid request", "La solicitud de acceso remoto no es válida")]
+    [InlineData(HttpStatusCode.Conflict, "Slug unavailable", "El subdominio elegido no está disponible")]
+    [InlineData(HttpStatusCode.Conflict, "Deactivate first", "Primero desactivá el acceso remoto actual")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "Licensing unavailable", "El servicio de licencias no está disponible")]
+    public async Task ActivateAsync_MapsWorkerErrorsToSpanishUxText(HttpStatusCode statusCode, string workerError, string expectedError)
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(statusCode, $"{{\"error\":\"{workerError}\"}}"));
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(statusCode == HttpStatusCode.ServiceUnavailable ? RemoteAccessResultKind.Unavailable : RemoteAccessResultKind.WorkerError, result.Kind);
+        Assert.Equal(expectedError, result.Error);
     }
 
     [Fact]
@@ -161,18 +201,21 @@ public class RemoteAccessServiceTest
         Assert.Equal(1, connector.StartCount);
     }
 
-    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null)
+    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true)
     {
         var options = new DbContextOptionsBuilder<PosDbContextLocal>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         var context = new PosDbContextLocal(options);
         var encryption = new EncryptionService(Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!")));
-        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        if (addLicense)
         {
-            LicenseKey = encryption.Encrypt("license-key"),
-            MachineId = "machine-id",
-            Plan = NivelesSuscripcion.Maxima,
-            Estado = EstadosLicencia.Activa
-        });
+            context.Set<LicenciaConfig>().Add(new LicenciaConfig
+            {
+                LicenseKey = encryption.Encrypt("license-key"),
+                MachineId = "machine-id",
+                Plan = NivelesSuscripcion.Maxima,
+                Estado = EstadosLicencia.Activa
+            });
+        }
         context.SaveChanges();
         var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         return new RemoteAccessService(new LicenciaService(context, config, encryption), config, new HttpClient(handler), connector);

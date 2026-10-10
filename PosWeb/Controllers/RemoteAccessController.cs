@@ -32,6 +32,7 @@ public class RemoteAccessController(RemoteAccessService service) : ControllerBas
     {
         RemoteAccessResultKind.Success => Ok(result.Status),
         RemoteAccessResultKind.NotConfigured => StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = result.Error }),
+        RemoteAccessResultKind.LicenseRequired => Conflict(new { error = result.Error }),
         RemoteAccessResultKind.Unavailable => StatusCode(StatusCodes.Status502BadGateway, new { error = result.Error }),
         RemoteAccessResultKind.WorkerError => StatusCode(result.StatusCode!.Value, new { error = result.Error }),
         _ => StatusCode(StatusCodes.Status502BadGateway, new { error = "Acceso remoto no disponible" })

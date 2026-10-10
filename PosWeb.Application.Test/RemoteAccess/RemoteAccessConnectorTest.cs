@@ -31,6 +31,35 @@ public class RemoteAccessConnectorTest
     }
 
     [Fact]
+    public async Task StartAsync_WhenTokenFetchFails_SchedulesRestart()
+    {
+        var process = new FakeConnectorProcess { ExistsResult = true };
+        var delays = new List<TimeSpan>();
+        var tokenCalls = 0;
+        var secondTokenFetch = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connector = CreateConnector(process, _ => Task.FromResult(++tokenCalls == 1
+            ? RemoteAccessTokenResult.Failure("Worker no disponible")
+            : GetSuccessfulToken()), (delay, _) =>
+        {
+            delays.Add(delay);
+            return Task.CompletedTask;
+        });
+
+        await connector.StartAsync();
+        await secondTokenFetch.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.Equal([TimeSpan.FromSeconds(5)], delays);
+        Assert.Equal(2, tokenCalls);
+        Assert.Equal("running", connector.State.State);
+
+        RemoteAccessTokenResult GetSuccessfulToken()
+        {
+            secondTokenFetch.SetResult();
+            return RemoteAccessTokenResult.Success("secret-token");
+        }
+    }
+
+    [Fact]
     public async Task UnexpectedExit_SchedulesRestart()
     {
         var process = new FakeConnectorProcess { ExistsResult = true };
@@ -92,6 +121,22 @@ public class RemoteAccessConnectorTest
         await hostedService.StartAsync(CancellationToken.None);
 
         Assert.Equal(0, connector.StartCount);
+    }
+
+    [Fact]
+    public async Task HostedService_StartAsync_ReturnsBeforeStatusCompletes()
+    {
+        var statusCompletion = new TaskCompletionSource<RemoteAccessResult>();
+        var connector = new FakeRemoteAccessConnector();
+        var hostedService = new RemoteAccessConnectorHostedService(_ => statusCompletion.Task, connector);
+
+        var start = hostedService.StartAsync(CancellationToken.None);
+
+        Assert.True(start.IsCompletedSuccessfully);
+        statusCompletion.SetResult(RemoteAccessResult.Success(new RemoteAccessStatusDto { Status = "active" }));
+        await Task.Yield();
+
+        Assert.Equal(1, connector.StartCount);
     }
 
     private static RemoteAccessConnector CreateConnector(FakeConnectorProcess process, Func<CancellationToken, Task<RemoteAccessTokenResult>> token, Func<TimeSpan, CancellationToken, Task>? delay = null) =>
