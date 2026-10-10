@@ -31,6 +31,8 @@ using PosWeb.Application.Licensing;
 using PosWeb.Application.Preferencias;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.Respaldos;
+using PosWeb.Application.RemoteAccess;
+using PosWeb.Application;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -44,7 +46,7 @@ if (embeddedJson != null)
 {
     var buf = new byte[embeddedJson.Length];
     embeddedJson.ReadExactly(buf);
-    builder.Configuration.AddJsonStream(new MemoryStream(buf));
+    EmbeddedConfigurationDefaults.AddJsonDefaults(builder.Configuration, Encoding.UTF8.GetString(buf));
 }
 
 builder.WebHost.UseUrls("http://localhost:5196");
@@ -147,6 +149,23 @@ builder.Services.AddSingleton<IEncryptionService>(sp =>
     return new EncryptionService(key);
 });
 builder.Services.AddScoped<LicenciaService>();
+builder.Services.AddSingleton<IConnectorProcess, CloudflaredProcess>();
+builder.Services.AddSingleton<IRemoteAccessConnector>(sp => new RemoteAccessConnector(
+    async cancellationToken =>
+    {
+        using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<RemoteAccessService>().ObtenerTokenConectorAsync(cancellationToken);
+    },
+    sp.GetRequiredService<IConnectorProcess>(),
+    builder.Configuration));
+builder.Services.AddHttpClient<RemoteAccessService>(client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService(sp => new RemoteAccessConnectorHostedService(
+    async cancellationToken =>
+    {
+        using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<RemoteAccessService>().StatusAsync(cancellationToken);
+    },
+    sp.GetRequiredService<IRemoteAccessConnector>()));
 
 // MercadoPago
 var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
@@ -313,6 +332,17 @@ using (var scope = app.Services.CreateScope())
             var sucursal = new Sucursal("CENTRAL", "Sucursal Central", empresa.ID_EMPRESA);
             ctx.Sucursal.Add(sucursal);
             ctx.SaveChanges();
+        }
+
+        // The migration seed bypasses the registration flow, which normally creates the trial.
+        // Bootstrap it only for the development seed and never for an existing customer account.
+        if (app.Environment.IsDevelopment()
+            && admin.ROL == Roles.SuperAdmin
+            && admin.MAIL == "admin@posweb.com"
+            && !ctx.LicenciaConfig.Any())
+        {
+            var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
+            await licenciaService.ActivarPorEmailOPrueba(admin.MAIL);
         }
     }
 
