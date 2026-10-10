@@ -90,6 +90,9 @@ fn kill_sidecars(state: tauri::State<SidecarProcesses>) {
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "vendeto-mobile.exe"])
                 .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-cloudflared.exe"])
+                .output();
         } else {
             log::info!("[Tauri] Sidecars already stopped, nothing to kill");
         }
@@ -132,6 +135,9 @@ pub fn run() {
                 .output();
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "vendeto-mobile.exe"])
+                .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-cloudflared.exe"])
                 .output();
 
             // Log sidecar spawn

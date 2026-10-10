@@ -46,7 +46,8 @@
     ],
     "externalBin": [
       "binaries/posweb-backend",
-      "binaries/vendeto-mobile"
+      "binaries/vendeto-mobile",
+      "binaries/vendeto-cloudflared"
     ]
   },
   "plugins": {

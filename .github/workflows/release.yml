@@ -33,6 +33,14 @@ jobs:
       - name: Build backend sidecar
         run: |
           dotnet publish PosWeb/PosWeb.csproj -c Release -r win-x64 --self-contained true -o publish
+          $settingsPath = 'publish\appsettings.json'
+          $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+          if (-not $settings.RemoteAccess) {
+            $settings | Add-Member -NotePropertyName RemoteAccess -NotePropertyValue ([pscustomobject]@{})
+          }
+          $settings.RemoteAccess | Add-Member -Force -NotePropertyName WorkerUrl -NotePropertyValue "${{ secrets.REMOTE_ACCESS_WORKER_URL }}"
+          $settings.RemoteAccess | Add-Member -Force -NotePropertyName InternalKey -NotePropertyValue "${{ secrets.REMOTE_ACCESS_INTERNAL_KEY }}"
+          $settings | ConvertTo-Json -Depth 20 | Set-Content $settingsPath -Encoding UTF8
           New-Item -ItemType Directory -Force -Path frontend\src-tauri\binaries
           Copy-Item publish\PosWeb.exe frontend\src-tauri\binaries\posweb-backend-x86_64-pc-windows-msvc.exe
           Copy-Item publish\appsettings.json frontend\src-tauri\binaries\appsettings.json
@@ -42,6 +50,18 @@ jobs:
           python -m pip install -r mobile-client\requirements.txt
           python -m PyInstaller --noconfirm --clean --onefile --name vendeto-mobile --add-data "mobile-client\static;static" --distpath frontend\src-tauri\binaries --workpath mobile-client\build --specpath mobile-client mobile-client\server.py
           Move-Item frontend\src-tauri\binaries\vendeto-mobile.exe frontend\src-tauri\binaries\vendeto-mobile-x86_64-pc-windows-msvc.exe
+
+      - name: Download verified cloudflared sidecar
+        shell: pwsh
+        run: |
+          $version = '2025.8.1'
+          $expectedHash = 'b5d598b00cc3a28cabc5812d9f762819334614bae452db4e7f23eefe7b081556'
+          $target = 'frontend\src-tauri\binaries\vendeto-cloudflared-x86_64-pc-windows-msvc.exe'
+          Invoke-WebRequest "https://github.com/cloudflare/cloudflared/releases/download/$version/cloudflared-windows-amd64.exe" -OutFile $target
+          if ((Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedHash) {
+            Remove-Item $target -Force
+            throw 'cloudflared checksum verification failed'
+          }
 
       - name: Install dependencies
         run: npm ci
