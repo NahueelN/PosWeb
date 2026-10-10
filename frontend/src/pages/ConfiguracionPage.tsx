@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HelpCircle } from 'lucide-react'
 import { HELP_KEYS } from '../help/content'
-import { api } from '../api/client'
+import { api, type RemoteAccessStatus } from '../api/client'
+import { remoteAccessView } from './configuracion/remoteAccessView'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import MargenesTab from '../components/MargenesTab'
@@ -13,7 +14,7 @@ import type { EmpresaDto, UsuarioListadoDto, LicenciaEstado } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 
-type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock' | 'respaldo'
+type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock' | 'respaldo' | 'acceso-remoto'
 
 const tabStyle = (active: boolean) =>
   `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -39,6 +40,19 @@ export default function ConfiguracionPage() {
   const [mailPref, setMailPref] = useState<MailMethod | ''>(getMailPref() ?? '')
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
   const [tipoNegocio, setTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
+  const [remoteSlug, setRemoteSlug] = useState('')
+  const [remoteStatus, setRemoteStatus] = useState<RemoteAccessStatus>({ status: 'inactive' })
+  const [remoteRequestInFlight, setRemoteRequestInFlight] = useState(false)
+  const remotePollStartedAt = useRef<number | null>(null)
+  const actualizarEstadoRemoto = useEffectEvent(async () => {
+    try {
+      const remote = await api.remoteAccess.status()
+      setRemoteStatus(remote)
+      if (remote.slug) setRemoteSlug(remote.slug)
+    } catch {
+      // Polling errors are transient and must not interrupt the configuration page.
+    }
+  })
 
   const [mpVinculado, setMpVinculado] = useState(false)
   const [mpTitular, setMpTitular] = useState<string | null>(null)
@@ -75,7 +89,25 @@ export default function ConfiguracionPage() {
       .finally(() => setLoading(false))
     api.licencia.estado().then(setLicencia).catch(() => {})
     api.auth.me().then(setPerfil).catch(() => {})
-  }, [])
+    if (canManageUsers) void actualizarEstadoRemoto()
+  }, [canManageUsers])
+
+  useEffect(() => {
+    if (remoteStatus.status !== 'provisioning' && remoteStatus.status !== 'waiting_connector') {
+      remotePollStartedAt.current = null
+      return
+    }
+
+    remotePollStartedAt.current ??= Date.now()
+    const interval = window.setInterval(() => {
+      if (remotePollStartedAt.current && Date.now() - remotePollStartedAt.current >= 5 * 60 * 1000) {
+        window.clearInterval(interval)
+        return
+      }
+      void actualizarEstadoRemoto()
+    }, 5_000)
+    return () => window.clearInterval(interval)
+  }, [remoteStatus.status])
 
   useEffect(() => {
     api.restaurante.config()
@@ -170,6 +202,40 @@ export default function ConfiguracionPage() {
     }
   }
 
+  const remoteSlugDisplay = remoteSlug.trim().toLowerCase()
+  const remoteUrl = remoteStatus.hostname ? `https://${remoteStatus.hostname}` : ''
+  const remoteView = remoteAccessView(remoteStatus)
+  const activarAccesoRemoto = async () => {
+    const slug = remoteSlugDisplay
+    if (!/^[a-z0-9-]{3,40}$/.test(slug)) {
+      notifyError('Usá entre 3 y 40 caracteres: letras, números y guiones.')
+      return
+    }
+    setRemoteRequestInFlight(true)
+    try {
+      const remote = await api.remoteAccess.activate(slug)
+      setRemoteSlug(slug)
+      setRemoteStatus(remote)
+      notifySuccess('Activación solicitada')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo activar el acceso remoto')
+    } finally {
+      setRemoteRequestInFlight(false)
+    }
+  }
+  const desactivarAccesoRemoto = async () => {
+    setRemoteRequestInFlight(true)
+    try {
+      await api.remoteAccess.deactivate()
+      setRemoteStatus({ status: 'inactive' })
+      notifySuccess('Acceso remoto desactivado')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo desactivar el acceso remoto')
+    } finally {
+      setRemoteRequestInFlight(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="mb-6 flex items-start justify-between">
@@ -197,6 +263,7 @@ export default function ConfiguracionPage() {
         <button type="button" onClick={() => setTab('perfil')} className={tabStyle(tab === 'perfil')}>
           Perfil
         </button>
+        {canManageUsers && <button type="button" onClick={() => setTab('acceso-remoto')} className={tabStyle(tab === 'acceso-remoto')}>Acceso remoto</button>}
         {!esGratuito && (
           <button type="button" onClick={() => setTab('compartir')} className={tabStyle(tab === 'compartir')}>
             Compartir
@@ -222,6 +289,16 @@ export default function ConfiguracionPage() {
       {tab === 'usuarios' && canManageUsers && <AltaUsuarioTab />}
 
       {tab === 'respaldo' && canManageUsers && <RespaldoTab />}
+
+      {tab === 'acceso-remoto' && canManageUsers && (
+        <section className="max-w-2xl rounded-xl bg-white p-6 shadow-xl space-y-5">
+          <div><h2 className="text-lg font-semibold text-slate-900">Acceso remoto</h2><p className="mt-1 text-sm text-slate-500">Conectá celulares a esta instalación de Vendeto.</p></div>
+           <div><label className="block text-sm font-medium text-slate-700 mb-1">Subdominio del comercio</label><div className="flex items-center"><input value={remoteSlug} disabled={!remoteView.canActivate || remoteRequestInFlight} onChange={e => setRemoteSlug(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))} className="w-full rounded-l-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" placeholder="kiosco-lopez"/><span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">.vendetoweb.com.ar</span></div></div>
+           {remoteUrl && remoteStatus.status === 'active' && <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-slate-50 p-3 text-sm text-indigo-700 break-all hover:underline">{remoteUrl}</a>}
+           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3"><p className="text-sm font-medium text-slate-800">{remoteView.label}</p>{remoteView.steps.length > 0 && <ol className="space-y-2 text-sm">{remoteView.steps.map((step, index) => <li key={step} className={remoteStatus.status === 'active' || index === 0 ? 'text-emerald-700' : 'text-slate-500'}>{remoteStatus.status === 'active' || index === 0 ? '●' : '○'} {step}</li>)}</ol>}{remoteStatus.status === 'failed' && remoteStatus.lastError && <p role="alert" className="text-sm text-red-700">{remoteStatus.lastError}</p>}{remoteStatus.connector?.state === 'error' && remoteStatus.connector.error && <p role="alert" className="text-sm text-red-700">{remoteStatus.connector.error}</p>}</div>
+           <div className="flex gap-3">{remoteView.canActivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void activarAccesoRemoto()} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Activar acceso remoto</button>}{remoteView.canDeactivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void desactivarAccesoRemoto()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Desactivar</button>}{remoteStatus.status === 'active' && remoteUrl && <button type="button" onClick={() => navigator.clipboard.writeText(remoteUrl).then(() => notifySuccess('Enlace copiado'))} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Copiar enlace</button>}</div>
+        </section>
+      )}
 
       {tab === 'perfil' && (
         <>
