@@ -28,6 +28,7 @@ type Installation = {
 type RequestBody = { licenseKey: string; machineId: string; slug?: string }
 const reservedSlugs = new Set(['www', 'api', 'admin', 'app', 'mail', 'prueba', 'status', 'licensing', 'vendeto'])
 const app = new Hono<{ Bindings: Env }>()
+class SlugUnavailableError extends Error {}
 
 const hostname = (env: Env, slug: string) => `${slug}.${env.REMOTE_ACCESS_DOMAIN ?? 'vendetoweb.com.ar'}`
 const now = () => new Date().toISOString()
@@ -44,7 +45,8 @@ async function sameKey(actual: string | undefined, expected: string | undefined)
 
 app.use('*', async (c, next) => {
   const authorization = c.req.header('Authorization')
-  if (!await sameKey(authorization?.replace(/^Bearer /, ''), c.env.INTERNAL_KEY)) return c.json({ error: 'Unauthorized' }, 401)
+  const bearer = authorization?.match(/^Bearer (.+)$/)
+  if (!bearer || !await sameKey(bearer[1], c.env.INTERNAL_KEY)) return c.json({ error: 'Unauthorized' }, 401)
   await next()
 })
 
@@ -129,11 +131,12 @@ async function provision(env: Env, installation: Installation): Promise<void> {
     await cfResult(await fetch(`${accountBase}/${tunnel.id}/configurations`, { method: 'PUT', headers, body: JSON.stringify({ config: { ingress: [{ hostname: hostname(env, installation.slug), service: env.ORIGIN_SERVICE ?? 'http://127.0.0.1:8543' }, { service: 'http_status:404' }] } }) }))
     const dnsBase = `https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/dns_records`
     const target = `${tunnel.id}.cfargotunnel.com`
-    const records = await cfResult<Array<{ id: string; content: string }>>(await fetch(`${dnsBase}?name=${encodeURIComponent(hostname(env, installation.slug))}`, { headers }))
-    let dns = records.find(record => record.content === target)
+    const records = await cfResult<Array<{ id: string; type: string; content: string }>>(await fetch(`${dnsBase}?name=${encodeURIComponent(hostname(env, installation.slug))}`, { headers }))
+    let dns = records.find(record => record.type === 'CNAME' && record.content === target)
     if (!dns) {
       for (const record of records) {
-        const existingTunnelId = record.content.endsWith('.cfargotunnel.com') ? record.content.slice(0, -'.cfargotunnel.com'.length) : null
+        if (record.type !== 'CNAME' || !record.content.endsWith('.cfargotunnel.com')) throw new SlugUnavailableError('Slug unavailable')
+        const existingTunnelId = record.content.slice(0, -'.cfargotunnel.com'.length)
         const ownerByRecord = await env.REMOTE_ACCESS_DB.prepare("SELECT id FROM remote_access_installations WHERE dns_record_id = ? AND status <> 'disabled' AND id <> ?").bind(record.id, installation.id).first()
         const ownerByTunnel = existingTunnelId
           ? await env.REMOTE_ACCESS_DB.prepare("SELECT id FROM remote_access_installations WHERE tunnel_id = ? AND status <> 'disabled' AND id <> ?").bind(existingTunnelId, installation.id).first()
@@ -151,7 +154,10 @@ async function provision(env: Env, installation: Installation): Promise<void> {
   }
 }
 
-function isUniqueError(error: unknown): boolean { return error instanceof Error && /unique|constraint/i.test(error.message) }
+function uniqueConflict(error: unknown): 'slug' | 'installation' | null {
+  if (!(error instanceof Error) || !/unique|constraint/i.test(error.message)) return null
+  return /remote_access_installations_active_slug|remote_access_installations\.slug/i.test(error.message) ? 'slug' : 'installation'
+}
 
 app.post('/activate', async c => {
   const body = await parseBody(c.req.raw)
@@ -177,7 +183,12 @@ app.post('/activate', async c => {
     await provision(c.env, installation)
     return c.json({ status: 'waiting_connector', slug, hostname: hostname(c.env, slug) })
   } catch (error) {
-    if (isUniqueError(error)) return c.json({ error: 'Slug unavailable' }, 409)
+    if (error instanceof SlugUnavailableError) {
+      await c.env.REMOTE_ACCESS_DB.prepare("UPDATE remote_access_installations SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ?").bind(error.message, now(), installation.id).run()
+      return c.json({ error: 'Slug unavailable' }, 409)
+    }
+    const conflict = uniqueConflict(error)
+    if (conflict) return c.json({ error: conflict === 'slug' ? 'Slug unavailable' : 'Provisioning in progress' }, 409)
     const message = error instanceof Error ? error.message : 'Provisioning failed'
     await c.env.REMOTE_ACCESS_DB.prepare("UPDATE remote_access_installations SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ?").bind(message, now(), installation.id).run()
     return c.json({ error: message }, 502)
