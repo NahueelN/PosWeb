@@ -5,8 +5,8 @@ param(
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendProject = Join-Path $ProjectRoot "PosWeb\PosWeb.csproj"
 $BinariesDir = Join-Path $ProjectRoot "frontend\src-tauri\binaries"
-$CloudflaredVersion = "2025.8.1"
-$CloudflaredSha256 = "b5d598b00cc3a28cabc5812d9f762819334614bae452db4e7f23eefe7b081556"
+$CloudflaredVersion = "2026.10.0"
+$CloudflaredSha256 = "86aee4017b26625cee8484c113558f48effa4cd47f7aa05fcf425604e5d2b23c"
 $CloudflaredUrl = "https://github.com/cloudflare/cloudflared/releases/download/$CloudflaredVersion/cloudflared-windows-amd64.exe"
 $CloudflaredPath = Join-Path $BinariesDir "vendeto-cloudflared-x86_64-pc-windows-msvc.exe"
 
