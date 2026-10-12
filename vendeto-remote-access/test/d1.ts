@@ -6,7 +6,9 @@ type Statement = { bind: (...values: unknown[]) => Statement; first: <T>() => Pr
 
 export function makeD1(): D1Database {
   const database = new DatabaseSync(':memory:')
-  database.exec(readFileSync(resolve(import.meta.dirname, '../migrations/0001_remote_access_installations.sql'), 'utf8'))
+  for (const migration of ['0001_remote_access_installations.sql', '0002_activation_cooldown.sql']) {
+    database.exec(readFileSync(resolve(import.meta.dirname, '../migrations', migration), 'utf8'))
+  }
   return {
     prepare(sql: string): Statement {
       let values: unknown[] = []

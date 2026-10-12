@@ -13,6 +13,10 @@ type Env = {
   LICENSE_VALIDATION?: string
   HOSTNAME_PREFIX?: string
   MAX_ACTIVE_INSTALLATIONS?: string
+  ACTIVATION_LIMIT_PER_DAY?: string
+  DNS_RECORD_QUOTA?: string
+  CAPACITY_RESERVE?: string
+  ALERT_WEBHOOK_URL?: string
 }
 
 type Installation = {
@@ -26,6 +30,8 @@ type Installation = {
   last_error: string | null
   created_at: string
   updated_at: string
+  activation_count: number
+  activation_window_start: string | null
 }
 
 type RequestBody = { licenseKey: string; machineId: string; slug?: string }
@@ -158,6 +164,47 @@ async function provision(env: Env, installation: Installation): Promise<void> {
   }
 }
 
+function activationLimit(env: Env): number {
+  const value = Number(env.ACTIVATION_LIMIT_PER_DAY ?? '3')
+  return Number.isInteger(value) && value > 0 ? value : 3
+}
+
+function retryAfter(installation: Installation, env: Env): number | null {
+  if (!installation.activation_window_start) return null
+  const started = Date.parse(installation.activation_window_start)
+  const remaining = started + 24 * 60 * 60 * 1000 - Date.now()
+  if (!Number.isFinite(started) || remaining <= 0 || installation.activation_count < activationLimit(env)) return null
+  return Math.ceil(remaining / 1000)
+}
+
+async function countActivation(env: Env, installation: Installation): Promise<void> {
+  const started = Date.parse(installation.activation_window_start ?? '')
+  const reset = !Number.isFinite(started) || Date.now() - started >= 24 * 60 * 60 * 1000
+  const windowStart = reset ? now() : installation.activation_window_start!
+  const count = (reset ? 0 : installation.activation_count) + 1
+  await env.REMOTE_ACCESS_DB.prepare('UPDATE remote_access_installations SET activation_count = ?, activation_window_start = ? WHERE id = ?').bind(count, windowStart, installation.id).run()
+  installation.activation_count = count
+  installation.activation_window_start = windowStart
+}
+
+async function hasCapacity(env: Env): Promise<boolean> {
+  const quota = Number(env.DNS_RECORD_QUOTA ?? '200')
+  const reserve = Number(env.CAPACITY_RESERVE ?? '10')
+  try {
+    const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/dns_records?per_page=1`, { headers: cfHeaders(env) })
+    const body = await response.json<{ success?: boolean; result_info?: { total_count?: number } }>()
+    if (!response.ok || !body.success || typeof body.result_info?.total_count !== 'number') throw new Error('Cloudflare count request failed')
+    if (body.result_info.total_count < quota - reserve) return true
+    const alert = { total_count: body.result_info.total_count, quota }
+    console.error('[capacity-alert]', alert)
+    if (env.ALERT_WEBHOOK_URL) void fetch(env.ALERT_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(alert) }).catch(() => undefined)
+    return false
+  } catch {
+    console.error('[capacity-unknown]')
+    return true
+  }
+}
+
 function uniqueConflict(error: unknown): 'slug' | 'installation' | null {
   if (!(error instanceof Error) || !/unique|constraint/i.test(error.message)) return null
   return /remote_access_installations_active_slug|remote_access_installations\.slug/i.test(error.message) ? 'slug' : 'installation'
@@ -173,6 +220,8 @@ app.post('/activate', async c => {
   let installation = await c.env.REMOTE_ACCESS_DB.prepare('SELECT * FROM remote_access_installations WHERE license_hash = ? AND machine_id = ?').bind(licenseHash, body.machineId).first<Installation>()
   if (installation?.status === 'provisioned') return installation.slug === slug ? c.json({ status: 'waiting_connector', slug, hostname: hostname(c.env, slug) }) : c.json({ error: 'Deactivate first' }, 409)
   if (installation?.status === 'provisioning' && Date.now() - Date.parse(installation.updated_at) < 120_000) return c.json({ error: 'Provisioning in progress' }, 409)
+  const seconds = installation ? retryAfter(installation, c.env) : null
+  if (seconds !== null) return c.json({ error: 'Activation limit reached', retryAfter: seconds }, 429)
   if (/^[1-9]\d*$/.test(c.env.MAX_ACTIVE_INSTALLATIONS ?? '')) {
     const limit = Number(c.env.MAX_ACTIVE_INSTALLATIONS)
     const active = await c.env.REMOTE_ACCESS_DB.prepare("SELECT COUNT(*) AS count FROM remote_access_installations WHERE status <> 'disabled' AND id <> ?").bind(installation?.id ?? '').first<{ count: number }>()
@@ -180,15 +229,17 @@ app.post('/activate', async c => {
   }
   const held = await c.env.REMOTE_ACCESS_DB.prepare("SELECT id FROM remote_access_installations WHERE slug = ? AND status <> 'disabled' AND id <> ?").bind(slug, installation?.id ?? '').first()
   if (held) return c.json({ error: 'Slug unavailable' }, 409)
+  if (!await hasCapacity(c.env)) return c.json({ error: 'Capacity reached' }, 503)
   try {
     if (installation) {
       if (installation.tunnel_id || installation.dns_record_id) await cleanup(c.env, installation)
       await c.env.REMOTE_ACCESS_DB.prepare("UPDATE remote_access_installations SET slug = ?, tunnel_id = NULL, dns_record_id = NULL, status = 'provisioning', last_error = NULL, updated_at = ? WHERE id = ?").bind(slug, now(), installation.id).run()
       installation = { ...installation, slug, tunnel_id: null, dns_record_id: null, status: 'provisioning' }
     } else {
-      installation = { id: crypto.randomUUID(), license_hash: licenseHash, machine_id: body.machineId, slug, tunnel_id: null, dns_record_id: null, status: 'provisioning', last_error: null, created_at: now(), updated_at: now() }
+      installation = { id: crypto.randomUUID(), license_hash: licenseHash, machine_id: body.machineId, slug, tunnel_id: null, dns_record_id: null, status: 'provisioning', last_error: null, created_at: now(), updated_at: now(), activation_count: 0, activation_window_start: null }
       await c.env.REMOTE_ACCESS_DB.prepare('INSERT INTO remote_access_installations (id, license_hash, machine_id, slug, tunnel_id, dns_record_id, status, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(installation.id, installation.license_hash, installation.machine_id, slug, null, null, 'provisioning', null, installation.created_at, installation.updated_at).run()
     }
+    await countActivation(c.env, installation)
     await provision(c.env, installation)
     return c.json({ status: 'waiting_connector', slug, hostname: hostname(c.env, slug) })
   } catch (error) {

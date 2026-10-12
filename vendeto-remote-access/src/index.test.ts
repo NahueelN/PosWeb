@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import worker from './index'
 import { FetchStub, json } from '../test/cf-fetch'
 import { makeD1 } from '../test/d1'
@@ -8,7 +8,7 @@ let restoreFetch: (() => void) | undefined
 afterEach(() => restoreFetch?.())
 
 function env() {
-  return { REMOTE_ACCESS_DB: makeD1(), INTERNAL_KEY: 'test-key', CF_PROVISIONER_TOKEN: 'cf-token', CF_ACCOUNT_ID: 'account', CF_ZONE_ID: 'zone', LICENSING_WORKER_URL: 'https://licensing.test', LICENSING_REMOTE_ACCESS_KEY: 'licensing-key', REMOTE_ACCESS_DOMAIN: 'vendetoweb.com.ar', ORIGIN_SERVICE: 'http://127.0.0.1:8543' } as any
+  return { REMOTE_ACCESS_DB: makeD1(), INTERNAL_KEY: 'test-key', CF_PROVISIONER_TOKEN: 'cf-token', CF_ACCOUNT_ID: 'account', CF_ZONE_ID: 'zone', LICENSING_WORKER_URL: 'https://licensing.test', LICENSING_REMOTE_ACCESS_KEY: 'licensing-key', REMOTE_ACCESS_DOMAIN: 'vendetoweb.com.ar', ORIGIN_SERVICE: 'http://127.0.0.1:8543', DNS_RECORD_QUOTA: '200', CAPACITY_RESERVE: '10' } as any
 }
 
 function installFetch(valid = true) {
@@ -25,20 +25,21 @@ function request(path: string, body?: object) {
 const identity = { licenseKey: 'license', machineId: 'machine' }
 
 function provision(stub: FetchStub, tunnelId = 'tunnel-1', dnsId = 'dns-1') {
+  stub.on('GET', /dns_records\?per_page=1$/, () => json({ success: true, result: [], result_info: { total_count: 0 } }))
   stub.on('POST', /cfd_tunnel$/, () => json({ success: true, result: { id: tunnelId } }))
   stub.on('PUT', /configurations$/, () => json({ success: true, result: {} }))
   stub.on('GET', /dns_records\?name=/, () => json({ success: true, result: [] }))
   stub.on('POST', /dns_records$/, () => json({ success: true, result: { id: dnsId } }))
 }
 
-async function insertInstallation(testEnv: ReturnType<typeof env>, values: Partial<Record<'id' | 'license_hash' | 'machine_id' | 'slug' | 'tunnel_id' | 'dns_record_id' | 'status' | 'last_error' | 'created_at' | 'updated_at', string>> = {}) {
+async function insertInstallation(testEnv: ReturnType<typeof env>, values: Partial<Record<'id' | 'license_hash' | 'machine_id' | 'slug' | 'tunnel_id' | 'dns_record_id' | 'status' | 'last_error' | 'created_at' | 'updated_at' | 'activation_window_start', string> & { activation_count: number }> = {}) {
   const timestamp = new Date().toISOString()
   const row = {
     id: 'installation-1', license_hash: 'cc1d3b0234846714b0aeda6cc34b057b4305bb83dd447fb88f816efeb59a4e96', machine_id: 'machine', slug: 'mi-local',
-    tunnel_id: 'tunnel-1', dns_record_id: 'dns-1', status: 'provisioned', last_error: null, created_at: timestamp, updated_at: timestamp, ...values,
+    tunnel_id: 'tunnel-1', dns_record_id: 'dns-1', status: 'provisioned', last_error: null, created_at: timestamp, updated_at: timestamp, activation_count: 0, activation_window_start: null, ...values,
   }
-  await testEnv.REMOTE_ACCESS_DB.prepare('INSERT INTO remote_access_installations (id, license_hash, machine_id, slug, tunnel_id, dns_record_id, status, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(row.id, row.license_hash, row.machine_id, row.slug, row.tunnel_id, row.dns_record_id, row.status, row.last_error, row.created_at, row.updated_at).run()
+  await testEnv.REMOTE_ACCESS_DB.prepare('INSERT INTO remote_access_installations (id, license_hash, machine_id, slug, tunnel_id, dns_record_id, status, last_error, created_at, updated_at, activation_count, activation_window_start) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(row.id, row.license_hash, row.machine_id, row.slug, row.tunnel_id, row.dns_record_id, row.status, row.last_error, row.created_at, row.updated_at, row.activation_count, row.activation_window_start).run()
 }
 
 describe('remote access authorization and validation', () => {
@@ -102,6 +103,76 @@ describe('remote access authorization and validation', () => {
 })
 
 describe('remote access lifecycle', () => {
+  it('rejects the fourth activation in a day without Cloudflare calls', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    await insertInstallation(testEnv, { status: 'failed', activation_count: 3, activation_window_start: new Date().toISOString() })
+    const stub = new FetchStub()
+    restoreFetch = stub.install()
+
+    const response = await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)
+    expect(response.status).toBe(429)
+    expect(await response.json()).toMatchObject({ error: 'Activation limit reached', retryAfter: expect.any(Number) })
+    expect(stub.calls).toHaveLength(0)
+  })
+
+  it('resets an expired activation window before provisioning', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    await insertInstallation(testEnv, { status: 'disabled', tunnel_id: null, dns_record_id: null, activation_count: 3, activation_window_start: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString() })
+    const stub = new FetchStub()
+    provision(stub, 'tunnel-2', 'dns-2')
+    restoreFetch = stub.install()
+
+    expect((await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)).status).toBe(200)
+    expect(await testEnv.REMOTE_ACCESS_DB.prepare('SELECT activation_count FROM remote_access_installations').first<any>()).toMatchObject({ activation_count: 1 })
+  })
+
+  it('does not count an idempotent activation and gives new installations a zero default', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    await insertInstallation(testEnv, { activation_count: 2 })
+    const stub = new FetchStub()
+    restoreFetch = stub.install()
+
+    expect((await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)).status).toBe(200)
+    expect(await testEnv.REMOTE_ACCESS_DB.prepare('SELECT activation_count FROM remote_access_installations').first<any>()).toMatchObject({ activation_count: 2 })
+    await testEnv.REMOTE_ACCESS_DB.prepare("INSERT INTO remote_access_installations (id, license_hash, machine_id, slug, status, created_at, updated_at) VALUES ('new', 'new-license', 'new-machine', 'new-local', 'disabled', '2026-01-01', '2026-01-01')").run()
+    expect(await testEnv.REMOTE_ACCESS_DB.prepare("SELECT activation_count, activation_window_start FROM remote_access_installations WHERE id = 'new'").first<any>()).toEqual({ activation_count: 0, activation_window_start: null })
+  })
+
+  it('refuses provisioning at DNS capacity and sends a best-effort alert', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    testEnv.ALERT_WEBHOOK_URL = 'https://alerts.test/capacity'
+    const stub = new FetchStub()
+    stub.on('GET', /dns_records\?per_page=1$/, () => json({ success: true, result: [], result_info: { total_count: 190 } }))
+    stub.on('POST', /alerts\.test\/capacity$/, () => { throw new Error('alert unavailable') })
+    restoreFetch = stub.install()
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const response = await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Capacity reached' })
+    expect(stub.calls.some(call => /cfd_tunnel$/.test(call.url.toString()))).toBe(false)
+    expect(error).toHaveBeenCalledWith('[capacity-alert]', { total_count: 190, quota: 200 })
+    error.mockRestore()
+  })
+
+  it('provisions below DNS capacity and when the capacity request fails', async () => {
+    for (const count of [189, null]) {
+      const testEnv = env()
+      testEnv.LICENSE_VALIDATION = 'disabled'
+      const stub = new FetchStub()
+      if (count === null) stub.on('GET', /dns_records\?per_page=1$/, () => { throw new Error('capacity unavailable') })
+      else stub.on('GET', /dns_records\?per_page=1$/, () => json({ success: true, result: [], result_info: { total_count: count } }))
+      provision(stub)
+      restoreFetch = stub.install()
+
+      expect((await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)).status).toBe(200)
+    }
+  })
+
   it('applies the hostname prefix to provisioning and status', async () => {
     const testEnv = env()
     testEnv.LICENSE_VALIDATION = 'disabled'
