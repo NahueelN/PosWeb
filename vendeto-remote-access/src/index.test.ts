@@ -42,6 +42,28 @@ async function insertInstallation(testEnv: ReturnType<typeof env>, values: Parti
 }
 
 describe('remote access authorization and validation', () => {
+  it('skips licensing validation only when it is disabled', async () => {
+    const disabledEnv = env()
+    disabledEnv.LICENSE_VALIDATION = 'disabled'
+    const disabled = new FetchStub()
+    restoreFetch = disabled.install()
+
+    expect((await worker.fetch(request('/status', identity), disabledEnv)).status).toBe(200)
+    expect(disabled.calls).toHaveLength(0)
+
+    restoreFetch?.()
+    const unset = installFetch()
+    expect((await worker.fetch(request('/status', identity), env())).status).toBe(200)
+    expect(unset.calls).toHaveLength(1)
+
+    restoreFetch?.()
+    const falseEnv = env()
+    falseEnv.LICENSE_VALIDATION = 'false'
+    const falseValue = installFetch()
+    expect((await worker.fetch(request('/status', identity), falseEnv)).status).toBe(200)
+    expect(falseValue.calls).toHaveLength(1)
+  })
+
   it('rejects requests without the internal key', async () => {
     const unauthenticated = new Request('https://worker/status', { method: 'POST', body: JSON.stringify(identity) })
     expect((await worker.fetch(unauthenticated, env())).status).toBe(401)
@@ -60,6 +82,13 @@ describe('remote access authorization and validation', () => {
     expect(stub.calls).toHaveLength(0)
   })
 
+  it('rejects dev-prefixed slugs in production', async () => {
+    const stub = installFetch()
+
+    expect((await worker.fetch(request('/activate', { ...identity, slug: 'dev-foo' }), env())).status).toBe(400)
+    expect(stub.calls).toHaveLength(0)
+  })
+
   it('maps invalid and unavailable licensing to 403 and 503', async () => {
     const invalid = installFetch(false)
     expect((await worker.fetch(request('/status', identity), env())).status).toBe(403)
@@ -73,6 +102,62 @@ describe('remote access authorization and validation', () => {
 })
 
 describe('remote access lifecycle', () => {
+  it('applies the hostname prefix to provisioning and status', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    testEnv.HOSTNAME_PREFIX = 'dev-'
+    const stub = new FetchStub()
+    provision(stub)
+    stub.on('GET', /cfd_tunnel\/tunnel-1$/, () => json({ success: true, result: { status: 'healthy' } }))
+    restoreFetch = stub.install()
+
+    const activation = await worker.fetch(request('/activate', { ...identity, slug: 'foo' }), testEnv)
+    expect(await activation.json()).toMatchObject({ hostname: 'dev-foo.vendetoweb.com.ar' })
+    expect(JSON.parse(String(stub.calls.find(call => /cfd_tunnel$/.test(call.url.toString()))?.init.body)).name).toMatch(/^vendeto-dev-foo-/)
+    expect(JSON.parse(String(stub.calls.find(call => /configurations$/.test(call.url.toString()))?.init.body)).config.ingress[0].hostname).toBe('dev-foo.vendetoweb.com.ar')
+    expect(stub.calls.find(call => /dns_records\?name=/.test(call.url.toString()))?.url.searchParams.get('name')).toBe('dev-foo.vendetoweb.com.ar')
+    expect(JSON.parse(String(stub.calls.find(call => call.init.method === 'POST' && /dns_records$/.test(call.url.toString()))?.init.body)).name).toBe('dev-foo.vendetoweb.com.ar')
+
+    expect(await (await worker.fetch(request('/status', identity), testEnv)).json()).toMatchObject({ hostname: 'dev-foo.vendetoweb.com.ar' })
+  })
+
+  it('accepts ordinary slugs in development', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    testEnv.HOSTNAME_PREFIX = 'dev-'
+    const stub = new FetchStub()
+    provision(stub)
+    restoreFetch = stub.install()
+
+    expect(await (await worker.fetch(request('/activate', { ...identity, slug: 'foo' }), testEnv)).json()).toMatchObject({ hostname: 'dev-foo.vendetoweb.com.ar' })
+  })
+
+  it('enforces the active installation cap before Cloudflare calls', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    testEnv.MAX_ACTIVE_INSTALLATIONS = '1'
+    await insertInstallation(testEnv, { id: 'other-installation', license_hash: 'other-license', machine_id: 'other-machine', slug: 'other-local' })
+    const stub = new FetchStub()
+    restoreFetch = stub.install()
+
+    const response = await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Installation limit reached' })
+    expect(stub.calls).toHaveLength(0)
+  })
+
+  it('allows reactivating the same installation at the active installation cap', async () => {
+    const testEnv = env()
+    testEnv.LICENSE_VALIDATION = 'disabled'
+    testEnv.MAX_ACTIVE_INSTALLATIONS = '1'
+    await insertInstallation(testEnv)
+    const stub = new FetchStub()
+    restoreFetch = stub.install()
+
+    expect((await worker.fetch(request('/activate', { ...identity, slug: 'mi-local' }), testEnv)).status).toBe(200)
+    expect(stub.calls).toHaveLength(0)
+  })
+
   it('provisions an installation idempotently and prevents duplicate slugs', async () => {
     const testEnv = env()
     const stub = installFetch()

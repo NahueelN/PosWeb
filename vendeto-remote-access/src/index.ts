@@ -10,6 +10,9 @@ type Env = {
   LICENSING_REMOTE_ACCESS_KEY?: string
   REMOTE_ACCESS_DOMAIN?: string
   ORIGIN_SERVICE?: string
+  LICENSE_VALIDATION?: string
+  HOSTNAME_PREFIX?: string
+  MAX_ACTIVE_INSTALLATIONS?: string
 }
 
 type Installation = {
@@ -30,7 +33,7 @@ const reservedSlugs = new Set(['www', 'api', 'admin', 'app', 'mail', 'prueba', '
 const app = new Hono<{ Bindings: Env }>()
 class SlugUnavailableError extends Error {}
 
-const hostname = (env: Env, slug: string) => `${slug}.${env.REMOTE_ACCESS_DOMAIN ?? 'vendetoweb.com.ar'}`
+const hostname = (env: Env, slug: string) => `${env.HOSTNAME_PREFIX ?? ''}${slug}.${env.REMOTE_ACCESS_DOMAIN ?? 'vendetoweb.com.ar'}`
 const now = () => new Date().toISOString()
 
 async function sameKey(actual: string | undefined, expected: string | undefined): Promise<boolean> {
@@ -75,6 +78,7 @@ async function licenseState(env: Env, licenseKey: string, machineId: string): Pr
 }
 
 async function requireLicense(env: Env, body: RequestBody): Promise<Response | null> {
+  if (env.LICENSE_VALIDATION === 'disabled') return null
   const state = await licenseState(env, body.licenseKey, body.machineId)
   if (state === 'unavailable') return Response.json({ error: 'Licensing unavailable' }, { status: 503 })
   return state === 'invalid' ? Response.json({ error: 'Invalid license or device' }, { status: 403 }) : null
@@ -85,9 +89,9 @@ async function sha256(value: string): Promise<string> {
   return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function normalizeSlug(value: string | undefined): string | null {
+function normalizeSlug(env: Env, value: string | undefined): string | null {
   const slug = value?.trim().toLowerCase()
-  if (!slug || !/^[a-z0-9-]{3,40}$/.test(slug) || slug.startsWith('-') || slug.endsWith('-') || reservedSlugs.has(slug)) return null
+  if (!slug || !/^[a-z0-9-]{3,40}$/.test(slug) || slug.startsWith('-') || slug.endsWith('-') || reservedSlugs.has(slug) || !env.HOSTNAME_PREFIX && slug.startsWith('dev-')) return null
   return slug
 }
 
@@ -124,7 +128,7 @@ async function cleanup(env: Env, installation: Installation): Promise<void> {
 async function provision(env: Env, installation: Installation): Promise<void> {
   const headers = cfHeaders(env)
   const accountBase = `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/cfd_tunnel`
-  const tunnel = await cfResult<{ id: string }>(await fetch(accountBase, { method: 'POST', headers, body: JSON.stringify({ name: `vendeto-${installation.slug}-${installation.id.slice(0, 8)}`, config_src: 'cloudflare' }) }))
+  const tunnel = await cfResult<{ id: string }>(await fetch(accountBase, { method: 'POST', headers, body: JSON.stringify({ name: `vendeto-${env.HOSTNAME_PREFIX ?? ''}${installation.slug}-${installation.id.slice(0, 8)}`, config_src: 'cloudflare' }) }))
   installation.tunnel_id = tunnel.id
   await env.REMOTE_ACCESS_DB.prepare('UPDATE remote_access_installations SET tunnel_id = ?, updated_at = ? WHERE id = ?').bind(tunnel.id, now(), installation.id).run()
   try {
@@ -161,7 +165,7 @@ function uniqueConflict(error: unknown): 'slug' | 'installation' | null {
 
 app.post('/activate', async c => {
   const body = await parseBody(c.req.raw)
-  const slug = normalizeSlug(body?.slug)
+  const slug = normalizeSlug(c.env, body?.slug)
   if (!body || !slug) return c.json({ error: 'Invalid request' }, 400)
   const licenseError = await requireLicense(c.env, body)
   if (licenseError) return licenseError
@@ -169,6 +173,11 @@ app.post('/activate', async c => {
   let installation = await c.env.REMOTE_ACCESS_DB.prepare('SELECT * FROM remote_access_installations WHERE license_hash = ? AND machine_id = ?').bind(licenseHash, body.machineId).first<Installation>()
   if (installation?.status === 'provisioned') return installation.slug === slug ? c.json({ status: 'waiting_connector', slug, hostname: hostname(c.env, slug) }) : c.json({ error: 'Deactivate first' }, 409)
   if (installation?.status === 'provisioning' && Date.now() - Date.parse(installation.updated_at) < 120_000) return c.json({ error: 'Provisioning in progress' }, 409)
+  if (/^[1-9]\d*$/.test(c.env.MAX_ACTIVE_INSTALLATIONS ?? '')) {
+    const limit = Number(c.env.MAX_ACTIVE_INSTALLATIONS)
+    const active = await c.env.REMOTE_ACCESS_DB.prepare("SELECT COUNT(*) AS count FROM remote_access_installations WHERE status <> 'disabled' AND id <> ?").bind(installation?.id ?? '').first<{ count: number }>()
+    if (active && active.count >= limit) return c.json({ error: 'Installation limit reached' }, 409)
+  }
   const held = await c.env.REMOTE_ACCESS_DB.prepare("SELECT id FROM remote_access_installations WHERE slug = ? AND status <> 'disabled' AND id <> ?").bind(slug, installation?.id ?? '').first()
   if (held) return c.json({ error: 'Slug unavailable' }, 409)
   try {
