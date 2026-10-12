@@ -6,6 +6,7 @@ interface Env {
   MP_ACCESS_TOKEN: string;
   MP_WEBHOOK_SECRET?: string;
   POSWEB_INTERNAL_KEY?: string;
+  ADMIN_KEY?: string;
   REMOTE_ACCESS_INTERNAL_KEY?: string;
 }
 
@@ -393,6 +394,25 @@ function checkInternalAuth(c: any, env: Env): boolean {
   return auth === `Bearer ${env.POSWEB_INTERNAL_KEY}`;
 }
 
+async function checkAdminAuth(c: any, env: Env): Promise<boolean> {
+  if (!env.ADMIN_KEY) return false;
+
+  const encoder = new TextEncoder();
+  const [provided, expected] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(c.req.header('Authorization') || '')),
+    crypto.subtle.digest('SHA-256', encoder.encode(`Bearer ${env.ADMIN_KEY}`)),
+  ]);
+  const providedBytes = new Uint8Array(provided);
+  const expectedBytes = new Uint8Array(expected);
+  let difference = 0;
+
+  for (let i = 0; i < providedBytes.length; i += 1) {
+    difference |= providedBytes[i] ^ expectedBytes[i];
+  }
+
+  return difference === 0;
+}
+
 function checkRemoteAccessAuth(c: any, env: Env): boolean {
   if (!env.REMOTE_ACCESS_INTERNAL_KEY) return false;
   return c.req.header('Authorization') === `Bearer ${env.REMOTE_ACCESS_INTERNAL_KEY}`;
@@ -401,7 +421,7 @@ function checkRemoteAccessAuth(c: any, env: Env): boolean {
 app.post('/grant-license', async (c) => {
   const env = c.env;
 
-  if (!checkInternalAuth(c, env)) {
+  if (!await checkAdminAuth(c, env)) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
