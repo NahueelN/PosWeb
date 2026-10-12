@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using PosWeb.Application.Licensing;
+using PosWeb.Data;
 
 namespace PosWeb.Application.RemoteAccess;
 
@@ -11,14 +12,16 @@ public class RemoteAccessService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly LicenciaService _licensing;
+    private readonly PosDbContextLocal _context;
     private readonly HttpClient _http;
     private readonly string? _url;
     private readonly string? _key;
     private readonly bool _allowTrial;
     private readonly IRemoteAccessConnector? _connector;
 
-    public RemoteAccessService(LicenciaService licensing, IConfiguration config, HttpClient http, IRemoteAccessConnector? connector = null)
+    public RemoteAccessService(PosDbContextLocal context, LicenciaService licensing, IConfiguration config, HttpClient http, IRemoteAccessConnector? connector = null)
     {
+        _context = context;
         _licensing = licensing;
         _http = http;
         _url = config["RemoteAccess:WorkerUrl"];
@@ -29,6 +32,10 @@ public class RemoteAccessService
 
     public async Task<RemoteAccessResult> ActivateAsync(string slug, CancellationToken cancellationToken = default)
     {
+        var admin = _context.Usuario.FirstOrDefault(user => user.NOMBRE_USUARIO == "admin");
+        if (admin != null && BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
+            return RemoteAccessResult.DefaultCredentials();
+
         var result = await SendAsync("/activate", slug.Trim().ToLowerInvariant(), cancellationToken);
         if (result.Kind == RemoteAccessResultKind.Success && _connector != null)
             await _connector.StartAsync(cancellationToken);

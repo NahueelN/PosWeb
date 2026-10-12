@@ -20,6 +20,7 @@ public enum RemoteAccessResultKind
     Success,
     NotConfigured,
     LicenseRequired,
+    DefaultCredentials,
     Unavailable,
     WorkerError
 }
@@ -29,6 +30,7 @@ public sealed record RemoteAccessResult(RemoteAccessResultKind Kind, RemoteAcces
     public static RemoteAccessResult Success(RemoteAccessStatusDto status) => new(RemoteAccessResultKind.Success, status);
     public static RemoteAccessResult NotConfigured() => new(RemoteAccessResultKind.NotConfigured, Error: "Acceso remoto no configurado");
     public static RemoteAccessResult LicenseRequired() => new(RemoteAccessResultKind.LicenseRequired, Error: "Se requiere una licencia activa para usar el acceso remoto");
+    public static RemoteAccessResult DefaultCredentials() => new(RemoteAccessResultKind.DefaultCredentials, Error: "Cambiá la contraseña del usuario admin antes de activar el acceso remoto");
     public static RemoteAccessResult Unavailable(string? error = null) => new(RemoteAccessResultKind.Unavailable, Error: error ?? "Acceso remoto no disponible");
     public static RemoteAccessResult WorkerError(int statusCode, string error) => new(RemoteAccessResultKind.WorkerError, StatusCode: statusCode, Error: error);
 }
