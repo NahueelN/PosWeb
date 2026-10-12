@@ -4,7 +4,64 @@ use keyring::Entry;
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
+#[cfg(windows)]
+struct KillOnCloseJob(isize);
+
+#[cfg(windows)]
+impl KillOnCloseJob {
+    fn create() -> Result<Self, std::io::Error> {
+        use std::mem::size_of;
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JobObjectExtendedLimitInformation,
+        };
+        use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+        unsafe {
+            let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if handle.is_null() {
+                return Err(std::io::Error::last_os_error());
+            }
+
+            let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                &limits as *const _ as *const _,
+                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            ) == 0 || AssignProcessToJobObject(handle, GetCurrentProcess()) == 0 {
+                windows_sys::Win32::Foundation::CloseHandle(handle);
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(Self(handle as isize))
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for KillOnCloseJob {
+    fn drop(&mut self) {
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0 as _); }
+    }
+}
+
+#[cfg(not(windows))]
+struct KillOnCloseJob;
+
+#[cfg(not(windows))]
+impl KillOnCloseJob {
+    fn create() -> Result<Self, std::io::Error> {
+        Ok(Self)
+    }
+}
+
 struct SidecarProcesses(Mutex<Vec<tauri_plugin_shell::process::CommandChild>>);
+
+struct SidecarJob {
+    _job: KillOnCloseJob,
+}
 
 impl Drop for SidecarProcesses {
     fn drop(&mut self) {
@@ -127,6 +184,11 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+
+            match KillOnCloseJob::create() {
+                Ok(job) => { app.manage(SidecarJob { _job: job }); }
+                Err(error) => { log::error!("[Tauri] Failed to create sidecar Job Object: {error}"); }
             }
 
             // Kill any orphan backend from previous crashed session

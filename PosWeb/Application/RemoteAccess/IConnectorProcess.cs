@@ -14,8 +14,16 @@ public interface IConnectorProcessHandle
     Task StopAsync();
 }
 
-public sealed class CloudflaredProcess : IConnectorProcess
+public sealed class CloudflaredProcess : IConnectorProcess, IDisposable
 {
+    private readonly IWindowsJob _job;
+
+    public CloudflaredProcess() : this(WindowsJob.CreateKillOnClose())
+    {
+    }
+
+    public CloudflaredProcess(IWindowsJob job) => _job = job;
+
     public bool Exists(string path) => File.Exists(path);
 
     public IConnectorProcessHandle Start(string path, string arguments, IReadOnlyDictionary<string, string> environment)
@@ -29,8 +37,12 @@ public sealed class CloudflaredProcess : IConnectorProcess
             startInfo.Environment[item.Key] = item.Value;
 
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("No se pudo iniciar el conector");
+        if (!_job.TryAssign(process.Handle))
+            Console.Error.WriteLine("No se pudo asignar cloudflared al Job Object de Windows.");
         return new CloudflaredProcessHandle(process);
     }
+
+    public void Dispose() => _job.Dispose();
 
     private sealed class CloudflaredProcessHandle(Process process) : IConnectorProcessHandle
     {
