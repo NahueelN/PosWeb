@@ -75,6 +75,81 @@ public class RemoteAccessServiceTest
     }
 
     [Fact]
+    public async Task StatusAsync_AllowTrialWithTrialRow_SendsSyntheticTrialIdentity()
+    {
+        HttpRequestMessage? sent = null;
+        var service = CreateService(ConfiguredValues("true"), new StubHttpMessageHandler(request =>
+        {
+            sent = request;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"status\":\"inactive\"}") };
+        }), addLicense: false, trialMachineId: "trial-machine-id");
+
+        var result = await service.StatusAsync();
+
+        Assert.Equal(RemoteAccessResultKind.Success, result.Kind);
+        var body = await sent!.Content!.ReadAsStringAsync();
+        Assert.Contains("\"licenseKey\":\"trial:trial-machine-id\"", body);
+        Assert.Contains("\"machineId\":\"trial-machine-id\"", body);
+    }
+
+    [Fact]
+    public async Task StatusAsync_AllowTrialWithoutLicenciaConfig_ReturnsLicenseRequiredWithoutHttpCall()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
+        var service = CreateService(ConfiguredValues("true"), handler, addLicense: false);
+
+        var result = await service.StatusAsync();
+
+        Assert.Equal(RemoteAccessResultKind.LicenseRequired, result.Kind);
+    }
+
+    [Fact]
+    public async Task StatusAsync_InvalidAllowTrialValue_ReturnsLicenseRequiredWithoutHttpCall()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
+        var service = CreateService(ConfiguredValues("invalid"), handler, addLicense: false, trialMachineId: "trial-machine-id");
+
+        var result = await service.StatusAsync();
+
+        Assert.Equal(RemoteAccessResultKind.LicenseRequired, result.Kind);
+    }
+
+    [Fact]
+    public async Task StatusAsync_AllowTrialWithLicensedIdentity_PrefersLicensedIdentity()
+    {
+        HttpRequestMessage? sent = null;
+        var service = CreateService(ConfiguredValues("true"), new StubHttpMessageHandler(request =>
+        {
+            sent = request;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"status\":\"inactive\"}") };
+        }));
+
+        await service.StatusAsync();
+
+        var body = await sent!.Content!.ReadAsStringAsync();
+        Assert.Contains("\"licenseKey\":\"license-key\"", body);
+        Assert.DoesNotContain("trial:", body);
+    }
+
+    [Fact]
+    public async Task ObtenerTokenConectorAsync_AllowTrialWithTrialRow_UsesSyntheticTrialIdentity()
+    {
+        HttpRequestMessage? sent = null;
+        var service = CreateService(ConfiguredValues("true"), new StubHttpMessageHandler(request =>
+        {
+            sent = request;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"token\":\"connector-token\"}") };
+        }), addLicense: false, trialMachineId: "trial-machine-id");
+
+        var result = await service.ObtenerTokenConectorAsync();
+
+        Assert.True(result.IsSuccess);
+        var body = await sent!.Content!.ReadAsStringAsync();
+        Assert.Contains("\"licenseKey\":\"trial:trial-machine-id\"", body);
+        Assert.Contains("\"machineId\":\"trial-machine-id\"", body);
+    }
+
+    [Fact]
     public void LicenseRequired_MapsToConflict()
     {
         var controller = new RemoteAccessController(null!);
@@ -201,7 +276,7 @@ public class RemoteAccessServiceTest
         Assert.Equal(1, connector.StartCount);
     }
 
-    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true)
+    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true, string? trialMachineId = null)
     {
         var options = new DbContextOptionsBuilder<PosDbContextLocal>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         var context = new PosDbContextLocal(options);
@@ -216,16 +291,26 @@ public class RemoteAccessServiceTest
                 Estado = EstadosLicencia.Activa
             });
         }
+        else if (trialMachineId != null)
+        {
+            context.Set<LicenciaConfig>().Add(new LicenciaConfig { MachineId = trialMachineId });
+        }
         context.SaveChanges();
         var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         return new RemoteAccessService(new LicenciaService(context, config, encryption), config, new HttpClient(handler), connector);
     }
 
-    private static IReadOnlyDictionary<string, string?> ConfiguredValues() => new Dictionary<string, string?>
+    private static IReadOnlyDictionary<string, string?> ConfiguredValues(string? allowTrial = null)
     {
-        ["RemoteAccess:WorkerUrl"] = "http://remote.test",
-        ["RemoteAccess:InternalKey"] = "remote-key"
-    };
+        var values = new Dictionary<string, string?>
+        {
+            ["RemoteAccess:WorkerUrl"] = "http://remote.test",
+            ["RemoteAccess:InternalKey"] = "remote-key"
+        };
+        if (allowTrial != null)
+            values["RemoteAccess:AllowTrial"] = allowTrial;
+        return values;
+    }
 
     private static HttpMessageHandler JsonHandler(HttpStatusCode statusCode, string json) =>
         new StubHttpMessageHandler(_ => new HttpResponseMessage(statusCode) { Content = new StringContent(json, Encoding.UTF8, "application/json") });

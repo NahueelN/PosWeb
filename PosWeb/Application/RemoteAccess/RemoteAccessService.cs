@@ -14,6 +14,7 @@ public class RemoteAccessService
     private readonly HttpClient _http;
     private readonly string? _url;
     private readonly string? _key;
+    private readonly bool _allowTrial;
     private readonly IRemoteAccessConnector? _connector;
 
     public RemoteAccessService(LicenciaService licensing, IConfiguration config, HttpClient http, IRemoteAccessConnector? connector = null)
@@ -22,6 +23,7 @@ public class RemoteAccessService
         _http = http;
         _url = config["RemoteAccess:WorkerUrl"];
         _key = config["RemoteAccess:InternalKey"];
+        _allowTrial = bool.TryParse(config["RemoteAccess:AllowTrial"], out var allowTrial) && allowTrial;
         _connector = connector;
     }
 
@@ -62,7 +64,7 @@ public class RemoteAccessService
     public async Task<RemoteAccessTokenResult> ObtenerTokenConectorAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConfigured()) return RemoteAccessTokenResult.Failure("Acceso remoto no configurado");
-        var identity = await _licensing.ObtenerIdentidadRemotaAsync();
+        var identity = await ResolveIdentityAsync();
         if (identity == null) return RemoteAccessTokenResult.Failure("Se requiere una licencia activa para usar el acceso remoto");
 
         try
@@ -83,7 +85,7 @@ public class RemoteAccessService
     private async Task<RemoteAccessResult> SendAsync(string path, string? slug, CancellationToken cancellationToken)
     {
         if (!IsConfigured()) return RemoteAccessResult.NotConfigured();
-        var identity = await _licensing.ObtenerIdentidadRemotaAsync();
+        var identity = await ResolveIdentityAsync();
         if (identity == null) return RemoteAccessResult.LicenseRequired();
 
         try
@@ -121,6 +123,16 @@ public class RemoteAccessService
         LastError = status.LastError,
         Connector = _connector?.State ?? status.Connector
     };
+
+    private async Task<(string licenseKey, string machineId)?> ResolveIdentityAsync()
+    {
+        var identity = await _licensing.ObtenerIdentidadRemotaAsync();
+        if (identity != null || !_allowTrial)
+            return identity;
+
+        var machineId = await _licensing.ObtenerMachineIdExistenteAsync();
+        return machineId == null ? null : ($"trial:{machineId}", machineId);
+    }
 
     private bool IsConfigured() => !string.IsNullOrWhiteSpace(_url) && !string.IsNullOrWhiteSpace(_key);
 
