@@ -191,6 +191,49 @@ public class RemoteAccessServiceTest
         Assert.Equal("La licencia o el dispositivo no permiten usar el acceso remoto", result.Error);
     }
 
+    [Fact]
+    public async Task ActivateAsync_DefaultAdminPassword_ReturnsDefaultCredentialsWithoutHttpCall()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
+        var service = CreateService(ConfiguredValues(), handler, adminPassword: "123");
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(RemoteAccessResultKind.DefaultCredentials, result.Kind);
+        Assert.Equal("Cambiá la contraseña del usuario admin antes de activar el acceso remoto", result.Error);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_ChangedAdminPassword_Proceeds()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.OK, "{\"status\":\"provisioning\"}"), adminPassword: "changed-password");
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(RemoteAccessResultKind.Success, result.Kind);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_WithoutAdminUser_Proceeds()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.OK, "{\"status\":\"provisioning\"}"));
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(RemoteAccessResultKind.Success, result.Kind);
+    }
+
+    [Fact]
+    public void DefaultCredentials_MapsToConflict()
+    {
+        var controller = new RemoteAccessController(null!);
+        var method = typeof(RemoteAccessController).GetMethod("ToActionResult", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        var response = Assert.IsType<Microsoft.AspNetCore.Mvc.ConflictObjectResult>(method.Invoke(controller, [RemoteAccessResult.DefaultCredentials()]));
+
+        Assert.Equal(409, response.StatusCode);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, "Invalid request", "La solicitud de acceso remoto no es válida")]
     [InlineData(HttpStatusCode.Conflict, "Slug unavailable", "El subdominio elegido no está disponible")]
@@ -276,7 +319,7 @@ public class RemoteAccessServiceTest
         Assert.Equal(1, connector.StartCount);
     }
 
-    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true, string? trialMachineId = null)
+    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true, string? trialMachineId = null, string? adminPassword = null)
     {
         var options = new DbContextOptionsBuilder<PosDbContextLocal>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         var context = new PosDbContextLocal(options);
@@ -295,9 +338,11 @@ public class RemoteAccessServiceTest
         {
             context.Set<LicenciaConfig>().Add(new LicenciaConfig { MachineId = trialMachineId });
         }
+        if (adminPassword != null)
+            context.Usuario.Add(new Usuario("admin", BCrypt.Net.BCrypt.HashPassword(adminPassword), Roles.SuperAdmin));
         context.SaveChanges();
         var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
-        return new RemoteAccessService(new LicenciaService(context, config, encryption), config, new HttpClient(handler), connector);
+        return new RemoteAccessService(context, new LicenciaService(context, config, encryption), config, new HttpClient(handler), connector);
     }
 
     private static IReadOnlyDictionary<string, string?> ConfiguredValues(string? allowTrial = null)

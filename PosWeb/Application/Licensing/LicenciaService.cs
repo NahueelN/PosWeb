@@ -32,10 +32,11 @@ public class LicenciaService
     public LicenciaService(
         PosDbContextLocal context,
         IConfiguration configuration,
-        IEncryptionService encryption)
+        IEncryptionService encryption,
+        HttpClient? httpClient = null)
     {
         _context = context;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         _workerUrl = configuration["Licensing:WorkerUrl"];
         _internalKey = configuration["Licensing:InternalKey"];
         _offlineHours = int.Parse(configuration["Licensing:OfflineHours"] ?? "72");
@@ -286,7 +287,6 @@ public class LicenciaService
                     machine_id = licencia.MachineId
                 })
             };
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
             var response = await _httpClient.SendAsync(request);
 
             if (!response.IsSuccessStatusCode)
