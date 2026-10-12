@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PosWeb.Application.Licensing;
 using PosWeb.Data;
@@ -32,7 +33,7 @@ public class RemoteAccessService
 
     public async Task<RemoteAccessResult> ActivateAsync(string slug, CancellationToken cancellationToken = default)
     {
-        var admin = _context.Usuario.FirstOrDefault(user => user.NOMBRE_USUARIO == "admin");
+        var admin = await _context.Usuario.FirstOrDefaultAsync(user => user.NOMBRE_USUARIO == "admin", cancellationToken);
         if (admin != null && BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
             return RemoteAccessResult.DefaultCredentials();
 
@@ -112,7 +113,7 @@ public class RemoteAccessService
             }
 
             var error = JsonSerializer.Deserialize<WorkerError>(content, JsonOptions)?.Error;
-            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or HttpStatusCode.Conflict)
+            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests)
                 return string.IsNullOrWhiteSpace(error) ? RemoteAccessResult.Unavailable() : RemoteAccessResult.WorkerError((int)response.StatusCode, ToSpanishUxError(error));
             return RemoteAccessResult.Unavailable(string.IsNullOrWhiteSpace(error) ? null : ToSpanishUxError(error));
         }
@@ -153,6 +154,8 @@ public class RemoteAccessService
         "Provisioning in progress" => "El acceso remoto se está configurando",
         "Remote access is not active" => "El acceso remoto no está activo",
         "Connector token unavailable" => "No se pudo obtener la configuración del conector",
+        "Activation limit reached" => "Alcanzaste el límite de cambios de subdominio. Probá de nuevo más tarde",
+        "Capacity reached" => "El servicio de acceso remoto alcanzó su capacidad. Contactá al soporte",
         _ => "No se pudo completar la operación de acceso remoto"
     };
 

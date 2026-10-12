@@ -192,6 +192,37 @@ public class RemoteAccessServiceTest
     }
 
     [Fact]
+    public async Task ActivateAsync_RateLimit_PassesThroughStatusCode()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.TooManyRequests, "{\"error\":\"Activation limit reached\"}"));
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(RemoteAccessResultKind.WorkerError, result.Kind);
+        Assert.Equal(429, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_MapsActivationLimitErrorToSpanishUxText()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.TooManyRequests, "{\"error\":\"Activation limit reached\"}"));
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal("Alcanzaste el límite de cambios de subdominio. Probá de nuevo más tarde", result.Error);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_MapsCapacityReachedErrorToSpanishUxText()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.ServiceUnavailable, "{\"error\":\"Capacity reached\"}"));
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal("El servicio de acceso remoto alcanzó su capacidad. Contactá al soporte", result.Error);
+    }
+
+    [Fact]
     public async Task ActivateAsync_DefaultAdminPassword_ReturnsDefaultCredentialsWithoutHttpCall()
     {
         var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
