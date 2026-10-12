@@ -8,5 +8,18 @@
   "vars": {
     "REMOTE_ACCESS_DOMAIN": "vendetoweb.com.ar",
     "ORIGIN_SERVICE": "http://127.0.0.1:8543"
+  },
+  "env": {
+    "dev": {
+      "name": "vendeto-remote-access-dev",
+      "d1_databases": [{ "binding": "REMOTE_ACCESS_DB", "database_name": "vendeto-remote-access-dev", "database_id": "<DEV_D1_ID>", "migrations_dir": "migrations" }],
+      "vars": {
+        "REMOTE_ACCESS_DOMAIN": "vendetoweb.com.ar",
+        "ORIGIN_SERVICE": "http://127.0.0.1:8543",
+        "LICENSE_VALIDATION": "disabled",
+        "HOSTNAME_PREFIX": "dev-",
+        "MAX_ACTIVE_INSTALLATIONS": "5"
+      }
+    }
   }
 }
