@@ -336,10 +336,12 @@ using (var scope = app.Services.CreateScope())
 
         // The migration seed bypasses the registration flow, which normally creates the trial.
         // Bootstrap it only for the development seed and never for an existing customer account.
-        if (app.Environment.IsDevelopment()
-            && admin.ROL == Roles.SuperAdmin
-            && admin.MAIL == "admin@posweb.com"
-            && !ctx.LicenciaConfig.Any())
+        if (DevTrialBootstrap.ShouldRun(
+            app.Environment.IsDevelopment(),
+            builder.Configuration,
+            admin.ROL,
+            admin.MAIL,
+            ctx.LicenciaConfig.Any()))
         {
             var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
             await licenciaService.ActivarPorEmailOPrueba(admin.MAIL);
