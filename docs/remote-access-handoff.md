@@ -7,6 +7,7 @@ Remote access exposes `https://<slug>.vendetoweb.com.ar` only while Vendeto is r
 - The backend fetches the connector token and starts `vendeto-cloudflared.exe` with `TUNNEL_TOKEN` in its environment. The token is never passed to the frontend, command line, or logs.
 - The connector is not a Windows service and does not require UAC. The mobile origin is local (`http://127.0.0.1:8543`), so a persistent tunnel would only serve 502 responses while Vendeto is closed.
 - Configure development with `RemoteAccess__WorkerUrl` and `RemoteAccess__InternalKey`, or a gitignored `appsettings.Development.json`. Do not commit secret values.
+- For a fresh local Tauri database, set `$env:Licensing__DevTrialBootstrap = 'true'` before `npm run tauri dev`. This only creates the seed trial; it does not enable remote access, which requires a real license. Never place this flag in release configuration.
 - Embedded defaults have lower precedence than on-disk configuration and environment variables. This permits development overrides and CI injection; review all production overrides accordingly.
 - Cloudflared is pinned to the latest stable GitHub release and its published SHA-256. Review the pin for every desktop release.
 
