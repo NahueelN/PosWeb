@@ -7,18 +7,22 @@
   "d1_databases": [{ "binding": "REMOTE_ACCESS_DB", "database_name": "vendeto-remote-access", "database_id": "c6b9b21f-e6c4-455b-9247-127ef9a6c7cc", "migrations_dir": "migrations" }],
   "vars": {
     "REMOTE_ACCESS_DOMAIN": "vendetoweb.com.ar",
-    "ORIGIN_SERVICE": "http://127.0.0.1:8543"
+    "ORIGIN_SERVICE": "http://127.0.0.1:8543",
+    "DNS_RECORD_QUOTA": "200",
+    "CAPACITY_RESERVE": "10"
   },
   "env": {
     "dev": {
       "name": "vendeto-remote-access-dev",
-      "d1_databases": [{ "binding": "REMOTE_ACCESS_DB", "database_name": "vendeto-remote-access-dev", "database_id": "<DEV_D1_ID>", "migrations_dir": "migrations" }],
+      "d1_databases": [{ "binding": "REMOTE_ACCESS_DB", "database_name": "vendeto-remote-access-dev", "database_id": "169c73b7-59ed-4f11-b3c3-a6e53c2dd573", "migrations_dir": "migrations" }],
       "vars": {
         "REMOTE_ACCESS_DOMAIN": "vendetoweb.com.ar",
         "ORIGIN_SERVICE": "http://127.0.0.1:8543",
         "LICENSE_VALIDATION": "disabled",
         "HOSTNAME_PREFIX": "dev-",
-        "MAX_ACTIVE_INSTALLATIONS": "5"
+        "MAX_ACTIVE_INSTALLATIONS": "5",
+        "DNS_RECORD_QUOTA": "200",
+        "CAPACITY_RESERVE": "10"
       }
     }
   }
