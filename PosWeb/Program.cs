@@ -32,6 +32,7 @@ using PosWeb.Application.Preferencias;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.Respaldos;
 using PosWeb.Application.RemoteAccess;
+using PosWeb.Application.Seed;
 using PosWeb.Application;
 using PosWeb.Data;
 using PosWeb.Middlewares;
@@ -308,7 +309,8 @@ using (var scope = app.Services.CreateScope())
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
-        if (!BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
+        if (AdminPasswordReset.ShouldRun(app.Environment.IsDevelopment(), builder.Configuration)
+            && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
         {
             admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
         }
