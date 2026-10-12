@@ -21,6 +21,19 @@ Remote access exposes `https://<slug>.vendetoweb.com.ar` only while Vendeto is r
 | `provisioned`, healthy tunnel | `active` |
 | `provisioned`, unhealthy/unavailable lookup | `waiting_connector` |
 
+## Development environment
+
+Every step requires explicit authorization and uses the isolated `dev` Worker only.
+
+1. Create `vendeto-remote-access-dev` with `npx wrangler d1 create vendeto-remote-access-dev`, then replace `<DEV_D1_ID>` in `env.dev`.
+2. Apply `npx wrangler d1 migrations apply vendeto-remote-access-dev --remote --env dev`.
+3. Configure dev-only `INTERNAL_KEY`, `CF_PROVISIONER_TOKEN`, `CF_ACCOUNT_ID`, and `CF_ZONE_ID` with `npx wrangler secret put <NAME> --env dev`. Do not configure `LICENSING_*`.
+4. Deploy with `npx wrangler deploy --env dev`.
+5. Rebuild the sidecar, then set `RemoteAccess__WorkerUrl`, `RemoteAccess__InternalKey`, `RemoteAccess__AllowTrial='true'`, and `Licensing__DevTrialBootstrap='true'` before `npm run tauri dev`.
+6. Deactivate every dev slug before deleting the dev Worker.
+
+The dev `INTERNAL_KEY` must never enter GitHub secrets or release configuration. The UI suffix remains `.vendetoweb.com.ar`; when active, use the link shown by the UI, whose actual hostname is `dev-<slug>.vendetoweb.com.ar`.
+
 ## Manual deployment runbook
 
 Every step below requires explicit authorization. Do not deploy Workers, configure remote secrets, or change Cloudflare resources otherwise.
