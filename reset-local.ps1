@@ -69,4 +69,4 @@ foreach ($file in $DbFiles) {
 Write-Host ""
 Write-Host "Base local reseteada. Ahora levantá:" -ForegroundColor Cyan
 Write-Host "  dotnet run --project PosWeb" -ForegroundColor White
-Write-Host 'Se recrea desde 0 (migraciones + seed: admin / 7$0W6bD6@Z&).' -ForegroundColor Gray
+Write-Host 'Se recrea desde 0. Para desarrollo, definí Seed__AdminPassword o usá Seed__ResetAdminPassword.' -ForegroundColor Gray

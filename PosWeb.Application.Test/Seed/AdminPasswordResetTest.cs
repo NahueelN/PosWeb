@@ -23,6 +23,18 @@ public class AdminPasswordResetTest
         Assert.True(AdminPasswordReset.ShouldRun(true, Configuration()));
     }
 
+    [Fact]
+    public void Password_ReadsSeedAdminPassword()
+    {
+        Assert.Equal("development-password", AdminPasswordReset.Password(Configuration(("Seed:AdminPassword", "development-password"))));
+    }
+
+    [Fact]
+    public void Password_UsesFactoryFallbackWhenUnset()
+    {
+        Assert.Equal(FactoryAdminPassword.KnownFactoryPasswords[0], AdminPasswordReset.Password(Configuration()));
+    }
+
     [Theory]
     [InlineData("false")]
     [InlineData("invalid")]
