@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Folleto Vendeto A6 â€” frente y dorso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --celeste: #06b6d4;
+      --celeste-dark: #0891b2;
+      --celeste-deep: #0e7490;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --bg: #eef2f5;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @page { size: A6; margin: 0; }
+
+    html, body {
+      font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ---------- Vista previa en pantalla ---------- */
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      padding: 24px;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 14px;
+      max-width: 380px;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    .hint code { font-size: 12px; }
+
+    /* ---------- Hoja ---------- */
+    .page {
+      width: 105mm;
+      height: 148mm;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 26px rgba(15, 23, 42, .18);
+    }
+
+    /* ================= FRENTE ================= */
+    .front {
+      background: linear-gradient(158deg, var(--celeste) 0%, var(--celeste-dark) 100%);
+      color: #fff;
+    }
+
+    .front::after {
+      content: "";
+      position: absolute;
+      width: 76mm;
+      height: 76mm;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .08);
+      top: -30mm;
+      right: -28mm;
+    }
+
+    .front-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .front-top { padding: 9mm 8mm 0; }
+
+    .front-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-lockup { display: flex; align-items: center; gap: 2.4mm; }
+    .brand-icon { height: 8mm; width: auto; display: block; }
+
+    .brand-word {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 15pt;
+      letter-spacing: -.4px;
+      line-height: 1;
+    }
+
+    .front-tag {
+      font-size: 5.9pt;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: rgba(255, 255, 255, .85);
+    }
+
+    .headline {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 20pt;
+      line-height: 1.04;
+      letter-spacing: -.7px;
+      margin-top: 9mm;
+    }
+
+    .headline .accent { color: #bdf1fa; }
+
+    .sub {
+      font-size: 7.9pt;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, .92);
+      margin-top: 3mm;
+    }
+
+    .preload {
+      margin-top: 5mm;
+      padding: 2.9mm 0;
+      border-top: 1px solid rgba(255, 255, 255, .42);
+      border-bottom: 1px solid rgba(255, 255, 255, .42);
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+    }
+
+    .preload-num {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 16pt;
+      letter-spacing: -.6px;
+      line-height: 1;
+    }
+
+    .preload-txt { font-size: 6.9pt; line-height: 1.3; color: rgba(255, 255, 255, .92); }
+
+    .points {
+      list-style: none;
+      margin-top: 5mm;
+      display: flex;
+      flex-direction: column;
+      gap: 4mm;
+    }
+
+    .points li { display: flex; gap: 3mm; align-items: flex-start; }
+
+    .dot {
+      flex: 0 0 8mm;
+      width: 8mm;
+      height: 8mm;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .16);
+      border: 1px solid rgba(255, 255, 255, .5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dot svg { width: 4.2mm; height: 4.2mm; stroke: #fff; }
+
+    .points h3 { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 8.7pt; line-height: 1.15; }
+
+    .points p { font-size: 6.8pt; color: rgba(255, 255, 255, .9); margin-top: .7mm; line-height: 1.3; }
+
+    .front-bar {
+      margin-top: auto;
+      background: #fff;
+      color: var(--celeste-deep);
+      padding: 3.6mm 8mm;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .front-bar .url {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 12.5pt;
+      letter-spacing: -.4px;
+    }
+
+    .front-bar .note { font-size: 6.3pt; color: var(--celeste-dark); text-align: right; }
+
+    /* ================= DORSO ================= */
+    .back { background: #fff; }
+
+    .back-inner {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 7mm 8mm 0;
+    }
+
+    .back-title {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 12.5pt;
+      letter-spacing: -.3px;
+    }
+
+    .back-title .bar {
+      display: block;
+      width: 12mm;
+      height: 1.2mm;
+      background: var(--celeste);
+      margin-top: 2mm;
+    }
+
+    .modules {
+      list-style: none;
+      margin-top: 5mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 5mm;
+      row-gap: 3.4mm;
+    }
+
+    .modules li { display: flex; gap: 1.6mm; align-items: flex-start; }
+
+    .modules .tick { color: var(--celeste); font-weight: 800; font-size: 7.6pt; line-height: 1.35; }
+
+    .modules .txt { font-size: 6.5pt; line-height: 1.32; color: var(--muted); }
+    .modules .txt b { color: var(--ink); font-weight: 700; display: block; font-size: 7.1pt; font-family: 'Archivo', sans-serif; }
+
+    .strip {
+      margin-top: 4.5mm;
+      border-left: 1.4mm solid var(--celeste);
+      background: #ecfeff;
+      padding: 2.6mm 3.2mm;
+      font-size: 6.6pt;
+      color: var(--celeste-deep);
+      line-height: 1.35;
+    }
+
+    .strip b { font-weight: 800; }
+
+    .plans {
+      margin-top: 5.5mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .plan { padding: 0 3.4mm; text-align: left; }
+    .plan:first-child { padding-left: 0; }
+    .plan:last-child { padding-right: 0; }
+    .plan + .plan { border-left: 1px solid var(--line); }
+
+    .plan h4 {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 8.4pt;
+      color: var(--celeste-dark);
+    }
+
+    .plan ul { list-style: none; margin-top: 2.2mm; display: flex; flex-direction: column; gap: 1.2mm; }
+
+    .plan li {
+      position: relative;
+      padding-left: 3mm;
+      font-size: 5.9pt;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .plan li::before { content: "âœ“"; position: absolute; left: 0; color: var(--celeste); font-weight: 800; }
+
+    .back-foot {
+      margin-top: auto;
+      margin-left: -8mm;
+      margin-right: -8mm;
+      background: var(--celeste);
+      color: #fff;
+      padding: 4mm 8mm 4.4mm;
+      text-align: center;
+    }
+
+    .back-foot .big { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 10.5pt; letter-spacing: -.3px; }
+    .back-foot .small { font-size: 6.4pt; color: rgba(255, 255, 255, .9); margin-top: 1mm; }
+
+    .foot-contacts {
+      margin-top: 2.4mm;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 1.6mm 4mm;
+      font-size: 6.6pt;
+      color: #fff;
+    }
+
+    .foot-contacts span { display: inline-flex; align-items: center; gap: 1.4mm; }
+    .foot-contacts svg { width: 3.4mm; height: 3.4mm; stroke: currentColor; }
+
+    /* ---------- ImpresiÃ³n ---------- */
+    @media print {
+      html, body { background: #fff; }
+      .stage { display: block; padding: 0; gap: 0; }
+      .hint { display: none; }
+      .page { box-shadow: none; page-break-after: always; }
+      .page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <p class="hint">
+      <strong>A6 (105 Ã— 148 mm) â€” frente y dorso.</strong><br>
+      ImprimÃ­ a doble faz (o cada hoja por separado), escala 100%, sin ajustar a pÃ¡gina.
+      ActivÃ¡ â€œGrÃ¡ficos de fondoâ€ para que salga el color.<br>
+      El logo se toma de <code>frontend/public/vendeto-icono-blanco.png</code>.
+    </p>
+
+    <!-- ================= FRENTE ================= -->
+    <section class="page front">
+      <div class="front-inner">
+        <div class="front-top">
+          <div class="front-head">
+            <div class="brand-lockup">
+              <img class="brand-icon" src="data:image/png;base64,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" alt="Vendeto" />
+              <span class="brand-word">Vendeto</span>
+            </div>
+            <span class="front-tag">Punto de Venta</span>
+          </div>
+
+          <h1 class="headline">VendÃ© mÃ¡s,<br><span class="accent">controlÃ¡ todo</span> tu comercio.</h1>
+          <p class="sub">Ventas, stock, clientes, cajas y deudas en una sola plataforma, rÃ¡pida y fÃ¡cil de usar.</p>
+
+          <div class="preload">
+            <div class="preload-num">+140.000</div>
+            <div class="preload-txt">productos precargados,<br>listos para vender desde el dÃ­a uno.</div>
+          </div>
+
+          <ul class="points">
+            <li>
+              <span class="dot">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>
+                </svg>
+              </span>
+              <div>
+                <h3>Ventas rÃ¡pidas</h3>
+                <p>Efectivo, dÃ©bito, crÃ©dito, transferencia y QR. CobrÃ¡ en segundos.</p>
+              </div>
+            </li>
+            <li>
+              <span class="dot">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/>
+                  <path d="m3 8 9 5 9-5"/>
+                  <path d="M12 13v8"/>
+                </svg>
+              </span>
+              <div>
+                <h3>Stock siempre al dÃ­a</h3>
+                <p>Inventario por producto, validado en el servidor.</p>
+              </div>
+            </li>
+            <li>
+              <span class="dot">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.5 18H7a4 4 0 0 1-.8-7.9 6 6 0 0 1 9.3-2.2 4 4 0 0 1 2 6.9"/>
+                  <path d="M2 2l20 20"/>
+                </svg>
+              </span>
+              <div>
+                <h3>VendÃ© sin internet</h3>
+                <p>Offline-ready: la caja no se frena si se corta la conexiÃ³n.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="front-bar">
+          <span class="url">vendeto.com.ar</span>
+          <span class="note">Descargalo gratis Â·<br>ProbÃ¡ 7 dÃ­as sin costo</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DORSO ================= -->
+    <section class="page back">
+      <div class="back-inner">
+        <h2 class="back-title">Todo lo que podÃ©s hacer<span class="bar"></span></h2>
+
+        <ul class="modules">
+          <li><span class="tick">âœ“</span><span class="txt"><b>Ventas y control de caja</b>Por peso y bulto, venta a crÃ©dito, ticket tÃ©rmico, apertura y cierre.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Stock y Productos</b>Control de stock, cantidad ideal, importar Excel y precios masivos.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Pedidos</b>ReposiciÃ³n sugerida; enviÃ¡ el pedido por WhatsApp o mail.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Compras y Proveedores</b>Compras, actualizaciÃ³n de stock y deudas con proveedores.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Clientes y Deudas</b>Agenda, cuenta corriente y pagos a cuenta.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Gastos e Historial</b>Gastos del negocio y consulta de ventas y compras.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Vencimientos y Ofertas</b>Alertas de perecederos y combos con precio especial.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Dashboard</b>KPIs y mÃ©tricas del negocio para administradores.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>MercadoPago</b>CobrÃ¡ con QR y transferencia; al instante en plan Avanzado.</span></li>
+          <li><span class="tick">âœ“</span><span class="txt"><b>Pedidos Ya</b>IntegraciÃ³n con Pedidos Ya para manejar todo desde el mismo lugar.</span></li>
+        </ul>
+
+        <div class="strip">
+          <b>Complementos gratis:</b> usÃ¡ tu celular como lector de cÃ³digos y consultÃ¡ precios al escanear.
+        </div>
+
+        <div class="plans">
+          <div class="plan">
+            <h4>Gratuito</h4>
+            <ul>
+              <li>1 usuario</li>
+              <li>500 productos</li>
+              <li>Ventas, Caja y Stock</li>
+            </ul>
+          </div>
+
+          <div class="plan">
+            <h4>BÃ¡sico</h4>
+            <ul>
+              <li>3 usuarios</li>
+              <li>1.000 productos</li>
+              <li>Todos los mÃ³dulos</li>
+            </ul>
+          </div>
+
+          <div class="plan">
+            <h4>Avanzado</h4>
+            <ul>
+              <li>Usuarios ilimitados</li>
+              <li>10.000 productos</li>
+              <li>MP al instante + soporte</li>
+              <li>Pedidos Ya</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="back-foot">
+          <div class="big">EmpezÃ¡ gratis en vendeto.com.ar</div>
+          <div class="small">Plan Gratuito para siempre Â· PasÃ¡ a BÃ¡sico o Avanzado cuando lo necesites</div>
+          <div class="foot-contacts">
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>
+              1138663629
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+              ventas@vendeto.com.ar
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1"/></svg>
+              @vendetoapp
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
