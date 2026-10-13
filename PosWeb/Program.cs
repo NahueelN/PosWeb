@@ -359,21 +359,6 @@ using (var scope = app.Services.CreateScope())
     }
     ctx.SaveChanges();
 
-    // Desarrollo: una base recién creada (por reset-local.ps1 o primer arranque) no tiene
-    // licencia, y el chequeo de licencia corre ANTES de validar la password del admin sembrado:
-    // el login fallaría con "No hay licencia configurada". Para poder entrar directo en local,
-    // se inicia una prueba gratuita local. Solo Development; en producción la licencia se
-    // activa por email.
-    if (app.Environment.IsDevelopment())
-    {
-        var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
-        if (await licenciaService.ObtenerEstadoLocal() is null)
-        {
-            var machineId = await licenciaService.ObtenerOCrearMachineId();
-            await licenciaService.IniciarPruebaGratuita(machineId);
-            startupLogger.LogInformation("Licencia de desarrollo creada (prueba gratuita local).");
-        }
-    }
 }
 
 // Log application startup

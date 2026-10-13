@@ -98,7 +98,6 @@ export default function ConfiguracionPage() {
       .catch(() => notifyError('Error al cargar empresa'))
       .finally(() => setLoading(false))
     api.licencia.estado().then(setLicencia).catch(() => {})
-    api.auth.me().then(setPerfil).catch(() => {})
     if (canManageUsers) void actualizarEstadoRemoto()
   }, [canManageUsers, notifyError])
 
@@ -185,30 +184,6 @@ export default function ConfiguracionPage() {
       notifyError('No se pudo guardar el alias')
     } finally {
       setMpAliasGuardando(false)
-    }
-  }
-
-  const handleBuscarLicencia = async () => {
-    const email = perfil?.mail
-    if (!email) {
-      notifyError('No tenés un mail configurado en tu cuenta')
-      return
-    }
-    setBuscandoLicencia(true)
-    setLicenciaNoEncontrada(false)
-    try {
-      await api.licencia.activarPorEmail({ email })
-      notifySuccess('Licencia activada')
-      const estado = await api.licencia.estado()
-      setLicencia(estado)
-    } catch (err: any) {
-      const msg = err.message || 'No se pudo activar la licencia'
-      notifyError(msg)
-      if (msg.includes('No se encontró')) {
-        setLicenciaNoEncontrada(true)
-      }
-    } finally {
-      setBuscandoLicencia(false)
     }
   }
 
