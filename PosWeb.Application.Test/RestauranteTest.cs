@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.Restaurante;
+using PosWeb.Application.Seed;
 using PosWeb.Application.StockSucursales;
 using PosWeb.Application.Ventas;
 using PosWeb.Contracts;
@@ -64,7 +65,7 @@ public class RestauranteTest
         context.Sucursal.Add(sucursal);
         context.SaveChanges();
 
-        var admin = new Usuario("admin", BCrypt.Net.BCrypt.HashPassword("123"), Roles.Admin, "admin@test.com");
+        var admin = new Usuario("admin", BCrypt.Net.BCrypt.HashPassword(FactoryAdminPassword.KnownFactoryPasswords[0]), Roles.Admin, "admin@test.com");
         context.Usuario.Add(admin);
         context.SaveChanges();
 
