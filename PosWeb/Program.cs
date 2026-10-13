@@ -310,10 +310,18 @@ using (var scope = app.Services.CreateScope())
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
-        if (AdminPasswordReset.ShouldRun(app.Environment.IsDevelopment(), builder.Configuration)
-            && !BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
+        if (AdminPasswordReset.ShouldRun(app.Environment.IsDevelopment(), builder.Configuration))
         {
-            admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("123"));
+            var devPassword = AdminPasswordReset.Password(builder.Configuration);
+            if (!BCrypt.Net.BCrypt.Verify(devPassword, admin.PASSWORD_HASH))
+                admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(devPassword));
+        }
+        else if (FactoryAdminPassword.IsFactory(admin.PASSWORD_HASH))
+        {
+            if (FactoryAdminPassword.TryRotate(admin, ctx.Usuario.ToList()))
+                startupLogger.LogInformation("Seed admin factory password rotated");
+            else
+                startupLogger.LogWarning("Seed admin factory password was not rotated because admin is the only active administrator");
         }
         admin.ActivarSuscripcion();
         ctx.SaveChanges();

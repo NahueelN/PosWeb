@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.Seed;
 using PosWeb.Data;
 
 namespace PosWeb.Application.RemoteAccess;
@@ -34,8 +35,8 @@ public class RemoteAccessService
     public async Task<RemoteAccessResult> ActivateAsync(string slug, CancellationToken cancellationToken = default)
     {
         var admin = await _context.Usuario.FirstOrDefaultAsync(user => user.NOMBRE_USUARIO == "admin", cancellationToken);
-        if (admin != null && BCrypt.Net.BCrypt.Verify("123", admin.PASSWORD_HASH))
-            return RemoteAccessResult.DefaultCredentials();
+        if (admin != null && admin.ACTIVO && FactoryAdminPassword.IsFactory(admin.PASSWORD_HASH))
+            return RemoteAccessResult.DefaultCredentials("Por seguridad, la contraseña de fábrica del usuario admin debe cambiarse antes de activar el acceso remoto");
 
         var result = await SendAsync("/activate", slug.Trim().ToLowerInvariant(), cancellationToken);
         if (result.Kind == RemoteAccessResultKind.Success && _connector != null)

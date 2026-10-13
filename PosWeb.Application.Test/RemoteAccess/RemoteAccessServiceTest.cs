@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PosWeb.Application.Licensing;
 using PosWeb.Application.RemoteAccess;
+using PosWeb.Application.Seed;
 using PosWeb.Data;
 using PosWeb.Domain;
 using PosWeb.Controllers;
@@ -222,22 +223,34 @@ public class RemoteAccessServiceTest
         Assert.Equal("El servicio de acceso remoto alcanzó su capacidad. Contactá al soporte", result.Error);
     }
 
-    [Fact]
-    public async Task ActivateAsync_DefaultAdminPassword_ReturnsDefaultCredentialsWithoutHttpCall()
+    [Theory]
+    [MemberData(nameof(KnownFactoryPasswords))]
+    public async Task ActivateAsync_FactoryAdminPassword_ReturnsDefaultCredentialsWithoutHttpCall(string password)
     {
         var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP should not be called"));
-        var service = CreateService(ConfiguredValues(), handler, adminPassword: "123");
+        var service = CreateService(ConfiguredValues(), handler, adminPassword: password);
 
         var result = await service.ActivateAsync("tienda");
 
         Assert.Equal(RemoteAccessResultKind.DefaultCredentials, result.Kind);
-        Assert.Equal("Cambiá la contraseña del usuario admin antes de activar el acceso remoto", result.Error);
+        Assert.Equal("Por seguridad, la contraseña de fábrica del usuario admin debe cambiarse antes de activar el acceso remoto", result.Error);
     }
 
     [Fact]
     public async Task ActivateAsync_ChangedAdminPassword_Proceeds()
     {
         var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.OK, "{\"status\":\"provisioning\"}"), adminPassword: "changed-password");
+
+        var result = await service.ActivateAsync("tienda");
+
+        Assert.Equal(RemoteAccessResultKind.Success, result.Kind);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_InactiveAdminWithFactoryPassword_Proceeds()
+    {
+        var service = CreateService(ConfiguredValues(), JsonHandler(HttpStatusCode.OK, "{\"status\":\"provisioning\"}"),
+            adminPassword: FactoryAdminPassword.KnownFactoryPasswords[0], deactivateAdmin: true);
 
         var result = await service.ActivateAsync("tienda");
 
@@ -350,7 +363,7 @@ public class RemoteAccessServiceTest
         Assert.Equal(1, connector.StartCount);
     }
 
-    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true, string? trialMachineId = null, string? adminPassword = null)
+    private static RemoteAccessService CreateService(IReadOnlyDictionary<string, string?> values, HttpMessageHandler handler, IRemoteAccessConnector? connector = null, bool addLicense = true, string? trialMachineId = null, string? adminPassword = null, bool deactivateAdmin = false)
     {
         var options = new DbContextOptionsBuilder<PosDbContextLocal>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         var context = new PosDbContextLocal(options);
@@ -370,7 +383,11 @@ public class RemoteAccessServiceTest
             context.Set<LicenciaConfig>().Add(new LicenciaConfig { MachineId = trialMachineId });
         }
         if (adminPassword != null)
-            context.Usuario.Add(new Usuario("admin", BCrypt.Net.BCrypt.HashPassword(adminPassword), Roles.SuperAdmin));
+        {
+            var admin = new Usuario("admin", BCrypt.Net.BCrypt.HashPassword(adminPassword), Roles.SuperAdmin);
+            if (deactivateAdmin) admin.Desactivar();
+            context.Usuario.Add(admin);
+        }
         context.SaveChanges();
         var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         return new RemoteAccessService(context, new LicenciaService(context, config, encryption), config, new HttpClient(handler), connector);
@@ -387,6 +404,9 @@ public class RemoteAccessServiceTest
             values["RemoteAccess:AllowTrial"] = allowTrial;
         return values;
     }
+
+    public static IEnumerable<object[]> KnownFactoryPasswords() =>
+        FactoryAdminPassword.KnownFactoryPasswords.Select(password => new object[] { password });
 
     private static HttpMessageHandler JsonHandler(HttpStatusCode statusCode, string json) =>
         new StubHttpMessageHandler(_ => new HttpResponseMessage(statusCode) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
