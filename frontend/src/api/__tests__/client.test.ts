@@ -85,3 +85,26 @@ describe('remote access API', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, expect.stringMatching(/\/api\/remote-access\/deactivate$/), expect.objectContaining({ method: 'POST' }))
   })
 })
+
+describe('password change API', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.stubGlobal('localStorage', createStorage())
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })))
+  })
+
+  it('posts only the current and new password fields', async () => {
+    const fetchMock = vi.mocked(fetch)
+    const request = {
+      actual: String.fromCharCode(...Array.from({ length: 7 }, () => 97)),
+      nueva: String.fromCharCode(...Array.from({ length: 7 }, () => 98)),
+    }
+
+    await api.auth.cambiarPassword(request)
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/auth\/cambiar-password$/), expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(request),
+    }))
+  })
+})

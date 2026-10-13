@@ -53,6 +53,10 @@ export default function ConfiguracionPage() {
   const [remoteStatus, setRemoteStatus] = useState<RemoteAccessStatus>({ status: 'inactive' })
   const [remoteUnavailable, setRemoteUnavailable] = useState(false)
   const [remoteRequestInFlight, setRemoteRequestInFlight] = useState(false)
+  const [passwordActual, setPasswordActual] = useState('')
+  const [passwordNueva, setPasswordNueva] = useState('')
+  const [passwordConfirmacion, setPasswordConfirmacion] = useState('')
+  const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const remotePollStartedAt = useRef<number | null>(null)
   const actualizarEstadoRemoto = useEffectEvent(async () => {
     try {
@@ -218,6 +222,25 @@ export default function ConfiguracionPage() {
       notifyError(error instanceof Error ? error.message : 'No se pudo desactivar el acceso remoto')
     } finally {
       setRemoteRequestInFlight(false)
+    }
+  }
+  const cambiarPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (passwordNueva !== passwordConfirmacion) {
+      notifyError('La confirmación de la contraseña no coincide')
+      return
+    }
+    setCambiandoPassword(true)
+    try {
+      await api.auth.cambiarPassword({ actual: passwordActual, nueva: passwordNueva })
+      setPasswordActual('')
+      setPasswordNueva('')
+      setPasswordConfirmacion('')
+      notifySuccess('Contraseña actualizada')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo cambiar la contraseña')
+    } finally {
+      setCambiandoPassword(false)
     }
   }
 
@@ -386,8 +409,24 @@ export default function ConfiguracionPage() {
             )}
           </div>
 
-          <div className="space-y-6">
-          {canManageUsers && (
+           <div className="space-y-6">
+           <form onSubmit={cambiarPassword} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+             <h2 className="text-lg font-semibold text-slate-900">Cambiar contraseña</h2>
+             <div>
+               <label htmlFor="password-actual" className="block text-sm font-medium text-slate-700 mb-1">Contraseña actual</label>
+               <input id="password-actual" type="password" autoComplete="current-password" value={passwordActual} onChange={event => setPasswordActual(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <div>
+               <label htmlFor="password-nueva" className="block text-sm font-medium text-slate-700 mb-1">Nueva contraseña</label>
+               <input id="password-nueva" type="password" autoComplete="new-password" value={passwordNueva} onChange={event => setPasswordNueva(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <div>
+               <label htmlFor="password-confirmacion" className="block text-sm font-medium text-slate-700 mb-1">Confirmar nueva contraseña</label>
+               <input id="password-confirmacion" type="password" autoComplete="new-password" value={passwordConfirmacion} onChange={event => setPasswordConfirmacion(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <button type="submit" disabled={cambiandoPassword} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{cambiandoPassword ? 'Actualizando...' : 'Actualizar contraseña'}</button>
+           </form>
+           {canManageUsers && (
             <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">MercadoPago</h2>
               {!mpVinculado ? (
