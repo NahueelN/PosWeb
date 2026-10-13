@@ -171,15 +171,19 @@ def ensure_certificate(ip: str, hostname: str) -> tuple[Path, Path]:
 
 def main() -> None:
     port = int(os.getenv("VENDETO_MOBILE_PORT", str(DEFAULT_PORT)))
-    host = os.getenv("VENDETO_MOBILE_HOST", "0.0.0.0")
+    host = os.getenv("VENDETO_MOBILE_HOST", "127.0.0.1")
+    use_tls = os.getenv("VENDETO_MOBILE_TLS", "false").lower() == "true"
+    context = None
 
-    ip = local_ip()
-    hostname = socket.gethostname()
-    cert_path, key_path = ensure_certificate(ip, hostname)
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(str(cert_path), str(key_path))
+    if use_tls:
+        ip = local_ip()
+        hostname = socket.gethostname()
+        cert_path, key_path = ensure_certificate(ip, hostname)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(str(cert_path), str(key_path))
 
-    print(f"Vendeto Mobile disponible en https://{ip}:{port}/")
+    protocol = "https" if use_tls else "http"
+    print(f"Vendeto Mobile disponible en {protocol}://{host}:{port}/")
     web.run_app(create_app(), host=host, port=port, ssl_context=context, print=None)
 
 
