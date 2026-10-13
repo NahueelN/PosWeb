@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { api, isSessionExpiredError, resolveApiBase, type RemoteAccessStatus } from '../client'
+import { ApiError, api, isSessionExpiredError, resolveApiBase, type RemoteAccessStatus } from '../client'
 
 function createStorage(): Storage {
   const values = new Map<string, string>()
@@ -83,6 +83,22 @@ describe('remote access API', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringMatching(/\/api\/remote-access\/activate$/), expect.objectContaining({ method: 'POST', body: '{"slug":"kiosco-lopez"}' }))
     expect(fetchMock).toHaveBeenNthCalledWith(2, expect.stringMatching(/\/api\/remote-access\/deactivate$/), expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('throws an ApiError with the response status and message', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"Licencia requerida"}', {
+      status: 409,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    const error = await api.remoteAccess.status().catch(error => error)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      name: 'ApiError',
+      message: 'Licencia requerida',
+      status: 409,
+    })
   })
 })
 

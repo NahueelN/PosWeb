@@ -58,6 +58,16 @@ export class SessionExpiredError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 export function isSessionExpiredError(error: unknown): error is SessionExpiredError {
   return error instanceof SessionExpiredError
 }
@@ -129,7 +139,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     } catch {}
     const err = res.status === 401 && hasAuthToken
       ? new SessionExpiredError()
-      : new Error(message)
+      : new ApiError(message, res.status)
     console.error(`[API] ${res.status} ${res.statusText} — ${options?.method ?? 'GET'} ${url} (${duration}ms)`, {
       status: res.status,
       statusText: res.statusText,
