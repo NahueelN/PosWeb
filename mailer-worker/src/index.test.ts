@@ -69,6 +69,10 @@ describe('POST /send-code', () => {
     expect(payload.subject).toBe(subject);
     expect(payload.htmlbody).toContain('123456');
     expect(payload.textbody).toContain('123456');
+    expect(payload.htmlbody).toContain('Expira en 15 minutos.');
+    expect(payload.textbody).toContain('Expira en 15 minutos.');
+    expect(payload.htmlbody).toContain('Si no lo pediste vos, ignorá este mensaje.');
+    expect(payload.textbody).toContain('Si no lo pediste vos, ignorá este mensaje.');
   });
 
   it('limits each recipient to five codes per hour', async () => {

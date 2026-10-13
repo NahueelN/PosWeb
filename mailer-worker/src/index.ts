@@ -68,15 +68,15 @@ function templateCodigo(kind: 'confirm' | 'reset', code: string) {
   if (kind === 'confirm') {
     return {
       subject: 'Confirmá tu email - Vendeto',
-      text: `Tu código para confirmar tu email es: ${code}`,
-      html: `<p>Tu código para confirmar tu email es: <strong>${code}</strong></p>`,
+      text: `Tu código para confirmar tu email es: ${code}\n\nExpira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.`,
+      html: `<p>Tu código para confirmar tu email es: <strong>${code}</strong></p><p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p>`,
     };
   }
 
   return {
     subject: 'Código para restablecer tu contraseña - Vendeto',
-    text: `Tu código para restablecer tu contraseña es: ${code}`,
-    html: `<p>Tu código para restablecer tu contraseña es: <strong>${code}</strong></p>`,
+    text: `Tu código para restablecer tu contraseña es: ${code}\n\nExpira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.`,
+    html: `<p>Tu código para restablecer tu contraseña es: <strong>${code}</strong></p><p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p>`,
   };
 }
 
