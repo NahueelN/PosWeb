@@ -350,6 +350,22 @@ export interface RegisterResponse {
   usuarioResponsableId?: number | null
   empresaId?: number | null
   licenciaEstado?: string | null
+  emailConfirmado?: boolean
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  email: string
+  codigo: string
+  nuevaPassword: string
+}
+
+export interface ConfirmarEmailRequest {
+  email: string
+  codigo: string
 }
 
 export interface UsuarioInfo {
@@ -886,10 +902,6 @@ export interface MovimientoCuentaDto {
   anulado?: boolean
 }
 
-export interface ActivarLicenciaPorEmailRequest {
-  email: string
-}
-
 export interface LicenciaEstado {
   activa: boolean
   plan: string
@@ -909,6 +921,7 @@ export interface LicenciaResumen {
   activa: boolean
   plan: string
   estado: string
+  nextBilling: string | null
   daysRemaining: number | null
   graceHasta: string | null
 }

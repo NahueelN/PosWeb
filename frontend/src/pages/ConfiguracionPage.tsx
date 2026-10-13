@@ -10,7 +10,7 @@ import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import AltaUsuarioTab from '../components/AltaUsuarioTab'
 import RespaldoTab from '../components/RespaldoTab'
-import type { EmpresaDto, UsuarioListadoDto, LicenciaEstado } from '../types'
+import type { EmpresaDto, LicenciaEstado } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 
@@ -73,11 +73,7 @@ export default function ConfiguracionPage() {
   const [mpAlias, setMpAlias] = useState('')
   const [mpAliasGuardando, setMpAliasGuardando] = useState(false)
 
-  const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
-  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
-  const [licenciaNoEncontrada, setLicenciaNoEncontrada] = useState(false)
-
   const esGratuito = licencia?.plan === 'Gratuito'
 
   const datosEmpresa = useCallback(() => ({
@@ -460,30 +456,7 @@ export default function ConfiguracionPage() {
           )}
 
           <div className="bg-white rounded-xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-slate-900">Licencia</h2>
-              <button
-                onClick={handleBuscarLicencia}
-                disabled={buscandoLicencia}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-              >
-                {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
-              </button>
-            </div>
-
-            {licenciaNoEncontrada && (
-              <p className="text-xs text-slate-500 mb-3">
-                No encontramos una licencia para <strong>{perfil?.mail}</strong>.{' '}
-                <a
-                  href="https://posweb-licensing.chiacchio-eze01.workers.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 hover:underline font-medium"
-                >
-                  Ver planes y contratar
-                </a>
-              </p>
-            )}
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Licencia</h2>
 
             {!licencia ? (
               <p className="text-sm text-slate-500">Sin licencia configurada.</p>

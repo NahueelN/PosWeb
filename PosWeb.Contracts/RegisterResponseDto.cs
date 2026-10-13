@@ -10,4 +10,5 @@ public class RegisterResponseDto
     public int? EmpresaId { get; set; }
     public bool EsTitular { get; set; }
     public string? LicenciaEstado { get; set; }
+    public bool EmailConfirmado { get; set; }
 }

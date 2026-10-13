@@ -32,6 +32,44 @@ const PLAN_PRICES: Record<string, number> = {
 
 const VALID_PLANS = ['gratuito', 'basica', 'maxima'];
 
+// Descuento por pago anticipado de varios meses (fracción 0..1, ej. 0.10 = 10% OFF).
+// Parametrizable: agregá/quitá duraciones acá. La duración que no figure = sin descuento.
+const DURATION_DISCOUNTS: Record<number, number> = {
+  1: 0,
+  6: 0.10,
+  12: 0.20,
+  36: 0.33,
+};
+
+// Override opcional por plan (plan -> meses -> fracción). Si no hay entrada, usa el global.
+const PLAN_DURATION_DISCOUNTS: Record<string, Record<number, number>> = {
+  // maxima: { 12: 0.25 },
+};
+
+function descuentoPara(planKey: string, months: number): number {
+  const pct = PLAN_DURATION_DISCOUNTS[planKey]?.[months] ?? DURATION_DISCOUNTS[months] ?? 0;
+  return Math.min(0.9, Math.max(0, pct));
+}
+
+interface PrecioContratacion {
+  months: number;
+  pricePerMonth: number;
+  subtotal: number;
+  discountPct: number;
+  discount: number;
+  total: number;
+}
+
+// Desglose del precio de una contratación: subtotal (precio mensual x meses),
+// descuento por pago anticipado y total a cobrar. Siempre redondeado a pesos enteros.
+function calcularPrecioContratacion(planKey: string, months: number): PrecioContratacion {
+  const pricePerMonth = PLAN_PRICES[planKey] ?? 0;
+  const subtotal = pricePerMonth * months;
+  const discountPct = descuentoPara(planKey, months);
+  const discount = Math.round(subtotal * discountPct);
+  return { months, pricePerMonth, subtotal, discountPct, discount, total: subtotal - discount };
+}
+
 // Sitio comercial: la contratación de planes vive en la web de Vendeto,
 // por lo que los back_urls de MercadoPago apuntan ahí (no al worker).
 const WEB_BASE_URL = 'https://vendeto.com.ar';
@@ -75,11 +113,11 @@ function fechaBaseParaRenovacion(nextBillingActual: string | null): Date {
   return actual > hoy ? actual : hoy;
 }
 
-// Renovación manual mensual: se suman 30 días desde el vencimiento vigente si todavía
-// quedaban días (se respeta el original), o desde hoy si la licencia ya estaba vencida.
-function calcularNuevoVencimiento(nextBillingActual: string | null): string {
+// Suma meses al vencimiento vigente (o desde hoy si ya venció). Parametrizable para
+// contrataciones de 1, 6 o 12 meses; por defecto 1 mes (renovación mensual).
+function calcularNuevoVencimiento(nextBillingActual: string | null, months = 1): string {
   const base = fechaBaseParaRenovacion(nextBillingActual);
-  base.setDate(base.getDate() + 30);
+  base.setMonth(base.getMonth() + months);
   return base.toISOString().split('T')[0];
 }
 
@@ -164,6 +202,8 @@ app.post('/webhook', async (c) => {
 
       const refParts = externalRef.split(':');
       const licenseKey = refParts[3];
+      // 5º segmento = meses contratados. Ausente en referencias viejas → 1 mes.
+      const months = parseInt(refParts[4] ?? '1', 10) || 1;
 
       if (!licenseKey) {
         return c.json({ error: 'No license key in external reference' }, 400);
@@ -179,7 +219,7 @@ app.post('/webhook', async (c) => {
       }
 
       if (paymentStatus === 'approved') {
-        const nextBilling = calcularNuevoVencimiento(existing.next_billing);
+        const nextBilling = calcularNuevoVencimiento(existing.next_billing, months);
         await env.LICENSES_DB
           .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
           .bind('active', nextBilling, licenseKey)
@@ -555,7 +595,7 @@ app.post('/register', async (c) => {
 
 app.post('/checkout', async (c) => {
   const env = c.env;
-  const body = await c.req.json<{ plan: string; email: string }>();
+  const body = await c.req.json<{ plan: string; email: string; duration_months?: number }>();
   const { plan, email } = body;
 
   if (!plan || !email) {
@@ -566,10 +606,14 @@ app.post('/checkout', async (c) => {
   if (planKey === 'gratuito') {
     return c.json({ error: 'El plan gratuito no se contrata: es el nivel que se obtiene al vencer la prueba' }, 400);
   }
-  const price = PLAN_PRICES[planKey];
-  if (!price) {
+  const pricePerMonth = PLAN_PRICES[planKey];
+  if (!pricePerMonth) {
     return c.json({ error: `Invalid plan: ${plan}. Valid plans: ${VALID_PLANS.join(', ')}` }, 400);
   }
+
+  // Duración contratada en meses (1, 6, 12, 36). Por defecto 1 mes; tope 36.
+  const months = Math.min(36, Math.max(1, Math.trunc(body.duration_months ?? 1)));
+  const precio = calcularPrecioContratacion(planKey, months);
 
   const workerBase = `${new URL(c.req.url).protocol}//${new URL(c.req.url).hostname}`;
 
@@ -583,7 +627,7 @@ app.post('/checkout', async (c) => {
     .first<License>();
 
   const licenseKey = existing?.license_key ?? generateLicenseKey();
-  const externalRef = `plan:${planKey}:${emailLower}:${licenseKey}`;
+  const externalRef = `plan:${planKey}:${emailLower}:${licenseKey}:${months}`;
 
   if (existing) {
     await env.LICENSES_DB
@@ -607,12 +651,14 @@ app.post('/checkout', async (c) => {
       body: JSON.stringify({
         items: [
           {
-            id: `plan-${planKey}`,
-            title: `Vendeto - Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)}`,
-            description: `Suscripción mensual al plan ${plan} de Vendeto`,
+            id: `plan-${planKey}-${months}m`,
+            title: `Vendeto - Plan ${plan.charAt(0).toUpperCase() + plan.slice(1)} (${months} ${months === 1 ? 'mes' : 'meses'})${precio.discountPct > 0 ? ` - ${Math.round(precio.discountPct * 100)}% OFF` : ''}`,
+            description: precio.discount > 0
+              ? `${months} ${months === 1 ? 'mes' : 'meses'} del plan ${plan}. Precio lista $${precio.subtotal.toLocaleString('es-AR')}, descuento $${precio.discount.toLocaleString('es-AR')}, total $${precio.total.toLocaleString('es-AR')}`
+              : `Contratación de ${months} ${months === 1 ? 'mes' : 'meses'} del plan ${plan} de Vendeto`,
             quantity: 1,
             currency_id: 'ARS',
-            unit_price: price,
+            unit_price: precio.total,
           },
         ],
         payer: { email: emailLower },
@@ -651,6 +697,27 @@ app.post('/checkout', async (c) => {
     }
     return c.json({ error: `Failed to create checkout: ${e.message}` }, 500);
   }
+});
+
+// Catálogo de precios y descuentos por duración, para que cualquier cliente muestre el
+// total antes de ir a pagar. No requiere auth.
+app.get('/pricing', (c) => {
+  const durations = Object.keys(DURATION_DISCOUNTS).map(Number).sort((a, b) => a - b);
+  const plans = VALID_PLANS.filter(p => p !== 'gratuito').map(planKey => ({
+    plan: planKey,
+    price_per_month: PLAN_PRICES[planKey],
+    durations: durations.map(months => {
+      const p = calcularPrecioContratacion(planKey, months);
+      return {
+        months,
+        subtotal: p.subtotal,
+        discount_pct: p.discountPct,
+        discount: p.discount,
+        total: p.total,
+      };
+    }),
+  }));
+  return c.json({ currency: 'ARS', plans });
 });
 
 app.get('/health', (c) => {

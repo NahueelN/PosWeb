@@ -42,7 +42,7 @@ export default function VentaProductGrid({
               <input ref={searchInputRef} id="search-producto"
               autoComplete="off"
               className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-10 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              placeholder="Buscá producto por código de barra o nombre…" value={searchQuery}
+              placeholder="Buscá por nombre, código de barras o interno…" value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={async (e) => {
                 if (e.key === 'Escape') { if (searchQuery) { e.preventDefault(); onSearchChange(''); searchInputRef.current?.focus() } return }
@@ -58,7 +58,10 @@ export default function VentaProductGrid({
                 if (q) {
                   const combo = combos.find(c => c.codCombo === q.toUpperCase())
                   if (combo) { e.preventDefault(); onAgregarCombo(combo); onSearchChange(''); return }
-                  const exact = filteredProductos.find(p => normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase())
+                  const exact = filteredProductos.find(p =>
+                    normalizarCodigoBarra(p.codigoBarra).toLowerCase() === normalizarCodigoBarra(q).toLowerCase() ||
+                    (p.codigoProducto ?? '').toLowerCase() === q.toLowerCase()
+                  )
                   if (exact) { e.preventDefault(); (onAgregarPorCodigo ?? onAgregarProducto)(exact); return }
                   if (/^\d+$/.test(q) && q.length >= 8) { e.preventDefault(); return }
                 } else if (cartItemsLength > 0) {

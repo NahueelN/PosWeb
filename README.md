@@ -85,7 +85,7 @@ Abrir http://localhost:5173
 
 | Usuario | Contraseña | Rol |
 |---------|-----------|-----|
-| admin | 123 | SuperAdmin |
+| admin | 7$0W6bD6@Z& | SuperAdmin |
 
 ## Scripts útiles
 
@@ -121,7 +121,7 @@ Reglas de negocio validadas siempre en el backend:
 
 - **5 medios de pago**: Efectivo, Débito, Crédito, Transferencia, QR
 - **3 unidades de medida**: Unidad, Kilogramo, Litro
-- **1 admin**: admin / 123
+- **1 admin**: admin / 7$0W6bD6@Z&
 - **Suscripción Premium + Empresa + Sucursal Principal** (setup.ps1)
 
 ## Testing

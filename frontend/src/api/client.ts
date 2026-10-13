@@ -1,4 +1,4 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, ActivarLicenciaPorEmailRequest, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ForgotPasswordRequest, ResetPasswordRequest, ConfirmarEmailRequest, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
 
 export function resolveApiBase(isTauri: boolean): string {
   return isTauri ? 'http://localhost:5196/api' : '/api'
@@ -164,6 +164,22 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     register: (dto: RegisterRequest) => request<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+    forgotPassword: (dto: ForgotPasswordRequest) => request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+    resetPassword: (dto: ResetPasswordRequest) => request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+    reenviarCodigo: (dto: ForgotPasswordRequest) => request<{ message: string }>('/auth/reenviar-codigo', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+    confirmarCuenta: (dto: ConfirmarEmailRequest) => request<{ message: string }>('/auth/confirmar-cuenta', {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
@@ -685,11 +701,6 @@ export const api = {
     },
 
   licencia: {
-    activarPorEmail: (data: ActivarLicenciaPorEmailRequest) =>
-      request<LicenciaEstado>('/licencia/activar-por-email', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
     estado: () =>
       request<LicenciaEstado>('/licencia/estado'),
     resumen: () =>

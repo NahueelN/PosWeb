@@ -23,30 +23,6 @@ public class LicenciaController : ControllerBase
     }
 
     /// <summary>
-    /// Activa la licencia asociada al email con el que se contrató el plan.
-    /// Endpoint público (no requiere autenticación): usado desde el login y desde
-    /// el botón "Buscar licencia" para validar pagos recientes sin reiniciar.
-    /// </summary>
-    /// <param name="request">Email con el que se compró la licencia.</param>
-    /// <returns>Estado de la licencia incluyendo plan, límites y vencimiento.</returns>
-    /// <response code="200">Licencia activada correctamente.</response>
-    /// <response code="400">Sin licencia para ese email o error de conexión.</response>
-    [AllowAnonymous]
-    [HttpPost("activar-por-email")]
-    public async Task<IActionResult> ActivarPorEmail([FromBody] ActivarLicenciaPorEmailRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest(new { error = "Email es requerido" });
-
-        var (exito, mensaje, licencia) = await _licenciaService.BuscarYActivarPorEmail(request.Email.Trim());
-
-        if (!exito || licencia == null)
-            return BadRequest(new { error = mensaje ?? "No se pudo activar la licencia" });
-
-        return Ok(MapEstado(licencia));
-    }
-
-    /// <summary>
     /// Consulta el estado completo de la licencia actual.
     /// Requiere autenticación (Admin o SuperAdmin).
     /// Fuerza una verificación remota contra el Worker si el cache expiró.
@@ -90,8 +66,9 @@ public class LicenciaController : ControllerBase
             Activa = local?.Activa ?? false,
             Plan = local == null ? "" : _licenciaService.ObtenerNivelActual(),
             Estado = local?.Estado ?? "",
+            NextBilling = local?.NextBilling,
             DaysRemaining = local?.NextBilling.HasValue == true
-                ? (int)(local.NextBilling.Value - DateTime.UtcNow).TotalDays
+                ? (int)Math.Ceiling((local.NextBilling.Value - DateTime.UtcNow).TotalDays)
                 : null,
             GraceHasta = local?.GraceHastaEfectivo,
         });
@@ -128,7 +105,7 @@ public class LicenciaController : ControllerBase
             GraceHasta = licencia.GraceHastaEfectivo,
             NextBilling = licencia.NextBilling,
             DaysRemaining = licencia.NextBilling.HasValue
-                ? (int)(licencia.NextBilling.Value - DateTime.UtcNow).TotalDays
+                ? (int)Math.Ceiling((licencia.NextBilling.Value - DateTime.UtcNow).TotalDays)
                 : null,
             MaxSucursales = limites.maxSucursales,
             MaxAdmins = limites.maxAdmins,

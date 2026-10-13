@@ -40,6 +40,16 @@ public class UsuariosSubscriptionTest
         return new JwtTokenService(configuration);
     }
 
+    private static MailerService CrearMailerService()
+    {
+        // Sin "Mailer:WorkerUrl" => Enviar devuelve false (no intenta red).
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        return new MailerService(configuration);
+    }
+
     private static LicenciaService CrearLicenciaService(PosDbContextLocal context)
     {
         // Sin "Licensing:WorkerUrl" => VerificarAcceso devuelve true (modo sin worker)
@@ -105,7 +115,7 @@ public class UsuariosSubscriptionTest
     public async Task Register_Admin_SinLicencia_IniciaPruebaGratuita()
     {
         var context = CrearContexto(nameof(Register_Admin_SinLicencia_IniciaPruebaGratuita));
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         var resultado = await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -134,7 +144,7 @@ public class UsuariosSubscriptionTest
     public async Task Register_Admin_EmpresaNombreLibre_CreaEmpresaYAsigna()
     {
         var context = CrearContexto(nameof(Register_Admin_EmpresaNombreLibre_CreaEmpresaYAsigna));
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         var resultado = await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -163,7 +173,7 @@ public class UsuariosSubscriptionTest
         context.Suscripcion.Add(suscripcion);
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await Assert.ThrowsAsync<UsuarioSinSuscripcionException>(() => service.Login(new PosWeb.Contracts.LoginRequestDto
         {
@@ -184,7 +194,7 @@ public class UsuariosSubscriptionTest
         CrearUsuario(context, 2, "usuario", Roles.UsuarioComun, responsableId: 1);
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await Assert.ThrowsAsync<UsuarioSinSuscripcionException>(() => service.Login(new PosWeb.Contracts.LoginRequestDto
         {
@@ -219,7 +229,7 @@ public class UsuariosSubscriptionTest
         context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         // Titular (1) + 2 cuentas más => 3 totales permitidas.
         await service.Register(new PosWeb.Contracts.RegisterRequestDto
@@ -255,7 +265,7 @@ public class UsuariosSubscriptionTest
         context.Suscripcion.Add(Suscripcion.CrearBasica(admin.ID_USUARIO));
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -293,7 +303,7 @@ public class UsuariosSubscriptionTest
         context.Suscripcion.Add(Suscripcion.CrearMaxima(admin.ID_USUARIO));
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -325,7 +335,7 @@ public class UsuariosSubscriptionTest
     public async Task Register_SegundoAdmin_CompartesSuscripcionYLicenciaDelTitular()
     {
         var context = CrearContexto(nameof(Register_SegundoAdmin_CompartesSuscripcionYLicenciaDelTitular));
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         var resultadoTitular = await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -359,7 +369,7 @@ public class UsuariosSubscriptionTest
     public async Task Register_ConPlanBasico_CupoDeUsuariosSePooleaEntreAdminsQueComparenTitular()
     {
         var context = CrearContexto(nameof(Register_ConPlanBasico_CupoDeUsuariosSePooleaEntreAdminsQueComparenTitular));
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         var titular = CrearUsuario(context, 1, "titular", Roles.Admin);
         context.Suscripcion.Add(Suscripcion.CrearBasica(titular.ID_USUARIO));
@@ -393,7 +403,7 @@ public class UsuariosSubscriptionTest
         var cajero = CrearUsuario(context, 2, "cajero", Roles.UsuarioComun, responsableId: admin.ID_USUARIO);
         context.SaveChanges();
 
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.Register(new PosWeb.Contracts.RegisterRequestDto
         {
@@ -584,7 +594,7 @@ public class UsuariosSubscriptionTest
     public async Task Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita()
     {
         var context = CrearContexto(nameof(Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita));
-        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context));
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
 
         await service.Register(new PosWeb.Contracts.RegisterRequestDto
         {

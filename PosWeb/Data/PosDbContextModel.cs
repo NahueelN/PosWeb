@@ -196,6 +196,10 @@ public partial class PosDbContext
             entity.Property(u => u.SUSCRIPCION_ACTIVA)
                 .HasColumnName("SUSCRIPCION_ACTIVA");
 
+            entity.Property(u => u.EMAIL_CONFIRMADO)
+                .HasColumnName("EMAIL_CONFIRMADO")
+                .HasDefaultValue(true);
+
             entity.Property(u => u.PIN_HASH)
                 .HasColumnName("PIN_HASH");
 
@@ -1272,6 +1276,48 @@ public partial class PosDbContext
                 .HasForeignKey(p => p.ID_USUARIO)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ---- PASSWORD RESET TOKEN ----
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.ToTable("PASSWORD_RESET_TOKEN");
+
+            entity.HasKey(t => t.ID_TOKEN);
+
+            entity.Property(t => t.ID_TOKEN)
+                .HasColumnName("ID_TOKEN");
+
+            entity.Property(t => t.ID_USUARIO)
+                .HasColumnName("ID_USUARIO");
+
+            entity.Property(t => t.PROPOSITO)
+                .HasColumnName("PROPOSITO")
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(t => t.TOKEN_HASH)
+                .HasColumnName("TOKEN_HASH")
+                .IsRequired();
+
+            entity.Property(t => t.EXPIRA_UTC)
+                .HasColumnName("EXPIRA_UTC");
+
+            entity.Property(t => t.USADO)
+                .HasColumnName("USADO");
+
+            entity.Property(t => t.INTENTOS)
+                .HasColumnName("INTENTOS");
+
+            entity.Property(t => t.CREATED_UTC)
+                .HasColumnName("CREATED_UTC");
+
+            entity.HasIndex(t => t.ID_USUARIO);
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(t => t.ID_USUARIO)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     internal static void SeedLocalData(ModelBuilder modelBuilder)
@@ -1294,17 +1340,18 @@ public partial class PosDbContext
             new { ID_UNIDAD_MEDIDA = 5, COD_UNIDAD_MEDIDA = "GR", DESC_UNIDAD_MEDIDA = "Gramos", ACTIVO = true }
         );
 
-        // Seed admin user (password: admin123)
+        // Seed admin user (password: 7$0W6bD6@Z&)
         modelBuilder.Entity<Usuario>().HasData(
             new
             {
                 ID_USUARIO = 1,
                 NOMBRE_USUARIO = "admin",
-                PASSWORD_HASH = "$2a$11$K4YfGqJ1e4YHIpRMTfoxYO0R9i0RDxG.h1X0As95JXQOYGMjs4eIy",
+                PASSWORD_HASH = "$2a$11$bJl/b2YWoBxnQbPJSksQre64K0bAbj0YnleO2rVYXNRtlpll4JBjG",
                 ROL = "SuperAdmin",
                 MAIL = "admin@posweb.com",
                 SUSCRIPCION_ACTIVA = false,
                 ES_TITULAR = false,
+                EMAIL_CONFIRMADO = true,
                 PIN_HASH = (string?)null,
                 ID_USUARIO_RESP = (int?)null,
                 ACTIVO = true

@@ -16,6 +16,10 @@ public class Usuario
 
     public string? MAIL { get; private set; }
 
+    /// <summary>Email verificado por el titular. Las cuentas pre-existentes quedan confirmadas;
+    /// los registros nuevos inician sin confirmar hasta validar un código enviado al email.</summary>
+    public bool EMAIL_CONFIRMADO { get; private set; }
+
     public string ROL { get; private set; } = null!;
 
     public bool ACTIVO { get; private set; }
@@ -42,8 +46,9 @@ public class Usuario
         int? usuarioResponsableId = null,
         int? empresaId = null,
         bool suscripcionActiva = true,
-        bool esTitular = false)
-        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaId, suscripcionActiva, esTitular)
+        bool esTitular = false,
+        bool emailConfirmado = true)
+        : this(nombreUsuario, passwordHash, rol, mail, sucursalDefault, usuarioResponsableId, empresaId, suscripcionActiva, esTitular, emailConfirmado)
     {
         ID_USUARIO = id;
     }
@@ -57,7 +62,8 @@ public class Usuario
         int? usuarioResponsableId = null,
         int? empresaId = null,
         bool suscripcionActiva = true,
-        bool esTitular = false)
+        bool esTitular = false,
+        bool emailConfirmado = true)
     {
         CambiarNombreUsuario(nombreUsuario);
         SetPasswordHash(passwordHash);
@@ -66,6 +72,7 @@ public class Usuario
         ACTIVO = true;
         SUSCRIPCION_ACTIVA = suscripcionActiva;
         ES_TITULAR = esTitular;
+        EMAIL_CONFIRMADO = emailConfirmado;
         ID_SUCURSAL_DEFAULT = sucursalDefault;
         ID_USUARIO_RESP = usuarioResponsableId;
         ID_USUARIO_RESPONSABLE = usuarioResponsableId;
@@ -134,6 +141,13 @@ public class Usuario
         }
 
         MAIL = mail.Trim();
+    }
+
+    public bool EsEmailConfirmado() => EMAIL_CONFIRMADO;
+
+    public void ConfirmarEmail()
+    {
+        EMAIL_CONFIRMADO = true;
     }
 
     public void CambiarRol(string rol)
