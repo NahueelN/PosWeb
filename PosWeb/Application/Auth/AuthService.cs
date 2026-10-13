@@ -1,5 +1,6 @@
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.Seed;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -348,6 +349,15 @@ public class AuthService
             {
                 var licenciaCompartida = await _licenciaService.ObtenerEstadoLocal();
                 licenciaEstado = licenciaCompartida?.Estado;
+            }
+        }
+
+        if (esTitular)
+        {
+            var adminSeed = _context.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
+            if (adminSeed != null && FactoryAdminPassword.TryRotate(adminSeed, _context.Usuario.ToList()))
+            {
+                _context.SaveChanges();
             }
         }
 

@@ -8,6 +8,7 @@ using PosWeb.Application.Auth;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Licensing;
 using PosWeb.Application.Productos;
+using PosWeb.Application.Seed;
 using PosWeb.Contracts;
 using PosWeb.Controllers;
 using PosWeb.Data;
@@ -363,6 +364,45 @@ public class UsuariosSubscriptionTest
         Assert.Single(context.Suscripcion);
         Assert.Single(context.Set<LicenciaConfig>());
         Assert.Equal(NivelesSuscripcion.Maxima, context.Suscripcion.Single().NIVEL);
+    }
+
+    [Fact]
+    public async Task Register_Titular_RotaPasswordDelAdminSeedDeFabrica()
+    {
+        var context = CrearContexto(nameof(Register_Titular_RotaPasswordDelAdminSeedDeFabrica));
+        var adminSeed = CrearUsuario(context, 1, "admin", Roles.SuperAdmin);
+        adminSeed.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(FactoryAdminPassword.KnownFactoryPasswords[0]));
+        context.SaveChanges();
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
+
+        await service.Register(new RegisterRequestDto
+        {
+            Usuario = "titular",
+            Password = "123456",
+            Mail = "titular@test.com",
+            Rol = Roles.Admin
+        });
+
+        Assert.False(FactoryAdminPassword.IsFactory(adminSeed.PASSWORD_HASH));
+    }
+
+    [Fact]
+    public async Task Register_Titular_NoModificaPasswordPersonalizadaDelAdminSeed()
+    {
+        var context = CrearContexto(nameof(Register_Titular_NoModificaPasswordPersonalizadaDelAdminSeed));
+        var adminSeed = CrearUsuario(context, 1, "admin", Roles.SuperAdmin);
+        var hashOriginal = adminSeed.PASSWORD_HASH;
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
+
+        await service.Register(new RegisterRequestDto
+        {
+            Usuario = "titular",
+            Password = "123456",
+            Mail = "titular@test.com",
+            Rol = Roles.Admin
+        });
+
+        Assert.Equal(hashOriginal, adminSeed.PASSWORD_HASH);
     }
 
     [Fact]
