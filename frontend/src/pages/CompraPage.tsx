@@ -370,6 +370,25 @@ export default function CompraPage() {
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
+      // Pre-flight: refrescar catálogo y validar que los ítems existan.
+      // Evita confirmar con IDs obsoletos (catálogo viejo tras un reset de la BD local).
+      if (sucursalId) {
+        try {
+          const catalogo = await api.productos.listar(sucursalId);
+          setProductos(catalogo);
+          const idsValidos = new Set(catalogo.map(p => p.id));
+          const faltantes = cart.items.filter(i => i.productoId > 0 && !idsValidos.has(i.productoId));
+          if (faltantes.length > 0) {
+            notifyError(
+              `Alguno de los productos ya no existe en el catálogo: ${faltantes.map(f => f.productoNombre).join(', ')}. Se actualizó la lista, agregalo de nuevo.`
+            );
+            return;
+          }
+        } catch {
+          // Si la verificación falla, se continúa (el backend también valida).
+        }
+      }
+
       const esDividir = fuentePago === 'dividir';
       const montoPagadoTotal = esDividir ? (montoCaja + montoAhorro) : (parseFloat(montoPago) || 0);
       const montoPagado = montoPagadoTotal > 0 ? montoPagadoTotal : undefined;
