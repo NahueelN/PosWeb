@@ -31,7 +31,7 @@ Every step requires explicit authorization and uses the isolated `dev` Worker on
 4. Deploy with `npx wrangler deploy --env dev`.
 5. Rebuild the sidecar, then set `RemoteAccess__WorkerUrl`, `RemoteAccess__InternalKey`, `RemoteAccess__AllowTrial='true'`, and `Licensing__DevTrialBootstrap='true'` before `npm run tauri dev`.
 6. Deactivate every dev slug before deleting the dev Worker.
-7. To restore `admin`/`123` only for local development, set `$env:Seed__ResetAdminPassword = 'true'` alongside `Licensing__DevTrialBootstrap` before `npm run tauri dev`. Never add this flag to release configuration.
+7. For local development, set `Seed__AdminPassword` to a development-only value alongside `Licensing__DevTrialBootstrap` before `npm run tauri dev`. Never add either the value or a seed-reset flag to release configuration.
 
 The dev `INTERNAL_KEY` must never enter GitHub secrets or release configuration. The UI suffix remains `.vendetoweb.com.ar`; when active, use the link shown by the UI, whose actual hostname is `dev-<slug>.vendetoweb.com.ar`.
 
@@ -51,9 +51,17 @@ Every step below requires explicit authorization. Do not deploy Workers, configu
 10. **Requires explicit authorization:** generate an `ADMIN_KEY`, store it only in the approved secret manager, then run `wrangler secret put ADMIN_KEY` in the legacy licensing account. Deploy `licensing-worker`; use this key only for `/grant-license` and never ship it in an installer or client configuration.
 11. **Requires explicit authorization:** apply remote-access migration `0002_activation_cooldown.sql` to both the dev and production D1 databases, then redeploy `vendeto-remote-access` in each environment.
 12. **Requires explicit authorization:** optionally configure `ALERT_WEBHOOK_URL` as a remote-access Worker secret for capacity alerts. Do not commit or document its value.
-13. **Requires explicit authorization:** in a non-Development run without `Seed__ResetAdminPassword`, change the `admin` password, restart Vendeto, and confirm the changed password still works.
+13. **Requires explicit authorization:** confirm that an active Administrator or SuperAdministrator account other than the factory seed account exists before starting the release. On non-Development startup, Vendeto rotates a known factory credential for the seed account to an unrecorded random value when that other active administrator exists.
 14. **Requires explicit authorization:** verify orphan cleanup: start `tauri dev`, run `taskkill /f /im posweb-backend.exe`, and confirm `vendeto-cloudflared.exe` exits within seconds. Run `taskkill /f /im app.exe` and confirm `vendeto-mobile.exe` exits within seconds.
-15. Existing customer installs retain `admin`/`123` until the password is changed; remote-access activation now requires that change. Fresh customer installs have no usable seed admin account.
+15. Support must direct customers to sign in with their own account. The factory seed account is disabled by design and must not be used as a recovery path. If it is the only active administrator, startup leaves it unchanged and logs a warning; restore or create a separate administrator before enabling remote access.
+
+## Mailer release order
+
+Deploy the mailer Worker with the backend release that uses the code-only mail endpoint. Publish the Worker version that accepts only email codes, then release the backend immediately in the same maintenance window. Do not deploy the Worker independently while installed backends still require the previous endpoint. If a temporary compatibility route is necessary for one release, it must reject requests rather than accept arbitrary message content.
+
+## Licensing Worker release rule
+
+The next `licensing-worker` deployment must be built from the merged code: it must retain the protected administrative and remote-access routes and include the pricing endpoint and advance-payment logic. After deployment, rerun the Phase 2 smoke checks in the deploy checklist and confirm `GET /pricing` returns `200`.
 
 ## Validation commands
 

@@ -118,7 +118,7 @@ npx wrangler d1 execute vendeto-remote-access --remote --command "SELECT name FR
 - [ ] Reopen the app. The connector must come back on its own (status `active`).
 - [ ] Deactivate. In the Cloudflare dashboard, the tunnel `vendeto-<slug>-…` and the DNS record `<slug>.vendetoweb.com.ar` must both be gone.
 - [ ] Reactivate with the same slug. It must work (the reactivate-after-disabled path).
-- [ ] Before activating remote access on an existing install, change the `admin` password. Restart Vendeto in a non-Development environment without `Seed__ResetAdminPassword` and confirm that password survives the restart. Existing installs retain `admin`/`123` until changed; activation refuses that default. Fresh installs have no usable seed admin.
+- [ ] Before activating remote access, confirm an active Administrator or SuperAdministrator account other than the factory seed account exists. On a non-Development startup, Vendeto rotates a known factory credential for the seed account when that other administrator exists. Support must direct users to their own account; the factory seed account is disabled by design.
 
 If any step fails: capture the UI message, the backend log lines (no tokens), and `npx wrangler tail` output from the remote-access Worker, and bring them back for diagnosis.
 
@@ -131,7 +131,14 @@ If any step fails: capture the UI message, the backend log lines (no tokens), an
   - `REMOTE_ACCESS_INTERNAL_KEY` = Key B
 - [ ] Run a release build and confirm that the CI step "embedded RemoteAccess" passes.
 - [ ] Install the built release on a clean PC and repeat Phase 5 against it. This validates the embedded config, which no audit has run yet.
-- [ ] For local `tauri dev` only, set `$env:Seed__ResetAdminPassword = 'true'` alongside `Licensing__DevTrialBootstrap` when a resettable `admin`/`123` account is required. Never add this flag to release configuration.
+- [ ] For local `tauri dev` only, set `Seed__AdminPassword` to a locally chosen development-only value alongside `Licensing__DevTrialBootstrap` when a resettable seed account is required. Never add the value or a seed-reset flag to release configuration.
+
+## Phase 6A: Merged licensing and mailer release
+
+- [ ] Before the next `licensing-worker` deploy, verify the build is the merged code: it retains the protected administrative and remote-access routes and includes the pricing endpoint and advance-payment logic. Do not deploy either side of that merge independently.
+- [ ] After that deploy, repeat all Phase 2 smoke checks and confirm `GET /pricing` returns `200`.
+- [ ] Deploy the mailer Worker version that accepts only email-code requests, then release the matching backend immediately in the same maintenance window. Do not deploy the mailer Worker alone while installed backends still require the prior endpoint.
+- [ ] If a temporary compatibility route is retained for one release, verify it rejects requests and never accepts arbitrary message content.
 
 ## Rollback summary
 
