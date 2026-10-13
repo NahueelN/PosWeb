@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HelpCircle } from 'lucide-react'
 import { HELP_KEYS } from '../help/content'
-import { api, type RemoteAccessStatus } from '../api/client'
+import { ApiError, api, type RemoteAccessStatus } from '../api/client'
 import { remoteAccessView } from './configuracion/remoteAccessView'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
@@ -23,11 +23,12 @@ const tabStyle = (active: boolean) =>
 
 const remoteAccessUnavailableMessage = 'El acceso remoto no está disponible en este momento.'
 
-function isRemoteAccessUnavailable(error: unknown): boolean {
-  return (
-    (typeof error === 'object' && error !== null && 'status' in error && error.status === 503) ||
-    (error instanceof Error && error.message === 'Licensing unavailable')
-  )
+function remoteAccessUnavailableMessageFor(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 503) return 'El acceso remoto no está configurado en esta instalación'
+    if (error.status === 409) return error.message
+  }
+  return remoteAccessUnavailableMessage
 }
 
 export default function ConfiguracionPage() {
@@ -52,22 +53,29 @@ export default function ConfiguracionPage() {
   const [remoteSlug, setRemoteSlug] = useState('')
   const [remoteStatus, setRemoteStatus] = useState<RemoteAccessStatus>({ status: 'inactive' })
   const [remoteUnavailable, setRemoteUnavailable] = useState(false)
+  const [remoteUnavailableMessage, setRemoteUnavailableMessage] = useState<string | null>(null)
   const [remoteRequestInFlight, setRemoteRequestInFlight] = useState(false)
   const [passwordActual, setPasswordActual] = useState('')
   const [passwordNueva, setPasswordNueva] = useState('')
   const [passwordConfirmacion, setPasswordConfirmacion] = useState('')
   const [cambiandoPassword, setCambiandoPassword] = useState(false)
   const remotePollStartedAt = useRef<number | null>(null)
+  const remoteUnavailableNotified = useRef(false)
   const actualizarEstadoRemoto = useEffectEvent(async () => {
     try {
       const remote = await api.remoteAccess.status()
       setRemoteStatus(remote)
       setRemoteUnavailable(false)
+      setRemoteUnavailableMessage(null)
+      remoteUnavailableNotified.current = false
       if (remote.slug) setRemoteSlug(remote.slug)
     } catch (error) {
-      if (isRemoteAccessUnavailable(error)) {
-        setRemoteUnavailable(true)
-        notifyError(remoteAccessUnavailableMessage)
+      const message = remoteAccessUnavailableMessageFor(error)
+      setRemoteUnavailable(true)
+      setRemoteUnavailableMessage(message)
+      if (!remoteUnavailableNotified.current) {
+        remoteUnavailableNotified.current = true
+        notifyError(message)
       }
     }
   })
@@ -303,7 +311,7 @@ export default function ConfiguracionPage() {
           <div><h2 className="text-lg font-semibold text-slate-900">Acceso remoto</h2><p className="mt-1 text-sm text-slate-500">Conectá celulares a esta instalación de Vendeto.</p></div>
            <div><label htmlFor="remote-slug" className="block text-sm font-medium text-slate-700 mb-1">Subdominio del comercio</label><div className="flex items-center"><input id="remote-slug" value={remoteSlug} disabled={remoteUnavailable || !remoteView.canActivate || remoteRequestInFlight} onChange={e => setRemoteSlug(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))} className="w-full rounded-l-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" placeholder="kiosco-lopez"/><span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">.vendetoweb.com.ar</span></div></div>
            {remoteUrl && remoteStatus.status === 'active' && <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-slate-50 p-3 text-sm text-indigo-700 break-all hover:underline">{remoteUrl}</a>}
-           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3"><p className="text-sm font-medium text-slate-800">{remoteView.label}</p>{remoteUnavailable && <p role="alert" className="text-sm text-red-700">{remoteAccessUnavailableMessage}</p>}{remoteView.steps.length > 0 && <ol className="space-y-2 text-sm">{remoteView.steps.map((step, index) => <li key={step} className={remoteStatus.status === 'active' || index === 0 ? 'text-emerald-700' : 'text-slate-500'}>{remoteStatus.status === 'active' || index === 0 ? '●' : '○'} {step}</li>)}</ol>}{remoteStatus.status === 'failed' && remoteStatus.lastError && <p role="alert" className="text-sm text-red-700">{remoteStatus.lastError}</p>}{remoteStatus.connector?.state === 'error' && remoteStatus.connector.error && <p role="alert" className="text-sm text-red-700">{remoteStatus.connector.error}</p>}</div>
+           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3"><p className="text-sm font-medium text-slate-800">{remoteView.label}</p>{remoteUnavailableMessage && <p role="alert" className="text-sm text-red-700">{remoteUnavailableMessage}</p>}{remoteView.steps.length > 0 && <ol className="space-y-2 text-sm">{remoteView.steps.map((step, index) => <li key={step} className={remoteStatus.status === 'active' || index === 0 ? 'text-emerald-700' : 'text-slate-500'}>{remoteStatus.status === 'active' || index === 0 ? '●' : '○'} {step}</li>)}</ol>}{remoteStatus.status === 'failed' && remoteStatus.lastError && <p role="alert" className="text-sm text-red-700">{remoteStatus.lastError}</p>}{remoteStatus.connector?.state === 'error' && remoteStatus.connector.error && <p role="alert" className="text-sm text-red-700">{remoteStatus.connector.error}</p>}</div>
            <div className="flex gap-3">{!remoteUnavailable && remoteView.canActivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void activarAccesoRemoto()} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Activar acceso remoto</button>}{!remoteUnavailable && remoteView.canDeactivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void desactivarAccesoRemoto()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Desactivar</button>}{!remoteUnavailable && remoteStatus.status === 'active' && remoteUrl && <button type="button" onClick={() => navigator.clipboard.writeText(remoteUrl).then(() => notifySuccess('Enlace copiado'))} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Copiar enlace</button>}</div>
         </section>
       )}
