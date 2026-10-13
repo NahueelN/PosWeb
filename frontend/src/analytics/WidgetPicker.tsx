@@ -88,7 +88,7 @@ const MODULE_WIDGETS: Record<string, ModuleEntry[]> = {
     { definitionId: 'flujo-caja', subCategory: 'KPIs', question: 'Flujo de caja' },
     { definitionId: 'deudas-clientes', subCategory: 'KPIs', question: 'Fiados de clientes' },
     { definitionId: 'deudas-proveedores', subCategory: 'KPIs', question: 'Deudas con proveedores' },
-    { definitionId: 'deudas-resumen', subCategory: 'KPIs', question: 'Clientes vs proveedores' },
+    { definitionId: 'deudas-resumen', subCategory: 'KPIs', question: 'Balance de deudas (clientes − proveedores)' },
     { definitionId: 'margen-por-categoria', subCategory: 'Charts', question: 'Margen por categoría' },
     { definitionId: 'metodos-pago', subCategory: 'Charts', question: 'Métodos de pago' },
     { definitionId: 'actividad', subCategory: 'Activity', question: 'Gastos registrados' },
@@ -133,7 +133,9 @@ function getModuleEntries(definitions: WidgetDefinition[]): Map<string, ModuleEn
 }
 
 function isSimple(def: WidgetDefinition): boolean {
-  return def.compatibleTypes.length === 1 && def.compatibleTypes[0].params.length === 0
+  // Un solo tipo de visualización y sin parámetros no-inline: agrega directo.
+  if (def.compatibleTypes.length !== 1) return false
+  return def.compatibleTypes[0].params.every((p) => p.inline)
 }
 
 function initConfig(viz: WidgetVisualizationType): Record<string, any> {
@@ -348,7 +350,7 @@ function WidgetCard({
   function handleVizChange(viz: WidgetVisualizationType) {
     setSelectedViz(viz)
     setConfig(initConfig(viz))
-    setShowConfig(viz.params.length > 0)
+    setShowConfig(viz.params.some((p) => !p.inline))
   }
 
   function handleCardClick() {
@@ -477,7 +479,7 @@ function WidgetCard({
                   </div>
                 )}
 
-                {selectedViz && selectedViz.params.length > 0 && (
+                {selectedViz && selectedViz.params.some((p) => !p.inline) && (
                   <div>
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowConfig(!showConfig) }}
@@ -501,7 +503,7 @@ function WidgetCard({
                           className="overflow-hidden"
                         >
                           <div className="space-y-2.5 pb-2">
-                            {selectedViz.params.map((param) => (
+                            {selectedViz.params.filter((param) => !param.inline).map((param) => (
                               <div key={param.key}>
                                 <label className="text-[9px] font-medium text-gray-400 uppercase tracking-wider block mb-1">
                                   {param.label}
@@ -559,7 +561,7 @@ function WidgetCard({
                   </div>
                 )}
 
-                {(hasMultipleViz || (selectedViz && selectedViz.params.length > 0)) && (
+                {(hasMultipleViz || (selectedViz && selectedViz.params.some((p) => !p.inline))) && (
                   <div className="mt-3">
                     <Button
                       variant="primary"

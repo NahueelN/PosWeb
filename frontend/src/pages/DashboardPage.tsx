@@ -17,7 +17,7 @@ import WidgetPicker from '../analytics/WidgetPicker'
 import WidgetEditor from '../analytics/WidgetEditor'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import type { SucursalDto } from '../types'
-import { RefreshCw, Plus, RotateCcw } from 'lucide-react'
+import { Move, Check, Plus, RotateCcw } from 'lucide-react'
 
 function useGridColumns(): number {
   const [cols, setCols] = useState(() => columnsForWidth(window.innerWidth))
@@ -158,6 +158,9 @@ export default function DashboardPage() {
     config: Record<string, any>
     pestañas: string[]
   } | null>(null)
+  const [updatingWidgetId, setUpdatingWidgetId] = useState<string | null>(null)
+  const configReqSeq = useRef(0)
+  const [reorganizando, setReorganizando] = useState(false)
   const gridCols = useGridColumns()
 
   useEffect(() => {
@@ -205,6 +208,22 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }, [sucursalId, notifyError])
+
+  // Refresco automático silencioso cada 30 s (sin togglear el loading global).
+  const refrescarSilencioso = useCallback(() => {
+    if (!sucursalId) return
+    api.dashboard.build(sucursalId, positionedRef.current)
+      .then((res) => { setDashboard(res); setLastUpdate(new Date()) })
+      .catch(() => { /* silencioso: no molestar al operador */ })
+  }, [sucursalId])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      void refrescarSilencioso()
+    }, 30_000)
+    return () => window.clearInterval(id)
+  }, [refrescarSilencioso])
 
   const didInit = useRef(false)
   useEffect(() => {
@@ -308,6 +327,39 @@ export default function DashboardPage() {
     setConfirmReset(false)
   }
 
+  /* ── Configuración dinámica desde la card ── */
+
+  function handleWidgetConfigChange(instanceId: string, patch: Record<string, any>) {
+    if (!sucursalId) return
+    const next = layout.map((i) =>
+      i.id === instanceId ? { ...i, config: { ...i.config, ...patch } } : i,
+    )
+    setLayout(next)
+
+    // Reconstruir solo el widget afectado y parchearlo, sin recargar la grilla.
+    const inst = next.find((i) => i.id === instanceId)
+    if (!inst) return
+    const seq = ++configReqSeq.current
+    setUpdatingWidgetId(instanceId)
+
+    api.dashboard.build(sucursalId, [{ ...inst, x: inst.x!, y: inst.y! }])
+      .then((res) => {
+        if (seq !== configReqSeq.current) return // descartar respuestas fuera de orden
+        setDashboard((prev) => {
+          if (!prev) return res
+          const byId = new Map(res.widgets.map((w) => [w.id, w]))
+          return {
+            ...prev,
+            widgets: prev.widgets.map((w) => byId.get(w.id) ?? w),
+          }
+        })
+      })
+      .catch((e: any) => notifyError(e?.message ?? 'No se pudo actualizar el widget'))
+      .finally(() => {
+        if (seq === configReqSeq.current) setUpdatingWidgetId(null)
+      })
+  }
+
   /* ── Pestañas ── */
 
   function handleSelectTab(id: string) {
@@ -402,7 +454,14 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             {lastUpdate && <span className="text-[11px] text-gray-400">Actualizado {formatTime(lastUpdate.toISOString())}</span>}
             <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setShowPicker(true)}>Agregar Widget</Button>
-            <Button variant="ghost" size="sm" icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} onClick={() => cargar()} disabled={loading}>Actualizar</Button>
+            <Button
+              variant={reorganizando ? 'primary' : 'ghost'}
+              size="sm"
+              icon={reorganizando ? <Check size={12} /> : <Move size={12} />}
+              onClick={() => setReorganizando(v => !v)}
+            >
+              {reorganizando ? 'Hecho' : 'Reorganizar'}
+            </Button>
             <Button variant="ghost" size="sm" icon={<RotateCcw size={12} />} onClick={handleReset}>Restablecer</Button>
           </div>
         }
@@ -428,6 +487,9 @@ export default function DashboardPage() {
               onRemove={handleRemoveWidget}
               onEdit={handleEditWidget}
               onLayoutChange={handleRGLLayoutChange}
+              onConfigChange={handleWidgetConfigChange}
+              updatingId={updatingWidgetId}
+              reorganizing={reorganizando}
             />
           </div>
         </div>

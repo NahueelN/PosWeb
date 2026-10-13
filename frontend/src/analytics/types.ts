@@ -80,6 +80,7 @@ export interface WidgetDefinitionParam {
   options?: { value: string; label: string }[]
   min?: number
   max?: number
+  inline?: boolean
 }
 
 export interface WidgetVisualizationType {

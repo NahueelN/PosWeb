@@ -8,7 +8,8 @@ import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import type { LayoutInstance } from './grid/types'
 import { ROW_HEIGHT_PX } from './grid/types'
 import WidgetRenderer from './WidgetRenderer'
-import type { Widget, WidgetDefinition } from './types'
+import WidgetInlineControls from './WidgetInlineControls'
+import type { Widget, WidgetDefinition, WidgetDefinitionParam } from './types'
 import { Trash2, Maximize2, GripVertical } from 'lucide-react'
 
 interface Props {
@@ -20,6 +21,9 @@ interface Props {
   onRemove?: (instanceId: string) => void
   onEdit?: (instanceId: string) => void
   onLayoutChange?: (layout: LayoutInstance[]) => void
+  onConfigChange?: (instanceId: string, patch: Record<string, any>) => void
+  updatingId?: string | null
+  reorganizing?: boolean
 }
 
 function compactBidirectional(items: LayoutInstance[], cols: number, maxRows: number): LayoutInstance[] {
@@ -62,7 +66,7 @@ function compactBidirectional(items: LayoutInstance[], cols: number, maxRows: nu
 
 export default function DashboardGridRGL({
   layout, widgets, definitions, gridCols, rows,
-  onRemove, onEdit, onLayoutChange,
+  onRemove, onEdit, onLayoutChange, onConfigChange, updatingId, reorganizing = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -105,6 +109,25 @@ export default function DashboardGridRGL({
   const defMap = useMemo(() => {
     const m = new Map<string, WidgetDefinition>()
     for (const d of definitions) m.set(d.id, d)
+    return m
+  }, [definitions])
+
+  // Parámetros "inline" por fuente: configuran directamente desde la card.
+  const inlineParamsByDef = useMemo(() => {
+    const m = new Map<string, WidgetDefinitionParam[]>()
+    for (const d of definitions) {
+      const seen = new Set<string>()
+      const params: WidgetDefinitionParam[] = []
+      for (const t of d.compatibleTypes) {
+        for (const p of t.params) {
+          if (p.inline && !seen.has(p.key)) {
+            seen.add(p.key)
+            params.push(p)
+          }
+        }
+      }
+      m.set(d.id, params)
+    }
     return m
   }, [definitions])
 
@@ -193,6 +216,8 @@ export default function DashboardGridRGL({
         compactType="vertical"
         preventCollision={false}
         allowOverlap={false}
+        isDraggable={reorganizing}
+        isResizable={reorganizing}
         useCSSTransforms
         onDragStop={handleDragStop}
         onResizeStop={handleResizeStop}
@@ -200,9 +225,12 @@ export default function DashboardGridRGL({
         {layout.map((inst) => {
           const widget = widgetMap.get(inst.id)
           return (
-            <div key={inst.id} className="group relative rounded-xl min-h-0 min-w-0 cursor-grab active:cursor-grabbing">
-              {/* Afordance de arrastre: la card completa es draggable */}
-              <div className="pointer-events-none absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              key={inst.id}
+              className={`group relative rounded-xl min-h-0 min-w-0 ${reorganizing ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            >
+              {/* Afordance de arrastre: solo visible en modo reorganizar */}
+              <div className={`pointer-events-none absolute top-2 left-2 z-20 transition-opacity ${reorganizing ? 'opacity-90' : 'hidden'}`}>
                 <div className="w-5 h-5 flex items-center justify-center rounded-md bg-black/[0.03]">
                   <GripVertical size={11} className="text-gray-400" />
                 </div>
@@ -234,7 +262,9 @@ export default function DashboardGridRGL({
               )}
 
               <motion.div
-                className="h-full min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200/70 shadow-card overflow-hidden"
+                className={`h-full min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200/70 shadow-card overflow-hidden ${
+                updatingId === inst.id ? 'opacity-70 transition-opacity duration-200' : ''
+              }`}
                 initial={firstRender.current ? false : { opacity: 0, scale: 0.95, y: 8 }}
                 animate={
                   exiting.has(inst.id)
@@ -264,6 +294,25 @@ export default function DashboardGridRGL({
                   </div>
                 )}
               </motion.div>
+
+              {onConfigChange && (inlineParamsByDef.get(inst.definitionId)?.length ?? 0) > 0 && (
+                <div
+                  className="absolute top-9 right-2 z-30 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <WidgetInlineControls
+                    params={inlineParamsByDef.get(inst.definitionId) ?? []}
+                    config={inst.config ?? {}}
+                    onConfigChange={(patch) => onConfigChange(inst.id, patch)}
+                  />
+                </div>
+              )}
+
+              {updatingId === inst.id && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                  <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin bg-white/50" />
+                </div>
+              )}
             </div>
           )
         })}

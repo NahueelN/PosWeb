@@ -43,23 +43,6 @@ public static class WidgetDefinitionRegistry
                         },
                     }
                 },
-                new WidgetVisualizationType
-                {
-                    Type = "PROGRESS", Label = "Barra de progreso", Icon = "Target",
-                    Params = new()
-                    {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta", Type = "number", Default = 100000, Min = 1 },
-                        new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "emerald",
-                            Options = new()
-                            {
-                                new() { Value = "emerald", Label = "Verde" },
-                                new() { Value = "indigo", Label = "Índigo" },
-                                new() { Value = "blue", Label = "Azul" },
-                                new() { Value = "amber", Label = "Ámbar" },
-                            }
-                        },
-                    }
-                },
             }
         },
 
@@ -108,7 +91,7 @@ public static class WidgetDefinitionRegistry
                     Type = "KPI", Label = "Indicador", Icon = "Target",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1, Inline = true },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -124,7 +107,7 @@ public static class WidgetDefinitionRegistry
                     Type = "PROGRESS", Label = "Barra de progreso", Icon = "Target",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1, Inline = true },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -155,7 +138,7 @@ public static class WidgetDefinitionRegistry
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -170,7 +153,7 @@ public static class WidgetDefinitionRegistry
                     Type = "LINE_CHART", Label = "Líneas", Icon = "TrendingUp",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -185,7 +168,7 @@ public static class WidgetDefinitionRegistry
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -248,7 +231,7 @@ public static class WidgetDefinitionRegistry
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -264,7 +247,7 @@ public static class WidgetDefinitionRegistry
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -280,7 +263,7 @@ public static class WidgetDefinitionRegistry
                     Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -518,8 +501,8 @@ public static class WidgetDefinitionRegistry
         new WidgetDefinition
         {
             Id = "deudas-resumen",
-            Name = "Deudas (clientes vs proveedores)",
-            Description = "A cobrar de clientes vs a pagar a proveedores",
+            Name = "Balance de deudas",
+            Description = "Diferencia entre lo que te deben (clientes) y lo que debés (proveedores)",
             Category = "finanzas",
             Icon = "Scale",
             SupportedSizes = new() { S(3,1), S(6,1) },
@@ -720,7 +703,8 @@ public static class WidgetDefinitionRegistry
             Label = "Período",
             Type = "select",
             Default = @default,
-            Options = options
+            Options = options,
+            Inline = true
         };
     }
 
@@ -748,6 +732,7 @@ public static class WidgetDefinitionRegistry
         Label = "Sin ventas (días)",
         Type = "select",
         Default = "60",
+        Inline = true,
         Options = new()
         {
             new() { Value = "30", Label = "Últimos 30 días" },

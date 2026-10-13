@@ -5,12 +5,13 @@ using PosWeb.Data;
 namespace PosWeb.Analytics.Queries;
 
 /// <summary>
-/// Resumen de deudas: total y cantidad de clientes vs. proveedores.
+/// Balance de deudas: diferencia entre lo que te deben (clientes) y lo que debés (proveedores).
+/// Positivo = neto a favor; negativo = debés más de lo que cobrás.
 /// </summary>
 public class DeudasResumenQuery : IAnalyticsQuery
 {
     public string Id => "deudas-resumen";
-    public string Name => "Deudas (clientes vs proveedores)";
+    public string Name => "Balance de deudas";
 
     public async Task<Dataset> ExecuteAsync(int sucursalId, PosDbContextLocal db, DashboardQueryParams? p = null)
     {
@@ -29,12 +30,19 @@ public class DeudasResumenQuery : IAnalyticsQuery
         var proveedoresTotal = deudasProveedor.Sum(d => d.MONTO_DEUDA - d.MONTO_PAGADO);
         var proveedoresCantidad = deudasProveedor.Select(d => d.ID_PROVEEDOR!.Value).Distinct().Count();
 
+        var balance = clientesTotal - proveedoresTotal;
+        var balanceInfo = balance > 0
+            ? "A favor: cobrás más de lo que debés"
+            : balance < 0
+                ? "En contra: debés más de lo que cobrás"
+                : "En equilibrio";
+
         return new Dataset
         {
             Columns = new List<DatasetColumn>
             {
-                new() { Name = "clientesTotal", Type = "currency", Label = "A Cobrar (clientes)", Format = "currency" },
-                new() { Name = "proveedoresTotal", Type = "currency", Label = "A Pagar (proveedores)", Format = "currency" },
+                new() { Name = "balance", Type = "currency", Label = "Balance", Format = "currency" },
+                new() { Name = "balanceInfo", Type = "string", Label = "Situación" },
                 new() { Name = "clientesCantidad", Type = "number", Label = "Deudores" },
                 new() { Name = "proveedoresCantidad", Type = "number", Label = "Acreedores" },
             },
@@ -42,15 +50,15 @@ public class DeudasResumenQuery : IAnalyticsQuery
             {
                 new()
                 {
-                    ["clientesTotal"] = clientesTotal,
-                    ["proveedoresTotal"] = proveedoresTotal,
+                    ["balance"] = balance,
+                    ["balanceInfo"] = balanceInfo,
                     ["clientesCantidad"] = clientesCantidad,
                     ["proveedoresCantidad"] = proveedoresCantidad,
                 }
             },
             Summary = new DatasetSummary
             {
-                Total = clientesTotal,
+                Total = balance,
                 Count = clientesCantidad + proveedoresCantidad,
             }
         };

@@ -96,13 +96,13 @@ export default function WidgetEditor({ open, onClose, instance, definition, widg
         )}
 
         {/* Config params */}
-        {currentViz && currentViz.params.length > 0 && (
+        {currentViz && currentViz.params.some((p) => !p.inline) && (
           <div>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
               Configuración
             </p>
             <div className="space-y-3">
-              {currentViz.params.map((param) => (
+              {currentViz.params.filter((p) => !p.inline).map((param) => (
                 <div key={param.key} className="flex items-center gap-3">
                   <label className="text-xs text-gray-600 w-36 shrink-0">{param.label}</label>
                   {param.type === 'select' && (
@@ -152,8 +152,8 @@ export default function WidgetEditor({ open, onClose, instance, definition, widg
           </div>
         )}
 
-        {currentViz && currentViz.params.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-8">Este widget no tiene opciones configurables.</p>
+        {currentViz && currentViz.params.every((p) => p.inline) && (
+          <p className="text-xs text-gray-400 text-center py-8">Este widget no tiene opciones configurables (período/meta se ajustan desde la card).</p>
         )}
       </div>
     </Dialog>
