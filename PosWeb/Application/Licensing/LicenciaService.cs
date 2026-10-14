@@ -32,10 +32,11 @@ public class LicenciaService
     public LicenciaService(
         PosDbContextLocal context,
         IConfiguration configuration,
-        IEncryptionService encryption)
+        IEncryptionService encryption,
+        HttpClient? httpClient = null)
     {
         _context = context;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         _workerUrl = configuration["Licensing:WorkerUrl"];
         _internalKey = configuration["Licensing:InternalKey"];
         _offlineHours = int.Parse(configuration["Licensing:OfflineHours"] ?? "72");
@@ -278,11 +279,15 @@ public class LicenciaService
         {
             var licenseKey = _encryption.Decrypt(licencia.LicenseKey);
 
-            var response = await _httpClient.PostAsJsonAsync($"{_workerUrl}/status", new
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/status")
             {
-                license_key = licenseKey,
-                machine_id = licencia.MachineId
-            });
+                Content = JsonContent.Create(new
+                {
+                    license_key = licenseKey,
+                    machine_id = licencia.MachineId
+                })
+            };
+            var response = await _httpClient.SendAsync(request);
 
             if (!response.IsSuccessStatusCode)
                 return EvaluarCacheOffline(licencia);
@@ -341,6 +346,20 @@ public class LicenciaService
     public async Task<LicenciaConfig?> ObtenerEstadoLocal()
     {
         return await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
+    }
+
+    public async Task<(string licenseKey, string machineId)?> ObtenerIdentidadRemotaAsync()
+    {
+        var licencia = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
+        if (licencia == null || string.IsNullOrWhiteSpace(licencia.LicenseKey) || string.IsNullOrWhiteSpace(licencia.MachineId))
+            return null;
+        return (_encryption.Decrypt(licencia.LicenseKey), licencia.MachineId);
+    }
+
+    public async Task<string?> ObtenerMachineIdExistenteAsync()
+    {
+        var licencia = await _context.Set<LicenciaConfig>().FirstOrDefaultAsync();
+        return string.IsNullOrWhiteSpace(licencia?.MachineId) ? null : licencia.MachineId;
     }
 
     public (int maxSucursales, int maxAdmins, int maxUsuarios, int maxProductos) ObtenerLimitesPlan()

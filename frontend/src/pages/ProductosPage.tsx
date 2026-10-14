@@ -47,17 +47,18 @@ export default function ProductosPage() {
     : marcas
 
   const [query, setQuery] = useState('')
+  const [mostrarEmpaques, setMostrarEmpaques] = useState(false)
 
   const filteredProductos = useMemo(() => {
-    const noBulto = productos.filter(p => !p.esBulto)
-    if (!query.trim()) return noBulto
+    const base = mostrarEmpaques ? productos : productos.filter(p => !p.esBulto)
+    if (!query.trim()) return base
     const q = query.toLowerCase()
-    return noBulto.filter(p =>
+    return base.filter(p =>
       p.nombre.toLowerCase().includes(q) ||
       p.codigoBarra.toLowerCase().includes(q) ||
       (p.codigoProducto && p.codigoProducto.toLowerCase().includes(q))
     )
-  }, [productos, query])
+  }, [productos, query, mostrarEmpaques])
 
   useEffect(() => {
     if (sucursal?.id) listar()
@@ -88,6 +89,7 @@ export default function ProductosPage() {
     setModalContext('manual')
     setModalPrefill(null)
     setModalCodigo('')
+    if (product.esBulto) setMostrarEmpaques(true)
     if (editingProduct) {
       setProductos(prev => prev.map(p => p.id === product.id ? product : p))
       setEditingProduct(null)
@@ -110,15 +112,18 @@ export default function ProductosPage() {
     try {
       const prod = await api.productos.obtenerPorBarra(codigo)
       if (prod) {
+        if (prod.esBulto) setMostrarEmpaques(true)
         setQuery(codigo)
         focusCard(prod.id)
         return
       }
     } catch {}
     const localMatch = productos.find(
-      p => p.codigoBarra.toLowerCase() === normalizarCodigoBarra(codigo).toLowerCase()
+      p => p.codigoBarra.toLowerCase() === normalizarCodigoBarra(codigo).toLowerCase() ||
+        (p.codigoProducto ?? '').toLowerCase() === codigo.trim().toLowerCase()
     )
     if (localMatch) {
+      if (localMatch.esBulto) setMostrarEmpaques(true)
       setQuery(codigo)
       focusCard(localMatch.id)
       return
@@ -268,6 +273,8 @@ export default function ProductosPage() {
           showHints={true}
           onBarcodeLookup={handleBarcodeLookup}
           searchInputRef={searchRef}
+          showEmpaques={mostrarEmpaques}
+          onToggleEmpaques={setMostrarEmpaques}
         >
           {filteredProductos.length === 0 ? (
             <div className="col-span-full text-center py-12">
@@ -285,12 +292,16 @@ export default function ProductosPage() {
                   <ProductRow
                     key={p.id}
                     id={p.id}
-                    codigo={p.codigoBarra}
+                    codigo={p.codigoBarra || p.codigoProducto || ''}
                     nombre={p.nombre}
-                    stock={p.stock}
-                    precio={<span>${p.precio.toFixed(2)}</span>}
+                    stock={p.esBulto ? null : p.stock}
+                    precio={p.esBulto
+                      ? <span className="text-gray-300">—</span>
+                      : <span>${p.precio.toFixed(2)}</span>}
                     onClick={() => handleEditProduct(p)}
-                    badge={p.esPesable ? (
+                    badge={p.esBulto ? (
+                      <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded shrink-0">empaque</span>
+                    ) : p.esPesable ? (
                       <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded shrink-0">por kg</span>
                     ) : undefined}
                     action={

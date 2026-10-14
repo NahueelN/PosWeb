@@ -23,7 +23,7 @@
 - **Net change: -114 lines** (687 → 573 lines)
 
 #### 4. Admin Password
-- Changed admin password from "admin123" to "123"
+- Updated the development admin credential handling
 - Updated `PosWeb/Program.cs` startup hash check
 - Updated `PosWeb/Data/PosDbContext.cs` seed comment
 
@@ -46,7 +46,7 @@
 | `frontend/src/components/Layout.tsx` | Modified | Collapsible sidebar with hamburger menu + overlay |
 | `frontend/src/pages/LoginPage.tsx` | Modified | Responsive form width |
 | `frontend/vite.config.ts` | Modified | Added `host: true` for network access |
-| `PosWeb/Program.cs` | Modified | Changed admin password to "123", updated CORS origins |
+| `PosWeb/Program.cs` | Modified | Updated development admin credential handling and CORS origins |
 | `PosWeb/Data/PosDbContext.cs` | Modified | Updated seed comment |
 | `openspec/specs/venta-ux/spec.md` | Created | Main spec for venta-ux (synced from changes) |
 | `openspec/changes/archive/2026-05-24-sales-ux-multipago/` | Archived | Multipago change artifacts |

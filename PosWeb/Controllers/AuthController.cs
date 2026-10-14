@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using PosWeb.Application.Auth;
 using PosWeb.Contracts;
 using PosWeb.Domain;
@@ -11,10 +12,12 @@ namespace PosWeb.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, IServiceScopeFactory scopeFactory)
     {
         _authService = authService;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpPost("login")]
@@ -51,6 +54,19 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.Register(request, currentUserId);
+
+            // Fire-and-forget: si el envío falla, el usuario puede reenviar el código desde el login.
+            // Se crea un scope propio porque el DbContext del request se dispone al terminar la acción.
+            if (!result.EmailConfirmado)
+            {
+                _ = Task.Run(async () =>
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var authService = scope.ServiceProvider.GetRequiredService<AuthService>();
+                    await authService.EnviarCodigoConfirmacionAlRegistrar(result.Id);
+                });
+            }
+
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -75,5 +91,60 @@ public class AuthController : ControllerBase
             return NotFound(new { error = "Usuario no encontrado" });
 
         return Ok(usuario);
+    }
+
+    [HttpPost("forgot-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+    {
+        await _authService.SolicitarRecuperacion(request.Email);
+
+        // Mensaje genérico deliberado (anti-enumeración): no revela si el email existe.
+        return Ok(new { message = "Si el email está registrado, recibirás un código para restablecer tu contraseña." });
+    }
+
+    [HttpPost("reset-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public IActionResult ResetPassword([FromBody] ResetPasswordRequestDto request)
+    {
+        _authService.ResetearPassword(request.Email, request.Codigo, request.NuevaPassword);
+        return Ok(new { message = "Contraseña actualizada. Ya podés iniciar sesión." });
+    }
+
+    [HttpPost("cambiar-password")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public IActionResult CambiarPassword([FromBody] ChangePasswordRequestDto request)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out var userId))
+            return Unauthorized(new { error = "No autenticado" });
+
+        try
+        {
+            _authService.CambiarPassword(userId, request.Actual, request.Nueva);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("reenviar-codigo")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public async Task<IActionResult> ReenviarCodigo([FromBody] ForgotPasswordRequestDto request)
+    {
+        await _authService.SolicitarConfirmacionEmail(request.Email);
+
+        // Mensaje genérico deliberado (anti-enumeración): no revela si el email existe ni si ya confirmó.
+        return Ok(new { message = "Si el email está registrado y pendiente de confirmación, recibirás un código." });
+    }
+
+    [HttpPost("confirmar-cuenta")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public IActionResult ConfirmarCuenta([FromBody] ConfirmarEmailRequestDto request)
+    {
+        _authService.ConfirmarEmail(request.Email, request.Codigo);
+        return Ok(new { message = "Email confirmado. Ya podés iniciar sesión." });
     }
 }

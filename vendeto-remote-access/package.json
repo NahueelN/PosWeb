@@ -1,0 +1,7 @@
+{
+  "name": "vendeto-remote-access",
+  "private": true,
+  "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy", "test": "vitest run" },
+  "dependencies": { "hono": "^4.7.0" },
+  "devDependencies": { "vitest": "^4.1.0", "wrangler": "^4.14.0" }
+}

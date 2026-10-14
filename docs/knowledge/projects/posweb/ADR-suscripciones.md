@@ -88,7 +88,7 @@ La prueba gratuita opera como Máxima por 7 días; al vencer **degrade a Gratuit
 
 ### Qué obliga
 
-- Renovación manual cada mes por parte del comerciante (UX de "Buscar licencia" / landing).
+- Renovación manual cada mes por parte del comerciante (UX de "Buscar licencia" retirado en 2026-10-02; hoy la activación es automática en login/registro y la renovación va por la landing).
 - Mantener sincronizado el vencimiento entre Worker y copia local (`next_billing`, `grace_until`, estado).
 - Duplicar la regla de gracia/vencimiento en dos lugares (Worker TS y backend C#), lo que exige disciplina para no divergir.
 - Mantener una **única fuente de verdad del plan** (nivel efectivo = Suscripcion del titular) entre backend y frontend para no divergir en grisado, límites y MercadoPago.

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNotification } from '../context/NotificationContext'
 import { api } from '../api/client'
 import { obtenerCredenciales, guardarCredenciales } from '../lib/credenciales'
+import PasswordInput from '../components/ui/PasswordInput'
 import type { SucursalDto } from '../types'
 
 export default function LoginPage() {
@@ -21,14 +22,23 @@ export default function LoginPage() {
   const [showRegister, setShowRegister] = useState(false)
   const [regUsuario, setRegUsuario] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [regPassword2, setRegPassword2] = useState('')
   const [regMail, setRegMail] = useState('')
   const [regEmpresa, setRegEmpresa] = useState('')
   const [regTipoNegocio, setRegTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
   const [registerLoading, setRegisterLoading] = useState(false)
-  const [buscarLicenciaOpen, setBuscarLicenciaOpen] = useState(false)
-  const [buscarLicenciaEmail, setBuscarLicenciaEmail] = useState('')
-  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
-  const [buscarLicenciaNoEncontrada, setBuscarLicenciaNoEncontrada] = useState(false)
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recEmail, setRecEmail] = useState('')
+  const [recCodigo, setRecCodigo] = useState('')
+  const [recNuevaPassword, setRecNuevaPassword] = useState('')
+  const [recNuevaPassword2, setRecNuevaPassword2] = useState('')
+  const [recPaso, setRecPaso] = useState<'email' | 'codigo'>('email')
+  const [recLoading, setRecLoading] = useState(false)
+  const [showConfirmacion, setShowConfirmacion] = useState(false)
+  const [confEmail, setConfEmail] = useState('')
+  const [confCodigo, setConfCodigo] = useState('')
+  const [confLoading, setConfLoading] = useState(false)
+  const [reenviandoCodigo, setReenviandoCodigo] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -95,13 +105,23 @@ export default function LoginPage() {
       } catch {}
     } catch (err: any) {
       const msg = err.message || 'Error al iniciar sesión'
+      let errorText = msg
       try {
         const parts = msg.split(': ')
         const jsonPart = parts[parts.length - 1]
         const parsed = JSON.parse(jsonPart)
-        notifyError(parsed.error || msg)
+        errorText = parsed.error || msg
       } catch {
-        notifyError(msg)
+        errorText = msg
+      }
+      // Si el email no está confirmado, se muestra la pantalla de confirmación
+      // (el código ya se envió al registrarse; se puede reenviar).
+      if (errorText.includes('Confirmá tu email')) {
+        setShowConfirmacion(true)
+        setConfCodigo('')
+        setConfEmail('')
+      } else {
+        notifyError(errorText)
       }
     } finally {
       setLoading(false)
@@ -110,6 +130,10 @@ export default function LoginPage() {
 
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (regPassword !== regPassword2) {
+      notifyError('Las contraseñas no coinciden')
+      return
+    }
     setRegisterLoading(true)
 
     try {
@@ -121,17 +145,25 @@ export default function LoginPage() {
         empresaNombre: regEmpresa.trim() || undefined,
         tipoNegocio: regTipoNegocio,
       })
-      if (res.licenciaEstado === 'trial') {
-        notifySuccess('Prueba gratuita de 7 días activada. Ya podés iniciar sesión.')
-      } else {
-        notifySuccess('Licencia activada correctamente. Ya podés iniciar sesión.')
-      }
       setRegUsuario('')
       setRegPassword('')
+      setRegPassword2('')
       setRegMail('')
       setRegEmpresa('')
       setRegTipoNegocio('Tienda')
       setShowRegister(false)
+
+      if (res.emailConfirmado === false) {
+        // El email necesita confirmación: se pasa a la pantalla de código.
+        setShowConfirmacion(true)
+        setConfEmail(res.mail)
+        setConfCodigo('')
+        notifySuccess('Te enviamos un código de confirmación a tu email.')
+      } else if (res.licenciaEstado === 'trial') {
+        notifySuccess('Prueba gratuita de 7 días activada. Ya podés iniciar sesión.')
+      } else {
+        notifySuccess('Licencia activada correctamente. Ya podés iniciar sesión.')
+      }
     } catch (err: any) {
       const msg = err.message || 'Error al registrar usuario'
       try {
@@ -147,50 +179,115 @@ export default function LoginPage() {
     }
   }
 
-  async function handleBuscarLicencia() {
-    if (!buscarLicenciaEmail.includes('@') || !buscarLicenciaEmail.includes('.')) {
+  async function handleSolicitarCodigo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!recEmail.includes('@') || !recEmail.includes('.')) {
       notifyError('Ingresá un email válido')
       return
     }
-    setBuscandoLicencia(true)
-    setBuscarLicenciaNoEncontrada(false)
+    setRecLoading(true)
     try {
-      await api.licencia.activarPorEmail({ email: buscarLicenciaEmail.trim() })
-      notifySuccess('Licencia activada. Ya podés iniciar sesión.')
-      setBuscarLicenciaOpen(false)
-      setBuscarLicenciaEmail('')
+      await api.auth.forgotPassword({ email: recEmail.trim() })
+      setRecPaso('codigo')
+      notifySuccess('Si el email está registrado, recibirás un código de recuperación.')
     } catch (err: any) {
-      const msg = err.message || 'No se pudo encontrar la licencia'
-      const finalMsg = ((): string => {
-        try {
-          const parts = msg.split(': ')
-          const parsed = JSON.parse(parts[parts.length - 1])
-          return parsed.error || msg
-        } catch {
-          return msg
-        }
-      })()
-      notifyError(finalMsg)
-      if (finalMsg.includes('No se encontró')) {
-        setBuscarLicenciaNoEncontrada(true)
-      }
+      const msg = err.message || 'Error al solicitar el código'
+      notifyError(msg)
     } finally {
-      setBuscandoLicencia(false)
+      setRecLoading(false)
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (recCodigo.trim().length !== 6) {
+      notifyError('Ingresá el código de 6 dígitos')
+      return
+    }
+    if (recNuevaPassword.length < 6) {
+      notifyError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+    if (recNuevaPassword !== recNuevaPassword2) {
+      notifyError('Las contraseñas no coinciden')
+      return
+    }
+    setRecLoading(true)
+    try {
+      await api.auth.resetPassword({
+        email: recEmail.trim(),
+        codigo: recCodigo.trim(),
+        nuevaPassword: recNuevaPassword,
+      })
+      notifySuccess('Contraseña actualizada. Ya podés iniciar sesión.')
+      setRecEmail('')
+      setRecCodigo('')
+      setRecNuevaPassword('')
+      setRecNuevaPassword2('')
+      setRecPaso('email')
+      setShowRecovery(false)
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo restablecer la contraseña'
+      notifyError(msg)
+    } finally {
+      setRecLoading(false)
+    }
+  }
+
+  async function handleConfirmarCuenta(e: React.FormEvent) {
+    e.preventDefault()
+    if (!confEmail.includes('@') || !confEmail.includes('.')) {
+      notifyError('Ingresá un email válido')
+      return
+    }
+    if (confCodigo.trim().length !== 6) {
+      notifyError('Ingresá el código de 6 dígitos')
+      return
+    }
+    setConfLoading(true)
+    try {
+      await api.auth.confirmarCuenta({ email: confEmail.trim(), codigo: confCodigo.trim() })
+      notifySuccess('Email confirmado. Ya podés iniciar sesión.')
+      setConfEmail('')
+      setConfCodigo('')
+      setShowConfirmacion(false)
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo confirmar el email'
+      notifyError(msg)
+    } finally {
+      setConfLoading(false)
+    }
+  }
+
+  async function handleReenviarCodigo() {
+    if (!confEmail.includes('@') || !confEmail.includes('.')) {
+      notifyError('Ingresá tu email para reenviar el código')
+      return
+    }
+    setReenviandoCodigo(true)
+    try {
+      await api.auth.reenviarCodigo({ email: confEmail.trim() })
+      notifySuccess('Código reenviado. Revisá tu email.')
+    } catch (err: any) {
+      const msg = err.message || 'No se pudo reenviar el código'
+      notifyError(msg)
+    } finally {
+      setReenviandoCodigo(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-indigo-500 flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold">KI</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">Vendeto</h1>
-          <p className="text-slate-400 text-sm mt-1">Iniciar sesión</p>
+        <div className="text-center mb-6">
+          <img
+            src="/vendeto-logo.png"
+            alt="Vendeto"
+            className="block mx-auto w-96 max-w-full h-auto"
+          />
         </div>
 
-        {!showRegister && (
+        {!showRegister && !showRecovery && !showConfirmacion && (
           <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
@@ -207,8 +304,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -267,59 +363,13 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              {buscarLicenciaOpen ? (
-                <div className="space-y-2 text-left">
-                  <p className="text-xs text-slate-500">
-                    ¿Pagaste recientemente? Ingresá tu email para validar la licencia.
-                  </p>
-                  <input
-                    type="email"
-                    value={buscarLicenciaEmail}
-                    onChange={e => setBuscarLicenciaEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="tu@email.com"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleBuscarLicencia}
-                      disabled={buscandoLicencia}
-                      className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-                    >
-                      {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setBuscarLicenciaOpen(false); setBuscarLicenciaEmail(''); setBuscarLicenciaNoEncontrada(false) }}
-                      className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                  {buscarLicenciaNoEncontrada && (
-                    <p className="text-xs text-slate-500">
-                      No encontramos una licencia para ese email.{' '}
-                      <a
-                        href="https://posweb-licensing.chiacchio-eze01.workers.dev"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline font-medium"
-                      >
-                        Ver planes y contratar
-                      </a>
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => { setBuscarLicenciaOpen(true); setBuscarLicenciaNoEncontrada(false) }}
-                  className="text-xs text-indigo-500 hover:underline"
-                >
-                  Buscar licencia
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => { setShowRecovery(true); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword(''); setRecNuevaPassword2('') }}
+                className="text-xs text-slate-500 hover:text-indigo-600 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
           </form>
         )}
@@ -328,63 +378,75 @@ export default function LoginPage() {
           <form onSubmit={handleRegisterSubmit} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">Crear administrador</h2>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
-              <input
-                type="text"
-                value={regUsuario}
-                onChange={e => setRegUsuario(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-                autoFocus
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+                <input
+                  type="text"
+                  value={regUsuario}
+                  onChange={e => setRegUsuario(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  autoFocus
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-              <input
-                type="password"
-                value={regPassword}
-                onChange={e => setRegPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-                minLength={6}
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mail</label>
+                <input
+                  type="email"
+                  value={regMail}
+                  onChange={e => setRegMail(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mail</label>
-              <input
-                type="email"
-                value={regMail}
-                onChange={e => setRegMail(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                <PasswordInput
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  minLength={6}
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Empresa</label>
-              <input
-                type="text"
-                value={regEmpresa}
-                onChange={e => setRegEmpresa(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Nombre de empresa (opcional)"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Repetir contraseña</label>
+                <PasswordInput
+                  value={regPassword2}
+                  onChange={e => setRegPassword2(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                  minLength={6}
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
-              <select
-                value={regTipoNegocio}
-                onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              >
-                <option value="Tienda">Tienda</option>
-                <option value="Restaurante">Restaurante (con mesas)</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Empresa</label>
+                <input
+                  type="text"
+                  value={regEmpresa}
+                  onChange={e => setRegEmpresa(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de negocio</label>
+                <select
+                  value={regTipoNegocio}
+                  onChange={e => setRegTipoNegocio(e.target.value as 'Tienda' | 'Restaurante')}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                >
+                  <option value="Tienda">Tienda</option>
+                  <option value="Restaurante">Restaurante (con mesas)</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -403,6 +465,164 @@ export default function LoginPage() {
               className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >
               Cancelar registro
+            </button>
+          </form>
+        )}
+
+        {showRecovery && (
+          <form onSubmit={recPaso === 'email' ? handleSolicitarCodigo : handleResetPassword} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900">Recuperar contraseña</h2>
+
+            {recPaso === 'email' ? (
+              <>
+                <p className="text-sm text-slate-500">
+                  Ingresá el email con el que te registraste. Te enviaremos un código de 6 dígitos para restablecer tu contraseña.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={recEmail}
+                    onChange={e => setRecEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="tu@email.com"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={recLoading}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                >
+                  {recLoading ? 'Enviando...' : 'Enviar código'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500">
+                  Revisá tu email e ingresá el código de 6 dígitos junto con tu nueva contraseña.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Código</label>
+                  <input
+                    type="text"
+                    value={recCodigo}
+                    onChange={e => setRecCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center tracking-[0.5em] font-mono text-lg"
+                    placeholder="••••••"
+                    required
+                    autoFocus
+                    inputMode="numeric"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nueva contraseña</label>
+                  <PasswordInput
+                    value={recNuevaPassword}
+                    onChange={e => setRecNuevaPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Repetir contraseña</label>
+                  <PasswordInput
+                    value={recNuevaPassword2}
+                    onChange={e => setRecNuevaPassword2(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={recLoading}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                >
+                  {recLoading ? 'Restableciendo...' : 'Restablecer contraseña'}
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { setShowRecovery(false); setRecPaso('email'); setRecCodigo(''); setRecNuevaPassword(''); setRecNuevaPassword2('') }}
+              className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
+            >
+              Volver al inicio de sesión
+            </button>
+          </form>
+        )}
+
+        {showConfirmacion && (
+          <form onSubmit={handleConfirmarCuenta} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900">Confirmá tu email</h2>
+
+            <p className="text-sm text-slate-500">
+              Ingresá el email con el que te registraste y el código de 6 dígitos que te enviamos.
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={confEmail}
+                onChange={e => setConfEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="tu@email.com"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Código</label>
+              <input
+                type="text"
+                value={confCodigo}
+                onChange={e => setConfCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center tracking-[0.5em] font-mono text-lg"
+                placeholder="••••••"
+                required
+                inputMode="numeric"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={confLoading}
+              className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+            >
+              {confLoading ? 'Confirmando...' : 'Confirmar email'}
+            </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleReenviarCodigo}
+                disabled={reenviandoCodigo}
+                className="text-xs text-indigo-500 hover:underline disabled:opacity-50"
+              >
+                {reenviandoCodigo ? 'Reenviando...' : 'Reenviar código'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setShowConfirmacion(false); setConfEmail(''); setConfCodigo('') }}
+              className="w-full border border-slate-300 text-slate-700 py-2.5 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
+            >
+              Volver al inicio de sesión
             </button>
           </form>
         )}

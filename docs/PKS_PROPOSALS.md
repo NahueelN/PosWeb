@@ -476,6 +476,16 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 
 **Condición para reevaluar**: Solo si aparece evidencia de uso real que justifique el cambio (ej: métricas de que >70% de compras consecutivas son al mismo proveedor).
 
+### Botón "Buscar licencia" (activar-por-email)
+
+**Estado**: Descartada (retirada en 2026-10-02)
+
+**Origen**: Auditoría del flujo de licencia (rama `mailerpassword`, 2026-10-02)
+
+**Motivo**: La activación por email ya ocurre automáticamente en el login (`VerificarOActivarLicencia` → `BuscarYActivarPorEmail(usuario.MAIL)` cuando `VerificarAcceso` falla) y en el registro (`ActivarPorEmailOPrueba`). El endpoint público `POST /licencia/activar-por-email`, el DTO `ActivarLicenciaPorEmailRequest` y los botones de LoginPage/ConfiguracionPage quedaron como código vestigial: solo cubrían el caso raro de comprar con un email distinto al de la cuenta. Se retiraron el endpoint, el DTO y la UI; se conserva el método de servicio `BuscarYActivarPorEmail` (lo usa el login/registro).
+
+**Condición para reevaluar**: Solo si el usuario puede comprar la licencia con un email distinto al MAIL de su cuenta de forma habitual (hoy el flujo de registro vincula el email de compra con el de la cuenta). En ese caso, reintroducir la activación manual como endpoint autenticado, no público.
+
 ---
 
 ## Investigaciones
@@ -526,3 +536,10 @@ La fuente de verdad de la lista de comandos es `ADR-project-commands-family.md`.
 | 2026-09-23 | Actualización SERVICE-licensing-worker (planes, precios, `/register`) | `knowledge/projects/posweb/SERVICE-licensing-worker.md` |
 | 2026-09-23 | Actualización FLOW-suscripcion (degradación a Gratuito) | `knowledge/projects/posweb/FLOW-suscripcion.md` |
 | 2026-09-23 | Actualización ADR-suscripciones (planes Gratuito/Básico/Máximo) | `knowledge/projects/posweb/ADR-suscripciones.md` |
+| 2026-10-02 | SERVICE-mailer-worker — MailerWorker transactional email via ZeptoMail | `knowledge/projects/posweb/SERVICE-mailer-worker.md` |
+| 2026-10-02 | BUS-recuperacion-contrasena — Reglas de recuperación de contraseña | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |
+| 2026-10-02 | FLOW-recuperacion-contrasena — Flujo de recuperación de contraseña | `knowledge/projects/posweb/FLOW-recuperacion-contrasena.md` |
+| 2026-10-02 | ADR-mailer-worker-dedicado — Worker dedicado de email + validación local | `knowledge/projects/posweb/ADR-mailer-worker-dedicado.md` |
+| 2026-10-02 | BUS-confirmacion-email — Reglas de confirmación de email de cuenta | `knowledge/projects/posweb/BUS-confirmacion-email.md` |
+| 2026-10-02 | FLOW-confirmacion-email — Flujo de confirmación de email | `knowledge/projects/posweb/FLOW-confirmacion-email.md` |
+| 2026-10-02 | Actualización BUS-recuperacion-contrasena (token genérico con PROPOSITO) | `knowledge/projects/posweb/BUS-recuperacion-contrasena.md` |

@@ -288,7 +288,7 @@ Write-Host "     cd frontend" -ForegroundColor White
 Write-Host "     npm run dev" -ForegroundColor White
 Write-Host ""
 Write-Host "  3. Abrir http://localhost:5173" -ForegroundColor Cyan
-Write-Host "     Usuario: admin / Contrasena: 123" -ForegroundColor White
+Write-Host '     Para desarrollo: definí Seed__AdminPassword o usá Seed__ResetAdminPassword.' -ForegroundColor White
 Write-Host ""
 Write-Host "Para APAGAR MySQL al terminar:" -ForegroundColor Yellow
 Write-Host "  .\stop-mysql.ps1" -ForegroundColor White

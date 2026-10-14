@@ -1,24 +1,35 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HelpCircle } from 'lucide-react'
 import { HELP_KEYS } from '../help/content'
-import { api } from '../api/client'
+import { ApiError, api, type RemoteAccessStatus } from '../api/client'
+import { remoteAccessView } from './configuracion/remoteAccessView'
 import { useNotification } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import MargenesTab from '../components/MargenesTab'
 import StockTab from '../components/StockTab'
 import AltaUsuarioTab from '../components/AltaUsuarioTab'
 import RespaldoTab from '../components/RespaldoTab'
-import type { EmpresaDto, UsuarioListadoDto, LicenciaEstado } from '../types'
+import type { EmpresaDto, LicenciaEstado } from '../types'
 import { getMailPref, setMailPref as persistMailPref, type MailMethod } from '../lib/mail'
 import { getWhatsAppPref, setWhatsAppPref as persistWhatsAppPref, type WhatsAppMethod } from '../lib/whatsapp'
 
-type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock' | 'respaldo'
+type Tab = 'usuarios' | 'perfil' | 'compartir' | 'margenes' | 'stock' | 'respaldo' | 'acceso-remoto'
 
 const tabStyle = (active: boolean) =>
   `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
     active ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
   }`
+
+const remoteAccessUnavailableMessage = 'El acceso remoto no está disponible en este momento.'
+
+function remoteAccessUnavailableMessageFor(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 503) return 'El acceso remoto no está configurado en esta instalación'
+    if (error.status === 409) return error.message
+  }
+  return remoteAccessUnavailableMessage
+}
 
 export default function ConfiguracionPage() {
   const navigate = useNavigate()
@@ -39,17 +50,42 @@ export default function ConfiguracionPage() {
   const [mailPref, setMailPref] = useState<MailMethod | ''>(getMailPref() ?? '')
   const [whatsappPref, setWhatsappPref] = useState<WhatsAppMethod | ''>(getWhatsAppPref() ?? '')
   const [tipoNegocio, setTipoNegocio] = useState<'Tienda' | 'Restaurante'>('Tienda')
+  const [remoteSlug, setRemoteSlug] = useState('')
+  const [remoteStatus, setRemoteStatus] = useState<RemoteAccessStatus>({ status: 'inactive' })
+  const [remoteUnavailable, setRemoteUnavailable] = useState(false)
+  const [remoteUnavailableMessage, setRemoteUnavailableMessage] = useState<string | null>(null)
+  const [remoteRequestInFlight, setRemoteRequestInFlight] = useState(false)
+  const [passwordActual, setPasswordActual] = useState('')
+  const [passwordNueva, setPasswordNueva] = useState('')
+  const [passwordConfirmacion, setPasswordConfirmacion] = useState('')
+  const [cambiandoPassword, setCambiandoPassword] = useState(false)
+  const remotePollStartedAt = useRef<number | null>(null)
+  const remoteUnavailableNotified = useRef(false)
+  const actualizarEstadoRemoto = useEffectEvent(async () => {
+    try {
+      const remote = await api.remoteAccess.status()
+      setRemoteStatus(remote)
+      setRemoteUnavailable(false)
+      setRemoteUnavailableMessage(null)
+      remoteUnavailableNotified.current = false
+      if (remote.slug) setRemoteSlug(remote.slug)
+    } catch (error) {
+      const message = remoteAccessUnavailableMessageFor(error)
+      setRemoteUnavailable(true)
+      setRemoteUnavailableMessage(message)
+      if (!remoteUnavailableNotified.current) {
+        remoteUnavailableNotified.current = true
+        notifyError(message)
+      }
+    }
+  })
 
   const [mpVinculado, setMpVinculado] = useState(false)
   const [mpTitular, setMpTitular] = useState<string | null>(null)
   const [mpAlias, setMpAlias] = useState('')
   const [mpAliasGuardando, setMpAliasGuardando] = useState(false)
 
-  const [perfil, setPerfil] = useState<UsuarioListadoDto | null>(null)
   const [licencia, setLicencia] = useState<LicenciaEstado | null>(null)
-  const [buscandoLicencia, setBuscandoLicencia] = useState(false)
-  const [licenciaNoEncontrada, setLicenciaNoEncontrada] = useState(false)
-
   const esGratuito = licencia?.plan === 'Gratuito'
 
   const datosEmpresa = useCallback(() => ({
@@ -74,8 +110,25 @@ export default function ConfiguracionPage() {
       .catch(() => notifyError('Error al cargar empresa'))
       .finally(() => setLoading(false))
     api.licencia.estado().then(setLicencia).catch(() => {})
-    api.auth.me().then(setPerfil).catch(() => {})
-  }, [])
+    if (canManageUsers) void actualizarEstadoRemoto()
+  }, [canManageUsers, notifyError])
+
+  useEffect(() => {
+    if (remoteStatus.status !== 'provisioning' && remoteStatus.status !== 'waiting_connector') {
+      remotePollStartedAt.current = null
+      return
+    }
+
+    remotePollStartedAt.current ??= Date.now()
+    const interval = window.setInterval(() => {
+      if (remotePollStartedAt.current && Date.now() - remotePollStartedAt.current >= 5 * 60 * 1000) {
+        window.clearInterval(interval)
+        return
+      }
+      void actualizarEstadoRemoto()
+    }, 5_000)
+    return () => window.clearInterval(interval)
+  }, [remoteStatus.status])
 
   useEffect(() => {
     api.restaurante.config()
@@ -146,27 +199,56 @@ export default function ConfiguracionPage() {
     }
   }
 
-  const handleBuscarLicencia = async () => {
-    const email = perfil?.mail
-    if (!email) {
-      notifyError('No tenés un mail configurado en tu cuenta')
+  const remoteSlugDisplay = remoteSlug.trim().toLowerCase()
+  const remoteUrl = remoteStatus.hostname ? `https://${remoteStatus.hostname}` : ''
+  const remoteView = remoteAccessView(remoteStatus)
+  const activarAccesoRemoto = async () => {
+    const slug = remoteSlugDisplay
+    if (!/^[a-z0-9-]{3,40}$/.test(slug)) {
+      notifyError('Usá entre 3 y 40 caracteres: letras, números y guiones.')
       return
     }
-    setBuscandoLicencia(true)
-    setLicenciaNoEncontrada(false)
+    setRemoteRequestInFlight(true)
     try {
-      await api.licencia.activarPorEmail({ email })
-      notifySuccess('Licencia activada')
-      const estado = await api.licencia.estado()
-      setLicencia(estado)
-    } catch (err: any) {
-      const msg = err.message || 'No se pudo activar la licencia'
-      notifyError(msg)
-      if (msg.includes('No se encontró')) {
-        setLicenciaNoEncontrada(true)
-      }
+      const remote = await api.remoteAccess.activate(slug)
+      setRemoteSlug(slug)
+      setRemoteStatus(remote)
+      notifySuccess('Activación solicitada')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo activar el acceso remoto')
     } finally {
-      setBuscandoLicencia(false)
+      setRemoteRequestInFlight(false)
+    }
+  }
+  const desactivarAccesoRemoto = async () => {
+    setRemoteRequestInFlight(true)
+    try {
+      await api.remoteAccess.deactivate()
+      setRemoteStatus({ status: 'inactive' })
+      notifySuccess('Acceso remoto desactivado')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo desactivar el acceso remoto')
+    } finally {
+      setRemoteRequestInFlight(false)
+    }
+  }
+  const cambiarPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (passwordNueva !== passwordConfirmacion) {
+      notifyError('La confirmación de la contraseña no coincide')
+      return
+    }
+    setCambiandoPassword(true)
+    try {
+      await api.auth.cambiarPassword({ actual: passwordActual, nueva: passwordNueva })
+      setPasswordActual('')
+      setPasswordNueva('')
+      setPasswordConfirmacion('')
+      notifySuccess('Contraseña actualizada')
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'No se pudo cambiar la contraseña')
+    } finally {
+      setCambiandoPassword(false)
     }
   }
 
@@ -197,6 +279,7 @@ export default function ConfiguracionPage() {
         <button type="button" onClick={() => setTab('perfil')} className={tabStyle(tab === 'perfil')}>
           Perfil
         </button>
+        {canManageUsers && <button type="button" onClick={() => setTab('acceso-remoto')} className={tabStyle(tab === 'acceso-remoto')}>Acceso remoto</button>}
         {!esGratuito && (
           <button type="button" onClick={() => setTab('compartir')} className={tabStyle(tab === 'compartir')}>
             Compartir
@@ -222,6 +305,16 @@ export default function ConfiguracionPage() {
       {tab === 'usuarios' && canManageUsers && <AltaUsuarioTab />}
 
       {tab === 'respaldo' && canManageUsers && <RespaldoTab />}
+
+      {tab === 'acceso-remoto' && canManageUsers && (
+        <section className="max-w-2xl rounded-xl bg-white p-6 shadow-xl space-y-5">
+          <div><h2 className="text-lg font-semibold text-slate-900">Acceso remoto</h2><p className="mt-1 text-sm text-slate-500">Conectá celulares a esta instalación de Vendeto.</p></div>
+           <div><label htmlFor="remote-slug" className="block text-sm font-medium text-slate-700 mb-1">Subdominio del comercio</label><div className="flex items-center"><input id="remote-slug" value={remoteSlug} disabled={remoteUnavailable || !remoteView.canActivate || remoteRequestInFlight} onChange={e => setRemoteSlug(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))} className="w-full rounded-l-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" placeholder="kiosco-lopez"/><span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">.vendetoweb.com.ar</span></div></div>
+           {remoteUrl && remoteStatus.status === 'active' && <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-slate-50 p-3 text-sm text-indigo-700 break-all hover:underline">{remoteUrl}</a>}
+           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3"><p className="text-sm font-medium text-slate-800">{remoteView.label}</p>{remoteUnavailableMessage && <p role="alert" className="text-sm text-red-700">{remoteUnavailableMessage}</p>}{remoteView.steps.length > 0 && <ol className="space-y-2 text-sm">{remoteView.steps.map((step, index) => <li key={step} className={remoteStatus.status === 'active' || index === 0 ? 'text-emerald-700' : 'text-slate-500'}>{remoteStatus.status === 'active' || index === 0 ? '●' : '○'} {step}</li>)}</ol>}{remoteStatus.status === 'failed' && remoteStatus.lastError && <p role="alert" className="text-sm text-red-700">{remoteStatus.lastError}</p>}{remoteStatus.connector?.state === 'error' && remoteStatus.connector.error && <p role="alert" className="text-sm text-red-700">{remoteStatus.connector.error}</p>}</div>
+           <div className="flex gap-3">{!remoteUnavailable && remoteView.canActivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void activarAccesoRemoto()} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Activar acceso remoto</button>}{!remoteUnavailable && remoteView.canDeactivate && <button type="button" disabled={remoteRequestInFlight} onClick={() => void desactivarAccesoRemoto()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Desactivar</button>}{!remoteUnavailable && remoteStatus.status === 'active' && remoteUrl && <button type="button" onClick={() => navigator.clipboard.writeText(remoteUrl).then(() => notifySuccess('Enlace copiado'))} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Copiar enlace</button>}</div>
+        </section>
+      )}
 
       {tab === 'perfil' && (
         <>
@@ -324,8 +417,24 @@ export default function ConfiguracionPage() {
             )}
           </div>
 
-          <div className="space-y-6">
-          {canManageUsers && (
+           <div className="space-y-6">
+           <form onSubmit={cambiarPassword} className="bg-white rounded-xl p-6 shadow-xl space-y-4">
+             <h2 className="text-lg font-semibold text-slate-900">Cambiar contraseña</h2>
+             <div>
+               <label htmlFor="password-actual" className="block text-sm font-medium text-slate-700 mb-1">Contraseña actual</label>
+               <input id="password-actual" type="password" autoComplete="current-password" value={passwordActual} onChange={event => setPasswordActual(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <div>
+               <label htmlFor="password-nueva" className="block text-sm font-medium text-slate-700 mb-1">Nueva contraseña</label>
+               <input id="password-nueva" type="password" autoComplete="new-password" value={passwordNueva} onChange={event => setPasswordNueva(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <div>
+               <label htmlFor="password-confirmacion" className="block text-sm font-medium text-slate-700 mb-1">Confirmar nueva contraseña</label>
+               <input id="password-confirmacion" type="password" autoComplete="new-password" value={passwordConfirmacion} onChange={event => setPasswordConfirmacion(event.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+             </div>
+             <button type="submit" disabled={cambiandoPassword} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{cambiandoPassword ? 'Actualizando...' : 'Actualizar contraseña'}</button>
+           </form>
+           {canManageUsers && (
             <div className="bg-white rounded-xl p-6 shadow-xl space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">MercadoPago</h2>
               {!mpVinculado ? (
@@ -369,30 +478,7 @@ export default function ConfiguracionPage() {
           )}
 
           <div className="bg-white rounded-xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-slate-900">Licencia</h2>
-              <button
-                onClick={handleBuscarLicencia}
-                disabled={buscandoLicencia}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-              >
-                {buscandoLicencia ? 'Buscando...' : 'Buscar licencia'}
-              </button>
-            </div>
-
-            {licenciaNoEncontrada && (
-              <p className="text-xs text-slate-500 mb-3">
-                No encontramos una licencia para <strong>{perfil?.mail}</strong>.{' '}
-                <a
-                  href="https://posweb-licensing.chiacchio-eze01.workers.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 hover:underline font-medium"
-                >
-                  Ver planes y contratar
-                </a>
-              </p>
-            )}
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Licencia</h2>
 
             {!licencia ? (
               <p className="text-sm text-slate-500">Sin licencia configurada.</p>

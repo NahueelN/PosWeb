@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "posweb-mailer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "FROM_EMAIL": "hola@vendeto.com.ar",
+    "FROM_NAME": "Vendeto",
+    "CONTACT_TO": "soporte@vendeto.com.ar"
+  }
+}

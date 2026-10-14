@@ -596,7 +596,7 @@ namespace PosWeb.Migrations.Local
 
                     b.HasKey("Id");
 
-                    b.ToTable("LicenciaConfig");
+                    b.ToTable("LicenciaConfig", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.MedioPago", b =>
@@ -840,6 +840,51 @@ namespace PosWeb.Migrations.Local
                     b.HasIndex("ID_DEUDA");
 
                     b.ToTable("PAGO_DEUDA", (string)null);
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PasswordResetToken", b =>
+                {
+                    b.Property<int>("ID_TOKEN")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_TOKEN");
+
+                    b.Property<DateTime>("CREATED_UTC")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("CREATED_UTC");
+
+                    b.Property<DateTime>("EXPIRA_UTC")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("EXPIRA_UTC");
+
+                    b.Property<int>("ID_USUARIO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ID_USUARIO");
+
+                    b.Property<int>("INTENTOS")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("INTENTOS");
+
+                    b.Property<string>("PROPOSITO")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PROPOSITO");
+
+                    b.Property<string>("TOKEN_HASH")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("TOKEN_HASH");
+
+                    b.Property<bool>("USADO")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("USADO");
+
+                    b.HasKey("ID_TOKEN");
+
+                    b.HasIndex("ID_USUARIO");
+
+                    b.ToTable("PASSWORD_RESET_TOKEN", (string)null);
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>
@@ -1502,6 +1547,12 @@ namespace PosWeb.Migrations.Local
                         .HasColumnType("INTEGER")
                         .HasColumnName("ACTIVO");
 
+                    b.Property<bool>("EMAIL_CONFIRMADO")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true)
+                        .HasColumnName("EMAIL_CONFIRMADO");
+
                     b.Property<bool>("ES_TITULAR")
                         .HasColumnType("INTEGER");
 
@@ -1568,6 +1619,7 @@ namespace PosWeb.Migrations.Local
                         {
                             ID_USUARIO = 1,
                             ACTIVO = true,
+                            EMAIL_CONFIRMADO = true,
                             ES_TITULAR = false,
                             MAIL = "admin@posweb.com",
                             NOMBRE_USUARIO = "admin",
@@ -1836,6 +1888,15 @@ namespace PosWeb.Migrations.Local
                         .IsRequired();
 
                     b.Navigation("Deuda");
+                });
+
+            modelBuilder.Entity("PosWeb.Domain.PasswordResetToken", b =>
+                {
+                    b.HasOne("PosWeb.Domain.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ID_USUARIO")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PosWeb.Domain.Pedido", b =>

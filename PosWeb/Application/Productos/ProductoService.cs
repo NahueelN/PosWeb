@@ -365,12 +365,13 @@ public class ProductoService
         }
 
         return _context.Producto
-            .Where(p => p.ACTIVO && (EF.Functions.Like(p.DESC_PRODUCTO, $"%{term}%") || EF.Functions.Like(p.CODIGO_BARRAS, $"%{term}%")))
+            .Where(p => p.ACTIVO && (EF.Functions.Like(p.DESC_PRODUCTO, $"%{term}%") || EF.Functions.Like(p.CODIGO_BARRAS, $"%{term}%") || EF.Functions.Like(p.COD_PRODUCTO, $"%{term}%")))
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
                 CodigoBarra = p.CODIGO_BARRAS,
+                CodigoProducto = p.COD_PRODUCTO,
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
@@ -394,12 +395,13 @@ public class ProductoService
         string pattern = $"%{term}%";
 
         return _context.Producto
-            .Where(p => p.ACTIVO && !p.ES_BULTO && (EF.Functions.Like(p.DESC_PRODUCTO, pattern) || EF.Functions.Like(p.CODIGO_BARRAS, pattern)))
+            .Where(p => p.ACTIVO && !p.ES_BULTO && (EF.Functions.Like(p.DESC_PRODUCTO, pattern) || EF.Functions.Like(p.CODIGO_BARRAS, pattern) || EF.Functions.Like(p.COD_PRODUCTO, pattern)))
             .OrderBy(p => p.DESC_PRODUCTO)
             .Select(p => new ProductoDto
             {
                 Id = p.ID_PRODUCTO,
                 CodigoBarra = p.CODIGO_BARRAS,
+                CodigoProducto = p.COD_PRODUCTO,
                 Nombre = p.DESC_PRODUCTO,
                 Precio = p.PRECIO,
                 Costo = p.COSTO,
