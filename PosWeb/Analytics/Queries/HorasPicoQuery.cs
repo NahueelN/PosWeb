@@ -39,21 +39,37 @@ public class HorasPicoQuery : IAnalyticsQuery
             .OrderBy(x => x.Hora)
             .ToList();
 
-        var rows = agrupado.Select(x => new Dictionary<string, object?>
+        var porCantidad = string.Equals(p?.Metric, "cantidad", StringComparison.OrdinalIgnoreCase);
+
+        var rows = agrupado.Select(x =>
         {
-            ["label"] = $"{x.Hora:00}:00",
-            ["value"] = x.Total,
-            ["cantidad"] = x.Cantidad,
+            var row = new Dictionary<string, object?>
+            {
+                ["label"] = $"{x.Hora:00}:00",
+                ["value"] = porCantidad ? (decimal)x.Cantidad : x.Total,
+            };
+            if (!porCantidad)
+                row["cantidad"] = x.Cantidad;
+            return row;
         }).ToList();
+
+        var columns = new List<DatasetColumn>
+        {
+            new() { Name = "label", Type = "string", Label = "Hora" },
+        };
+        if (porCantidad)
+        {
+            columns.Add(new() { Name = "value", Type = "number", Label = "Transacciones" });
+        }
+        else
+        {
+            columns.Add(new() { Name = "value", Type = "currency", Label = "Ventas", Format = "currency" });
+            columns.Add(new() { Name = "cantidad", Type = "number", Label = "Transacciones" });
+        }
 
         return new Dataset
         {
-            Columns = new List<DatasetColumn>
-            {
-                new() { Name = "label", Type = "string", Label = "Hora" },
-                new() { Name = "value", Type = "currency", Label = "Ventas", Format = "currency" },
-                new() { Name = "cantidad", Type = "number", Label = "Transacciones" },
-            },
+            Columns = columns,
             Rows = rows,
             Summary = new DatasetSummary
             {

@@ -297,7 +297,7 @@ export default function DashboardGridRGL({
 
               {onConfigChange && (inlineParamsByDef.get(inst.definitionId)?.length ?? 0) > 0 && (
                 <div
-                  className="absolute top-9 right-2 z-30 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                  className="absolute top-3.5 right-28 z-30"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <WidgetInlineControls

@@ -18,6 +18,9 @@ public class DashboardQueryParams
     /// <summary>Período del gráfico de ventas en días (7, 14, 30).</summary>
     public int ChartPeriodDays { get; set; } = 7;
 
+    /// <summary>Métrica de la distribución horaria: "monto" (facturación) o "cantidad" (transacciones).</summary>
+    public string Metric { get; set; } = "monto";
+
     /// <summary>Meta diaria de ventas configurada por el usuario (Meta del día).</summary>
     public decimal? MetaMax { get; set; }
 

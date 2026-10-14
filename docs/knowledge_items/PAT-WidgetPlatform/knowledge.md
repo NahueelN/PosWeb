@@ -3,7 +3,7 @@ id: PAT-WidgetPlatform
 status: Active
 tags: [analytics, dashboard, widget, architecture, platform, visualization]
 created: 2026-07-17
-updated: 2026-10-08
+updated: 2026-10-14
 ---
 
 # PAT-WidgetPlatform
@@ -157,6 +157,32 @@ Invariantes:
 1. Ningún widget hardcodea gradientes ni su header por separado: usa `getWidgetAccent` + `WidgetHeader`.
 2. Agregar una fuente de datos nueva solo requiere indicar su ícono (`Icon` en la `WidgetDefinition`) y (opcional) su acento por defecto en `DEFAULT_ACCENT`.
 3. El color general de una fuente puede sobreescribirse por instancia vía el parámetro `color`.
+
+### Invariante de layout: barras con altura porcentual (BAR_CHART / LINE_CHART)
+
+Los gráficos que dimensionan cada barra con `height: N%` requieren que la columna contenedora tenga **altura definida**. La regla:
+
+- La fila flex que contiene las barras debe **estirar** a sus hijos (`items-stretch`). Nunca usar `items-end` / `items-start` / `items-center` en esa fila.
+- Alinear las barras al fondo se logra con `justify-end` en la **columna**, no con `align-items` en la fila.
+
+**Por qué (no es evidente leyendo el código):** si la columna queda con altura `auto` (no estirada), un `height` en porcentaje se resuelve como `auto` → `0px`. Las barras desaparecen, pero **las etiquetas del eje y la grilla se siguen renderizando**. El usuario ve un gráfico "vacío" aunque el Dataset tenga filas y valores correctos (`Query → Dataset → Widget` funciona; el problema es puramente de layout).
+
+Diagnóstico: si un `BAR_CHART` muestra etiquetas pero ninguna barra, y el backend devuelve filas, revisar el `align-items` de la fila flex — no los datos.
+
+Implementación de referencia: `frontend/src/analytics/widgets/ChartWidget.tsx`.
+
+### Invariante de renderizado: overlays fuera del overflow de la card
+
+La card de un widget es un contenedor con `transform` (animaciones de framer-motion) y `overflow-hidden`. Un tooltip o popover **no puede usar solo `position: fixed`**: el ancestro transformado pasa a ser su containing block y el `overflow-hidden` lo recorta (típicamente en el borde derecho/inferior).
+
+Regla:
+- Renderizar el overlay con `createPortal` a `document.body` (queda fuera del ancestro transformado y del clip).
+- Con el portal, las coordenadas de `getBoundingClientRect()` son del viewport y `position: fixed` se resuelve contra el viewport.
+- Limitar (clamp) la posición al viewport para que no se salga por los bordes.
+
+Diagnóstico: si un tooltip aparece recortado por el borde de la card —o desaparece al acercarse a un borde—, revisar el portal y el clamp, no los datos.
+
+Implementación de referencia: `frontend/src/analytics/widgets/ChartWidget.tsx` (tooltip).
 
 ## Backend: WidgetFactory
 

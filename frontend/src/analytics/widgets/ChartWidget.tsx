@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Widget } from '../types'
 import { formatCurrency } from '../../formats'
 import { BarChart3 } from 'lucide-react'
@@ -74,7 +75,7 @@ export default function ChartWidget({ widget }: Props) {
         </div>
       ) : (
         <div className="relative flex-1" style={{ minHeight: 100 }}>
-          <div className="flex items-end gap-1.5 h-full relative overflow-x-auto">
+          <div className="flex items-stretch gap-1.5 h-full relative overflow-x-auto">
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="border-t border-slate-100 w-full" />
@@ -106,13 +107,18 @@ export default function ChartWidget({ widget }: Props) {
             })}
           </div>
 
-          {tooltip && (
+          {tooltip && createPortal(
             <div
-              className="fixed z-50 bg-gray-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl pointer-events-none tabular-nums"
-              style={{ left: tooltip.x, top: tooltip.y - 30, transform: 'translateX(-50%)' }}
+              className="fixed z-[9999] bg-gray-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl pointer-events-none tabular-nums whitespace-nowrap"
+              style={{
+                left: Math.min(Math.max(tooltip.x, 64), window.innerWidth - 64),
+                top: Math.max(tooltip.y - 30, 4),
+                transform: 'translateX(-50%)',
+              }}
             >
               {data[tooltip.idx].label}: {formatValue(data[tooltip.idx].value)}
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
       )}

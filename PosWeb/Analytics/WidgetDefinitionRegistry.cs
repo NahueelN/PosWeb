@@ -553,12 +553,12 @@ public static class WidgetDefinitionRegistry
                 new WidgetVisualizationType
                 {
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
-                    Params = new() { PeriodoParam("7", includeToday: false) }
+                    Params = new() { PeriodoParam("7", includeToday: false), MetricParam() }
                 },
                 new WidgetVisualizationType
                 {
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
-                    Params = new() { PeriodoParam("7", includeToday: false) }
+                    Params = new() { PeriodoParam("7", includeToday: false), MetricParam() }
                 },
             }
         },
@@ -707,6 +707,20 @@ public static class WidgetDefinitionRegistry
             Inline = true
         };
     }
+
+    private static WidgetDefinitionParam MetricParam() => new()
+    {
+        Key = "metric",
+        Label = "Métrica",
+        Type = "select",
+        Default = "monto",
+        Inline = true,
+        Options = new()
+        {
+            new() { Value = "monto", Label = "Monto" },
+            new() { Value = "cantidad", Label = "Cantidad" },
+        }
+    };
 
     private static WidgetDefinitionParam LimitParam(int @default) => new()
     {

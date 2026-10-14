@@ -42,12 +42,17 @@ export default function PieChartWidget({ widget }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="p-3.5 flex flex-col items-center justify-center text-gray-300 h-full relative overflow-hidden">
+      <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
         <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center mb-2 ring-1 ring-black/[0.02]">
-          <PieChartIcon size={16} className="text-violet-300" />
+        <WidgetHeader accent={accent} title={widget.title} icon={config.icon} />
+        <div className="flex-1 flex items-center justify-center text-gray-300">
+          <div className="text-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center mx-auto mb-2 ring-1 ring-black/[0.02]">
+              <PieChartIcon size={16} className="text-violet-300" />
+            </div>
+            <p className="text-xs text-gray-400 font-medium">Sin datos</p>
+          </div>
         </div>
-        <p className="text-xs text-gray-400 font-medium">Sin datos</p>
       </div>
     )
   }

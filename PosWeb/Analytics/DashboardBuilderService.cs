@@ -158,6 +158,13 @@ public class DashboardBuilderService
             }
         }
 
+        if (config.TryGetValue("metric", out var metric))
+        {
+            var metricStr = metric?.ToString();
+            if (!string.IsNullOrWhiteSpace(metricStr))
+                p.Metric = metricStr;
+        }
+
         if (config.TryGetValue("limit", out var limit) && TryGetInt(limit, out var limitVal))
         {
             switch (definitionId)
