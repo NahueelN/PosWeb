@@ -30,6 +30,9 @@ export default function TransferenciaEspera({
   const minutos = Math.floor(tiempoRestante / 60)
   const segundos = tiempoRestante % 60
   const timerStr = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`
+  // Solo el cobro QR se puede verificar: el token OAuth de MP no expone balance ni
+  // transferencias entrantes, así que la transferencia se confirma únicamente a mano.
+  const puedeVerificar = verificacionInstantanea && modoQr
   const [verificando, setVerificando] = useState(false)
   const [resultadoVerif, setResultadoVerif] = useState<'pendiente' | 'encontrado' | 'no-encontrado'>('pendiente')
 
@@ -72,7 +75,7 @@ export default function TransferenciaEspera({
             </p>
           </div>
 
-          {mpEstado?.requiereRevincular && (
+          {modoQr && mpEstado?.requiereRevincular && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-0.5">
               <p className="text-xs font-bold text-amber-800">MercadoPago requiere volver a vincularse</p>
               <p className="text-xs leading-relaxed text-amber-700">
@@ -118,7 +121,7 @@ export default function TransferenciaEspera({
                 ? 'El cliente debe escanear el QR impreso en el mostrador.'
                 : 'Transferí el monto a la cuenta de MercadoPago vinculada.'
               }
-              {verificacionInstantanea
+              {puedeVerificar
                 ? ' La venta se confirmará automáticamente cuando se detecte el pago.'
                 : ' Cuando el cliente confirme el pago, marcá "Confirmar".'}
             </p>
@@ -151,7 +154,7 @@ export default function TransferenciaEspera({
           >
             Cancelar
           </Button>
-          {verificacionInstantanea && (
+          {puedeVerificar && (
             <Button
               variant="secondary"
               size="lg"

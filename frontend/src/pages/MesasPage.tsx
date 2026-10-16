@@ -1935,9 +1935,9 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
     })()
   }, [tiempoRestante, pendiente, notifyError])
 
-  // Verificación automática del pago (plan Máxima).
+  // Verificación automática del pago (plan Máxima). Solo QR: la transferencia se confirma a mano.
   useEffect(() => {
-    if (!pendiente) return
+    if (!pendiente || medioId !== 5) return
     const poll = setInterval(async () => {
       try {
         const res = await api.ventas.estado(pendiente.ventaId)
@@ -1945,7 +1945,7 @@ function CobrarDialog({ sesion, mediosPago, onClose, onCobrado }: CobrarDialogPr
       } catch { /* ignore */ }
     }, 3000)
     return () => clearInterval(poll)
-  }, [pendiente]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pendiente, medioId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const medio = mediosPago.find(m => m.id === medioId)
 
