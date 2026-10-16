@@ -5,6 +5,10 @@ param(
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendProject = Join-Path $ProjectRoot "PosWeb\PosWeb.csproj"
 $BinariesDir = Join-Path $ProjectRoot "frontend\src-tauri\binaries"
+$CloudflaredVersion = "2026.10.0"
+$CloudflaredSha256 = "86aee4017b26625cee8484c113558f48effa4cd47f7aa05fcf425604e5d2b23c"
+$CloudflaredUrl = "https://github.com/cloudflare/cloudflared/releases/download/$CloudflaredVersion/cloudflared-windows-amd64.exe"
+$CloudflaredPath = Join-Path $BinariesDir "vendeto-cloudflared-x86_64-pc-windows-msvc.exe"
 
 Write-Host "=== Building .NET backend sidecar ===" -ForegroundColor Cyan
 
@@ -52,3 +56,18 @@ $size = (Get-Item $targetExe).Length / 1MB
 Write-Host "Sidecar size: $([math]::Round($size, 1)) MB" -ForegroundColor Gray
 
 Write-Host "=== Sidecar build complete ===" -ForegroundColor Cyan
+
+Write-Host "=== Building Vendeto Mobile sidecar ===" -ForegroundColor Cyan
+& (Join-Path $ProjectRoot "mobile-client\build-sidecar.ps1") -Configuration $Configuration
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+Write-Host "=== Downloading pinned cloudflared sidecar ===" -ForegroundColor Cyan
+Invoke-WebRequest -Uri $CloudflaredUrl -OutFile $CloudflaredPath
+$actualHash = (Get-FileHash -Path $CloudflaredPath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualHash -ne $CloudflaredSha256) {
+    Remove-Item -Path $CloudflaredPath -Force -ErrorAction SilentlyContinue
+    throw "cloudflared checksum verification failed"
+}
+Write-Host "OK: cloudflared $CloudflaredVersion verified" -ForegroundColor Green

@@ -363,6 +363,11 @@ export interface ResetPasswordRequest {
   nuevaPassword: string
 }
 
+export interface ChangePasswordRequest {
+  actual: string
+  nueva: string
+}
+
 export interface ConfirmarEmailRequest {
   email: string
   codigo: string

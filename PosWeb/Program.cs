@@ -31,6 +31,9 @@ using PosWeb.Application.Licensing;
 using PosWeb.Application.Preferencias;
 using PosWeb.Application.MercadoPago;
 using PosWeb.Application.Respaldos;
+using PosWeb.Application.RemoteAccess;
+using PosWeb.Application.Seed;
+using PosWeb.Application;
 using PosWeb.Data;
 using PosWeb.Middlewares;
 using PosWeb.Domain;
@@ -44,7 +47,7 @@ if (embeddedJson != null)
 {
     var buf = new byte[embeddedJson.Length];
     embeddedJson.ReadExactly(buf);
-    builder.Configuration.AddJsonStream(new MemoryStream(buf));
+    EmbeddedConfigurationDefaults.AddJsonDefaults(builder.Configuration, Encoding.UTF8.GetString(buf));
 }
 
 builder.WebHost.UseUrls("http://localhost:5196");
@@ -148,6 +151,23 @@ builder.Services.AddSingleton<IEncryptionService>(sp =>
     return new EncryptionService(key);
 });
 builder.Services.AddScoped<LicenciaService>();
+builder.Services.AddSingleton<IConnectorProcess, CloudflaredProcess>();
+builder.Services.AddSingleton<IRemoteAccessConnector>(sp => new RemoteAccessConnector(
+    async cancellationToken =>
+    {
+        using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<RemoteAccessService>().ObtenerTokenConectorAsync(cancellationToken);
+    },
+    sp.GetRequiredService<IConnectorProcess>(),
+    builder.Configuration));
+builder.Services.AddHttpClient<RemoteAccessService>(client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService(sp => new RemoteAccessConnectorHostedService(
+    async cancellationToken =>
+    {
+        using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<RemoteAccessService>().StatusAsync(cancellationToken);
+    },
+    sp.GetRequiredService<IRemoteAccessConnector>()));
 
 // MercadoPago
 var mpEncryptionKey = builder.Configuration["MercadoPago:EncryptionKey"]
@@ -290,9 +310,18 @@ using (var scope = app.Services.CreateScope())
     var admin = ctx.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
     if (admin != null)
     {
-        if (!BCrypt.Net.BCrypt.Verify("7$0W6bD6@Z&", admin.PASSWORD_HASH))
+        if (AdminPasswordReset.ShouldRun(app.Environment.IsDevelopment(), builder.Configuration))
         {
-            admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("7$0W6bD6@Z&"));
+            var devPassword = AdminPasswordReset.Password(builder.Configuration);
+            if (!BCrypt.Net.BCrypt.Verify(devPassword, admin.PASSWORD_HASH))
+                admin.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(devPassword));
+        }
+        else if (FactoryAdminPassword.IsFactory(admin.PASSWORD_HASH))
+        {
+            if (FactoryAdminPassword.TryRotate(admin, ctx.Usuario.ToList()))
+                startupLogger.LogInformation("Seed admin factory password rotated");
+            else
+                startupLogger.LogWarning("Seed admin factory password was not rotated because admin is the only active administrator");
         }
         admin.ActivarSuscripcion();
         ctx.SaveChanges();
@@ -315,6 +344,19 @@ using (var scope = app.Services.CreateScope())
             ctx.Sucursal.Add(sucursal);
             ctx.SaveChanges();
         }
+
+        // The migration seed bypasses the registration flow, which normally creates the trial.
+        // Bootstrap it only for the development seed and never for an existing customer account.
+        if (DevTrialBootstrap.ShouldRun(
+            app.Environment.IsDevelopment(),
+            builder.Configuration,
+            admin.ROL,
+            admin.MAIL,
+            ctx.LicenciaConfig.Any()))
+        {
+            var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
+            await licenciaService.ActivarPorEmailOPrueba(admin.MAIL);
+        }
     }
 
     // Normalizar los límites de suscripciones existentes al esquema de planes nuevo
@@ -325,21 +367,6 @@ using (var scope = app.Services.CreateScope())
     }
     ctx.SaveChanges();
 
-    // Desarrollo: una base recién creada (por reset-local.ps1 o primer arranque) no tiene
-    // licencia, y el chequeo de licencia corre ANTES de validar la password del admin sembrado:
-    // el login fallaría con "No hay licencia configurada". Para poder entrar directo en local,
-    // se inicia una prueba gratuita local. Solo Development; en producción la licencia se
-    // activa por email.
-    if (app.Environment.IsDevelopment())
-    {
-        var licenciaService = scope.ServiceProvider.GetRequiredService<LicenciaService>();
-        if (await licenciaService.ObtenerEstadoLocal() is null)
-        {
-            var machineId = await licenciaService.ObtenerOCrearMachineId();
-            await licenciaService.IniciarPruebaGratuita(machineId);
-            startupLogger.LogInformation("Licencia de desarrollo creada (prueba gratuita local).");
-        }
-    }
 }
 
 // Log application startup

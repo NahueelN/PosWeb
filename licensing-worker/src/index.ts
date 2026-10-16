@@ -6,6 +6,8 @@ interface Env {
   MP_ACCESS_TOKEN: string;
   MP_WEBHOOK_SECRET?: string;
   POSWEB_INTERNAL_KEY?: string;
+  ADMIN_KEY?: string;
+  REMOTE_ACCESS_INTERNAL_KEY?: string;
 }
 
 interface License {
@@ -346,7 +348,7 @@ app.post('/activate', async (c) => {
   });
 });
 
-app.post('/status', async (c) => {
+async function statusHandler(c: any) {
   const env = c.env;
   const body = await c.req.json<{ license_key: string; machine_id: string }>();
   const { license_key, machine_id } = body;
@@ -415,6 +417,15 @@ app.post('/status', async (c) => {
     grace_until: vigencia.graceUntil,
     days_remaining: daysRemaining,
   });
+}
+
+app.post('/status', statusHandler);
+
+app.post('/internal/status', async (c) => {
+  if (!checkRemoteAccessAuth(c, c.env)) {
+    return c.json({ valid: false, error: 'Unauthorized' }, 401);
+  }
+  return statusHandler(c);
 });
 
 function checkInternalAuth(c: any, env: Env): boolean {
@@ -423,10 +434,34 @@ function checkInternalAuth(c: any, env: Env): boolean {
   return auth === `Bearer ${env.POSWEB_INTERNAL_KEY}`;
 }
 
+async function checkAdminAuth(c: any, env: Env): Promise<boolean> {
+  if (!env.ADMIN_KEY) return false;
+
+  const encoder = new TextEncoder();
+  const [provided, expected] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(c.req.header('Authorization') || '')),
+    crypto.subtle.digest('SHA-256', encoder.encode(`Bearer ${env.ADMIN_KEY}`)),
+  ]);
+  const providedBytes = new Uint8Array(provided);
+  const expectedBytes = new Uint8Array(expected);
+  let difference = 0;
+
+  for (let i = 0; i < providedBytes.length; i += 1) {
+    difference |= providedBytes[i] ^ expectedBytes[i];
+  }
+
+  return difference === 0;
+}
+
+function checkRemoteAccessAuth(c: any, env: Env): boolean {
+  if (!env.REMOTE_ACCESS_INTERNAL_KEY) return false;
+  return c.req.header('Authorization') === `Bearer ${env.REMOTE_ACCESS_INTERNAL_KEY}`;
+}
+
 app.post('/grant-license', async (c) => {
   const env = c.env;
 
-  if (!checkInternalAuth(c, env)) {
+  if (!await checkAdminAuth(c, env)) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
@@ -695,7 +730,7 @@ const LANDING_JS = `const WORKER_URL=window.location.origin;let selectedPlan='';
 
 const LANDING_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Vendeto - Activá tu licencia</title><style>${LANDING_CSS}</style></head><body><header><h1>Vendeto</h1><p class="subtitle">Sistema de gestión para tu comercio</p></header><main><section class="plans" id="plans"><div class="plan-card" data-plan="gratuito"><h2>Plan Gratuito</h2><div class="price">$0<span class="period">/mes</span></div><ul><li>1 usuario con acceso completo</li><li>Hasta 500 productos</li><li>Seguimiento de ventas, caja y stock</li></ul><p class="note">Se obtiene al vencer la prueba gratuita</p></div><div class="plan-card popular" data-plan="basica"><div class="badge">Recomendado</div><h2>Plan Básico</h2><div class="price">$32.500<span class="period">/mes</span></div><ul><li>3 usuarios</li><li>Hasta 1000 productos</li><li>Todos los módulos activados</li></ul><button class="btn btn-primary" onclick="openEmailModal('basica')">Contratar</button></div><div class="plan-card" data-plan="maxima"><h2>Plan Máximo</h2><div class="price">$39.990<span class="period">/mes</span></div><ul><li>Usuarios ilimitados</li><li>Hasta 10000 productos</li><li>MercadoPago: verificación de compras al instante</li><li>Soporte prioritario por email y WhatsApp</li></ul><button class="btn btn-primary" onclick="openEmailModal('maxima')">Contratar</button></div></section></main><div class="modal-overlay hidden" id="emailModal"><div class="modal"><h3>Completá tu email</h3><p>Recibirás tu clave de licencia en este correo después del pago.</p><input type="email" id="emailInput" placeholder="tu@email.com" autocomplete="email"><div class="modal-actions"><button class="btn btn-secondary" onclick="closeEmailModal()">Cancelar</button><button class="btn btn-primary" id="checkoutBtn" onclick="startCheckout()">Ir a pagar</button></div><div class="loader hidden" id="loader">Procesando...</div><div class="error hidden" id="errorMsg"></div></div></div><script>${LANDING_JS}</script></body></html>`;
 
-const SUCCESS_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Vendeto - Licencia activada</title><style>${LANDING_CSS}</style></head><body><header><h1>Vendeto</h1></header><main><section class="result-card success"><div class="icon">&#10003;</div><h2>Pago exitoso</h2><p>Tu licencia quedó asociada a tu email. Ahora activala en Vendeto.</p><div class="instructions"><h3>Instrucciones</h3><ol><li>Descargá e instal� Vendeto en tu computadora</li><li>Registrate con el mismo email con el que pagaste (te da una prueba de 7 días)</li><li>Si ya tenés cuenta, ingresá a Configuración y tocá "Buscar licencia"</li></ol></div></section></main></body></html>`;
+const SUCCESS_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Vendeto - Licencia activada</title><style>${LANDING_CSS}</style></head><body><header><h1>Vendeto</h1></header><main><section class="result-card success"><div class="icon">&#10003;</div><h2>Pago exitoso</h2><p>Tu licencia quedó asociada a tu email. Ahora activala en Vendeto.</p><div class="instructions"><h3>Instrucciones</h3><ol><li>Descargá e instalá Vendeto en tu computadora</li><li>Registrate con el mismo email con el que pagaste (te da una prueba de 7 días)</li><li>Si ya tenés cuenta, ingresá a Configuración y tocá "Buscar licencia"</li></ol></div></section></main></body></html>`;
 
 const ERROR_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Vendeto - Error</title><style>${LANDING_CSS}</style></head><body><header><h1>Vendeto</h1></header><main><section class="result-card error"><div class="icon">&#10007;</div><h2>Hubo un problema</h2><p>No se pudo completar el pago. Revisá tus datos e intentá nuevamente.</p><a href="/" class="btn btn-primary">Volver a intentar</a></section></main></body></html>`;
 

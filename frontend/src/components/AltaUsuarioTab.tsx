@@ -342,7 +342,6 @@ export default function AltaUsuarioTab() {
                   <th className="py-2 pr-4 font-medium">Supervisor</th>
                   <th className="py-2 pr-4 font-medium">Estado</th>
                   <th className="py-2 pr-4 font-medium">Nivel</th>
-                  <th className="py-2 pr-4 font-medium">Costo</th>
                   <th className="py-2 pr-4 font-medium">Suscripción</th>
                   <th className="py-2 pr-4 font-medium">Acceso</th>
                   <th className="py-2 pr-4 font-medium">PIN</th>
@@ -385,9 +384,6 @@ export default function AltaUsuarioTab() {
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
                       {usuarioItem.suscripcionNivel || '-'}
-                    </td>
-                    <td className="py-3 pr-4 text-slate-600">
-                      {usuarioItem.costoMensual != null ? `$${usuarioItem.costoMensual.toFixed(2)}` : '-'}
                     </td>
                     <td className="py-3 pr-4">
                       <span
@@ -446,7 +442,15 @@ export default function AltaUsuarioTab() {
                               onClick={e => {
                                 if (abierto) { setMenuAcciones(null); return }
                                 const rect = e.currentTarget.getBoundingClientRect()
-                                setMenuAcciones({ id: usuarioItem.id, top: rect.bottom + 4, left: rect.right })
+                                const gap = 4
+                                const itemHeight = 32
+                                const menuHeight = acciones.length * itemHeight + 12
+                                const espacioAbajo = window.innerHeight - rect.bottom
+                                const top = espacioAbajo < menuHeight + gap + 8
+                                  ? Math.max(gap, rect.top - menuHeight - gap)
+                                  : rect.bottom + gap
+                                const left = Math.min(rect.right, window.innerWidth - 4)
+                                setMenuAcciones({ id: usuarioItem.id, top, left })
                               }}
                               disabled={ocupado}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
@@ -458,7 +462,7 @@ export default function AltaUsuarioTab() {
                               <>
                                 <div className="fixed inset-0 z-40" onClick={() => setMenuAcciones(null)} />
                                 <div
-                                  className="fixed z-50 mt-0.5 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                                  className="fixed z-50 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
                                   style={{ top: menuAcciones!.top, left: menuAcciones!.left, transform: 'translateX(-100%)' }}
                                 >
                                   {acciones.map(a => (

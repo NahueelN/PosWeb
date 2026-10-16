@@ -7,7 +7,7 @@ namespace PosWeb.Application.Auth;
 
 /// <summary>
 /// Cliente del mailer-worker (Cloudflare). El worker es el único que contacta a ZeptoMail;
-/// el backend local solo le pasa el destinatario y el cuerpo del email. Replica el patrón
+/// el backend local solo le pasa el destinatario, tipo y código. Replica el patrón
 /// de LicenciaService (URL + clave interna en config, auth Bearer, SnakeCase).
 /// </summary>
 public class MailerService
@@ -22,32 +22,33 @@ public class MailerService
         PropertyNameCaseInsensitive = true
     };
 
-    public MailerService(IConfiguration configuration)
+    public MailerService(IConfiguration configuration, HttpMessageHandler? handler = null)
     {
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        _httpClient = handler == null
+            ? new HttpClient { Timeout = TimeSpan.FromSeconds(10) }
+            : new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
         _workerUrl = configuration["Mailer:WorkerUrl"];
         _internalKey = configuration["Mailer:InternalKey"];
     }
 
     /// <summary>
-    /// Envía un email transaccional vía el mailer-worker. Devuelve false si el worker no está
+    /// Envía un código transaccional vía el mailer-worker. Devuelve false si el worker no está
     /// configurado o falla (el flujo de recuperación no debe romper por un error de envío).
     /// </summary>
-    public async Task<bool> Enviar(string to, string subject, string htmlBody, string textBody)
+    public async Task<bool> EnviarCodigo(string to, string kind, string code)
     {
         if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
             return false;
 
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/send")
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/send-code")
             {
                 Content = JsonContent.Create(new
                 {
                     to,
-                    subject,
-                    html_body = htmlBody,
-                    text_body = textBody
+                    kind,
+                    code
                 }, options: JsonOptions)
             };
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);

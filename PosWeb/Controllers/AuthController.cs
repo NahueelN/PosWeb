@@ -111,6 +111,25 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Contraseña actualizada. Ya podés iniciar sesión." });
     }
 
+    [HttpPost("cambiar-password")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public IActionResult CambiarPassword([FromBody] ChangePasswordRequestDto request)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out var userId))
+            return Unauthorized(new { error = "No autenticado" });
+
+        try
+        {
+            _authService.CambiarPassword(userId, request.Actual, request.Nueva);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("reenviar-codigo")]
     [Microsoft.AspNetCore.Authorization.AllowAnonymous]
     public async Task<IActionResult> ReenviarCodigo([FromBody] ForgotPasswordRequestDto request)

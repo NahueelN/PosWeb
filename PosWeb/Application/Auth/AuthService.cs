@@ -1,5 +1,6 @@
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Licensing;
+using PosWeb.Application.Seed;
 using PosWeb.Contracts;
 using PosWeb.Data;
 using PosWeb.Domain;
@@ -183,10 +184,7 @@ public class AuthService
             throw new ArgumentException("Usuario requerido");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
-        {
-            throw new ArgumentException("Password requerido (mínimo 6 caracteres)");
-        }
+        PasswordPolicy.Validate(request.Password);
 
         if (string.IsNullOrWhiteSpace(request.Mail))
         {
@@ -354,6 +352,15 @@ public class AuthService
             }
         }
 
+        if (esTitular)
+        {
+            var adminSeed = _context.Usuario.FirstOrDefault(u => u.NOMBRE_USUARIO == "admin");
+            if (adminSeed != null && FactoryAdminPassword.TryRotate(adminSeed, _context.Usuario.ToList()))
+            {
+                _context.SaveChanges();
+            }
+        }
+
         return new RegisterResponseDto
         {
             Id = nuevoUsuario.ID_USUARIO,
@@ -477,7 +484,7 @@ public class AuthService
     /// </summary>
     public async Task SolicitarRecuperacion(string email)
     {
-        await SolicitarCodigo(email, PasswordResetToken.PropositoReset, "Código para restablecer tu contraseña - Vendeto", HtmlCodigo, TextoCodigo);
+        await SolicitarCodigo(email, PasswordResetToken.PropositoReset, "reset");
     }
 
     /// <summary>
@@ -486,10 +493,10 @@ public class AuthService
     /// </summary>
     public async Task SolicitarConfirmacionEmail(string email)
     {
-        await SolicitarCodigo(email, PasswordResetToken.PropositoConfirmacion, "Confirmá tu email - Vendeto", HtmlCodigoConfirmacion, TextoCodigoConfirmacion);
+        await SolicitarCodigo(email, PasswordResetToken.PropositoConfirmacion, "confirm");
     }
 
-    private async Task SolicitarCodigo(string email, string proposito, string asunto, Func<string, string> html, Func<string, string> texto)
+    private async Task SolicitarCodigo(string email, string proposito, string kind)
     {
         var mail = email?.Trim().ToLowerInvariant() ?? string.Empty;
 
@@ -528,7 +535,7 @@ public class AuthService
         _context.PasswordResetToken.Add(token);
         _context.SaveChanges();
 
-        var enviado = await _mailerService.Enviar(mail, asunto, html(codigo), texto(codigo));
+        var enviado = await _mailerService.EnviarCodigo(mail, kind, codigo);
 
         // Si el envío falla, el código no llega: se descarta para que el reintento del usuario
         // (que ahora sí recibirá uno) no deje códigos huérfanos acumulados.
@@ -598,8 +605,7 @@ public class AuthService
         if (!MailValido(mail) || string.IsNullOrWhiteSpace(codigo))
             throw new ArgumentException("Código inválido o expirado");
 
-        if (string.IsNullOrWhiteSpace(nuevaPassword) || nuevaPassword.Length < 6)
-            throw new ArgumentException("La contraseña debe tener al menos 6 caracteres");
+        PasswordPolicy.Validate(nuevaPassword);
 
         var usuario = _context.Usuario.FirstOrDefault(u => u.MAIL != null && u.MAIL.ToLower() == mail);
         if (usuario == null)
@@ -635,6 +641,23 @@ public class AuthService
         _context.SaveChanges();
     }
 
+    public void CambiarPassword(int userId, string actual, string nueva)
+    {
+        var usuario = _context.Usuario.FirstOrDefault(u => u.ID_USUARIO == userId);
+        if (usuario == null)
+            throw new ArgumentException("Usuario no encontrado");
+
+        if (!BCrypt.Net.BCrypt.Verify(actual, usuario.PASSWORD_HASH))
+            throw new ArgumentException("La contraseña actual es incorrecta");
+
+        if (BCrypt.Net.BCrypt.Verify(nueva, usuario.PASSWORD_HASH))
+            throw new ArgumentException("La contraseña nueva debe ser distinta de la actual");
+
+        PasswordPolicy.Validate(nueva);
+        usuario.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(nueva));
+        _context.SaveChanges();
+    }
+
     private static bool MailValido(string mail)
     {
         if (string.IsNullOrWhiteSpace(mail))
@@ -656,25 +679,4 @@ public class AuthService
         return codigo;
     }
 
-    private static string TextoCodigo(string codigo) =>
-        $"Tu código para restablecer la contraseña de Vendeto es: {codigo}\n\n" +
-        "Este código expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.";
-
-    private static string HtmlCodigo(string codigo) =>
-        $"<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:0 auto\">" +
-        "<h2 style=\"color:#1f2937\">Vendeto</h2>" +
-        "<p>Usá el siguiente código para restablecer tu contraseña:</p>" +
-        $"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px;color:#4f46e5;text-align:center\">{codigo}</p>" +
-        "<p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p></div>";
-
-    private static string TextoCodigoConfirmacion(string codigo) =>
-        $"Tu código para confirmar tu email de Vendeto es: {codigo}\n\n" +
-        "Este código expira en 15 minutos. Si no te registraste en Vendeto, ignorá este mensaje.";
-
-    private static string HtmlCodigoConfirmacion(string codigo) =>
-        $"<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:0 auto\">" +
-        "<h2 style=\"color:#1f2937\">Vendeto</h2>" +
-        "<p>Confirmá tu email ingresando el siguiente código:</p>" +
-        $"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px;color:#4f46e5;text-align:center\">{codigo}</p>" +
-        "<p>Expira en 15 minutos. Si no te registraste en Vendeto, ignorá este mensaje.</p></div>";
 }

@@ -15,6 +15,8 @@ const RELEASE_REPO = 'NahueelN/PosWeb';
 // Límite de consultas por IP para el formulario de contacto público.
 const CONTACT_MAX_PER_IP = 5;
 const CONTACT_WINDOW_SECONDS = 60 * 60;
+const CODE_MAX_PER_RECIPIENT = 5;
+const CODE_WINDOW_SECONDS = 60 * 60;
 
 // Límite de envíos de instalador por IP.
 const INSTALLER_MAX_PER_IP = 5;
@@ -67,8 +69,37 @@ async function obtenerInstaladorUrl(): Promise<string> {
   return asset?.browser_download_url || data.html_url;
 }
 
-// Solo el backend local (autenticado con MAILER_INTERNAL_KEY) puede enviar.
-app.post('/send', async (c) => {
+async function excedeLimiteCodigo(c: any, to: string): Promise<boolean> {
+  const hostname = new URL(c.req.url).hostname;
+  const cacheKey = new Request(`https://${hostname}/__ratelimit/send-code/${encodeURIComponent(to)}`);
+  const cached = await caches.default.match(cacheKey);
+  const count = cached ? Number(await cached.text()) || 0 : 0;
+  if (count >= CODE_MAX_PER_RECIPIENT) return true;
+
+  await caches.default.put(cacheKey, new Response(String(count + 1), {
+    headers: { 'Cache-Control': `max-age=${CODE_WINDOW_SECONDS}` },
+  }));
+  return false;
+}
+
+function templateCodigo(kind: 'confirm' | 'reset', code: string) {
+  if (kind === 'confirm') {
+    return {
+      subject: 'Confirmá tu email - Vendeto',
+      text: `Tu código para confirmar tu email es: ${code}\n\nExpira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.`,
+      html: `<p>Tu código para confirmar tu email es: <strong>${code}</strong></p><p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p>`,
+    };
+  }
+
+  return {
+    subject: 'Código para restablecer tu contraseña - Vendeto',
+    text: `Tu código para restablecer tu contraseña es: ${code}\n\nExpira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.`,
+    html: `<p>Tu código para restablecer tu contraseña es: <strong>${code}</strong></p><p>Expira en 15 minutos. Si no lo pediste vos, ignorá este mensaje.</p>`,
+  };
+}
+
+// Solo el backend local (autenticado con MAILER_INTERNAL_KEY) puede enviar códigos.
+app.post('/send-code', async (c) => {
   const env = c.env;
 
   if (!checkInternalAuth(c, env)) {
@@ -79,21 +110,28 @@ app.post('/send', async (c) => {
     return c.json({ error: 'ZEPTOMAIL_API_KEY no configurado' }, 500);
   }
 
-  // El backend serializa con SnakeCaseLower (html_body/text_body); también se acepta camelCase.
-  const body = await c.req.json<{ to: string; subject: string; htmlBody?: string; textBody?: string; html_body?: string; text_body?: string }>();
-  const { to, subject } = body;
-  const htmlBody = body.htmlBody ?? body.html_body;
-  const textBody = body.textBody ?? body.text_body;
+  const body = await c.req.json<{ to?: string; kind?: string; code?: string }>();
+  if (Object.keys(body).some(key => key !== 'to' && key !== 'kind' && key !== 'code')) {
+    return c.json({ error: 'El cuerpo solo admite to, kind y code' }, 400);
+  }
+  const to = body.to?.trim().toLowerCase() ?? '';
+  const kind = body.kind;
+  const code = body.code;
 
-  if (!to || !esEmailValido(to)) {
+  if (!esEmailValido(to)) {
     return c.json({ error: 'to es requerido y debe ser un email válido' }, 400);
   }
-  if (!subject || subject.length > 200) {
-    return c.json({ error: 'subject es requerido (máx. 200 caracteres)' }, 400);
+  if (kind !== 'confirm' && kind !== 'reset') {
+    return c.json({ error: 'kind debe ser confirm o reset' }, 400);
   }
-  if ((!htmlBody || !htmlBody.trim()) && (!textBody || !textBody.trim())) {
-    return c.json({ error: 'Se requiere htmlBody o textBody' }, 400);
+  if (!/^\d{6}$/.test(code ?? '')) {
+    return c.json({ error: 'code debe tener exactamente 6 dígitos' }, 400);
   }
+  if (await excedeLimiteCodigo(c, to)) {
+    return c.json({ error: 'Demasiados códigos enviados a este email. Intentá más tarde.' }, 429);
+  }
+
+  const template = templateCodigo(kind, code);
 
   const from = {
     address: env.FROM_EMAIL ?? 'hola@vendeto.com.ar',
@@ -110,9 +148,9 @@ app.post('/send', async (c) => {
       body: JSON.stringify({
         from,
         to: [{ email_address: { address: to } }],
-        subject,
-        ...(htmlBody ? { htmlbody: htmlBody } : {}),
-        ...(textBody ? { textbody: textBody } : {}),
+        subject: template.subject,
+        htmlbody: template.html,
+        textbody: template.text,
       }),
     });
 

@@ -1,14 +1,23 @@
-import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ForgotPasswordRequest, ResetPasswordRequest, ConfirmarEmailRequest, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
+import type { ProductoDto, ProductoUpsertDto, ProductoDetailDto, SucursalDto, VentaDto, VentaResultadoDto, StockSucursalDto, CompraRequestDto, CompraResponseDto, CompraHistorialDto, CompraDetalleDto, CompraHistorialParams, VentaHistorialDto, VentaDetalleDto, PagedResult, VentaHistorialParams, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, ConfirmarEmailRequest, ClienteDto, MedioPagoDto, CajaDto, MovimientoCajaDto, AbrirCajaRequest, CerrarCajaRequest, CierrePreviewDto, GastoDto, CrearGastoRequest, GastoListResponse, UsuarioListadoDto, CambiarSuscripcionResponse, ProveedorDto, CrearProveedorRequestDto, DeudaDto, PagarDeudaRequestDto, CrearDeudaRequestDto, CategoriaDto, CrearCategoriaRequest, ActualizarCategoriaRequest, UnidadMedidaDto, CrearUnidadMedidaRequest, ActualizarUnidadMedidaRequest, ProductoLookupResponseDto, ProximoCodigoResponse, EstadisticasDto, PedidoListDto, PedidoDetailDto, PedidoRequestDto, PedidoEditDto, RecibirPedidoRequestDto, ComboDto, ComboUpsertDto, OfertaDto, OfertaUpsertDto, CategoriaGastoDto, CategoriaGastoListResponse, PagoDeudaDto, CuentaCorrienteDto, LicenciaEstado, LicenciaResumen, MercadoPagoEstadoDto, ProductoImportFilaDto, ProductoImportResponseDto, EmpresaDto, PreferenciasResponse, RestauranteConfigDto, MesaDto, UpsertMesaRequest, SesionMesaDto, ItemComandaDto, AgregarItemComandaRequest, ActualizarItemComandaRequest, CobrarCuentaRequest } from '../types'
 
-export function resolveApiBase(isTauri: boolean, protocol?: string, hostname?: string): string {
-  if (!isTauri && protocol === 'http:' && hostname === 'localhost') return '/api'
-  return 'http://localhost:5196/api'
+export function resolveApiBase(isTauri: boolean): string {
+  return isTauri ? 'http://localhost:5196/api' : '/api'
 }
 
-// Tauri can load the development frontend from localhost without Vite running.
-// In that case requests must still bypass the Vite proxy and reach the sidecar directly.
+export type RemoteAccessStatusName = 'inactive' | 'provisioning' | 'waiting_connector' | 'active' | 'failed'
+
+export type RemoteAccessStatus = {
+  status: RemoteAccessStatusName
+  slug?: string
+  hostname?: string
+  lastError?: string
+  connector?: { state: 'stopped' | 'starting' | 'running' | 'error'; error?: string }
+}
+
+// Browsers must use the same origin so Vendeto Mobile works through a Tunnel.
+// Tauri has no local proxy, so it connects to the backend directly.
 const BASE = typeof window !== 'undefined' && window.location
-  ? resolveApiBase('__TAURI__' in window || '__TAURI_INTERNALS__' in window, window.location.protocol, window.location.hostname)
+  ? resolveApiBase('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
   : 'http://localhost:5196/api'
 
 /**
@@ -46,6 +55,16 @@ export class SessionExpiredError extends Error {
   constructor() {
     super('La sesión venció. Iniciá sesión nuevamente.')
     this.name = 'SessionExpiredError'
+  }
+}
+
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
   }
 }
 
@@ -120,7 +139,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     } catch {}
     const err = res.status === 401 && hasAuthToken
       ? new SessionExpiredError()
-      : new Error(message)
+      : new ApiError(message, res.status)
     console.error(`[API] ${res.status} ${res.statusText} — ${options?.method ?? 'GET'} ${url} (${duration}ms)`, {
       status: res.status,
       statusText: res.statusText,
@@ -139,6 +158,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  remoteAccess: {
+    status: () => request<RemoteAccessStatus>('/remote-access/status'),
+    activate: (slug: string) => request<RemoteAccessStatus>('/remote-access/activate', { method: 'POST', body: JSON.stringify({ slug }) }),
+    deactivate: () => request<void>('/remote-access/deactivate', { method: 'POST' }),
+  },
   // Auth
   auth: {
     login: (dto: LoginRequest) => request<LoginResponse>('/auth/login', {
@@ -158,6 +182,10 @@ export const api = {
       body: JSON.stringify(dto),
     }),
     resetPassword: (dto: ResetPasswordRequest) => request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+    cambiarPassword: (dto: ChangePasswordRequest) => request<void>('/auth/cambiar-password', {
       method: 'POST',
       body: JSON.stringify(dto),
     }),

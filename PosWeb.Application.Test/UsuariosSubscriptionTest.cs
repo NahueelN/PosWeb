@@ -8,6 +8,7 @@ using PosWeb.Application.Auth;
 using PosWeb.Application.Exceptions;
 using PosWeb.Application.Licensing;
 using PosWeb.Application.Productos;
+using PosWeb.Application.Seed;
 using PosWeb.Contracts;
 using PosWeb.Controllers;
 using PosWeb.Data;
@@ -63,21 +64,22 @@ public class UsuariosSubscriptionTest
         return new LicenciaService(context, configuration, encryption);
     }
 
-    private static LicenciaService CrearLicenciaServiceConWorker(PosDbContextLocal context)
+    private static LicenciaService CrearLicenciaServiceConWorker(PosDbContextLocal context, HttpMessageHandler? handler = null)
     {
         // Con "Licensing:WorkerUrl" seteado (aunque no responda) => VerificarAcceso ejecuta
         // la lógica real en vez de cortocircuitar en "modo sin worker".
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Licensing:WorkerUrl"] = "http://worker.invalid.test"
+                ["Licensing:WorkerUrl"] = "http://worker.invalid.test",
+                ["Licensing:InternalKey"] = "internal-test-key"
             })
             .Build();
 
         var base64Key = Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!"));
         var encryption = new EncryptionService(base64Key);
 
-        return new LicenciaService(context, configuration, encryption);
+        return new LicenciaService(context, configuration, encryption, handler == null ? null : new HttpClient(handler));
     }
 
     private static Usuario CrearUsuario(
@@ -365,6 +367,45 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
+    public async Task Register_Titular_RotaPasswordDelAdminSeedDeFabrica()
+    {
+        var context = CrearContexto(nameof(Register_Titular_RotaPasswordDelAdminSeedDeFabrica));
+        var adminSeed = CrearUsuario(context, 1, "admin", Roles.SuperAdmin);
+        adminSeed.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(FactoryAdminPassword.KnownFactoryPasswords[0]));
+        context.SaveChanges();
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
+
+        await service.Register(new RegisterRequestDto
+        {
+            Usuario = "titular",
+            Password = "123456",
+            Mail = "titular@test.com",
+            Rol = Roles.Admin
+        });
+
+        Assert.False(FactoryAdminPassword.IsFactory(adminSeed.PASSWORD_HASH));
+    }
+
+    [Fact]
+    public async Task Register_Titular_NoModificaPasswordPersonalizadaDelAdminSeed()
+    {
+        var context = CrearContexto(nameof(Register_Titular_NoModificaPasswordPersonalizadaDelAdminSeed));
+        var adminSeed = CrearUsuario(context, 1, "admin", Roles.SuperAdmin);
+        var hashOriginal = adminSeed.PASSWORD_HASH;
+        var service = new AuthService(context, CrearJwtTokenService(), CrearLicenciaService(context), CrearMailerService());
+
+        await service.Register(new RegisterRequestDto
+        {
+            Usuario = "titular",
+            Password = "123456",
+            Mail = "titular@test.com",
+            Rol = Roles.Admin
+        });
+
+        Assert.Equal(hashOriginal, adminSeed.PASSWORD_HASH);
+    }
+
+    [Fact]
     public async Task Register_ConPlanBasico_CupoDeUsuariosSePooleaEntreAdminsQueComparenTitular()
     {
         var context = CrearContexto(nameof(Register_ConPlanBasico_CupoDeUsuariosSePooleaEntreAdminsQueComparenTitular));
@@ -536,6 +577,57 @@ public class UsuariosSubscriptionTest
 
         var licenciaFinal = await licenciaService.ObtenerEstadoLocal();
         Assert.NotNull(licenciaFinal!.LastSeenUtc);
+    }
+
+    [Fact]
+    public async Task SolicitudesAlWorker_StatusNoEnviaAuthorizationYBusquedaPorEmailLaConserva()
+    {
+        var context = CrearContexto(nameof(SolicitudesAlWorker_StatusNoEnviaAuthorizationYBusquedaPorEmailLaConserva));
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/status")
+            {
+                Assert.Null(request.Headers.Authorization);
+                return JsonResponse("{\"valid\":true,\"plan\":\"basica\",\"status\":\"active\"}");
+            }
+
+            if (request.RequestUri.AbsolutePath == "/license-by-email")
+            {
+                Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+                Assert.Equal("internal-test-key", request.Headers.Authorization?.Parameter);
+                return JsonResponse("{\"found\":false}");
+            }
+
+            throw new InvalidOperationException($"Unexpected request: {request.RequestUri}");
+        });
+        var licenciaService = CrearLicenciaServiceConWorker(context, handler);
+        var encryption = new EncryptionService(Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!")));
+        context.Set<LicenciaConfig>().Add(new LicenciaConfig
+        {
+            LicenseKey = encryption.Encrypt("license-key"),
+            Plan = NivelesSuscripcion.Basica,
+            Estado = EstadosLicencia.Activa,
+            MachineId = "machine-id",
+            NextBilling = DateTime.UtcNow.AddDays(30),
+        });
+        await context.SaveChangesAsync();
+
+        var (permitido, _) = await licenciaService.VerificarAcceso();
+        var (encontrada, _, _) = await licenciaService.BuscarYActivarPorEmail("buyer@example.com");
+
+        Assert.True(permitido);
+        Assert.False(encontrada);
+    }
+
+    private static HttpResponseMessage JsonResponse(string json) => new(System.Net.HttpStatusCode.OK)
+    {
+        Content = new StringContent(json, Encoding.UTF8, "application/json")
+    };
+
+    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(responseFactory(request));
     }
 
     [Fact]

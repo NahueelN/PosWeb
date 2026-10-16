@@ -4,12 +4,69 @@ use keyring::Entry;
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
-struct SidecarProcess(Mutex<Option<tauri_plugin_shell::process::CommandChild>>);
+#[cfg(windows)]
+struct KillOnCloseJob(isize);
 
-impl Drop for SidecarProcess {
+#[cfg(windows)]
+impl KillOnCloseJob {
+    fn create() -> Result<Self, std::io::Error> {
+        use std::mem::size_of;
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JobObjectExtendedLimitInformation,
+        };
+        use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+        unsafe {
+            let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if handle.is_null() {
+                return Err(std::io::Error::last_os_error());
+            }
+
+            let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                &limits as *const _ as *const _,
+                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            ) == 0 || AssignProcessToJobObject(handle, GetCurrentProcess()) == 0 {
+                windows_sys::Win32::Foundation::CloseHandle(handle);
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(Self(handle as isize))
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for KillOnCloseJob {
+    fn drop(&mut self) {
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0 as _); }
+    }
+}
+
+#[cfg(not(windows))]
+struct KillOnCloseJob;
+
+#[cfg(not(windows))]
+impl KillOnCloseJob {
+    fn create() -> Result<Self, std::io::Error> {
+        Ok(Self)
+    }
+}
+
+struct SidecarProcesses(Mutex<Vec<tauri_plugin_shell::process::CommandChild>>);
+
+struct SidecarJob {
+    _job: KillOnCloseJob,
+}
+
+impl Drop for SidecarProcesses {
     fn drop(&mut self) {
         if let Ok(mut guard) = self.0.lock() {
-            if let Some(child) = guard.take() {
+            for child in guard.drain(..) {
                 let _ = child.kill();
             }
         }
@@ -77,16 +134,24 @@ fn cerrar_ventana_impresion(webview_window: tauri::WebviewWindow) -> Result<(), 
 }
 
 #[tauri::command]
-fn kill_sidecar(state: tauri::State<SidecarProcess>) {
+fn kill_sidecars(state: tauri::State<SidecarProcesses>) {
     if let Ok(mut guard) = state.0.lock() {
-        if let Some(child) = guard.take() {
-            log::info!("[Tauri] Killing posweb-backend sidecar before update...");
-            let _ = child.kill();
+        if !guard.is_empty() {
+            log::info!("[Tauri] Killing sidecars before update...");
+            for child in guard.drain(..) {
+                let _ = child.kill();
+            }
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "posweb-backend.exe"])
                 .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-mobile.exe"])
+                .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-cloudflared.exe"])
+                .output();
         } else {
-            log::info!("[Tauri] Sidecar already stopped, nothing to kill");
+            log::info!("[Tauri] Sidecars already stopped, nothing to kill");
         }
     }
 }
@@ -103,7 +168,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            kill_sidecar,
+            kill_sidecars,
             reiniciar_aplicacion,
             guardar_credenciales,
             guardar_usuario,
@@ -121,9 +186,20 @@ pub fn run() {
                 )?;
             }
 
+            match KillOnCloseJob::create() {
+                Ok(job) => { app.manage(SidecarJob { _job: job }); }
+                Err(error) => { log::error!("[Tauri] Failed to create sidecar Job Object: {error}"); }
+            }
+
             // Kill any orphan backend from previous crashed session
             let _ = std::process::Command::new("taskkill")
                 .args(["/f", "/im", "posweb-backend.exe"])
+                .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-mobile.exe"])
+                .output();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/f", "/im", "vendeto-cloudflared.exe"])
                 .output();
 
             // Log sidecar spawn
@@ -132,15 +208,13 @@ pub fn run() {
             // Spawn .NET backend as sidecar
             let sidecar = app.shell().sidecar("posweb-backend")
                 .expect("failed to create sidecar command");
-            let (mut rx, child) = sidecar.spawn()
+            let (mut backend_rx, backend_child) = sidecar.spawn()
                 .expect("failed to spawn backend sidecar");
-
-            app.manage(SidecarProcess(Mutex::new(Some(child))));
 
             // Log backend output
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_shell::process::CommandEvent;
-                while let Some(event) = rx.recv().await {
+                while let Some(event) = backend_rx.recv().await {
                     match event {
                         CommandEvent::Stdout(line) => {
                             log::info!("[backend] {}", String::from_utf8_lossy(&line));
@@ -155,6 +229,37 @@ pub fn run() {
                     }
                 }
             });
+
+            log::info!("[Tauri] Spawning vendeto-mobile sidecar...");
+            let mobile_sidecar = app.shell().sidecar("vendeto-mobile")
+                .expect("failed to create Vendeto Mobile sidecar command");
+            let (mut mobile_rx, mobile_child) = match mobile_sidecar.spawn() {
+                Ok(process) => process,
+                Err(error) => {
+                    let _ = backend_child.kill();
+                    return Err(error.into());
+                }
+            };
+
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_shell::process::CommandEvent;
+                while let Some(event) = mobile_rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            log::info!("[vendeto-mobile] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            log::error!("[vendeto-mobile] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            log::warn!("[Tauri] vendeto-mobile sidecar exited with code {:?}", payload.code);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+
+            app.manage(SidecarProcesses(Mutex::new(vec![backend_child, mobile_child])));
 
             Ok(())
         })

@@ -81,11 +81,15 @@ Abrir http://localhost:5173
 > **Nota**: `setup.ps1` solo se corre **una vez** (instala MySQL, crea la DB, migra, seedea).
 > Después usá `.\iniciar-mysql.ps1` para arrancar MySQL y `.\stop-mysql.ps1` para apagarlo.
 
-### Credenciales
+### Desarrollo local
 
-| Usuario | Contraseña | Rol |
-|---------|-----------|-----|
-| admin | 7$0W6bD6@Z& | SuperAdmin |
+La contraseña del usuario de desarrollo se toma de `Seed:AdminPassword` (`Seed__AdminPassword` como variable de entorno). Definila fuera del código fuente antes de iniciar la aplicación; no uses ni documentes un valor compartido.
+
+```powershell
+$env:Seed__AdminPassword = Read-Host 'Contraseña solo para desarrollo'
+```
+
+El reseteo del usuario semilla es exclusivo de Desarrollo. Nunca incluyas esa variable ni `Seed__ResetAdminPassword` en configuración de release.
 
 ## Scripts útiles
 
@@ -121,7 +125,7 @@ Reglas de negocio validadas siempre en el backend:
 
 - **5 medios de pago**: Efectivo, Débito, Crédito, Transferencia, QR
 - **3 unidades de medida**: Unidad, Kilogramo, Litro
-- **1 admin**: admin / 7$0W6bD6@Z&
+- **1 admin**: la contraseña de desarrollo se configura mediante `Seed__AdminPassword`.
 - **Suscripción Premium + Empresa + Sucursal Principal** (setup.ps1)
 
 ## Testing
