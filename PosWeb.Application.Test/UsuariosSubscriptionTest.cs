@@ -632,6 +632,37 @@ public class UsuariosSubscriptionTest
     }
 
     [Fact]
+    public async Task RegistrarUltimoLogin_EnviaEmailAlWorkerConAuthInterna()
+    {
+        var context = CrearContexto(nameof(RegistrarUltimoLogin_EnviaEmailAlWorkerConAuthInterna));
+        HttpRequestMessage? capturado = null;
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            Assert.Equal("/internal/last-login", request.RequestUri!.AbsolutePath);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("internal-test-key", request.Headers.Authorization?.Parameter);
+            capturado = request;
+            return JsonResponse("{\"ok\":true}");
+        });
+        var licenciaService = CrearLicenciaServiceConWorker(context, handler);
+
+        await licenciaService.RegistrarUltimoLogin("titular@example.com");
+
+        Assert.NotNull(capturado);
+        var body = await capturado!.Content!.ReadAsStringAsync();
+        Assert.Contains("\"email\":\"titular@example.com\"", body);
+    }
+
+    [Fact]
+    public async Task RegistrarUltimoLogin_WorkerCaido_NoLanza()
+    {
+        var context = CrearContexto(nameof(RegistrarUltimoLogin_WorkerCaido_NoLanza));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        await licenciaService.RegistrarUltimoLogin("titular@example.com");
+    }
+
+    [Fact]
     public async Task Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita()
     {
         var context = CrearContexto(nameof(Register_SegundoAdminAnonimo_NoReiniciaLaPruebaGratuita));

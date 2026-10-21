@@ -22,6 +22,7 @@ interface License {
   created_at: string;
   activated_at: string | null;
   updated_at: string;
+  last_login: string | null;
 }
 
 const PLAN_PRICES: Record<string, number> = {
@@ -591,6 +592,39 @@ app.post('/register', async (c) => {
     .run();
 
   return c.json({ ok: true, email: emailLower, plan: 'gratuito', status: 'pending' });
+});
+
+// Marca el último login de la cuenta titular (columna licenses.last_login). Lo llama el
+// backend .NET en cada inicio de sesión exitoso; es best-effort, no debe romper el login.
+app.post('/internal/last-login', async (c) => {
+  const env = c.env;
+
+  if (!checkInternalAuth(c, env)) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = await c.req.json<{ email: string }>();
+  const email = (body.email || '').toLowerCase().trim();
+
+  if (!email) {
+    return c.json({ error: 'email is required' }, 400);
+  }
+
+  const license = await env.LICENSES_DB
+    .prepare('SELECT license_key FROM licenses WHERE email = ? ORDER BY created_at DESC LIMIT 1')
+    .bind(email)
+    .first<{ license_key: string }>();
+
+  if (!license) {
+    return c.json({ found: false }, 404);
+  }
+
+  await env.LICENSES_DB
+    .prepare('UPDATE licenses SET last_login = datetime(\'now\'), updated_at = datetime(\'now\') WHERE license_key = ?')
+    .bind(license.license_key)
+    .run();
+
+  return c.json({ ok: true, found: true, email, license_key: license.license_key });
 });
 
 app.post('/checkout', async (c) => {

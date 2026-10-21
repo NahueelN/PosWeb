@@ -72,6 +72,8 @@ public class AuthService
             throw new EmailNoConfirmadoException();
         }
 
+        await RegistrarUltimoLoginEnWorker(usuario);
+
         var (token, expires) = _jwtTokenService.GenerarToken(usuario, request.SucursalId);
 
         return new LoginResponseDto
@@ -132,6 +134,8 @@ public class AuthService
         {
             throw new EmailNoConfirmadoException();
         }
+
+        await RegistrarUltimoLoginEnWorker(usuario);
 
         var (token, expires) = _jwtTokenService.GenerarToken(usuario, request.SucursalId);
 
@@ -464,17 +468,37 @@ public class AuthService
         return suscripcion.EstaActiva();
     }
 
-  private async Task<bool> VerificarOActivarLicencia(Usuario usuario)
-  {
-    var (permitido, _) = await _licenciaService.VerificarAcceso();
-    if (permitido) return true;
+    private async Task<bool> VerificarOActivarLicencia(Usuario usuario)
+    {
+        var (permitido, _) = await _licenciaService.VerificarAcceso();
+        if (permitido) return true;
 
-    if (string.IsNullOrWhiteSpace(usuario.MAIL))
-      return false;
+        if (string.IsNullOrWhiteSpace(usuario.MAIL))
+            return false;
 
-    var (exito, _, _) = await _licenciaService.BuscarYActivarPorEmail(usuario.MAIL);
-    return exito;
-  }
+        var (exito, _, _) = await _licenciaService.BuscarYActivarPorEmail(usuario.MAIL);
+        return exito;
+    }
+
+    /// <summary>
+    /// Marca el último login de la cuenta en el worker de licensing (columna licenses.last_login).
+    /// Se registra contra el email del titular de la licencia; best-effort, no rompe el login.
+    /// </summary>
+    private async Task RegistrarUltimoLoginEnWorker(Usuario usuario)
+    {
+        var licencia = await _licenciaService.ObtenerEstadoLocal();
+        var email = licencia?.Email;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            var titular = _context.Usuario.FirstOrDefault(u => u.ROL == Roles.Admin && u.ES_TITULAR)
+                ?? ResolverTitular(usuario);
+            email = titular.MAIL;
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+            await _licenciaService.RegistrarUltimoLogin(email);
+    }
 
     /// <summary>
     /// Solicita un código de recuperación para el email indicado. Siempre responde lo mismo
