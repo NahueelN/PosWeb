@@ -1,8 +1,21 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AyudaPage from '../AyudaPage'
+import { api } from '../../api/client'
+
+vi.mock('../../api/client', () => ({
+  api: {
+    soporte: {
+      reportar: vi.fn().mockResolvedValue({ ok: true }),
+    },
+  },
+}))
+
+vi.mock('../../context/NotificationContext', () => ({
+  useNotification: () => ({ notifyError: vi.fn(), notifySuccess: vi.fn() }),
+}))
 
 function renderAyuda(key?: string) {
   const url = key ? `/ayuda?key=${key}` : '/ayuda'
@@ -70,5 +83,34 @@ describe('AyudaPage', () => {
     const ampliar = screen.getByRole('button', { name: /Ampliar captura 1/i })
     await user.click(ampliar)
     expect(screen.getByLabelText('Cerrar')).toBeInTheDocument()
+  })
+
+  it('abre el diálogo para reportar un problema y envía la descripción', async () => {
+    renderAyuda()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /Reportar un problema/i }))
+    await user.type(
+      screen.getByPlaceholderText(/al cobrar con MercadoPago/i),
+      'El QR de MercadoPago no se genera'
+    )
+    await user.click(screen.getByRole('button', { name: /Enviar reporte/i }))
+
+    await waitFor(() => expect(api.soporte.reportar).toHaveBeenCalled())
+    const [descripcion] = vi.mocked(api.soporte.reportar).mock.calls[0]
+    expect(descripcion).toBe('El QR de MercadoPago no se genera')
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Enviar reporte/i })).not.toBeInTheDocument()
+    )
+  })
+
+  it('no permite enviar el reporte con menos de 10 caracteres', async () => {
+    renderAyuda()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /Reportar un problema/i }))
+    await user.type(screen.getByPlaceholderText(/al cobrar con MercadoPago/i), 'corto')
+
+    expect(screen.getByRole('button', { name: /Enviar reporte/i })).toBeDisabled()
   })
 })

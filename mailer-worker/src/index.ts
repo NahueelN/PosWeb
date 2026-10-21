@@ -22,6 +22,13 @@ const CODE_WINDOW_SECONDS = 60 * 60;
 const INSTALLER_MAX_PER_IP = 5;
 const INSTALLER_WINDOW_SECONDS = 60 * 60;
 
+// Límite de reportes de problema por IP (el backend local es el único llamador).
+const REPORT_MAX_PER_IP = 20;
+const REPORT_WINDOW_SECONDS = 60 * 60;
+
+// Tope del adjunto de logs en base64 (~4 MB de base64 ≈ 3 MB de archivo).
+const REPORT_MAX_ATTACHMENT_BASE64 = 4 * 1024 * 1024;
+
 const ALLOWED_ORIGINS = ['https://vendeto.com.ar', 'https://www.vendeto.com.ar', 'https://vendeto.vercel.app'];
 
 const app = new Hono<{ Bindings: Env }>();
@@ -317,6 +324,122 @@ app.post('/installer', async (c) => {
     return c.json({ ok: true });
   } catch (e: any) {
     return c.json({ error: `Error enviando instalador: ${e.message}` }, 500);
+  }
+});
+
+// Reportes de problema de la app de escritorio. Solo el backend local (autenticado con
+// MAILER_INTERNAL_KEY) puede enviarlos. El email del titular viaja como reply_to para que
+// soporte responda directo, y los logs recientes de la app van como adjunto base64.
+app.post('/send-report', async (c) => {
+  const env = c.env;
+
+  if (!checkInternalAuth(c, env)) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!env.ZEPTOMAIL_API_KEY) {
+    return c.json({ error: 'ZEPTOMAIL_API_KEY no configurado' }, 500);
+  }
+
+  const body = await c.req.json<{
+    titular_email?: string | null;
+    reportado_por?: string;
+    descripcion?: string;
+    version?: string;
+    attachment?: { name?: string; content?: string } | null;
+  }>();
+  const clavesValidas = ['titular_email', 'reportado_por', 'descripcion', 'version', 'attachment'];
+  if (Object.keys(body).some(key => !clavesValidas.includes(key))) {
+    return c.json({ error: `El cuerpo solo admite ${clavesValidas.join(', ')}` }, 400);
+  }
+
+  const descripcion = (body.descripcion || '').trim();
+  const reportadoPor = (body.reportado_por || '').trim().slice(0, 200);
+  const version = (body.version || '').trim().slice(0, 40);
+  const titularEmail = (body.titular_email || '').trim();
+
+  if (descripcion.length < 10 || descripcion.length > 4000) {
+    return c.json({ error: 'La descripción debe tener entre 10 y 4000 caracteres' }, 400);
+  }
+  if (titularEmail && !esEmailValido(titularEmail)) {
+    return c.json({ error: 'titular_email debe ser un email válido' }, 400);
+  }
+
+  let attachment: { name: string; content: string; mime_type: string } | undefined;
+  if (body.attachment) {
+    const name = (body.attachment.name || 'posweb-logs.txt').trim().replace(/[^\w.\-]/g, '_').slice(0, 100);
+    const content = body.attachment.content || '';
+    if (!content || content.length > REPORT_MAX_ATTACHMENT_BASE64) {
+      return c.json({ error: 'Adjunto inválido o demasiado grande' }, 400);
+    }
+    attachment = { name, content, mime_type: 'text/plain' };
+  }
+
+  if (await excedeLimite(c, 'send-report', REPORT_MAX_PER_IP, REPORT_WINDOW_SECONDS)) {
+    return c.json({ error: 'Demasiados reportes desde esta dirección. Intentá más tarde.' }, 429);
+  }
+
+  const to = env.CONTACT_TO || 'soporte@vendeto.com.ar';
+  const asunto = version ? `Reporte de problema - Vendeto ${version}` : 'Reporte de problema - Vendeto';
+
+  const textBody = [
+    'Nuevo reporte de problema desde la app',
+    '',
+    `Titular: ${titularEmail || 'no disponible'}`,
+    `Reportado por: ${reportadoPor || 'desconocido'}`,
+    version ? `Versión: ${version}` : '',
+    attachment ? `Adjunto: ${attachment.name}` : 'Sin logs adjuntos',
+    '',
+    'Descripción:',
+    descripcion,
+  ].filter(Boolean).join('\n');
+
+  const htmlBody =
+    '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto">' +
+    '<h2 style="color:#2563eb">Nuevo reporte de problema</h2>' +
+    `<table style="border-collapse:collapse;margin:16px 0">` +
+    `<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#334155">Titular</td><td style="padding:6px 0;color:#0f172a">${escapeHtml(titularEmail || 'no disponible')}</td></tr>` +
+    `<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#334155">Reportado por</td><td style="padding:6px 0;color:#0f172a">${escapeHtml(reportadoPor || 'desconocido')}</td></tr>` +
+    (version ? `<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#334155">Versión</td><td style="padding:6px 0;color:#0f172a">${escapeHtml(version)}</td></tr>` : '') +
+    `<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#334155">Adjunto</td><td style="padding:6px 0;color:#0f172a">${attachment ? escapeHtml(attachment.name) : 'sin logs adjuntos'}</td></tr>` +
+    '</table>' +
+    `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;white-space:pre-wrap;color:#0f172a">${escapeHtml(descripcion)}</div>` +
+    (titularEmail ? `<p style="color:#64748b;font-size:0.85rem">Responder directamente a: <a href="mailto:${escapeHtml(titularEmail)}">${escapeHtml(titularEmail)}</a></p>` : '') +
+    '</div>';
+
+  const from = {
+    address: env.FROM_EMAIL ?? 'hola@vendeto.com.ar',
+    name: env.FROM_NAME ?? 'Vendeto',
+  };
+
+  const payload: Record<string, unknown> = {
+    from,
+    to: [{ email_address: { address: to } }],
+    subject: asunto,
+    htmlbody: htmlBody,
+    textbody: textBody,
+  };
+  if (titularEmail) payload.reply_to = [{ address: titularEmail }];
+  if (attachment) payload.attachments = [attachment];
+
+  try {
+    const response = await fetch(ZEPTOMAIL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Zoho-enczapikey ${env.ZEPTOMAIL_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return c.json({ error: `ZeptoMail falló: ${response.status}`, detail: errorBody }, 502);
+    }
+
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Error enviando reporte: ${e.message}` }, 500);
   }
 });
 

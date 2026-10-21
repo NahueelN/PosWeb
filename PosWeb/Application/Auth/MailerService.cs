@@ -33,6 +33,57 @@ public class MailerService
     }
 
     /// <summary>
+    /// Envía un reporte de problema al equipo de soporte vía el mailer-worker, con el email
+    /// del titular como reply_to y los logs recientes como adjunto (base64). Devuelve false
+    /// si el worker no está configurado o falla.
+    /// </summary>
+    public async Task<bool> EnviarReporte(
+        string? titularEmail,
+        string reportadoPor,
+        string descripcion,
+        string? version,
+        string? logFileName,
+        byte[]? logContenido)
+    {
+        if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+        {
+            _logger.LogWarning("MailerService: Mailer:WorkerUrl o Mailer:InternalKey no configurados, no se envía el reporte de {ReportadoPor}", reportadoPor);
+            return false;
+        }
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/send-report")
+            {
+                Content = JsonContent.Create(new
+                {
+                    TitularEmail = titularEmail,
+                    ReportadoPor = reportadoPor,
+                    Descripcion = descripcion,
+                    Version = version,
+                    Attachment = logContenido != null && logFileName != null
+                        ? new { Name = logFileName, Content = Convert.ToBase64String(logContenido) }
+                        : null
+                }, options: JsonOptions)
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("MailerService: el worker respondió {StatusCode} al enviar el reporte de {ReportadoPor}. Body: {Body}", (int)response.StatusCode, reportadoPor, body);
+            }
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "MailerService: falló la conexión al mailer-worker enviando el reporte de {ReportadoPor}", reportadoPor);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Envía un código transaccional vía el mailer-worker. Devuelve false si el worker no está
     /// configurado o falla (el flujo de recuperación no debe romper por un error de envío).
     /// </summary>

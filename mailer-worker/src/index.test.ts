@@ -17,6 +17,26 @@ function request(body: unknown) {
   }, env);
 }
 
+function reportRequest(body: unknown, auth = 'Bearer internal-key') {
+  return app.request('https://mailer.test/send-report', {
+    method: 'POST',
+    headers: {
+      Authorization: auth,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  }, env);
+}
+
+function mockRateLimitCache() {
+  globalThis.caches = {
+    default: {
+      match: vi.fn().mockResolvedValue(undefined),
+      put: vi.fn().mockResolvedValue(undefined),
+    },
+  } as unknown as CacheStorage;
+}
+
 describe('POST /send-code', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -89,5 +109,59 @@ describe('POST /send-code', () => {
     }
 
     expect((await request({ to: 'customer@example.com', kind: 'confirm', code: '123456' })).status).toBe(429);
+  });
+});
+
+describe('POST /send-report', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockRateLimitCache();
+  });
+
+  it('requires the internal bearer key', async () => {
+    const response = await reportRequest({ descripcion: 'El QR no se genera al cobrar' }, 'Bearer otra-clave');
+
+    expect(response.status).toBe(401);
+  });
+
+  it('sends the report with titular as reply_to and logs attachment', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+
+    const response = await reportRequest({
+      titular_email: 'titular@example.com',
+      reportado_por: 'vendedor (vendedor@example.com)',
+      descripcion: 'El QR de MercadoPago no se genera',
+      version: '1.1.26',
+      attachment: { name: 'posweb-logs.txt', content: 'bG9ncw==' },
+    });
+
+    expect(response.status).toBe(200);
+    const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+    expect(payload.to[0].email_address.address).toBe('soporte@vendeto.com.ar');
+    expect(payload.reply_to).toEqual([{ address: 'titular@example.com' }]);
+    expect(payload.subject).toContain('1.1.26');
+    expect(payload.attachments).toEqual([{ name: 'posweb-logs.txt', content: 'bG9ncw==', mime_type: 'text/plain' }]);
+    expect(payload.htmlbody).toContain('El QR de MercadoPago no se genera');
+    expect(payload.textbody).toContain('titular@example.com');
+  });
+
+  it('rejects unknown fields, short descriptions and oversized attachments', async () => {
+    expect((await reportRequest({ descripcion: 'El QR no se genera al cobrar', extra: 'x' })).status).toBe(400);
+    expect((await reportRequest({ descripcion: 'corto' })).status).toBe(400);
+    expect((await reportRequest({
+      descripcion: 'El QR no se genera al cobrar',
+      attachment: { name: 'logs.txt', content: 'x'.repeat(5 * 1024 * 1024) },
+    })).status).toBe(400);
+  });
+
+  it('sends without reply_to when there is no titular email', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+
+    const response = await reportRequest({ descripcion: 'La impresora no imprime los tickets' });
+
+    expect(response.status).toBe(200);
+    const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+    expect(payload.reply_to).toBeUndefined();
+    expect(payload.attachments).toBeUndefined();
   });
 });

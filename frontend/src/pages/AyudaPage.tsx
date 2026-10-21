@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { HelpCircle, Search, ChevronDown, ChevronRight, ZoomIn, ZoomOut, X, ChevronLeft, ChevronRight as ChevronRightIcon, Maximize } from 'lucide-react'
+import { HelpCircle, Search, ChevronDown, ChevronRight, ZoomIn, ZoomOut, X, ChevronLeft, ChevronRight as ChevronRightIcon, Maximize, MessageSquareWarning, Send, LoaderCircle } from 'lucide-react'
 import { AYUDA_MODULOS, AYUDA_ITEMS, getAyudaItem, type AyudaEntrada, type AyudaItem, type AyudaManualBloque } from '../help/content'
+import Dialog from '../components/ui/Dialog'
+import { useNotification } from '../context/NotificationContext'
+import { api } from '../api/client'
+
+declare const __APP_VERSION__: string
 
 function CapturaPendiente() {
   return (
@@ -273,10 +278,32 @@ export default function AyudaPage() {
   const [busqueda, setBusqueda] = useState('')
   const [modulosAbiertos, setModulosAbiertos] = useState<Record<string, boolean>>({})
   const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
+  const [reporteAbierto, setReporteAbierto] = useState(false)
+  const [descripcion, setDescripcion] = useState('')
+  const [enviandoReporte, setEnviandoReporte] = useState(false)
+  const { notifySuccess, notifyError } = useNotification()
   const detalleRef = useRef<HTMLDivElement>(null)
 
   const keyActiva = params.get('key') ?? 'modulo-primeros-pasos'
   const itemActivo = getAyudaItem(keyActiva) ?? AYUDA_ITEMS[0]
+
+  async function enviarReporte() {
+    const texto = descripcion.trim()
+    if (texto.length < 10 || enviandoReporte) return
+
+    setEnviandoReporte(true)
+    try {
+      const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined
+      await api.soporte.reportar(texto, version)
+      notifySuccess('Reporte enviado. ¡Gracias por avisarnos!')
+      setReporteAbierto(false)
+      setDescripcion('')
+    } catch (e) {
+      notifyError(e instanceof Error ? e.message : 'No se pudo enviar el reporte.')
+    } finally {
+      setEnviandoReporte(false)
+    }
+  }
 
   const modulosFiltrados = useMemo<{ modulo: (typeof AYUDA_MODULOS)[number]; coincide: boolean; items: AyudaItem[] }[]>(() => {
     const q = busqueda.trim().toLowerCase()
@@ -386,6 +413,17 @@ export default function AyudaPage() {
               )
             })}
           </nav>
+
+          <div className="mt-3 pt-3 border-t border-gray-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setReporteAbierto(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-200 text-[12.5px] font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+            >
+              <MessageSquareWarning size={15} />
+              Reportar un problema
+            </button>
+          </div>
         </aside>
 
         {/* ── Detalle ── */}
@@ -401,6 +439,57 @@ export default function AyudaPage() {
 
       {lightbox && (
         <Lightbox srcs={lightbox.srcs} index={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
+
+      {reporteAbierto && (
+        <Dialog
+          open={reporteAbierto}
+          onClose={() => { if (!enviandoReporte) setReporteAbierto(false) }}
+          title="Reportar un problema"
+          icon={MessageSquareWarning}
+          width="lg"
+          closeOnBackdrop={!enviandoReporte}
+          closeOnEscape={!enviandoReporte}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setReporteAbierto(false)}
+                disabled={enviandoReporte}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={enviarReporte}
+                disabled={descripcion.trim().length < 10 || enviandoReporte}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[oklch(0.52_0.255_278)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {enviandoReporte ? <LoaderCircle size={15} className="animate-spin" /> : <Send size={15} />}
+                {enviandoReporte ? 'Enviando...' : 'Enviar reporte'}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600 mb-3">
+            Contanos qué pasó y te ayudamos. Se adjuntan automáticamente los logs recientes de la
+            aplicación y el email del titular de la cuenta.
+          </p>
+          <textarea
+            value={descripcion}
+            onChange={e => setDescripcion(e.target.value)}
+            rows={6}
+            maxLength={2000}
+            autoFocus
+            placeholder="Ej.: al cobrar con MercadoPago el QR no se genera y la venta queda pendiente..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none"
+          />
+          <div className="flex items-center justify-between mt-1.5">
+            <p className="text-[11px] text-gray-400">Mínimo 10 caracteres.</p>
+            <p className="text-[11px] text-gray-400">{descripcion.length}/2000</p>
+          </div>
+        </Dialog>
       )}
     </div>
   )
