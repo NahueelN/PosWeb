@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Security.Claims;
 using System.Text;
 using PosWeb.Application.Auth;
@@ -48,7 +49,7 @@ public class UsuariosSubscriptionTest
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();
 
-        return new MailerService(configuration);
+        return new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient());
     }
 
     private static LicenciaService CrearLicenciaService(PosDbContextLocal context)

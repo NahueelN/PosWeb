@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using PosWeb.Application.Auth;
 
 namespace PosWeb.Application.Test;
@@ -18,7 +19,7 @@ public class MailerServiceTest
                 ["Mailer:InternalKey"] = "test-key"
             })
             .Build();
-        var service = new MailerService(configuration, handler);
+        var service = new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient(handler));
 
         var enviado = await service.EnviarCodigo("customer@example.com", "confirm", "123456");
 

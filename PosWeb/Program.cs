@@ -122,7 +122,7 @@ builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<StockSucursalService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<MailerService>();
+builder.Services.AddHttpClient<MailerService>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();
