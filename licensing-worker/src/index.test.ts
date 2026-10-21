@@ -151,14 +151,14 @@ describe('internal license endpoint authentication', () => {
 
 describe('POST /internal/last-login', () => {
   function createLastLoginEnv({ foundLicense }: { foundLicense: { license_key: string } | null }) {
-    const runs: unknown[][] = [];
+    const runs: { sql: string; args: unknown[] }[] = [];
     const env = {
       LICENSES_DB: {
-        prepare: () => ({
+        prepare: (sql: string) => ({
           bind: (...args: unknown[]) => ({
             first: async () => foundLicense,
             run: async () => {
-              runs.push(args);
+              runs.push({ sql, args });
               return {};
             },
           }),
@@ -197,7 +197,9 @@ describe('POST /internal/last-login', () => {
       email: 'titular@example.com',
       license_key: 'ABC123',
     });
-    expect(runs).toEqual([['ABC123']]);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].args).toEqual(['ABC123']);
+    expect(runs[0].sql).toContain("datetime('now', '-3 hours')");
   });
 
   it('returns 404 when the email has no license', async () => {

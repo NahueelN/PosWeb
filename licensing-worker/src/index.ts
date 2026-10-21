@@ -619,8 +619,10 @@ app.post('/internal/last-login', async (c) => {
     return c.json({ found: false }, 404);
   }
 
+  // Argentina no tiene horario de verano: offset fijo UTC-3 para que last_login se lea
+  // en hora local (datetime('now') en D1 devuelve UTC; el resto de la tabla sigue en UTC).
   await env.LICENSES_DB
-    .prepare('UPDATE licenses SET last_login = datetime(\'now\'), updated_at = datetime(\'now\') WHERE license_key = ?')
+    .prepare('UPDATE licenses SET last_login = datetime(\'now\', \'-3 hours\'), updated_at = datetime(\'now\') WHERE license_key = ?')
     .bind(license.license_key)
     .run();
 
