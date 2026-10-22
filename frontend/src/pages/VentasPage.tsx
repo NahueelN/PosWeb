@@ -237,6 +237,9 @@ const [recibio, setRecibio] = useState<string>(() => {
 
   useEffect(() => {
     if (step !== 'esperando_transferencia' || !ventaPendienteId) return
+    // Solo el cobro QR se auto-confirma (el backend lo detecta por external_reference).
+    // La transferencia se confirma únicamente a mano, así que no se hace polling.
+    if (selectedMedio?.id !== 5) return
     const pollInterval = setInterval(async () => {
       try {
         const res = await api.ventas.estado(ventaPendienteId)
@@ -246,7 +249,7 @@ const [recibio, setRecibio] = useState<string>(() => {
       } catch { /* ignorar errores de polling */ }
     }, 3000)
     return () => clearInterval(pollInterval)
-  }, [step, ventaPendienteId])
+  }, [step, ventaPendienteId, selectedMedio?.id])
 
   useEffect(() => {
     api.mercadopago.estado().then(setMpEstado).catch(() => setMpEstado(null))

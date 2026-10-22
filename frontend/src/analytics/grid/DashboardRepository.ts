@@ -1,43 +1,91 @@
 // Dashboard Repository
-// Persistence layer for layout instances.
+// Persistence layer for dashboard tabs.
 // Swappable: localStorage now, backend API later.
 
-import type { LayoutInstance } from './types'
+import type { LayoutInstance, DashboardTab } from './types'
 
-const STORAGE_KEY = 'dashboard-layout-v4'
+const TABS_KEY = 'dashboard-tabs-v1'
+const LEGACY_KEY = 'dashboard-layout-v4'
 
-export interface DashboardRepository {
-  load(): LayoutInstance[]
-  save(layout: LayoutInstance[]): void
+export const MAX_TABS = 5
+
+export interface DashboardTabsRepository {
+  load(): DashboardTab[]
+  save(tabs: DashboardTab[]): void
   clear(): void
 }
 
-/** localStorage implementation (default for v1). */
-export function createLocalStorageRepository(
-  storageKey: string = STORAGE_KEY,
-): DashboardRepository {
+/**
+ * Migraciones por tab: elimina widgets que ya no vienen por defecto.
+ */
+function migrateLayout(layout: LayoutInstance[]): LayoutInstance[] {
+  // "meta del día" ya no viene por defecto; se puede volver a agregar desde el picker.
+  return layout.filter((i) => !(i.id === 'v3' && i.definitionId === 'meta'))
+}
+
+function isTab(value: unknown): value is DashboardTab {
+  const t = value as DashboardTab
+  return (
+    typeof t?.id === 'string' &&
+    typeof t?.title === 'string' &&
+    Array.isArray(t?.layout)
+  )
+}
+
+/** localStorage implementation. */
+export function createLocalStorageTabsRepository(): DashboardTabsRepository {
   return {
-    load(): LayoutInstance[] {
+    load(): DashboardTab[] {
+      // Formato nuevo: array de pestañas.
       try {
-        const raw = localStorage.getItem(storageKey)
-        if (!raw) return []
-        const parsed = JSON.parse(raw) as LayoutInstance[]
-        // Migration: "meta del día" ya no viene por defecto; se puede volver a agregar desde el picker.
-        return parsed.filter((i) => !(i.id === 'v3' && i.definitionId === 'meta'))
+        const rawTabs = localStorage.getItem(TABS_KEY)
+        if (rawTabs) {
+          const parsed = JSON.parse(rawTabs) as unknown
+          if (Array.isArray(parsed)) {
+            return parsed
+              .filter(isTab)
+              .map((t) => ({
+                id: t.id,
+                title: t.title,
+                layout: migrateLayout(t.layout),
+              }))
+              .slice(0, MAX_TABS)
+          }
+        }
       } catch {
-        return []
+        /* ignore */
       }
+
+      // Formato legacy (v4): array de LayoutInstance -> una única pestaña.
+      try {
+        const rawLegacy = localStorage.getItem(LEGACY_KEY)
+        if (rawLegacy) {
+          const parsed = JSON.parse(rawLegacy) as unknown
+          if (Array.isArray(parsed)) {
+            const layout = migrateLayout(parsed as LayoutInstance[])
+            const tabs: DashboardTab[] = [
+              { id: 'tab-inicio', title: 'Inicio', layout },
+            ]
+            localStorage.setItem(TABS_KEY, JSON.stringify(tabs))
+            return tabs
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      return []
     },
 
-    save(layout: LayoutInstance[]): void {
-      localStorage.setItem(storageKey, JSON.stringify(layout))
+    save(tabs: DashboardTab[]): void {
+      localStorage.setItem(TABS_KEY, JSON.stringify(tabs.slice(0, MAX_TABS)))
     },
 
     clear(): void {
-      localStorage.removeItem(storageKey)
+      localStorage.removeItem(TABS_KEY)
     },
   }
 }
 
 /** Backend API implementation (prepared, not yet wired). */
-// export function createApiRepository(apiBase: string): DashboardRepository { ... }
+// export function createApiTabsRepository(apiBase: string): DashboardTabsRepository { ... }

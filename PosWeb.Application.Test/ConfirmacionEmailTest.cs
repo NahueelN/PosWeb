@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Exceptions;
@@ -52,7 +53,7 @@ public class ConfirmacionEmailTest
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();
 
-        return new MailerService(configuration);
+        return new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient());
     }
 
     private static Usuario CrearUsuario(PosDbContextLocal context, int id, string mail, bool emailConfirmado = true)

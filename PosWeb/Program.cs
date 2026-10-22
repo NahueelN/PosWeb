@@ -33,6 +33,7 @@ using PosWeb.Application.MercadoPago;
 using PosWeb.Application.Respaldos;
 using PosWeb.Application.RemoteAccess;
 using PosWeb.Application.Seed;
+using PosWeb.Application.Soporte;
 using PosWeb.Application;
 using PosWeb.Data;
 using PosWeb.Middlewares;
@@ -122,7 +123,7 @@ builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<StockSucursalService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<MailerService>();
+builder.Services.AddHttpClient<MailerService>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<MedioPagoService>();
@@ -142,6 +143,7 @@ builder.Services.AddScoped<PreferenciaService>();
 builder.Services.AddScoped<CategoriaSugeridaService>();
 builder.Services.AddScoped<UnidadSugeridaService>();
 builder.Services.AddScoped<RespaldoService>();
+builder.Services.AddScoped<SoporteService>();
 
 builder.Services.AddSingleton<IEncryptionService>(sp =>
 {

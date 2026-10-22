@@ -15,7 +15,7 @@ Sources:
   - frontend/src/pages/VentasPage.tsx
 Template Version: 1.0
 Created: 2026-10-02
-Updated: 2026-10-02
+Updated: 2026-10-16
 Tags:
   - Ventas
 ```
@@ -34,7 +34,7 @@ Define cómo se verifica un pago pendiente de MercadoPago (QR o transferencia). 
 
 2. **La transferencia se confirma solo manualmente.** Las ventas pendientes sin `REFERENCIA_MP` (medio Transferencia) **nunca** se auto-confirman por monto. El cajero confirma cuando el cliente avisa que transfirió. Motivo: el token OAuth no expone balance ni transferencias de la cuenta, y el matching por monto (últimos 10 min, ±1%) puede confirmar una venta con el pago equivocado.
 
-3. **El "Verificar pago" es una herramienta manual por monto.** El botón del cajero (plan Máxima) consulta pagos aprobados recientes y matchea por monto; es orientativo y solo lo dispara una persona.
+3. **El "Verificar pago" es una herramienta manual y solo aplica al cobro QR.** El botón (plan Máxima) consulta los pagos de la cuenta creados vía API/QR, matchea por monto y es orientativo: solo lo dispara una persona. No sirve para transferencias, porque el token OAuth no expone transferencias entrantes; en el flujo de transferencia no se muestra y la única acción es "Confirmar" a mano.
 
 4. **Tiempos alineados a 10 minutos.** La espera del frontend (mostrador y mesa), la expiración de la orden QR (`PT10M`) y la ventana de búsqueda de pagos son de 10 minutos. Un pago recibido fuera de esa ventana no se verifica y la venta pendiente se cancela por timeout.
 

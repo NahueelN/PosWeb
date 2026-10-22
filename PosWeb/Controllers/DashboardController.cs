@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PosWeb.Analytics;
 using PosWeb.Analytics.Models;
+using PosWeb.Domain;
 
 namespace PosWeb.Controllers;
 
 [ApiController]
 [Route("api/dashboard")]
-[Authorize]
+[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
 public class DashboardController : ControllerBase
 {
     private readonly DashboardBuilderService _service;

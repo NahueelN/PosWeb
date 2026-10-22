@@ -69,7 +69,15 @@ public class DashboardBuilderService
 
         // Title always comes from the definition
         var title = definition.Name;
-        return CreateWidgetFromInstance(instance, title, dataset);
+        var widget = CreateWidgetFromInstance(instance, title, dataset);
+        widget.DefinitionId = definition.Id;
+
+        // El ícono por defecto proviene de la definición (el usuario puede sobreescribirlo).
+        widget.Config ??= new WidgetConfig();
+        if (string.IsNullOrEmpty(widget.Config.Icon))
+            widget.Config.Icon = definition.Icon;
+
+        return widget;
     }
 
     /// <summary>
@@ -92,6 +100,19 @@ public class DashboardBuilderService
             "resumen" => await new ResumenOperativoQuery().ExecuteAsync(sucursalId, _db, p),
             "actividad" => await new ActividadRecienteQuery().ExecuteAsync(sucursalId, _db, p),
             "ultimas-ventas" => await new UltimasVentasQuery().ExecuteAsync(sucursalId, _db, p),
+            "rentabilidad" => await new RentabilidadQuery().ExecuteAsync(sucursalId, _db, p),
+            "margen-por-categoria" => await new MargenPorCategoriaQuery().ExecuteAsync(sucursalId, _db, p),
+            "margen-por-producto" => await new MargenPorProductoQuery().ExecuteAsync(sucursalId, _db, p),
+            "deudas-clientes" => await new DeudasClientesQuery().ExecuteAsync(sucursalId, _db, p),
+            "deudas-proveedores" => await new DeudasProveedoresQuery().ExecuteAsync(sucursalId, _db, p),
+            "deudas-resumen" => await new DeudasResumenQuery().ExecuteAsync(sucursalId, _db, p),
+            "flujo-caja" => await new FlujoCajaQuery().ExecuteAsync(sucursalId, _db, p),
+            "horas-pico" => await new HorasPicoQuery().ExecuteAsync(sucursalId, _db, p),
+            "metodos-pago" => await new MetodosPagoQuery().ExecuteAsync(sucursalId, _db, p),
+            "retencion-clientes" => await new RetencionClientesQuery().ExecuteAsync(sucursalId, _db, p),
+            "valor-inventario" => await new ValorInventarioQuery().ExecuteAsync(sucursalId, _db, p),
+            "stock-inmovilizado" => await new StockInmovilizadoQuery().ExecuteAsync(sucursalId, _db, p),
+            "ventas-por-vendedor" => await new VentasPorVendedorQuery().ExecuteAsync(sucursalId, _db, p),
             _ => null,
         };
     }
@@ -137,6 +158,13 @@ public class DashboardBuilderService
             }
         }
 
+        if (config.TryGetValue("metric", out var metric))
+        {
+            var metricStr = metric?.ToString();
+            if (!string.IsNullOrWhiteSpace(metricStr))
+                p.Metric = metricStr;
+        }
+
         if (config.TryGetValue("limit", out var limit) && TryGetInt(limit, out var limitVal))
         {
             switch (definitionId)
@@ -144,7 +172,15 @@ public class DashboardBuilderService
                 case "top-productos": p.ProductLimit = limitVal; break;
                 case "actividad": p.ActivityLimit = limitVal; break;
                 case "ultimas-ventas": p.SalesLimit = limitVal; break;
+                case "margen-por-producto": p.MarginLimit = limitVal; break;
+                case "stock-inmovilizado": p.InmovilizadoLimit = limitVal; break;
+                case "ventas-por-vendedor": p.SellerLimit = limitVal; break;
             }
+        }
+
+        if (config.TryGetValue("days", out var days) && TryGetInt(days, out var daysVal) && daysVal > 0)
+        {
+            p.InmovilizadoDays = daysVal;
         }
 
         if (definitionId == "meta" && config.TryGetValue("max", out var max) && TryGetInt(max, out var maxVal) && maxVal > 0)

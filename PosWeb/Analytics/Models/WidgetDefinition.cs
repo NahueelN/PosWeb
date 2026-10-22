@@ -85,6 +85,12 @@ public class WidgetDefinitionParam
 
     /// <summary>Valor máximo (solo "number").</summary>
     public int? Max { get; set; }
+
+    /// <summary>
+    /// Si es true, el parámetro se configura directamente desde la card del widget
+    /// (controles inline), no en el flujo de agregar/editar.
+    /// </summary>
+    public bool Inline { get; set; }
 }
 
 public class WidgetParamOption

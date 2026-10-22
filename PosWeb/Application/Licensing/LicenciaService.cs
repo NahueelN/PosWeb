@@ -170,6 +170,30 @@ public class LicenciaService
         }
     }
 
+    /// <summary>
+    /// Registra el último login de la cuenta titular en el worker de licensing (columna
+    /// last_login de la tabla licenses). Best-effort: si el worker falla no rompe el login.
+    /// </summary>
+    public async Task RegistrarUltimoLogin(string email)
+    {
+        if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+            return;
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/internal/last-login")
+            {
+                Content = JsonContent.Create(new { email }, options: JsonOptions)
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
+            await _httpClient.SendAsync(request);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // No romper el inicio de sesión si el worker no responde.
+        }
+    }
+
     public async Task<LicenciaConfig?> IniciarPruebaGratuita(string machineId, TimeSpan? duracion = null)
     {
         // Idempotente a propósito: si esta instalación ya tiene una LicenciaConfig (trial, paga,

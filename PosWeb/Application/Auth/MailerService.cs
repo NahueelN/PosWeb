@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace PosWeb.Application.Auth;
 
@@ -15,6 +16,7 @@ public class MailerService
     private readonly HttpClient _httpClient;
     private readonly string? _workerUrl;
     private readonly string? _internalKey;
+    private readonly ILogger<MailerService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,13 +24,63 @@ public class MailerService
         PropertyNameCaseInsensitive = true
     };
 
-    public MailerService(IConfiguration configuration, HttpMessageHandler? handler = null)
+    public MailerService(IConfiguration configuration, ILogger<MailerService> logger, HttpClient httpClient)
     {
-        _httpClient = handler == null
-            ? new HttpClient { Timeout = TimeSpan.FromSeconds(10) }
-            : new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+        _httpClient = httpClient;
+        _logger = logger;
         _workerUrl = configuration["Mailer:WorkerUrl"];
         _internalKey = configuration["Mailer:InternalKey"];
+    }
+
+    /// <summary>
+    /// Envía un reporte de problema al equipo de soporte vía el mailer-worker, con el email
+    /// del titular como reply_to y los logs recientes como adjunto (base64). Devuelve false
+    /// si el worker no está configurado o falla.
+    /// </summary>
+    public async Task<bool> EnviarReporte(
+        string? titularEmail,
+        string reportadoPor,
+        string descripcion,
+        string? version,
+        string? logFileName,
+        byte[]? logContenido)
+    {
+        if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+        {
+            _logger.LogWarning("MailerService: Mailer:WorkerUrl o Mailer:InternalKey no configurados, no se envía el reporte de {ReportadoPor}", reportadoPor);
+            return false;
+        }
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_workerUrl}/send-report")
+            {
+                Content = JsonContent.Create(new
+                {
+                    TitularEmail = titularEmail,
+                    ReportadoPor = reportadoPor,
+                    Descripcion = descripcion,
+                    Version = version,
+                    Attachment = logContenido != null && logFileName != null
+                        ? new { Name = logFileName, Content = Convert.ToBase64String(logContenido) }
+                        : null
+                }, options: JsonOptions)
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("MailerService: el worker respondió {StatusCode} al enviar el reporte de {ReportadoPor}. Body: {Body}", (int)response.StatusCode, reportadoPor, body);
+            }
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "MailerService: falló la conexión al mailer-worker enviando el reporte de {ReportadoPor}", reportadoPor);
+            return false;
+        }
     }
 
     /// <summary>
@@ -38,7 +90,10 @@ public class MailerService
     public async Task<bool> EnviarCodigo(string to, string kind, string code)
     {
         if (string.IsNullOrWhiteSpace(_workerUrl) || string.IsNullOrWhiteSpace(_internalKey))
+        {
+            _logger.LogWarning("MailerService: Mailer:WorkerUrl o Mailer:InternalKey no configurados, no se envía el mail de {Kind} a {To}", kind, to);
             return false;
+        }
 
         try
         {
@@ -54,10 +109,16 @@ public class MailerService
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _internalKey);
 
             var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("MailerService: el worker respondió {StatusCode} al enviar mail de {Kind} a {To}. Body: {Body}", (int)response.StatusCode, kind, to, body);
+            }
             return response.IsSuccessStatusCode;
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
+            _logger.LogError(ex, "MailerService: falló la conexión al mailer-worker enviando mail de {Kind} a {To}", kind, to);
             return false;
         }
     }

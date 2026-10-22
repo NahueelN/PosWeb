@@ -148,3 +148,70 @@ describe('internal license endpoint authentication', () => {
     expect(registerResponse.status).toBe(200);
   });
 });
+
+describe('POST /internal/last-login', () => {
+  function createLastLoginEnv({ foundLicense }: { foundLicense: { license_key: string } | null }) {
+    const runs: { sql: string; args: unknown[] }[] = [];
+    const env = {
+      LICENSES_DB: {
+        prepare: (sql: string) => ({
+          bind: (...args: unknown[]) => ({
+            first: async () => foundLicense,
+            run: async () => {
+              runs.push({ sql, args });
+              return {};
+            },
+          }),
+        }),
+      },
+      POSWEB_INTERNAL_KEY: 'client-key',
+    };
+
+    return { env, runs };
+  }
+
+  it('rejects requests without the internal key', async () => {
+    const { env, runs } = createLastLoginEnv({ foundLicense: { license_key: 'ABC123' } });
+
+    const response = await app.fetch(
+      authenticatedRequest('/internal/last-login', undefined, { email: 'titular@example.com' }),
+      env,
+    );
+
+    expect(response.status).toBe(401);
+    expect(runs).toEqual([]);
+  });
+
+  it('updates last_login for the most recent license of the email', async () => {
+    const { env, runs } = createLastLoginEnv({ foundLicense: { license_key: 'ABC123' } });
+
+    const response = await app.fetch(
+      authenticatedRequest('/internal/last-login', 'Bearer client-key', { email: 'Titular@Example.com' }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      found: true,
+      email: 'titular@example.com',
+      license_key: 'ABC123',
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].args).toEqual(['ABC123']);
+    expect(runs[0].sql).toContain("datetime('now', '-3 hours')");
+  });
+
+  it('returns 404 when the email has no license', async () => {
+    const { env, runs } = createLastLoginEnv({ foundLicense: null });
+
+    const response = await app.fetch(
+      authenticatedRequest('/internal/last-login', 'Bearer client-key', { email: 'nadie@example.com' }),
+      env,
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ found: false });
+    expect(runs).toEqual([]);
+  });
+});

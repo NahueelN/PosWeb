@@ -63,6 +63,7 @@ export interface WidgetConfig {
 
 export interface Widget {
   id: string
+  definitionId?: string
   title: string
   type: WidgetType
   dataset: Dataset
@@ -79,6 +80,7 @@ export interface WidgetDefinitionParam {
   options?: { value: string; label: string }[]
   min?: number
   max?: number
+  inline?: boolean
 }
 
 export interface WidgetVisualizationType {

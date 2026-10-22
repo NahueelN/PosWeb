@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Licensing;
 using PosWeb.Application.Seed;
@@ -124,6 +125,6 @@ public class PasswordPolicyTest
             })
             .Build();
         var encryption = new EncryptionService(Convert.ToBase64String(Encoding.UTF8.GetBytes("PosWeb_TestEncryptionKey_1234567890!")));
-        return new AuthService(context, new JwtTokenService(configuration), new LicenciaService(context, configuration, encryption), new MailerService(configuration));
+        return new AuthService(context, new JwtTokenService(configuration), new LicenciaService(context, configuration, encryption), new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient()));
     }
 }

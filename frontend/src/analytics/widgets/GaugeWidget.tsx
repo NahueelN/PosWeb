@@ -1,5 +1,6 @@
 import type { Widget } from '../types'
-import { Gauge as GaugeIcon } from 'lucide-react'
+import WidgetHeader from './WidgetHeader'
+import { getWidgetAccent } from './chrome'
 
 interface Props {
   widget: Widget
@@ -8,6 +9,7 @@ interface Props {
 export default function GaugeWidget({ widget }: Props) {
   const row = widget.dataset.rows[0] ?? {}
   const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
 
   const value = (row['value'] as number) ?? 0
   const min = config.min ?? (row['min'] as number) ?? 0
@@ -56,15 +58,8 @@ export default function GaugeWidget({ widget }: Props) {
 
   return (
     <div className="p-3.5 h-full flex flex-col justify-center relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 to-orange-300" />
-      <div className="flex items-center gap-2.5 mb-1">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center shrink-0 ring-1 ring-black/[0.02]">
-          <GaugeIcon size={11} className="text-amber-500" strokeWidth={2.5} />
-        </div>
-        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest flex-1 leading-none">
-          {widget.title}
-        </p>
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader accent={accent} title={widget.title} icon={config.icon ?? 'Gauge'} />
 
       <div className="flex justify-center -mt-1">
         <svg width={size} height={size / 2 + 16} viewBox={`0 0 ${size} ${size / 2 + 16}`}>

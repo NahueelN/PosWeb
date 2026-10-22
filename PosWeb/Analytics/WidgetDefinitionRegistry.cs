@@ -43,23 +43,6 @@ public static class WidgetDefinitionRegistry
                         },
                     }
                 },
-                new WidgetVisualizationType
-                {
-                    Type = "PROGRESS", Label = "Barra de progreso", Icon = "Target",
-                    Params = new()
-                    {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta", Type = "number", Default = 100000, Min = 1 },
-                        new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "emerald",
-                            Options = new()
-                            {
-                                new() { Value = "emerald", Label = "Verde" },
-                                new() { Value = "indigo", Label = "Índigo" },
-                                new() { Value = "blue", Label = "Azul" },
-                                new() { Value = "amber", Label = "Ámbar" },
-                            }
-                        },
-                    }
-                },
             }
         },
 
@@ -108,7 +91,7 @@ public static class WidgetDefinitionRegistry
                     Type = "KPI", Label = "Indicador", Icon = "Target",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1, Inline = true },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -124,7 +107,7 @@ public static class WidgetDefinitionRegistry
                     Type = "PROGRESS", Label = "Barra de progreso", Icon = "Target",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1 },
+                        new WidgetDefinitionParam { Key = "max", Label = "Meta del día", Type = "number", Default = 100000, Min = 1, Inline = true },
                         new WidgetDefinitionParam { Key = "color", Label = "Color", Type = "select", Default = "purple",
                             Options = new()
                             {
@@ -155,7 +138,7 @@ public static class WidgetDefinitionRegistry
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -170,7 +153,7 @@ public static class WidgetDefinitionRegistry
                     Type = "LINE_CHART", Label = "Líneas", Icon = "TrendingUp",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -185,7 +168,7 @@ public static class WidgetDefinitionRegistry
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "7", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "7", Label = "Últimos 7 días" },
@@ -248,7 +231,7 @@ public static class WidgetDefinitionRegistry
                     Type = "TABLE", Label = "Tabla", Icon = "Table",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -264,7 +247,7 @@ public static class WidgetDefinitionRegistry
                     Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -280,7 +263,7 @@ public static class WidgetDefinitionRegistry
                     Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
                     Params = new()
                     {
-                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0",
+                        new WidgetDefinitionParam { Key = "period", Label = "Período", Type = "select", Default = "0", Inline = true,
                             Options = new()
                             {
                                 new() { Value = "0", Label = "Hoy" },
@@ -404,6 +387,372 @@ public static class WidgetDefinitionRegistry
                 },
             }
         },
+
+        // ── Finanzas: Rentabilidad y Margen ──────────────────────
+        new WidgetDefinition
+        {
+            Id = "rentabilidad",
+            Name = "Rentabilidad",
+            Description = "Ganancia bruta, margen promedio, facturación y costo del período",
+            Category = "finanzas",
+            Icon = "TrendingUp",
+            SupportedSizes = new() { S(3,1), S(6,1), S(6,2), S(3,2) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "KPI", Label = "Indicador", Icon = "TrendingUp",
+                    Params = new() { PeriodoParam("0") }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("0") }
+                },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "margen-por-categoria",
+            Name = "Margen por categoría",
+            Description = "Rentabilidad aportada por cada categoría de producto",
+            Category = "finanzas",
+            Icon = "PieChart",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
+                    Params = new() { PeriodoParam("30"), DonutParam() }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("30") }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("30") }
+                },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "margen-por-producto",
+            Name = "Margen por producto",
+            Description = "Productos que aportan mayor rentabilidad (no solo volumen)",
+            Category = "finanzas",
+            Icon = "Percent",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("30"), LimitParam(10) }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("30"), LimitParam(10) }
+                },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "deudas-clientes",
+            Name = "Deudas de clientes",
+            Description = "Total pendiente de cobro (fiados), cantidad de deudores y antigüedad",
+            Category = "finanzas",
+            Icon = "Wallet",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType { Type = "KPI", Label = "Indicador", Icon = "Wallet", Params = new() { } },
+                new WidgetVisualizationType { Type = "TABLE", Label = "Tabla", Icon = "Table", Params = new() { } },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "deudas-proveedores",
+            Name = "Deudas con proveedores",
+            Description = "Total acumulado a pagar, cantidad de proveedores y antigüedad",
+            Category = "finanzas",
+            Icon = "Landmark",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType { Type = "KPI", Label = "Indicador", Icon = "Landmark", Params = new() { } },
+                new WidgetVisualizationType { Type = "TABLE", Label = "Tabla", Icon = "Table", Params = new() { } },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "deudas-resumen",
+            Name = "Balance de deudas",
+            Description = "Diferencia entre lo que te deben (clientes) y lo que debés (proveedores)",
+            Category = "finanzas",
+            Icon = "Scale",
+            SupportedSizes = new() { S(3,1), S(6,1) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType { Type = "KPI", Label = "Indicador", Icon = "Scale", Params = new() { } },
+                new WidgetVisualizationType { Type = "TABLE", Label = "Tabla", Icon = "Table", Params = new() { } },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "flujo-caja",
+            Name = "Flujo de caja",
+            Description = "Ingresos (ventas + cobros) menos egresos (compras + gastos)",
+            Category = "finanzas",
+            Icon = "ArrowLeftRight",
+            SupportedSizes = new() { S(3,1), S(6,1), S(6,2), S(3,2) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "KPI", Label = "Indicador", Icon = "ArrowLeftRight",
+                    Params = new() { PeriodoParam("0") }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("0") }
+                },
+            }
+        },
+
+        // ── Ventas: Comportamiento ───────────────────────────────
+        new WidgetDefinition
+        {
+            Id = "horas-pico",
+            Name = "Horarios de venta",
+            Description = "Distribución de ventas por rango horario",
+            Category = "ventas",
+            Icon = "Clock",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("7", includeToday: false), MetricParam() }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("7", includeToday: false), MetricParam() }
+                },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "metodos-pago",
+            Name = "Métodos de pago",
+            Description = "Porcentaje y monto cobrado por cada medio de pago",
+            Category = "ventas",
+            Icon = "CreditCard",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
+                    Params = new() { PeriodoParam("0"), DonutParam() }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("0") }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("0") }
+                },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "retencion-clientes",
+            Name = "Clientes registrados vs finales",
+            Description = "Ventas a clientes identificados vs consumidor final",
+            Category = "ventas",
+            Icon = "Users",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(3, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
+                    Params = new() { PeriodoParam("0"), DonutParam() }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("0") }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("0") }
+                },
+            }
+        },
+
+        // ── Stock / Operaciones ──────────────────────────────────
+        new WidgetDefinition
+        {
+            Id = "valor-inventario",
+            Name = "Valor de inventario",
+            Description = "Valor del stock a costo y a precio de venta",
+            Category = "stock",
+            Icon = "Boxes",
+            SupportedSizes = new() { S(3,1), S(6,1), S(6,2), S(3,2) },
+            DefaultSize = S(3, 1),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType { Type = "KPI", Label = "Indicador", Icon = "Boxes", Params = new() { } },
+                new WidgetVisualizationType { Type = "TABLE", Label = "Tabla", Icon = "Table", Params = new() { } },
+            }
+        },
+
+        new WidgetDefinition
+        {
+            Id = "stock-inmovilizado",
+            Name = "Productos sin movimiento",
+            Description = "Productos con stock sin ventas en los últimos 30/60/90 días",
+            Category = "stock",
+            Icon = "PackageSearch",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { InmovilizadoParam(), LimitParam(10) }
+                },
+            }
+        },
+
+        // ── Equipo ───────────────────────────────────────────────
+        new WidgetDefinition
+        {
+            Id = "ventas-por-vendedor",
+            Name = "Rendimiento por vendedor",
+            Description = "Total vendido y transacciones desglosadas por usuario",
+            Category = "rankings",
+            Icon = "UserCheck",
+            SupportedSizes = new() { S(6,3), S(3,3) },
+            DefaultSize = S(6, 3),
+            CompatibleTypes = new()
+            {
+                new WidgetVisualizationType
+                {
+                    Type = "BAR_CHART", Label = "Barras", Icon = "BarChart3",
+                    Params = new() { PeriodoParam("0"), LimitParam(10) }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "PIE_CHART", Label = "Gráfico circular", Icon = "PieChart",
+                    Params = new() { PeriodoParam("0"), LimitParam(10), DonutParam() }
+                },
+                new WidgetVisualizationType
+                {
+                    Type = "TABLE", Label = "Tabla", Icon = "Table",
+                    Params = new() { PeriodoParam("0"), LimitParam(10) }
+                },
+            }
+        },
+    };
+
+    // ── Helpers de parámetros reutilizables ──────────────────────
+    private static WidgetDefinitionParam PeriodoParam(string @default, bool includeToday = true)
+    {
+        var options = new List<WidgetParamOption>();
+        if (includeToday)
+            options.Add(new() { Value = "0", Label = "Hoy" });
+        options.Add(new() { Value = "7", Label = "Últimos 7 días" });
+        options.Add(new() { Value = "30", Label = "Últimos 30 días" });
+
+        return new WidgetDefinitionParam
+        {
+            Key = "period",
+            Label = "Período",
+            Type = "select",
+            Default = @default,
+            Options = options,
+            Inline = true
+        };
+    }
+
+    private static WidgetDefinitionParam MetricParam() => new()
+    {
+        Key = "metric",
+        Label = "Métrica",
+        Type = "select",
+        Default = "monto",
+        Inline = true,
+        Options = new()
+        {
+            new() { Value = "monto", Label = "Monto" },
+            new() { Value = "cantidad", Label = "Cantidad" },
+        }
+    };
+
+    private static WidgetDefinitionParam LimitParam(int @default) => new()
+    {
+        Key = "limit",
+        Label = "Cantidad",
+        Type = "number",
+        Default = @default,
+        Min = 3,
+        Max = 15
+    };
+
+    private static WidgetDefinitionParam DonutParam() => new()
+    {
+        Key = "donut",
+        Label = "Tipo donut",
+        Type = "boolean",
+        Default = true
+    };
+
+    private static WidgetDefinitionParam InmovilizadoParam() => new()
+    {
+        Key = "days",
+        Label = "Sin ventas (días)",
+        Type = "select",
+        Default = "60",
+        Inline = true,
+        Options = new()
+        {
+            new() { Value = "30", Label = "Últimos 30 días" },
+            new() { Value = "60", Label = "Últimos 60 días" },
+            new() { Value = "90", Label = "Últimos 90 días" },
+        }
     };
 
     public static WidgetDefinition? GetById(string id) =>

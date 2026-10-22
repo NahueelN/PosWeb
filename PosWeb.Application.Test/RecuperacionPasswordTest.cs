@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text;
 using PosWeb.Application.Auth;
 using PosWeb.Application.Licensing;
@@ -57,7 +58,7 @@ public class RecuperacionPasswordTest
             })
             .Build();
 
-        return new MailerService(configuration);
+        return new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient());
     }
 
     private static Usuario CrearUsuario(PosDbContextLocal context, int id, string mail)

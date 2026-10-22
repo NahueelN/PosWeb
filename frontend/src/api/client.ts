@@ -725,6 +725,15 @@ export const api = {
       }),
   },
 
+  // Soporte (reportar problema)
+  soporte: {
+    reportar: (descripcion: string, version?: string) =>
+      request<{ ok: boolean }>('/soporte/reportar', {
+        method: 'POST',
+        body: JSON.stringify({ descripcion, version }),
+      }),
+  },
+
   // MercadoPago
   mercadopago: {
     authUrl: () => request<{ url: string }>('/mercadopago/auth-url'),

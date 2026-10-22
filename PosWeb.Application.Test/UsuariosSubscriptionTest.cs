@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Security.Claims;
 using System.Text;
 using PosWeb.Application.Auth;
@@ -48,7 +49,7 @@ public class UsuariosSubscriptionTest
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();
 
-        return new MailerService(configuration);
+        return new MailerService(configuration, NullLogger<MailerService>.Instance, new HttpClient());
     }
 
     private static LicenciaService CrearLicenciaService(PosDbContextLocal context)
@@ -628,6 +629,37 @@ public class UsuariosSubscriptionTest
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(responseFactory(request));
+    }
+
+    [Fact]
+    public async Task RegistrarUltimoLogin_EnviaEmailAlWorkerConAuthInterna()
+    {
+        var context = CrearContexto(nameof(RegistrarUltimoLogin_EnviaEmailAlWorkerConAuthInterna));
+        HttpRequestMessage? capturado = null;
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            Assert.Equal("/internal/last-login", request.RequestUri!.AbsolutePath);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("internal-test-key", request.Headers.Authorization?.Parameter);
+            capturado = request;
+            return JsonResponse("{\"ok\":true}");
+        });
+        var licenciaService = CrearLicenciaServiceConWorker(context, handler);
+
+        await licenciaService.RegistrarUltimoLogin("titular@example.com");
+
+        Assert.NotNull(capturado);
+        var body = await capturado!.Content!.ReadAsStringAsync();
+        Assert.Contains("\"email\":\"titular@example.com\"", body);
+    }
+
+    [Fact]
+    public async Task RegistrarUltimoLogin_WorkerCaido_NoLanza()
+    {
+        var context = CrearContexto(nameof(RegistrarUltimoLogin_WorkerCaido_NoLanza));
+        var licenciaService = CrearLicenciaServiceConWorker(context);
+
+        await licenciaService.RegistrarUltimoLogin("titular@example.com");
     }
 
     [Fact]

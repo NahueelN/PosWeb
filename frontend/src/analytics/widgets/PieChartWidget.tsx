@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Widget } from '../types'
 import { PieChart as PieChartIcon } from 'lucide-react'
+import WidgetHeader from './WidgetHeader'
+import { getWidgetAccent } from './chrome'
 
 interface PieSlice {
   label: string
@@ -35,16 +37,22 @@ interface Props {
 export default function PieChartWidget({ widget }: Props) {
   const [hovered, setHovered] = useState<number | null>(null)
   const config = widget.config ?? {}
+  const accent = getWidgetAccent(config.color, widget.definitionId)
   const rows = widget.dataset.rows
 
   if (rows.length === 0) {
     return (
-      <div className="p-3.5 flex flex-col items-center justify-center text-gray-300 h-full relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-violet-400 to-rose-300" />
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center mb-2 ring-1 ring-black/[0.02]">
-          <PieChartIcon size={16} className="text-violet-300" />
+      <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
+        <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+        <WidgetHeader accent={accent} title={widget.title} icon={config.icon} />
+        <div className="flex-1 flex items-center justify-center text-gray-300">
+          <div className="text-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center mx-auto mb-2 ring-1 ring-black/[0.02]">
+              <PieChartIcon size={16} className="text-violet-300" />
+            </div>
+            <p className="text-xs text-gray-400 font-medium">Sin datos</p>
+          </div>
         </div>
-        <p className="text-xs text-gray-400 font-medium">Sin datos</p>
       </div>
     )
   }
@@ -94,13 +102,20 @@ export default function PieChartWidget({ widget }: Props) {
 
   return (
     <div className="p-3.5 flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-violet-400 to-rose-300" />
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-semibold text-gray-900 tracking-wide">{widget.title}</h3>
-        {config.showPercentages !== false && (
-          <span className="text-[10px] text-gray-400">{rows.length} items</span>
-        )}
-      </div>
+      <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${accent.spine}`} />
+      <WidgetHeader
+        accent={accent}
+        title={widget.title}
+        icon={config.icon}
+        right={
+          <span
+            title="Total de ventas del período"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold tabular-nums"
+          >
+            {formatCurrency(total)}
+          </span>
+        }
+      />
 
       <div className="flex items-center gap-4 flex-1">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
@@ -121,9 +136,23 @@ export default function PieChartWidget({ widget }: Props) {
             )
           })}
           {config.donut && (
-            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" className="fill-gray-900 font-bold" fontSize={16}>
-              {formatCurrency(total)}
-            </text>
+            <>
+              <text
+                x={cx}
+                y={hovered !== null ? cy - 6 : cy}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="fill-gray-900 font-bold"
+                fontSize={hovered !== null ? 13 : 16}
+              >
+                {formatCurrency(hovered !== null && slices[hovered] ? slices[hovered].value : total)}
+              </text>
+              {hovered !== null && slices[hovered] && (
+                <text x={cx} y={cy + 12} textAnchor="middle" className="fill-gray-400" fontSize={7}>
+                  {slices[hovered].label}
+                </text>
+              )}
+            </>
           )}
         </svg>
 
@@ -131,14 +160,17 @@ export default function PieChartWidget({ widget }: Props) {
           {slices.map((s, i) => (
             <div
               key={i}
+              title={`${s.label}: ${formatCurrency(s.value)} (${s.pct}%)`}
               className={`flex items-center gap-1.5 text-[10px] transition-opacity ${hovered !== null && hovered !== i ? 'opacity-30' : ''}`}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
               <span className="text-gray-500 truncate">{s.label}</span>
-              <span className="ml-auto text-gray-900 font-semibold whitespace-nowrap">
-                {config.showPercentages !== false ? `${s.pct}%` : formatCurrency(s.value)}
+              <span className="ml-auto text-gray-900 font-semibold whitespace-nowrap tabular-nums">
+                {config.showPercentages !== false
+                  ? hovered === i ? formatCurrency(s.value) : `${s.pct}%`
+                  : formatCurrency(s.value)}
               </span>
             </div>
           ))}

@@ -9,12 +9,14 @@ import {
   DollarSign, Wallet, Target, BarChart3, PieChart, TrendingUp,
   AlertTriangle, ClipboardList, Clock, Receipt, Package,
   Table, List, Gauge, Users, FileText, Landmark, Grid, Truck,
+  Percent, Scale, ArrowLeftRight, Boxes, PackageSearch, CreditCard, UserCheck,
 } from 'lucide-react'
 
 const iconMap: Record<string, React.ElementType> = {
   DollarSign, Wallet, Target, BarChart3, PieChart, TrendingUp,
   AlertTriangle, ClipboardList, Clock, Receipt, Package,
   Table, List, Gauge, Users, FileText, Landmark, Grid, Truck,
+  Percent, Scale, ArrowLeftRight, Boxes, PackageSearch, CreditCard, UserCheck,
 }
 
 function IconByName({ name, size = 16 }: { name: string; size?: number }) {
@@ -47,6 +49,7 @@ const MODULE_WIDGETS: Record<string, ModuleEntry[]> = {
     { definitionId: 'resumen', subCategory: 'KPIs', question: 'Resumen del día' },
     { definitionId: 'ventas-hoy', subCategory: 'KPIs', question: 'Ventas del día' },
     { definitionId: 'meta', subCategory: 'KPIs', question: 'Meta diaria' },
+    { definitionId: 'rentabilidad', subCategory: 'KPIs', question: 'Rentabilidad del período' },
     { definitionId: 'alertas', subCategory: 'Alerts', question: 'Alertas urgentes' },
     { definitionId: 'actividad', subCategory: 'Activity', question: 'Actividad reciente' },
   ],
@@ -55,7 +58,11 @@ const MODULE_WIDGETS: Record<string, ModuleEntry[]> = {
     { definitionId: 'resumen', subCategory: 'KPIs', question: 'Ticket promedio' },
     { definitionId: 'meta', subCategory: 'KPIs', question: 'Cumplimiento de meta' },
     { definitionId: 'ventas-semana', subCategory: 'Charts', question: 'Ventas semanales' },
+    { definitionId: 'horas-pico', subCategory: 'Charts', question: 'Horarios de mayor venta' },
+    { definitionId: 'metodos-pago', subCategory: 'Charts', question: 'Cómo me pagan' },
+    { definitionId: 'retencion-clientes', subCategory: 'Charts', question: 'Clientes registrados vs finales' },
     { definitionId: 'top-productos', subCategory: 'Rankings', question: 'Productos más vendidos' },
+    { definitionId: 'margen-por-producto', subCategory: 'Rankings', question: 'Productos más rentables' },
     { definitionId: 'ultimas-ventas', subCategory: 'Activity', question: 'Últimas ventas' },
   ],
   Compras: [
@@ -63,9 +70,13 @@ const MODULE_WIDGETS: Record<string, ModuleEntry[]> = {
   ],
   Stock: [
     { definitionId: 'top-productos', subCategory: 'Rankings', question: 'Productos más vendidos' },
+    { definitionId: 'valor-inventario', subCategory: 'KPIs', question: 'Valor del inventario' },
+    { definitionId: 'stock-inmovilizado', subCategory: 'Rankings', question: 'Productos sin movimiento' },
+    { definitionId: 'margen-por-categoria', subCategory: 'Charts', question: 'Margen por categoría' },
   ],
   Clientes: [
     { definitionId: 'resumen', subCategory: 'KPIs', question: 'Clientes del día' },
+    { definitionId: 'retencion-clientes', subCategory: 'Charts', question: 'Clientes registrados vs finales' },
   ],
   Proveedores: [],
   Caja: [
@@ -73,15 +84,26 @@ const MODULE_WIDGETS: Record<string, ModuleEntry[]> = {
     { definitionId: 'actividad', subCategory: 'Activity', question: 'Movimientos de caja' },
   ],
   Finanzas: [
+    { definitionId: 'rentabilidad', subCategory: 'KPIs', question: 'Rentabilidad del período' },
+    { definitionId: 'flujo-caja', subCategory: 'KPIs', question: 'Flujo de caja' },
+    { definitionId: 'deudas-clientes', subCategory: 'KPIs', question: 'Fiados de clientes' },
+    { definitionId: 'deudas-proveedores', subCategory: 'KPIs', question: 'Deudas con proveedores' },
+    { definitionId: 'deudas-resumen', subCategory: 'KPIs', question: 'Balance de deudas (clientes − proveedores)' },
+    { definitionId: 'margen-por-categoria', subCategory: 'Charts', question: 'Margen por categoría' },
+    { definitionId: 'metodos-pago', subCategory: 'Charts', question: 'Métodos de pago' },
     { definitionId: 'actividad', subCategory: 'Activity', question: 'Gastos registrados' },
+  ],
+  Equipo: [
+    { definitionId: 'ventas-por-vendedor', subCategory: 'Rankings', question: 'Rendimiento por vendedor' },
   ],
   Estadísticas: [
     { definitionId: 'ventas-semana', subCategory: 'Charts', question: 'Evolución de ventas' },
     { definitionId: 'top-productos', subCategory: 'Rankings', question: 'Productos estrella' },
+    { definitionId: 'margen-por-categoria', subCategory: 'Charts', question: 'Margen por categoría' },
   ],
 }
 
-const MODULE_ORDER = ['Inicio', 'Ventas', 'Compras', 'Stock', 'Clientes', 'Proveedores', 'Caja', 'Finanzas', 'Estadísticas']
+const MODULE_ORDER = ['Inicio', 'Ventas', 'Compras', 'Stock', 'Clientes', 'Proveedores', 'Caja', 'Finanzas', 'Equipo', 'Estadísticas']
 
 const moduleIcons: Record<string, React.ElementType> = {
   Inicio: Grid,
@@ -92,6 +114,7 @@ const moduleIcons: Record<string, React.ElementType> = {
   Proveedores: Truck,
   Caja: Wallet,
   Finanzas: Landmark,
+  Equipo: UserCheck,
   Estadísticas: TrendingUp,
 }
 
@@ -110,7 +133,9 @@ function getModuleEntries(definitions: WidgetDefinition[]): Map<string, ModuleEn
 }
 
 function isSimple(def: WidgetDefinition): boolean {
-  return def.compatibleTypes.length === 1 && def.compatibleTypes[0].params.length === 0
+  // Un solo tipo de visualización y sin parámetros no-inline: agrega directo.
+  if (def.compatibleTypes.length !== 1) return false
+  return def.compatibleTypes[0].params.every((p) => p.inline)
 }
 
 function initConfig(viz: WidgetVisualizationType): Record<string, any> {
@@ -325,7 +350,7 @@ function WidgetCard({
   function handleVizChange(viz: WidgetVisualizationType) {
     setSelectedViz(viz)
     setConfig(initConfig(viz))
-    setShowConfig(viz.params.length > 0)
+    setShowConfig(viz.params.some((p) => !p.inline))
   }
 
   function handleCardClick() {
@@ -454,7 +479,7 @@ function WidgetCard({
                   </div>
                 )}
 
-                {selectedViz && selectedViz.params.length > 0 && (
+                {selectedViz && selectedViz.params.some((p) => !p.inline) && (
                   <div>
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowConfig(!showConfig) }}
@@ -478,7 +503,7 @@ function WidgetCard({
                           className="overflow-hidden"
                         >
                           <div className="space-y-2.5 pb-2">
-                            {selectedViz.params.map((param) => (
+                            {selectedViz.params.filter((param) => !param.inline).map((param) => (
                               <div key={param.key}>
                                 <label className="text-[9px] font-medium text-gray-400 uppercase tracking-wider block mb-1">
                                   {param.label}
@@ -536,7 +561,7 @@ function WidgetCard({
                   </div>
                 )}
 
-                {(hasMultipleViz || (selectedViz && selectedViz.params.length > 0)) && (
+                {(hasMultipleViz || (selectedViz && selectedViz.params.some((p) => !p.inline))) && (
                   <div className="mt-3">
                     <Button
                       variant="primary"
