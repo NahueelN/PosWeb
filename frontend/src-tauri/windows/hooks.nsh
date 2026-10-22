@@ -6,7 +6,24 @@
 ; desinstalacion de PosWeb: el acceso directo viejo volvia a descargar el
 ; update en cada apertura (loop). Este hook limpia esa instalacion legacy.
 
+; Hook que cierra los sidecars que bloquean el update. El
+; RestartManager del instalador solo cierra el ejecutable principal (app.exe),
+; no los sidecars; si quedan vivos bloquean sus binarios y el update nunca
+; reemplaza los archivos (la app se cierra, reabre con la version vieja y
+; vuelve a detectar la actualizacion en un loop).
+!macro StopVendetoSidecars
+  DetailPrint "Vendeto: deteniendo procesos en segundo plano..."
+  nsExec::ExecToLog 'taskkill /F /IM posweb-backend.exe'
+  Pop $0
+  nsExec::ExecToLog 'taskkill /F /IM vendeto-mobile.exe'
+  Pop $0
+  nsExec::ExecToLog 'taskkill /F /IM vendeto-cloudflared.exe'
+  Pop $0
+!macroend
+
 !macro NSIS_HOOK_PREINSTALL
+  !insertmacro StopVendetoSidecars
+
   DetailPrint "Vendeto: limpiando instalacion legacy PosWeb..."
 
   ; Carpeta de la instalacion per-user legacy (borra al reiniciar si esta en uso)

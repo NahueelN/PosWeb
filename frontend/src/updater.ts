@@ -60,8 +60,8 @@ async function initUpdater() {
         emit({ status: 'downloading', version: update.version })
 
         try {
-          console.log('[Updater] Killing posweb-backend sidecar...')
-          await invokeMod.invoke('kill_sidecar')
+          console.log('[Updater] Killing sidecars...')
+          await invokeMod.invoke('kill_sidecars')
           await new Promise(r => setTimeout(r, 500))
         } catch {
           console.log('[Updater] Sidecar already stopped, skipping kill')
