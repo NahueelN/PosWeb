@@ -12,11 +12,9 @@ impl KillOnCloseJob {
     fn create() -> Result<Self, std::io::Error> {
         use std::mem::size_of;
         use windows_sys::Win32::System::JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            JobObjectExtendedLimitInformation,
+            CreateJobObjectW, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JobObjectExtendedLimitInformation,
         };
-        use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
         unsafe {
             let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
@@ -31,11 +29,43 @@ impl KillOnCloseJob {
                 JobObjectExtendedLimitInformation,
                 &limits as *const _ as *const _,
                 size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            ) == 0 || AssignProcessToJobObject(handle, GetCurrentProcess()) == 0 {
+            ) == 0 {
                 windows_sys::Win32::Foundation::CloseHandle(handle);
                 return Err(std::io::Error::last_os_error());
             }
             Ok(Self(handle as isize))
+        }
+    }
+
+    // Asigna un sidecar ya lanzado al job. NO asignamos el proceso de la app para
+    // que el instalador que lanza el updater (ShellExecuteW) no herede el job: si
+    // lo heredara, el `exit` inmediato del updater cerraria el job y mataria al
+    // instalador a mitad de camino (update que nunca se aplica).
+    fn assign(&self, pid: u32) {
+        use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
+        };
+
+        if pid == 0 {
+            return;
+        }
+        unsafe {
+            let process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, pid);
+            if process.is_null() {
+                log::warn!(
+                    "[Tauri] OpenProcess fallo para el sidecar pid {pid}: {}",
+                    std::io::Error::last_os_error()
+                );
+                return;
+            }
+            if AssignProcessToJobObject(self.0 as _, process) == 0 {
+                log::warn!(
+                    "[Tauri] AssignProcessToJobObject fallo para el sidecar pid {pid}: {}",
+                    std::io::Error::last_os_error()
+                );
+            }
+            windows_sys::Win32::Foundation::CloseHandle(process);
         }
     }
 }
@@ -55,6 +85,8 @@ impl KillOnCloseJob {
     fn create() -> Result<Self, std::io::Error> {
         Ok(Self)
     }
+
+    fn assign(&self, _pid: u32) {}
 }
 
 struct SidecarProcesses(Mutex<Vec<tauri_plugin_shell::process::CommandChild>>);
@@ -186,10 +218,13 @@ pub fn run() {
                 )?;
             }
 
-            match KillOnCloseJob::create() {
-                Ok(job) => { app.manage(SidecarJob { _job: job }); }
-                Err(error) => { log::error!("[Tauri] Failed to create sidecar Job Object: {error}"); }
-            }
+            let sidecar_job = match KillOnCloseJob::create() {
+                Ok(job) => Some(job),
+                Err(error) => {
+                    log::error!("[Tauri] Failed to create sidecar Job Object: {error}");
+                    None
+                }
+            };
 
             // Kill any orphan backend from previous crashed session
             let _ = std::process::Command::new("taskkill")
@@ -210,6 +245,10 @@ pub fn run() {
                 .expect("failed to create sidecar command");
             let (mut backend_rx, backend_child) = sidecar.spawn()
                 .expect("failed to spawn backend sidecar");
+
+            if let Some(job) = &sidecar_job {
+                job.assign(backend_child.pid());
+            }
 
             // Log backend output
             tauri::async_runtime::spawn(async move {
@@ -241,6 +280,10 @@ pub fn run() {
                 }
             };
 
+            if let Some(job) = &sidecar_job {
+                job.assign(mobile_child.pid());
+            }
+
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_shell::process::CommandEvent;
                 while let Some(event) = mobile_rx.recv().await {
@@ -260,6 +303,10 @@ pub fn run() {
             });
 
             app.manage(SidecarProcesses(Mutex::new(vec![backend_child, mobile_child])));
+
+            if let Some(job) = sidecar_job {
+                app.manage(SidecarJob { _job: job });
+            }
 
             Ok(())
         })
