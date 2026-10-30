@@ -239,6 +239,22 @@ function paymentEnv(initial: Record<string, any> = {}) {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe('pending subscription license', () => {
+  it('remains pending on activation and status without searching payments', async () => {
+    const { env, license, runs } = paymentEnv({ next_billing: null, machine_id: null });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ results: [{ id: 123, status: 'approved' }] }));
+    const body = { license_key: 'KEY123', machine_id: 'machine-1' };
+    const activation = await app.fetch(authenticatedRequest('/activate', undefined, body), env);
+    expect(activation.status).toBe(403);
+    expect(await activation.json()).toMatchObject({ success: false, error: 'El pago aún se está procesando. Esperá unos minutos y volvé a intentar.' });
+    const status = await app.fetch(authenticatedRequest('/status', undefined, body), env);
+    expect(await status.json()).toMatchObject({ valid: false, status: 'pending' });
+    expect(license.preapproval_id).toBe('sub-1');
+    expect(runs).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('payment webhooks', () => {
   const webhook = (env: any, payload: object) => app.fetch(authenticatedRequest('/webhook', undefined, payload), env);
   it('extends an approved authorized payment once, using the payment ID', async () => {
@@ -259,10 +275,22 @@ describe('payment webhooks', () => {
     expect(license.next_billing).toBe('2099-01-10');
     expect(runs).toEqual([]);
   });
+  it('does not extend or record an approved authorized payment without a real payment ID', async () => {
+    const { env, license, runs, processed } = paymentEnv();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ preapproval_id: 'sub-1', payment: { status: 'approved' } }));
+    expect((await webhook(env, { type: 'subscription_authorized_payment', data: { id: 'ap-1' } })).status).toBe(200);
+    expect(license.next_billing).toBe('2099-01-10');
+    expect(license.status).toBe('pending');
+    expect(runs).toEqual([]);
+    expect(processed.size).toBe(0);
+    expect(log.mock.calls.length + error.mock.calls.length).toBeGreaterThan(1);
+  });
   it('finds a subscription license from the preapproval external reference', async () => {
     const { env, license } = paymentEnv({ preapproval_id: null });
     vi.spyOn(globalThis, 'fetch').mockImplementation(async url => String(url).includes('authorized_payments')
-      ? Response.json({ preapproval_id: 'sub-1', status: 'approved' })
+      ? Response.json({ preapproval_id: 'sub-1', status: 'approved', payment: { id: 42 } })
       : Response.json({ external_reference: 'sub:basica:buyer@example.com:KEY123' }));
     expect((await webhook(env, { type: 'subscription_authorized_payment', data: { id: 'ap-1' } })).status).toBe(200);
     expect(license.next_billing).toBe('2099-02-10');
