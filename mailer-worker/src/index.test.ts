@@ -195,3 +195,51 @@ describe('lead storage', () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe('installer URL lookup', () => {
+  const DB = { prepare: vi.fn(() => ({ bind: () => ({ run: vi.fn().mockResolvedValue({}) }) })) };
+  const installerRequest = (extra = {}) => app.request('https://mailer.test/installer', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'user@example.com' }),
+  }, { ...env, DB, ...extra });
+
+  beforeEach(() => { vi.restoreAllMocks(); mockRateLimitCache(); });
+
+  it('sends the token and caches the resolved installer for ten minutes', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async url => String(url).includes('api.github.com')
+      ? Response.json({ html_url: 'https://example.com/release', assets: [{ name: 'app-setup.exe', browser_download_url: 'https://example.com/setup.exe' }] })
+      : new Response('', { status: 200 }));
+    expect((await installerRequest({ GITHUB_TOKEN: 'github-secret' })).status).toBe(200);
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ Accept: 'application/vnd.github+json', 'User-Agent': 'Vendeto-Web', Authorization: 'Bearer github-secret' });
+    const [key, response] = vi.mocked(caches.default.put).mock.calls.find(([request]) => String((request as Request).url).includes('/__cache/installer-url'))!;
+    expect((key as Request).url).toBe('https://mailer.test/__cache/installer-url');
+    expect(response.headers.get('Cache-Control')).toBe('max-age=600');
+    expect(await response.text()).toBe('https://example.com/setup.exe');
+  });
+
+  it('uses a cached URL without contacting GitHub', async () => {
+    vi.mocked(caches.default.match).mockImplementation(async key => String((key as Request).url).includes('/__cache/installer-url') ? new Response('https://example.com/cached.exe') : undefined);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+    expect((await installerRequest()).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string).textbody).toContain('https://example.com/cached.exe');
+  });
+
+  it.each(['403', 'network'])('sends the fallback installer when GitHub fails with %s', async failure => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async url => {
+      if (String(url).includes('api.github.com')) {
+        if (failure === 'network') throw new Error('network failure');
+        return new Response('', { status: 403 });
+      }
+      return new Response('', { status: 200 });
+    });
+    const response = await installerRequest();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    const payload = JSON.parse(fetchMock.mock.calls[1][1]!.body as string);
+    expect(payload.textbody).toContain('https://github.com/NahueelN/PosWeb/releases/latest');
+    expect(error).toHaveBeenCalled();
+    if (failure === '403') expect(error.mock.calls.flat().join(' ')).toContain('403');
+    expect(vi.mocked(caches.default.put).mock.calls.some(([key]) => String((key as Request).url).includes('/__cache/installer-url'))).toBe(false);
+  });
+});

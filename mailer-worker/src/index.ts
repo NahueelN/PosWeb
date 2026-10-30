@@ -15,6 +15,7 @@ interface Env {
   MAX_PER_RUN?: string;
   PUBLIC_URL?: string;
   MAILER_INTERNAL_KEY?: string;
+  GITHUB_TOKEN?: string;
   ZEPTOMAIL_API_KEY?: string;
   FROM_EMAIL?: string;
   FROM_NAME?: string;
@@ -88,14 +89,34 @@ async function excedeLimite(c: any, bucket: string, max: number, windowSeconds: 
 
 // Resuelve la URL del instalador desde el último release de GitHub (igual que api/latest.js
 // del sitio). Prefiere el asset .exe y cae al html_url si no lo encuentra.
-async function obtenerInstaladorUrl(): Promise<string> {
-  const resp = await fetch(`https://api.github.com/repos/${RELEASE_REPO}/releases/latest`, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Vendeto-Web' },
-  });
-  if (!resp.ok) throw new Error(`GitHub API error ${resp.status}`);
-  const data = await resp.json<{ html_url: string; assets?: Array<{ name: string; browser_download_url: string }> }>();
-  const asset = data.assets?.find((a) => a.name.endsWith('-setup.exe') || a.name.endsWith('.exe'));
-  return asset?.browser_download_url || data.html_url;
+async function obtenerInstaladorUrl(env: Env, origin: string): Promise<string> {
+  const cacheKey = new Request(new URL('/__cache/installer-url', origin));
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) return await cached.text();
+  } catch (error) {
+    console.error('Installer cache read failed', error);
+  }
+  const fallback = `https://github.com/${RELEASE_REPO}/releases/latest`;
+  let url: string;
+  try {
+    const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'User-Agent': 'Vendeto-Web' };
+    if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+    const resp = await fetch(`https://api.github.com/repos/${RELEASE_REPO}/releases/latest`, { headers });
+    if (!resp.ok) throw new Error(`GitHub API error ${resp.status}`);
+    const data = await resp.json<{ html_url: string; assets?: Array<{ name: string; browser_download_url: string }> }>();
+    const asset = data.assets?.find((a) => a.name.endsWith('-setup.exe') || a.name.endsWith('.exe'));
+    url = asset?.browser_download_url || data.html_url;
+  } catch (error) {
+    console.error('Installer GitHub lookup failed', error);
+    return fallback;
+  }
+  try {
+    await caches.default.put(cacheKey, new Response(url, { headers: { 'Cache-Control': 'max-age=600' } }));
+  } catch (error) {
+    console.error('Installer cache write failed', error);
+  }
+  return url;
 }
 
 async function excedeLimiteCodigo(c: any, to: string): Promise<boolean> {
@@ -298,7 +319,7 @@ app.post('/installer', async (c) => {
 
   let downloadUrl: string;
   try {
-    downloadUrl = await obtenerInstaladorUrl();
+    downloadUrl = await obtenerInstaladorUrl(env, env.PUBLIC_URL ?? c.req.url);
   } catch (e: any) {
     return c.json({ error: `No se pudo obtener la última versión: ${e.message}` }, 502);
   }
@@ -539,7 +560,7 @@ async function scheduled(_controller: ScheduledController, env: Env) {
       const url = new URL('/unsubscribe', env.PUBLIC_URL);
       url.searchParams.set('e', pick.email);
       url.searchParams.set('t', token);
-      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await (installerUrl ??= obtenerInstaladorUrl()) : '';
+      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await (installerUrl ??= obtenerInstaladorUrl(env, env.PUBLIC_URL)) : '';
       const template = renderFollowup(pick, installer, url.toString(), escapeHtml);
       const response = await sendZepto(env, { to: pick.email, ...template, replyTo: env.CONTACT_TO ?? 'soporte@vendeto.com.ar' });
       if (!response.ok) throw new Error(`ZeptoMail failed: ${response.status}`);

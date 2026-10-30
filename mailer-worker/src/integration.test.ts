@@ -11,7 +11,10 @@ function db() {
 const env = (DB: any) => ({ DB, MAILER_INTERNAL_KEY: 'key', UNSUBSCRIBE_SECRET: 'secret', ZEPTOMAIL_API_KEY: 'key', DRY_RUN: 'true', TRIAL_DAYS: '7', TRIAL_PROMO_DAYS: '30', TRIAL_PROMO_UNTIL: '2026-12-01', MAX_PER_RUN: '50', PUBLIC_URL: 'https://mailer.test' });
 
 describe('follow-up endpoints and cron', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    globalThis.caches = { default: { match: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined) } } as unknown as CacheStorage;
+  });
   it('protects preview and returns the selected list without sending', async () => {
     const database = db();
     const fetchMock = vi.spyOn(globalThis, 'fetch');
