@@ -31,7 +31,7 @@ Tags:
 
 ## Descripción
 
-`mailer-worker` es un Cloudflare Worker (Hono, sin D1) que envía emails transaccionales usando la REST API de Zoho ZeptoMail (`POST https://cpaas.zoho.com/v1.1/email`). El backend .NET local (`MailerService`) es su único cliente, autenticado con `Bearer MAILER_INTERNAL_KEY`. Es el mismo patrón de los otros workers (auth interna + HTTP), pero sin estado: no almacena nada, solo entrega.
+`mailer-worker` es un Cloudflare Worker (Hono, sin D1) que envía emails transaccionales usando la REST API de Zoho ZeptoMail (`POST https://api.zeptomail.com/v1.1/email`). El backend .NET local (`MailerService`) es su único cliente, autenticado con `Bearer MAILER_INTERNAL_KEY`. Es el mismo patrón de los otros workers (auth interna + HTTP), pero sin estado: no almacena nada, solo entrega.
 
 ## Problema que resuelve
 
@@ -84,7 +84,7 @@ PosWeb no tenía ningún canal de email. La recuperación de contraseña (y a fu
 
 - **Auth interna**: `checkInternalAuth` replica el patrón de `licensing-worker` (`Authorization: Bearer ${MAILER_INTERNAL_KEY}`). Sin clave configurada → 401 siempre.
 - **Validación de cuerpo**: email con regex simple, subject máx 200 chars, al menos `htmlBody` o `textBody`.
-- **ZeptoMail**: header `Authorization: Zoho-enczapikey <token>`; `from` como objeto `{ address, name }`; `to` como array de `{ email_address: { address } }`; `reply_to` opcional con misma forma. Endpoint CPaaS `cpaas.zoho.com/v1.1/email` (la cuenta de Vendeto usa la ruta CPaaS; otras cuentas pueden usar `api.zeptomail.com`).
+- **ZeptoMail**: header `Authorization: Zoho-enczapikey <token>`; `from` como objeto `{ address, name }`; `to` como array de `{ email_address: { address } }`; `reply_to` opcional con misma forma. Endpoint `api.zeptomail.com/v1.1/email`. No usar `cpaas.zoho.com`: desde Workers falla con Cloudflare error 1016 (DNS) y ZeptoMail devuelve 530 (2026-10-30).
 - **Rate-limit `/contact`**: clave por IP construida sobre el hostname real del worker (la Cache API rechaza hosts sintéticos, p.ej. `mailer.local`), `Cache-Control: max-age` define la ventana. Suficiente para frenar spam; no es una garantía de consistencia.
 - **`reply_to`**: en `/contact` se setea al email del cliente para que soporte responda directo a la casilla del cliente sin copiar el email a mano.
 - **Escape HTML**: el contenido de `/contact` se escapa (`escapeHtml`) antes de insertarse en el cuerpo del email (prevención de HTML injection).
