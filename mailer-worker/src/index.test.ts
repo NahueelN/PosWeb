@@ -165,3 +165,33 @@ describe('POST /send-report', () => {
     expect(payload.attachments).toBeUndefined();
   });
 });
+
+describe('lead storage', () => {
+  beforeEach(() => { vi.restoreAllMocks(); mockRateLimitCache(); });
+
+  it.each([
+    ['installer', { email: ' User@Example.com ' }, ['user@example.com', null, 'installer']],
+    ['contact', { nombre: ' Ana ', email: ' User@Example.com ', consulta: 'Necesito ayuda por favor' }, ['user@example.com', 'Ana', 'contact']],
+  ])('saves a normalized %s lead before sending', async (route, body, values) => {
+    const run = vi.fn().mockResolvedValue({});
+    const bind = vi.fn().mockReturnValue({ run });
+    const DB = { prepare: vi.fn().mockReturnValue({ bind }) };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (String(url).includes('api.github.com')) return Response.json({ html_url: 'https://example.com/download' });
+      expect(run).toHaveBeenCalled();
+      return new Response('', { status: 200 });
+    });
+    const response = await app.request(`https://mailer.test/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, { ...env, DB });
+    expect(response.status).toBe(200);
+    expect(bind).toHaveBeenCalledWith(...values);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it('continues sending when D1 fails', async () => {
+    const DB = { prepare: vi.fn().mockImplementation(() => { throw new Error('D1 unavailable'); }) };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+    const response = await app.request('https://mailer.test/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: 'Ana', email: 'ana@example.com', consulta: 'Necesito ayuda por favor' }) }, { ...env, DB });
+    expect(response.status).toBe(200);
+  });
+});

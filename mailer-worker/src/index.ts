@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 interface Env {
+  DB: D1Database;
   MAILER_INTERNAL_KEY?: string;
   ZEPTOMAIL_API_KEY?: string;
   FROM_EMAIL?: string;
@@ -44,6 +45,16 @@ function checkInternalAuth(c: any, env: Env): boolean {
 
 function esEmailValido(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function saveLead(env: Env, email: string, nombre: string | null, source: 'installer' | 'contact') {
+  try {
+    await env.DB.prepare(`INSERT INTO leads (email, nombre, source) VALUES (?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET nombre = COALESCE(leads.nombre, excluded.nombre)`)
+      .bind(email.trim().toLowerCase(), nombre, source).run();
+  } catch (error) {
+    console.error('Failed to save lead', error);
+  }
 }
 
 // Rate limit simple por IP usando la Cache API de Cloudflare (sin infra adicional).
@@ -200,6 +211,8 @@ app.post('/contact', async (c) => {
     return c.json({ error: 'Demasiadas consultas desde esta dirección. Intentá más tarde.' }, 429);
   }
 
+  await saveLead(env, email, nombre, 'contact');
+
   const to = env.CONTACT_TO || 'soporte@vendeto.com.ar';
   const asunto = `Consulta desde la web: ${nombre}`;
 
@@ -269,6 +282,8 @@ app.post('/installer', async (c) => {
   if (await excedeLimite(c, 'installer', INSTALLER_MAX_PER_IP, INSTALLER_WINDOW_SECONDS)) {
     return c.json({ error: 'Demasiadas solicitudes desde esta dirección. Intentá más tarde.' }, 429);
   }
+
+  await saveLead(env, email, null, 'installer');
 
   let downloadUrl: string;
   try {
