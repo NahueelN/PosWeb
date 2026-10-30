@@ -1,8 +1,17 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { pickFollowups } from './followups';
+import { loadFollowups } from './followupsRepo';
+import { renderFollowup } from './followupsTemplates';
+import { createToken, verifyToken } from './unsubscribe';
 
 interface Env {
   DB: D1Database;
+  UNSUBSCRIBE_SECRET?: string;
+  DRY_RUN?: string;
+  TRIAL_DAYS?: string;
+  MAX_PER_RUN?: string;
+  PUBLIC_URL?: string;
   MAILER_INTERNAL_KEY?: string;
   ZEPTOMAIL_API_KEY?: string;
   FROM_EMAIL?: string;
@@ -471,4 +480,61 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-export default app;
+async function selectFollowups(env: Env) {
+  const { candidates, log, unsubscribed } = await loadFollowups(env.DB);
+  return pickFollowups(candidates, log, unsubscribed, new Date(), {
+    trialDays: Number(env.TRIAL_DAYS ?? '30'), maxPerRun: Number(env.MAX_PER_RUN ?? '50'),
+  });
+}
+
+app.post('/internal/followups/preview', async c => {
+  if (!checkInternalAuth(c, c.env)) return c.json({ error: 'Unauthorized' }, 401);
+  return c.json(await selectFollowups(c.env));
+});
+
+app.get('/unsubscribe', async c => {
+  const email = (c.req.query('e') ?? '').trim().toLowerCase();
+  const token = c.req.query('t') ?? '';
+  if (!esEmailValido(email) || !await verifyToken(c.env.UNSUBSCRIBE_SECRET ?? '', email, token)) {
+    return c.html('<!doctype html><html><body>Enlace inválido.</body></html>', 400);
+  }
+  await c.env.DB.prepare('INSERT OR IGNORE INTO unsubscribes (email) VALUES (?)').bind(email).run();
+  return c.html('<!doctype html><html><body>Listo, no vas a recibir más estos mails.</body></html>');
+});
+
+async function sendZepto(env: Env, message: { to: string; subject: string; html: string; text: string; replyTo?: string }) {
+  return fetch(ZEPTOMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Zoho-enczapikey ${env.ZEPTOMAIL_API_KEY}` },
+    body: JSON.stringify({
+      from: { address: env.FROM_EMAIL ?? 'hola@vendeto.com.ar', name: env.FROM_NAME ?? 'Vendeto' },
+      to: [{ email_address: { address: message.to } }],
+      reply_to: message.replyTo ? [{ address: message.replyTo }] : undefined,
+      subject: message.subject, htmlbody: message.html, textbody: message.text,
+    }),
+  });
+}
+
+async function scheduled(_controller: ScheduledController, env: Env) {
+  const picks = await selectFollowups(env);
+  for (const pick of picks) {
+    if (env.DRY_RUN === 'true') { console.log({ email: pick.email, kind: pick.kind }); continue; }
+    try {
+      if (!env.UNSUBSCRIBE_SECRET || !env.PUBLIC_URL || !env.ZEPTOMAIL_API_KEY) throw new Error('Missing follow-up configuration');
+      const token = await createToken(env.UNSUBSCRIBE_SECRET, pick.email);
+      const url = new URL('/unsubscribe', env.PUBLIC_URL);
+      url.searchParams.set('e', pick.email);
+      url.searchParams.set('t', token);
+      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await obtenerInstaladorUrl() : '';
+      const template = renderFollowup(pick, installer, url.toString(), escapeHtml);
+      const response = await sendZepto(env, { to: pick.email, ...template, replyTo: env.CONTACT_TO ?? 'soporte@vendeto.com.ar' });
+      if (!response.ok) throw new Error(`ZeptoMail failed: ${response.status}`);
+      await env.DB.prepare('INSERT INTO email_log (email, kind) VALUES (?, ?)').bind(pick.email, pick.kind).run();
+    } catch (error) {
+      console.error('Follow-up failed', pick.email, pick.kind, error);
+    }
+  }
+}
+
+export { app };
+export default { fetch: app.fetch, scheduled };

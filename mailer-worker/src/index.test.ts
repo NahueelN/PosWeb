@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import app from './index';
+import { app } from './index';
 
 const env = {
   MAILER_INTERNAL_KEY: 'internal-key',
