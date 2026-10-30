@@ -166,6 +166,11 @@ async function normalizePlan(env: Env, plan: string): Promise<string> {
   return 'basica';
 }
 
+function licenseKeyFromReference(reference: string): string | undefined {
+  const parts = reference.split(':');
+  return reference.startsWith('sub:') ? parts[parts.length - 1] : parts[3];
+}
+
 app.post('/webhook', async (c) => {
   const env = c.env;
   const body = await c.req.text();
@@ -182,14 +187,15 @@ app.post('/webhook', async (c) => {
     return c.json({ error: 'Invalid JSON' }, 400);
   }
 
-  const topic = payload.action || payload.type;
+  const topic = payload.type || payload.topic || payload.action;
   const resourceId = payload.data?.id;
+  console.log(JSON.stringify({ type: payload.type, action: payload.action, id: resourceId }));
 
   if (!resourceId) {
     return c.json({ error: 'Missing resource id' }, 400);
   }
 
-  if (topic === 'payment.created' || topic === 'payment.updated') {
+  if (topic === 'payment' || topic === 'payment.created' || topic === 'payment.updated') {
     try {
       const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${resourceId}`, {
         headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` },
@@ -202,9 +208,9 @@ app.post('/webhook', async (c) => {
       const externalRef = mpData.external_reference || '';
 
       const refParts = externalRef.split(':');
-      const licenseKey = refParts[3];
+      const licenseKey = licenseKeyFromReference(externalRef);
       // 5º segmento = meses contratados. Ausente en referencias viejas → 1 mes.
-      const months = parseInt(refParts[4] ?? '1', 10) || 1;
+      const months = externalRef.startsWith('sub:') ? 1 : parseInt(refParts[4] ?? '1', 10) || 1;
 
       if (!licenseKey) {
         return c.json({ error: 'No license key in external reference' }, 400);
@@ -220,6 +226,10 @@ app.post('/webhook', async (c) => {
       }
 
       if (paymentStatus === 'approved') {
+        const inserted = await env.LICENSES_DB
+          .prepare('INSERT OR IGNORE INTO processed_payments (payment_id, license_key, source) VALUES (?, ?, ?)')
+          .bind(String(mpData.id ?? resourceId), existing.license_key, 'one_time').run();
+        if (inserted.meta.changes !== 1) return c.json({ success: true, license_key: licenseKey, status: existing.status, next_billing: existing.next_billing });
         const nextBilling = calcularNuevoVencimiento(existing.next_billing, months);
         await env.LICENSES_DB
           .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -246,15 +256,6 @@ app.post('/webhook', async (c) => {
 
   if (topic === 'subscription_preapproval' || topic === 'subscription_preapproval.updated') {
     try {
-      const existing = await env.LICENSES_DB
-        .prepare('SELECT * FROM licenses WHERE preapproval_id = ?')
-        .bind(resourceId)
-        .first<License>();
-
-      if (!existing) {
-        return c.json({ error: 'License not found for this preapproval' }, 404);
-      }
-
       const mpResponse = await fetch(`https://api.mercadopago.com/preapproval/${resourceId}`, {
         headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` },
       });
@@ -262,41 +263,52 @@ app.post('/webhook', async (c) => {
         return c.json({ error: `MP preapproval fetch failed: ${mpResponse.status}` }, 500);
       }
       const mpData: any = await mpResponse.json();
-
-      const newStatus = mpData.status === 'authorized' ? 'active'
-        : mpData.status === 'paused' ? 'paused'
-        : mpData.status === 'cancelled' ? 'cancelled'
-        : 'pending';
-
-      await env.LICENSES_DB
-        .prepare('UPDATE licenses SET status = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
-        .bind(newStatus, existing.license_key)
-        .run();
-
-      return c.json({ success: true, license_key: existing.license_key, status: newStatus });
+      let existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE preapproval_id = ?').bind(String(resourceId)).first<License>();
+      if (!existing) {
+        const key = licenseKeyFromReference(mpData.external_reference || '');
+        if (key) existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE license_key = ?').bind(key.toUpperCase()).first<License>();
+        if (existing) await env.LICENSES_DB.prepare('UPDATE licenses SET preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?').bind(String(resourceId), existing.license_key).run();
+      }
+      if (!existing) return c.json({ error: 'License not found for this preapproval' }, 404);
+      const ended = !existing.next_billing || new Date(existing.next_billing) <= new Date();
+      if ((mpData.status === 'paused' || mpData.status === 'cancelled') && ended) {
+        await env.LICENSES_DB.prepare('UPDATE licenses SET status = ?, updated_at = datetime(\'now\') WHERE license_key = ?').bind(mpData.status, existing.license_key).run();
+        return c.json({ success: true, license_key: existing.license_key, status: mpData.status });
+      }
+      return c.json({ success: true, license_key: existing.license_key, status: existing.status });
     } catch (e: any) {
       return c.json({ error: `Failed to process webhook: ${e.message}` }, 500);
     }
   }
 
   if (topic === 'subscription_authorized_payment') {
-    const existing = await env.LICENSES_DB
-      .prepare('SELECT * FROM licenses WHERE preapproval_id = ?')
-      .bind(resourceId)
-      .first<License>();
-
-    if (!existing) {
-      return c.json({ error: 'License not found for this preapproval' }, 404);
+    try {
+      const response = await fetch(`https://api.mercadopago.com/authorized_payments/${resourceId}`, { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } });
+      if (!response.ok) return c.json({ error: `MP authorized payment fetch failed: ${response.status}` }, 500);
+      const payment: any = await response.json();
+      if (payment.payment?.id == null || payment.payment.id === '') {
+        console.log(`Authorized payment ${resourceId} has no MP payment id`);
+        return c.json({ success: true });
+      }
+      if ((payment.payment?.status ?? payment.status) !== 'approved') return c.json({ success: true });
+      const preapprovalId = payment.preapproval_id;
+      let existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE preapproval_id = ?').bind(String(preapprovalId)).first<License>();
+      if (!existing) {
+        const preapproval = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } });
+        if (!preapproval.ok) return c.json({ error: `MP preapproval fetch failed: ${preapproval.status}` }, 500);
+        const data: any = await preapproval.json();
+        const key = licenseKeyFromReference(data.external_reference || '');
+        if (key) existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE license_key = ?').bind(key.toUpperCase()).first<License>();
+      }
+      if (!existing) return c.json({ error: 'License not found for this preapproval' }, 404);
+      const inserted = await env.LICENSES_DB.prepare('INSERT OR IGNORE INTO processed_payments (payment_id, license_key, source) VALUES (?, ?, ?)').bind(String(payment.payment.id), existing.license_key, 'subscription').run();
+      if (inserted.meta.changes !== 1) return c.json({ success: true, status: existing.status, next_billing: existing.next_billing });
+      const nextBilling = calcularNuevoVencimiento(existing.next_billing, 1);
+      await env.LICENSES_DB.prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?').bind('active', nextBilling, existing.license_key).run();
+      return c.json({ success: true, status: 'active', next_billing: nextBilling });
+    } catch (e: any) {
+      return c.json({ error: `Failed to process webhook: ${e.message}` }, 500);
     }
-
-    const nextBilling = calcularNuevoVencimiento(existing.next_billing);
-
-    await env.LICENSES_DB
-      .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
-      .bind('active', nextBilling, existing.license_key)
-      .run();
-
-    return c.json({ success: true, status: 'active', next_billing: nextBilling });
   }
 
   return c.json({ error: `Unknown topic: ${topic}` }, 400);
@@ -373,32 +385,6 @@ async function statusHandler(c: any) {
 
   if (license.status === 'cancelled') {
     return c.json({ valid: false, error: 'License cancelled' });
-  }
-
-  if (license.status === 'pending' && license.preapproval_id) {
-    try {
-      const refParts = (license.preapproval_id || '').includes(':')
-        ? [] : [];
-      const mpCheck = await fetch(
-        `https://api.mercadopago.com/v1/payments/search?external_reference=plan:${license.plan}:${license.email}:${license.license_key}`,
-        { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } }
-      );
-      if (mpCheck.ok) {
-        const searchData: any = await mpCheck.json();
-        const approved = searchData.results?.find((p: any) => p.status === 'approved');
-        if (approved) {
-          const nextBilling = calcularNuevoVencimiento(license.next_billing);
-          await env.LICENSES_DB
-            .prepare('UPDATE licenses SET status = ?, next_billing = ?, preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
-            .bind('active', nextBilling, approved.id.toString(), license.license_key)
-            .run();
-          license.status = 'active';
-          license.next_billing = nextBilling;
-        }
-      }
-    } catch {
-      // ignore MP errors during status check, keep pending
-    }
   }
 
   const now = new Date();
@@ -631,7 +617,7 @@ app.post('/internal/last-login', async (c) => {
 
 app.post('/checkout', async (c) => {
   const env = c.env;
-  const body = await c.req.json<{ plan: string; email: string; duration_months?: number }>();
+  const body = await c.req.json<{ plan: string; email: string; duration_months?: number; billing?: 'subscription' | 'one_time' }>();
   const { plan, email } = body;
 
   if (!plan || !email) {
@@ -645,6 +631,10 @@ app.post('/checkout', async (c) => {
   const pricePerMonth = PLAN_PRICES[planKey];
   if (!pricePerMonth) {
     return c.json({ error: `Invalid plan: ${plan}. Valid plans: ${VALID_PLANS.join(', ')}` }, 400);
+  }
+
+  if (body.billing === 'subscription' && body.duration_months !== undefined && body.duration_months !== 1) {
+    return c.json({ error: 'El débito automático es mensual' }, 400);
   }
 
   // Duración contratada en meses (1, 6, 12, 36). Por defecto 1 mes; tope 36.
@@ -665,6 +655,24 @@ app.post('/checkout', async (c) => {
   const licenseKey = existing?.license_key ?? generateLicenseKey();
   const externalRef = `plan:${planKey}:${emailLower}:${licenseKey}:${months}`;
 
+  if (body.billing === 'subscription' && existing?.preapproval_id) {
+    try {
+      const url = `https://api.mercadopago.com/preapproval/${existing.preapproval_id}`;
+      const headers = { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` };
+      const response = await fetch(url, { headers });
+      const data: any = await response.json();
+      if (!response.ok) return c.json({ error: data.message || 'Failed to fetch preapproval' }, 500);
+      if (data.status === 'authorized') return c.json({ error: 'Ya tenés el débito automático activo para este email. Si querés cambiar de plan, escribinos.' }, 409);
+      if (data.status === 'pending') {
+        try {
+          await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' }) });
+        } catch (error) { console.error('Failed to cancel pending preapproval', error); }
+      }
+    } catch (e: any) {
+      return c.json({ error: `Failed to create checkout: ${e.message}` }, 500);
+    }
+  }
+
   if (existing) {
     await env.LICENSES_DB
       .prepare('UPDATE licenses SET plan = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -678,6 +686,27 @@ app.post('/checkout', async (c) => {
   }
 
   try {
+    if (body.billing === 'subscription') {
+      const response = await fetch('https://api.mercadopago.com/preapproval', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: `Vendeto - Plan ${planKey === 'basica' ? 'Básico' : 'Avanzado'} (débito mensual)`,
+          external_reference: `sub:${planKey}:${licenseKey}`,
+          payer_email: emailLower,
+          auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: pricePerMonth, currency_id: 'ARS' },
+          back_url: `${WEB_BASE_URL}/contratar-exito?license_key=${licenseKey}&modo=suscripcion`,
+          status: 'pending',
+        }),
+      });
+      const data: any = await response.json();
+      if (!response.ok) {
+        if (!existing) await env.LICENSES_DB.prepare('DELETE FROM licenses WHERE license_key = ?').bind(licenseKey).run();
+        return c.json({ error: data.message || 'Failed to create preapproval' }, 500);
+      }
+      await env.LICENSES_DB.prepare('UPDATE licenses SET preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?').bind(data.id, licenseKey).run();
+      return c.json({ checkout_url: data.init_point, preapproval_id: data.id });
+    }
     const preferenceResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
       headers: {
