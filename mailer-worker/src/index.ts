@@ -22,7 +22,7 @@ interface Env {
   CONTACT_TO?: string;
 }
 
-const ZEPTOMAIL_ENDPOINT = 'https://cpaas.zoho.com/v1.1/email';
+const ZEPTOMAIL_ENDPOINT = 'https://api.zeptomail.com/v1.1/email';
 const RELEASE_REPO = 'NahueelN/PosWeb';
 
 // Límite de consultas por IP para el formulario de contacto público.

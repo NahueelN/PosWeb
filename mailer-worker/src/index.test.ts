@@ -80,7 +80,7 @@ describe('POST /send-code', () => {
 
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://cpaas.zoho.com/v1.1/email',
+      'https://api.zeptomail.com/v1.1/email',
       expect.objectContaining({
         body: expect.stringContaining('123456'),
       }),
