@@ -291,9 +291,23 @@ describe('payment webhooks', () => {
     const { env, license } = paymentEnv({ preapproval_id: null });
     vi.spyOn(globalThis, 'fetch').mockImplementation(async url => String(url).includes('authorized_payments')
       ? Response.json({ preapproval_id: 'sub-1', status: 'approved', payment: { id: 42 } })
-      : Response.json({ external_reference: 'sub:basica:buyer@example.com:KEY123' }));
+      : Response.json({ external_reference: 'sub:basica:KEY123' }));
     expect((await webhook(env, { type: 'subscription_authorized_payment', data: { id: 'ap-1' } })).status).toBe(200);
     expect(license.next_billing).toBe('2099-02-10');
+  });
+  it('resolves and saves the preapproval from a subscription reference', async () => {
+    const { env, license } = paymentEnv({ preapproval_id: null });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ status: 'authorized', external_reference: 'sub:basica:KEY123' }));
+    expect((await webhook(env, { type: 'subscription_preapproval', data: { id: 'sub-1' } })).status).toBe(200);
+    expect(license.preapproval_id).toBe('sub-1');
+    expect(license.status).toBe('pending');
+  });
+  it('resolves a subscription payment reference and extends by one month', async () => {
+    const { env, license, processed } = paymentEnv();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ id: 123, status: 'approved', external_reference: 'sub:basica:KEY123' }));
+    expect((await webhook(env, { type: 'payment', action: 'payment.created', data: { id: '123' } })).status).toBe(200);
+    expect(license.next_billing).toBe('2099-02-10');
+    expect(processed.has('123')).toBe(true);
   });
   it.each([
     ['authorized', null, 'pending'], ['cancelled', '2099-01-10', 'active'], ['cancelled', null, 'cancelled'],
@@ -337,7 +351,9 @@ describe('subscription checkout', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ checkout_url: 'https://pay.test/sub', preapproval_id: 'new-sub' });
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.mercadopago.com/preapproval');
-    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ reason: 'Vendeto - Plan Avanzado (débito mensual)', external_reference: 'sub:maxima:buyer@example.com:KEY123', payer_email: 'buyer@example.com', auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 39990, currency_id: 'ARS' }, back_url: 'https://vendeto.com.ar/contratar-exito?license_key=KEY123&modo=suscripcion', status: 'pending' });
+    const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+    expect(payload.external_reference).not.toContain('@');
+    expect(payload).toEqual({ reason: 'Vendeto - Plan Avanzado (débito mensual)', external_reference: 'sub:maxima:KEY123', payer_email: 'buyer@example.com', auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 39990, currency_id: 'ARS' }, back_url: 'https://vendeto.com.ar/contratar-exito?license_key=KEY123&modo=suscripcion', status: 'pending' });
     expect(license.preapproval_id).toBe('new-sub');
   });
   it('rejects a subscription longer than one month', async () => {

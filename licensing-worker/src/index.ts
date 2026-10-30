@@ -166,6 +166,11 @@ async function normalizePlan(env: Env, plan: string): Promise<string> {
   return 'basica';
 }
 
+function licenseKeyFromReference(reference: string): string | undefined {
+  const parts = reference.split(':');
+  return reference.startsWith('sub:') ? parts[parts.length - 1] : parts[3];
+}
+
 app.post('/webhook', async (c) => {
   const env = c.env;
   const body = await c.req.text();
@@ -203,9 +208,9 @@ app.post('/webhook', async (c) => {
       const externalRef = mpData.external_reference || '';
 
       const refParts = externalRef.split(':');
-      const licenseKey = refParts[3];
+      const licenseKey = licenseKeyFromReference(externalRef);
       // 5º segmento = meses contratados. Ausente en referencias viejas → 1 mes.
-      const months = parseInt(refParts[4] ?? '1', 10) || 1;
+      const months = externalRef.startsWith('sub:') ? 1 : parseInt(refParts[4] ?? '1', 10) || 1;
 
       if (!licenseKey) {
         return c.json({ error: 'No license key in external reference' }, 400);
@@ -260,7 +265,7 @@ app.post('/webhook', async (c) => {
       const mpData: any = await mpResponse.json();
       let existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE preapproval_id = ?').bind(String(resourceId)).first<License>();
       if (!existing) {
-        const key = (mpData.external_reference || '').split(':')[3];
+        const key = licenseKeyFromReference(mpData.external_reference || '');
         if (key) existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE license_key = ?').bind(key.toUpperCase()).first<License>();
         if (existing) await env.LICENSES_DB.prepare('UPDATE licenses SET preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?').bind(String(resourceId), existing.license_key).run();
       }
@@ -292,7 +297,7 @@ app.post('/webhook', async (c) => {
         const preapproval = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } });
         if (!preapproval.ok) return c.json({ error: `MP preapproval fetch failed: ${preapproval.status}` }, 500);
         const data: any = await preapproval.json();
-        const key = (data.external_reference || '').split(':')[3];
+        const key = licenseKeyFromReference(data.external_reference || '');
         if (key) existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE license_key = ?').bind(key.toUpperCase()).first<License>();
       }
       if (!existing) return c.json({ error: 'License not found for this preapproval' }, 404);
@@ -687,7 +692,7 @@ app.post('/checkout', async (c) => {
         headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reason: `Vendeto - Plan ${planKey === 'basica' ? 'Básico' : 'Avanzado'} (débito mensual)`,
-          external_reference: `sub:${planKey}:${emailLower}:${licenseKey}`,
+          external_reference: `sub:${planKey}:${licenseKey}`,
           payer_email: emailLower,
           auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: pricePerMonth, currency_id: 'ARS' },
           back_url: `${WEB_BASE_URL}/contratar-exito?license_key=${licenseKey}&modo=suscripcion`,
