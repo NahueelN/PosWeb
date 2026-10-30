@@ -9,7 +9,7 @@ const DAY = 86400000;
 const normalized = (email: string) => email.trim().toLowerCase();
 const utc = (value: string) => Date.parse(value.includes('T') ? value : value.replace(' ', 'T') + 'Z');
 
-export function pickFollowups(candidates: Candidate[], sentLog: SentLog[], unsubscribed: string[], now: Date, config: { trialDays: number; maxPerRun: number }): Pick[] {
+export function pickFollowups(candidates: Candidate[], sentLog: SentLog[], unsubscribed: string[], now: Date, config: { trialDays: number; trialPromoDays: number; trialPromoUntil: string; maxPerRun: number }): Pick[] {
   const result: Pick[] = [];
   const excluded = new Set(unsubscribed.map(normalized));
   const seen = new Set<string>();
@@ -24,11 +24,12 @@ export function pickFollowups(candidates: Candidate[], sentLog: SentLog[], unsub
     const created = registered ? candidate.licenseCreatedAt : candidate.leadCreatedAt;
     if (!created) continue;
     const age = (now.getTime() - utc(created)) / DAY;
+    const trialDays = registered && utc(created) < Date.parse(config.trialPromoUntil) ? config.trialPromoDays : config.trialDays;
     const lastLogin = candidate.lastLogin ? utc(candidate.lastLogin) + (candidate.lastLogin.includes('T') ? 0 : 3 * 3600000) : null;
     const choices: Pick[] = [];
     if (candidate.paid && lastLogin !== null && lastLogin < now.getTime() - 14 * DAY) choices.push({ email, kind: 'paid_inactive', data: {} });
-    if (registered && !candidate.paid && age >= config.trialDays - 2 && age < config.trialDays - 1) {
-      const end = utc(created) + config.trialDays * DAY;
+    if (registered && !candidate.paid && age >= trialDays - 2 && age < trialDays - 1) {
+      const end = utc(created) + trialDays * DAY;
       choices.push({ email, kind: 'trial_ending', data: { n: Math.ceil((end - now.getTime()) / DAY), trialEnd: new Date(end).toISOString() } });
     }
     if (registered && !candidate.paid && age >= 3 && age < 30 && (lastLogin === null || lastLogin < now.getTime() - 3 * DAY)) choices.push({ email, kind: 'setup_help', data: {} });

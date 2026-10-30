@@ -10,6 +10,8 @@ interface Env {
   UNSUBSCRIBE_SECRET?: string;
   DRY_RUN?: string;
   TRIAL_DAYS?: string;
+  TRIAL_PROMO_DAYS?: string;
+  TRIAL_PROMO_UNTIL?: string;
   MAX_PER_RUN?: string;
   PUBLIC_URL?: string;
   MAILER_INTERNAL_KEY?: string;
@@ -483,7 +485,8 @@ app.get('/health', (c) => {
 async function selectFollowups(env: Env) {
   const { candidates, log, unsubscribed } = await loadFollowups(env.DB);
   return pickFollowups(candidates, log, unsubscribed, new Date(), {
-    trialDays: Number(env.TRIAL_DAYS ?? '30'), maxPerRun: Number(env.MAX_PER_RUN ?? '50'),
+    trialDays: Number(env.TRIAL_DAYS ?? '7'), trialPromoDays: Number(env.TRIAL_PROMO_DAYS ?? '30'),
+    trialPromoUntil: env.TRIAL_PROMO_UNTIL ?? '2026-12-01', maxPerRun: Number(env.MAX_PER_RUN ?? '50'),
   });
 }
 
@@ -495,6 +498,16 @@ app.post('/internal/followups/preview', async c => {
 app.get('/unsubscribe', async c => {
   const email = (c.req.query('e') ?? '').trim().toLowerCase();
   const token = c.req.query('t') ?? '';
+  if (!esEmailValido(email) || !await verifyToken(c.env.UNSUBSCRIBE_SECRET ?? '', email, token)) {
+    return c.html('<!doctype html><html><body>Enlace inválido.</body></html>', 400);
+  }
+  return c.html(`<!doctype html><html><body><p>¿Querés dejar de recibir estos mails?</p><form method="post" action="/unsubscribe"><input type="hidden" name="e" value="${escapeHtml(email)}"><input type="hidden" name="t" value="${escapeHtml(token)}"><button type="submit">Darme de baja</button></form></body></html>`);
+});
+
+app.post('/unsubscribe', async c => {
+  const body = await c.req.parseBody();
+  const email = typeof body.e === 'string' ? body.e.trim().toLowerCase() : '';
+  const token = typeof body.t === 'string' ? body.t : '';
   if (!esEmailValido(email) || !await verifyToken(c.env.UNSUBSCRIBE_SECRET ?? '', email, token)) {
     return c.html('<!doctype html><html><body>Enlace inválido.</body></html>', 400);
   }
@@ -517,6 +530,7 @@ async function sendZepto(env: Env, message: { to: string; subject: string; html:
 
 async function scheduled(_controller: ScheduledController, env: Env) {
   const picks = await selectFollowups(env);
+  let installerUrl: Promise<string> | undefined;
   for (const pick of picks) {
     if (env.DRY_RUN === 'true') { console.log({ email: pick.email, kind: pick.kind }); continue; }
     try {
@@ -525,7 +539,7 @@ async function scheduled(_controller: ScheduledController, env: Env) {
       const url = new URL('/unsubscribe', env.PUBLIC_URL);
       url.searchParams.set('e', pick.email);
       url.searchParams.set('t', token);
-      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await obtenerInstaladorUrl() : '';
+      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await (installerUrl ??= obtenerInstaladorUrl()) : '';
       const template = renderFollowup(pick, installer, url.toString(), escapeHtml);
       const response = await sendZepto(env, { to: pick.email, ...template, replyTo: env.CONTACT_TO ?? 'soporte@vendeto.com.ar' });
       if (!response.ok) throw new Error(`ZeptoMail failed: ${response.status}`);

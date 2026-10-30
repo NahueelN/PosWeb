@@ -8,7 +8,7 @@ function db() {
   const all = vi.fn().mockImplementation(async function(this: any) { return { results: this.sql.includes('WITH') ? [candidate] : [] }; });
   return { run, prepare: vi.fn((sql: string) => ({ sql, all, bind: vi.fn().mockReturnValue({ run }) })) };
 }
-const env = (DB: any) => ({ DB, MAILER_INTERNAL_KEY: 'key', UNSUBSCRIBE_SECRET: 'secret', ZEPTOMAIL_API_KEY: 'key', DRY_RUN: 'true', TRIAL_DAYS: '30', MAX_PER_RUN: '50', PUBLIC_URL: 'https://mailer.test' });
+const env = (DB: any) => ({ DB, MAILER_INTERNAL_KEY: 'key', UNSUBSCRIBE_SECRET: 'secret', ZEPTOMAIL_API_KEY: 'key', DRY_RUN: 'true', TRIAL_DAYS: '7', TRIAL_PROMO_DAYS: '30', TRIAL_PROMO_UNTIL: '2026-12-01', MAX_PER_RUN: '50', PUBLIC_URL: 'https://mailer.test' });
 
 describe('follow-up endpoints and cron', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -21,12 +21,27 @@ describe('follow-up endpoints and cron', () => {
     expect(await response.json()).toMatchObject([{ email: 'a@example.com', kind: 'installer_nudge' }]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it('rejects invalid unsubscribe tokens and records valid ones', async () => {
+  it('requires confirmation by POST and rejects invalid tokens on both methods', async () => {
     const database = db();
-    expect((await worker.fetch(new Request('https://mailer.test/unsubscribe?e=a%40example.com&t=bad'), env(database))).status).toBe(400);
+    const invalidGet = await worker.fetch(new Request('https://mailer.test/unsubscribe?e=a%40example.com&t=bad'), env(database));
+    expect(invalidGet.status).toBe(400);
+    expect(await invalidGet.text()).toContain('Enlace inválido.');
+    const invalidPost = await worker.fetch(new Request('https://mailer.test/unsubscribe', { method: 'POST', body: new URLSearchParams({ e: 'a@example.com', t: 'bad' }) }), env(database));
+    expect(invalidPost.status).toBe(400);
+    expect(await invalidPost.text()).toContain('Enlace inválido.');
     const token = await createToken('secret', 'a@example.com');
     const response = await worker.fetch(new Request(`https://mailer.test/unsubscribe?e=a%40example.com&t=${token}`), env(database));
     expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('¿Querés dejar de recibir estos mails?');
+    expect(html).toMatch(/<form[^>]*method="post"/i);
+    expect(html).toContain('name="e"');
+    expect(html).toContain('name="t"');
+    expect(html).toContain('Darme de baja');
+    expect(database.run).not.toHaveBeenCalled();
+    const confirmed = await worker.fetch(new Request('https://mailer.test/unsubscribe', { method: 'POST', body: new URLSearchParams({ e: 'a@example.com', t: token }) }), env(database));
+    expect(confirmed.status).toBe(200);
+    expect(await confirmed.text()).toContain('Listo, no vas a recibir más estos mails.');
     expect(database.run).toHaveBeenCalledTimes(1);
   });
   it('dry run does not send or log', async () => {
@@ -56,7 +71,19 @@ describe('follow-up endpoints and cron', () => {
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await worker.scheduled({} as any, { ...env(database), DRY_RUN: 'false' });
-    expect(send).toHaveBeenCalledTimes(4);
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls.filter(call => String(call[0]).includes('github.com'))).toHaveLength(1);
     expect(database.run).toHaveBeenCalledTimes(1);
+  });
+  it('does not fetch the installer for other follow-up kinds', async () => {
+    const database = db();
+    const originalPrepare = database.prepare;
+    database.prepare = vi.fn((sql: string) => sql.includes('WITH')
+      ? { all: vi.fn().mockResolvedValue({ results: [{ ...candidate, licenseCreatedAt: new Date(Date.now() - 4 * 86400000).toISOString() }] }) } as any
+      : originalPrepare(sql));
+    const send = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+    await worker.scheduled({} as any, { ...env(database), DRY_RUN: 'false' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(String(send.mock.calls[0][0])).not.toContain('github.com');
   });
 });
