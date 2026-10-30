@@ -634,7 +634,7 @@ app.post('/internal/last-login', async (c) => {
 
 app.post('/checkout', async (c) => {
   const env = c.env;
-  const body = await c.req.json<{ plan: string; email: string; duration_months?: number }>();
+  const body = await c.req.json<{ plan: string; email: string; duration_months?: number; billing?: 'subscription' | 'one_time' }>();
   const { plan, email } = body;
 
   if (!plan || !email) {
@@ -648,6 +648,10 @@ app.post('/checkout', async (c) => {
   const pricePerMonth = PLAN_PRICES[planKey];
   if (!pricePerMonth) {
     return c.json({ error: `Invalid plan: ${plan}. Valid plans: ${VALID_PLANS.join(', ')}` }, 400);
+  }
+
+  if (body.billing === 'subscription' && body.duration_months !== undefined && body.duration_months !== 1) {
+    return c.json({ error: 'El débito automático es mensual' }, 400);
   }
 
   // Duración contratada en meses (1, 6, 12, 36). Por defecto 1 mes; tope 36.
@@ -668,6 +672,24 @@ app.post('/checkout', async (c) => {
   const licenseKey = existing?.license_key ?? generateLicenseKey();
   const externalRef = `plan:${planKey}:${emailLower}:${licenseKey}:${months}`;
 
+  if (body.billing === 'subscription' && existing?.preapproval_id) {
+    try {
+      const url = `https://api.mercadopago.com/preapproval/${existing.preapproval_id}`;
+      const headers = { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` };
+      const response = await fetch(url, { headers });
+      const data: any = await response.json();
+      if (!response.ok) return c.json({ error: data.message || 'Failed to fetch preapproval' }, 500);
+      if (data.status === 'authorized') return c.json({ error: 'Ya tenés el débito automático activo para este email. Si querés cambiar de plan, escribinos.' }, 409);
+      if (data.status === 'pending') {
+        try {
+          await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' }) });
+        } catch (error) { console.error('Failed to cancel pending preapproval', error); }
+      }
+    } catch (e: any) {
+      return c.json({ error: `Failed to create checkout: ${e.message}` }, 500);
+    }
+  }
+
   if (existing) {
     await env.LICENSES_DB
       .prepare('UPDATE licenses SET plan = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
@@ -681,6 +703,27 @@ app.post('/checkout', async (c) => {
   }
 
   try {
+    if (body.billing === 'subscription') {
+      const response = await fetch('https://api.mercadopago.com/preapproval', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: `Vendeto - Plan ${planKey === 'basica' ? 'Básico' : 'Avanzado'} (débito mensual)`,
+          external_reference: `sub:${planKey}:${emailLower}:${licenseKey}`,
+          payer_email: emailLower,
+          auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: pricePerMonth, currency_id: 'ARS' },
+          back_url: `${WEB_BASE_URL}/contratar-exito?license_key=${licenseKey}&modo=suscripcion`,
+          status: 'pending',
+        }),
+      });
+      const data: any = await response.json();
+      if (!response.ok) {
+        if (!existing) await env.LICENSES_DB.prepare('DELETE FROM licenses WHERE license_key = ?').bind(licenseKey).run();
+        return c.json({ error: data.message || 'Failed to create preapproval' }, 500);
+      }
+      await env.LICENSES_DB.prepare('UPDATE licenses SET preapproval_id = ?, updated_at = datetime(\'now\') WHERE license_key = ?').bind(data.id, licenseKey).run();
+      return c.json({ checkout_url: data.init_point, preapproval_id: data.id });
+    }
     const preferenceResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
       headers: {

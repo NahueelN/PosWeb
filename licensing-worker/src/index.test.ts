@@ -287,3 +287,59 @@ describe('payment webhooks', () => {
     expect((await webhook(env, { type: 'unexpected', action: 'created', data: { id: 'x' } })).status).toBe(400);
   });
 });
+
+describe('subscription checkout', () => {
+  const checkout = (env: any, body: object) => app.fetch(authenticatedRequest('/checkout', undefined, body), env);
+  it('preserves the existing preference request when billing is absent', async () => {
+    const { env } = paymentEnv({ preapproval_id: null });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id: 'pref', init_point: 'https://pay.test' }));
+    expect((await checkout(env, { plan: 'basica', email: 'Buyer@Example.com' })).status).toBe(200);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.mercadopago.com/checkout/preferences');
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({
+      items: [{ id: 'plan-basica-1m', title: 'Vendeto - Plan Basica (1 mes)', description: 'Contratación de 1 mes del plan basica de Vendeto', quantity: 1, currency_id: 'ARS', unit_price: 32500 }],
+      payer: { email: 'buyer@example.com' },
+      back_urls: { success: 'https://vendeto.com.ar/contratar-exito?license_key=KEY123', failure: 'https://vendeto.com.ar/contratar-error', pending: 'https://vendeto.com.ar/contratar-exito?license_key=KEY123' },
+      auto_return: 'approved', external_reference: 'plan:basica:buyer@example.com:KEY123:1', notification_url: 'http://localhost/webhook', statement_descriptor: 'Vendeto Licencia',
+    });
+  });
+  it('creates a monthly preapproval and stores its id', async () => {
+    const { env, license } = paymentEnv({ preapproval_id: null });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id: 'new-sub', init_point: 'https://pay.test/sub' }));
+    const response = await checkout(env, { plan: 'maxima', email: 'Buyer@Example.com', billing: 'subscription' });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ checkout_url: 'https://pay.test/sub', preapproval_id: 'new-sub' });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.mercadopago.com/preapproval');
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ reason: 'Vendeto - Plan Avanzado (débito mensual)', external_reference: 'sub:maxima:buyer@example.com:KEY123', payer_email: 'buyer@example.com', auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 39990, currency_id: 'ARS' }, back_url: 'https://vendeto.com.ar/contratar-exito?license_key=KEY123&modo=suscripcion', status: 'pending' });
+    expect(license.preapproval_id).toBe('new-sub');
+  });
+  it('rejects a subscription longer than one month', async () => {
+    const { env } = paymentEnv();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({}));
+    const response = await checkout(env, { plan: 'basica', email: 'buyer@example.com', billing: 'subscription', duration_months: 6 });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'El débito automático es mensual' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('refuses to replace an authorized preapproval', async () => {
+    const { env, runs } = paymentEnv();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ status: 'authorized' }));
+    const response = await checkout(env, { plan: 'maxima', email: 'buyer@example.com', billing: 'subscription' });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'Ya tenés el débito automático activo para este email. Si querés cambiar de plan, escribinos.' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(runs).toEqual([]);
+  });
+  it('cancels a pending preapproval before replacing it', async () => {
+    const { env, license } = paymentEnv();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      if (!init?.method) return Response.json({ status: 'pending' });
+      if (init.method === 'PUT') return Response.json({ status: 'cancelled' });
+      return Response.json({ id: 'new-sub', init_point: 'https://pay.test/sub' });
+    });
+    const response = await checkout(env, { plan: 'basica', email: 'buyer@example.com', billing: 'subscription', duration_months: 1 });
+    expect(response.status).toBe(200);
+    expect(fetchMock.mock.calls.map(call => call[1]?.method ?? 'GET')).toEqual(['GET', 'PUT', 'POST']);
+    expect(JSON.parse(fetchMock.mock.calls[1][1]!.body as string)).toEqual({ status: 'cancelled' });
+    expect(license.preapproval_id).toBe('new-sub');
+  });
+});
