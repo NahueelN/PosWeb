@@ -231,9 +231,10 @@ app.post('/webhook', async (c) => {
           .bind(String(mpData.id ?? resourceId), existing.license_key, 'one_time').run();
         if (inserted.meta.changes !== 1) return c.json({ success: true, license_key: licenseKey, status: existing.status, next_billing: existing.next_billing });
         const nextBilling = calcularNuevoVencimiento(existing.next_billing, months);
+        const paidPlan = VALID_PLANS.includes(refParts[1]) ? refParts[1] : existing.plan;
         await env.LICENSES_DB
-          .prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
-          .bind('active', nextBilling, licenseKey)
+          .prepare('UPDATE licenses SET status = ?, next_billing = ?, plan = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?')
+          .bind('active', nextBilling, paidPlan, licenseKey)
           .run();
         return c.json({ success: true, license_key: licenseKey, status: 'active', next_billing: nextBilling });
       }
@@ -292,11 +293,11 @@ app.post('/webhook', async (c) => {
       }
       if ((payment.payment?.status ?? payment.status) !== 'approved') return c.json({ success: true });
       const preapprovalId = payment.preapproval_id;
+      const preapproval = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } });
+      if (!preapproval.ok) return c.json({ error: `MP preapproval fetch failed: ${preapproval.status}` }, 500);
+      const data: any = await preapproval.json();
       let existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE preapproval_id = ?').bind(String(preapprovalId)).first<License>();
       if (!existing) {
-        const preapproval = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, { headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` } });
-        if (!preapproval.ok) return c.json({ error: `MP preapproval fetch failed: ${preapproval.status}` }, 500);
-        const data: any = await preapproval.json();
         const key = licenseKeyFromReference(data.external_reference || '');
         if (key) existing = await env.LICENSES_DB.prepare('SELECT * FROM licenses WHERE license_key = ?').bind(key.toUpperCase()).first<License>();
       }
@@ -304,7 +305,9 @@ app.post('/webhook', async (c) => {
       const inserted = await env.LICENSES_DB.prepare('INSERT OR IGNORE INTO processed_payments (payment_id, license_key, source) VALUES (?, ?, ?)').bind(String(payment.payment.id), existing.license_key, 'subscription').run();
       if (inserted.meta.changes !== 1) return c.json({ success: true, status: existing.status, next_billing: existing.next_billing });
       const nextBilling = calcularNuevoVencimiento(existing.next_billing, 1);
-      await env.LICENSES_DB.prepare('UPDATE licenses SET status = ?, next_billing = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?').bind('active', nextBilling, existing.license_key).run();
+      const plan = (data.external_reference || '').split(':')[1];
+      const paidPlan = VALID_PLANS.includes(plan) ? plan : existing.plan;
+      await env.LICENSES_DB.prepare('UPDATE licenses SET status = ?, next_billing = ?, plan = ?, grace_until = NULL, updated_at = datetime(\'now\') WHERE license_key = ?').bind('active', nextBilling, paidPlan, existing.license_key).run();
       return c.json({ success: true, status: 'active', next_billing: nextBilling });
     } catch (e: any) {
       return c.json({ error: `Failed to process webhook: ${e.message}` }, 500);
@@ -620,8 +623,12 @@ app.post('/checkout', async (c) => {
   const body = await c.req.json<{ plan: string; email: string; duration_months?: number; billing?: 'subscription' | 'one_time' }>();
   const { plan, email } = body;
 
-  if (!plan || !email) {
+  if (!plan) {
     return c.json({ error: 'plan and email are required' }, 400);
+  }
+
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return c.json({ error: 'Ingresá un email válido' }, 400);
   }
 
   const planKey = plan.toLowerCase();
@@ -673,12 +680,7 @@ app.post('/checkout', async (c) => {
     }
   }
 
-  if (existing) {
-    await env.LICENSES_DB
-      .prepare('UPDATE licenses SET plan = ?, updated_at = datetime(\'now\') WHERE license_key = ?')
-      .bind(planKey, licenseKey)
-      .run();
-  } else {
+  if (!existing) {
     await env.LICENSES_DB
       .prepare('INSERT INTO licenses (license_key, email, plan, status, next_billing, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, datetime(\'now\'), datetime(\'now\'))')
       .bind(licenseKey, emailLower, planKey, 'pending')
