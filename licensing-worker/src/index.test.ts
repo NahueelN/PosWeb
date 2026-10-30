@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import app from './index';
 
 function createEnv({
@@ -213,5 +213,77 @@ describe('POST /internal/last-login', () => {
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ found: false });
     expect(runs).toEqual([]);
+  });
+});
+
+function paymentEnv(initial: Record<string, any> = {}) {
+  const license = { license_key: 'KEY123', email: 'buyer@example.com', plan: 'basica', status: 'pending', preapproval_id: 'sub-1', next_billing: '2099-01-10', grace_until: null, ...initial };
+  const processed = new Set<string>();
+  const runs: { sql: string; args: any[] }[] = [];
+  const env = { MP_ACCESS_TOKEN: 'test-token', LICENSES_DB: { prepare: (sql: string) => ({ bind: (...args: any[]) => ({
+    first: async () => sql.includes('preapproval_id = ?') ? (license.preapproval_id === args[0] ? { ...license } : null) : sql.includes('license_key = ?') ? (license.license_key === args[0] ? { ...license } : null) : { ...license },
+    run: async () => {
+      runs.push({ sql, args });
+      if (sql.includes('INSERT OR IGNORE INTO processed_payments')) {
+        if (processed.has(String(args[0]))) return { meta: { changes: 0 } };
+        processed.add(String(args[0])); return { meta: { changes: 1 } };
+      }
+      if (sql.includes('next_billing = ?')) { license.status = args[0]; license.next_billing = args[1]; license.grace_until = null; }
+      else if (sql.includes('preapproval_id = ?')) license.preapproval_id = args[0];
+      else if (sql.includes('status = ?')) license.status = args[0];
+      return { meta: { changes: 1 } };
+    },
+  }) }) } };
+  return { env, license, runs, processed };
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('payment webhooks', () => {
+  const webhook = (env: any, payload: object) => app.fetch(authenticatedRequest('/webhook', undefined, payload), env);
+  it('extends an approved authorized payment once, using the payment ID', async () => {
+    const { env, license, processed } = paymentEnv();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ preapproval_id: 'sub-1', payment: { id: 42, status: 'approved' } }));
+    const payload = { type: 'subscription_authorized_payment', action: 'created', data: { id: 'authorized-1' } };
+    expect((await webhook(env, payload)).status).toBe(200);
+    expect(license.next_billing).toBe('2099-02-10');
+    expect(license.status).toBe('active');
+    expect(processed.has('42')).toBe(true);
+    expect((await webhook(env, payload)).status).toBe(200);
+    expect(license.next_billing).toBe('2099-02-10');
+  });
+  it('does not extend non-approved subscription payments', async () => {
+    const { env, license, runs } = paymentEnv();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ preapproval_id: 'sub-1', payment: { status: 'pending' } }));
+    expect((await webhook(env, { type: 'subscription_authorized_payment', action: 'created', data: { id: 'ap-1' } })).status).toBe(200);
+    expect(license.next_billing).toBe('2099-01-10');
+    expect(runs).toEqual([]);
+  });
+  it('finds a subscription license from the preapproval external reference', async () => {
+    const { env, license } = paymentEnv({ preapproval_id: null });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async url => String(url).includes('authorized_payments')
+      ? Response.json({ preapproval_id: 'sub-1', status: 'approved' })
+      : Response.json({ external_reference: 'sub:basica:buyer@example.com:KEY123' }));
+    expect((await webhook(env, { type: 'subscription_authorized_payment', data: { id: 'ap-1' } })).status).toBe(200);
+    expect(license.next_billing).toBe('2099-02-10');
+  });
+  it.each([
+    ['authorized', null, 'pending'], ['cancelled', '2099-01-10', 'active'], ['cancelled', null, 'cancelled'],
+  ])('handles preapproval %s without granting unpaid access', async (status, next_billing, expected) => {
+    const { env, license } = paymentEnv({ next_billing, status: next_billing ? 'active' : 'pending' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ status }));
+    expect((await webhook(env, { type: 'subscription_preapproval', action: 'updated', data: { id: 'sub-1' } })).status).toBe(200);
+    expect(license.status).toBe(expected);
+    expect(license.next_billing).toBe(next_billing);
+  });
+  it('extends a one-time payment only once across created and updated events', async () => {
+    const { env, license } = paymentEnv();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ id: 123, status: 'approved', external_reference: 'plan:basica:buyer@example.com:KEY123:1' }));
+    for (const action of ['payment.created', 'payment.updated']) expect((await webhook(env, { type: 'payment', action, data: { id: '123' } })).status).toBe(200);
+    expect(license.next_billing).toBe('2099-02-10');
+  });
+  it('rejects unknown topics', async () => {
+    const { env } = paymentEnv();
+    expect((await webhook(env, { type: 'unexpected', action: 'created', data: { id: 'x' } })).status).toBe(400);
   });
 });
