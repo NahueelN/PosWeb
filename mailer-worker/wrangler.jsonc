@@ -3,12 +3,22 @@
   "name": "posweb-mailer",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "posweb-licenses", "database_id": "6868dc46-399e-472c-92bc-665e013b8ec0" }
+  ],
+  "triggers": { "crons": ["0 13 * * *"] },
   "observability": {
     "enabled": true
   },
   "vars": {
     "FROM_EMAIL": "hola@vendeto.com.ar",
     "FROM_NAME": "Vendeto",
-    "CONTACT_TO": "soporte@vendeto.com.ar"
+    "CONTACT_TO": "soporte@vendeto.com.ar",
+    "DRY_RUN": "true",
+    "TRIAL_DAYS": "7",
+    "TRIAL_PROMO_DAYS": "30",
+    "TRIAL_PROMO_UNTIL": "2026-12-01",
+    "MAX_PER_RUN": "50",
+    "PUBLIC_URL": "https://posweb-mailer.chiacchio-eze01.workers.dev"
   }
 }

@@ -1,15 +1,28 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { pickFollowups } from './followups';
+import { loadFollowups } from './followupsRepo';
+import { renderFollowup } from './followupsTemplates';
+import { createToken, verifyToken } from './unsubscribe';
 
 interface Env {
+  DB: D1Database;
+  UNSUBSCRIBE_SECRET?: string;
+  DRY_RUN?: string;
+  TRIAL_DAYS?: string;
+  TRIAL_PROMO_DAYS?: string;
+  TRIAL_PROMO_UNTIL?: string;
+  MAX_PER_RUN?: string;
+  PUBLIC_URL?: string;
   MAILER_INTERNAL_KEY?: string;
+  GITHUB_TOKEN?: string;
   ZEPTOMAIL_API_KEY?: string;
   FROM_EMAIL?: string;
   FROM_NAME?: string;
   CONTACT_TO?: string;
 }
 
-const ZEPTOMAIL_ENDPOINT = 'https://cpaas.zoho.com/v1.1/email';
+const ZEPTOMAIL_ENDPOINT = 'https://api.zeptomail.com/v1.1/email';
 const RELEASE_REPO = 'NahueelN/PosWeb';
 
 // Límite de consultas por IP para el formulario de contacto público.
@@ -46,6 +59,16 @@ function esEmailValido(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+async function saveLead(env: Env, email: string, nombre: string | null, source: 'installer' | 'contact') {
+  try {
+    await env.DB.prepare(`INSERT INTO leads (email, nombre, source) VALUES (?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET nombre = COALESCE(leads.nombre, excluded.nombre)`)
+      .bind(email.trim().toLowerCase(), nombre, source).run();
+  } catch (error) {
+    console.error('Failed to save lead', error);
+  }
+}
+
 // Rate limit simple por IP usando la Cache API de Cloudflare (sin infra adicional).
 // La clave se construye sobre el hostname real del worker (la Cache API rechaza hosts
 // sintéticos); el Cache-Control define la ventana. Suficiente para endpoints públicos:
@@ -66,14 +89,34 @@ async function excedeLimite(c: any, bucket: string, max: number, windowSeconds: 
 
 // Resuelve la URL del instalador desde el último release de GitHub (igual que api/latest.js
 // del sitio). Prefiere el asset .exe y cae al html_url si no lo encuentra.
-async function obtenerInstaladorUrl(): Promise<string> {
-  const resp = await fetch(`https://api.github.com/repos/${RELEASE_REPO}/releases/latest`, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Vendeto-Web' },
-  });
-  if (!resp.ok) throw new Error(`GitHub API error ${resp.status}`);
-  const data = await resp.json<{ html_url: string; assets?: Array<{ name: string; browser_download_url: string }> }>();
-  const asset = data.assets?.find((a) => a.name.endsWith('-setup.exe') || a.name.endsWith('.exe'));
-  return asset?.browser_download_url || data.html_url;
+async function obtenerInstaladorUrl(env: Env, origin: string): Promise<string> {
+  const cacheKey = new Request(new URL('/__cache/installer-url', origin));
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) return await cached.text();
+  } catch (error) {
+    console.error('Installer cache read failed', error);
+  }
+  const fallback = `https://github.com/${RELEASE_REPO}/releases/latest`;
+  let url: string;
+  try {
+    const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'User-Agent': 'Vendeto-Web' };
+    if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+    const resp = await fetch(`https://api.github.com/repos/${RELEASE_REPO}/releases/latest`, { headers });
+    if (!resp.ok) throw new Error(`GitHub API error ${resp.status}`);
+    const data = await resp.json<{ html_url: string; assets?: Array<{ name: string; browser_download_url: string }> }>();
+    const asset = data.assets?.find((a) => a.name.endsWith('-setup.exe') || a.name.endsWith('.exe'));
+    url = asset?.browser_download_url || data.html_url;
+  } catch (error) {
+    console.error('Installer GitHub lookup failed', error);
+    return fallback;
+  }
+  try {
+    await caches.default.put(cacheKey, new Response(url, { headers: { 'Cache-Control': 'max-age=600' } }));
+  } catch (error) {
+    console.error('Installer cache write failed', error);
+  }
+  return url;
 }
 
 async function excedeLimiteCodigo(c: any, to: string): Promise<boolean> {
@@ -200,6 +243,8 @@ app.post('/contact', async (c) => {
     return c.json({ error: 'Demasiadas consultas desde esta dirección. Intentá más tarde.' }, 429);
   }
 
+  await saveLead(env, email, nombre, 'contact');
+
   const to = env.CONTACT_TO || 'soporte@vendeto.com.ar';
   const asunto = `Consulta desde la web: ${nombre}`;
 
@@ -270,9 +315,11 @@ app.post('/installer', async (c) => {
     return c.json({ error: 'Demasiadas solicitudes desde esta dirección. Intentá más tarde.' }, 429);
   }
 
+  await saveLead(env, email, null, 'installer');
+
   let downloadUrl: string;
   try {
-    downloadUrl = await obtenerInstaladorUrl();
+    downloadUrl = await obtenerInstaladorUrl(env, env.PUBLIC_URL ?? c.req.url);
   } catch (e: any) {
     return c.json({ error: `No se pudo obtener la última versión: ${e.message}` }, 502);
   }
@@ -456,4 +503,73 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-export default app;
+async function selectFollowups(env: Env) {
+  const { candidates, log, unsubscribed } = await loadFollowups(env.DB);
+  return pickFollowups(candidates, log, unsubscribed, new Date(), {
+    trialDays: Number(env.TRIAL_DAYS ?? '7'), trialPromoDays: Number(env.TRIAL_PROMO_DAYS ?? '30'),
+    trialPromoUntil: env.TRIAL_PROMO_UNTIL ?? '2026-12-01', maxPerRun: Number(env.MAX_PER_RUN ?? '50'),
+  });
+}
+
+app.post('/internal/followups/preview', async c => {
+  if (!checkInternalAuth(c, c.env)) return c.json({ error: 'Unauthorized' }, 401);
+  return c.json(await selectFollowups(c.env));
+});
+
+app.get('/unsubscribe', async c => {
+  const email = (c.req.query('e') ?? '').trim().toLowerCase();
+  const token = c.req.query('t') ?? '';
+  if (!esEmailValido(email) || !await verifyToken(c.env.UNSUBSCRIBE_SECRET ?? '', email, token)) {
+    return c.html('<!doctype html><html><body>Enlace inválido.</body></html>', 400);
+  }
+  return c.html(`<!doctype html><html><body><p>¿Querés dejar de recibir estos mails?</p><form method="post" action="/unsubscribe"><input type="hidden" name="e" value="${escapeHtml(email)}"><input type="hidden" name="t" value="${escapeHtml(token)}"><button type="submit">Darme de baja</button></form></body></html>`);
+});
+
+app.post('/unsubscribe', async c => {
+  const body = await c.req.parseBody();
+  const email = typeof body.e === 'string' ? body.e.trim().toLowerCase() : '';
+  const token = typeof body.t === 'string' ? body.t : '';
+  if (!esEmailValido(email) || !await verifyToken(c.env.UNSUBSCRIBE_SECRET ?? '', email, token)) {
+    return c.html('<!doctype html><html><body>Enlace inválido.</body></html>', 400);
+  }
+  await c.env.DB.prepare('INSERT OR IGNORE INTO unsubscribes (email) VALUES (?)').bind(email).run();
+  return c.html('<!doctype html><html><body>Listo, no vas a recibir más estos mails.</body></html>');
+});
+
+async function sendZepto(env: Env, message: { to: string; subject: string; html: string; text: string; replyTo?: string }) {
+  return fetch(ZEPTOMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Zoho-enczapikey ${env.ZEPTOMAIL_API_KEY}` },
+    body: JSON.stringify({
+      from: { address: env.FROM_EMAIL ?? 'hola@vendeto.com.ar', name: env.FROM_NAME ?? 'Vendeto' },
+      to: [{ email_address: { address: message.to } }],
+      reply_to: message.replyTo ? [{ address: message.replyTo }] : undefined,
+      subject: message.subject, htmlbody: message.html, textbody: message.text,
+    }),
+  });
+}
+
+async function scheduled(_controller: ScheduledController, env: Env) {
+  const picks = await selectFollowups(env);
+  let installerUrl: Promise<string> | undefined;
+  for (const pick of picks) {
+    if (env.DRY_RUN === 'true') { console.log({ email: pick.email, kind: pick.kind }); continue; }
+    try {
+      if (!env.UNSUBSCRIBE_SECRET || !env.PUBLIC_URL || !env.ZEPTOMAIL_API_KEY) throw new Error('Missing follow-up configuration');
+      const token = await createToken(env.UNSUBSCRIBE_SECRET, pick.email);
+      const url = new URL('/unsubscribe', env.PUBLIC_URL);
+      url.searchParams.set('e', pick.email);
+      url.searchParams.set('t', token);
+      const installer = pick.kind === 'installer_nudge' || pick.kind === 'lead_feedback' ? await (installerUrl ??= obtenerInstaladorUrl(env, env.PUBLIC_URL)) : '';
+      const template = renderFollowup(pick, installer, url.toString(), escapeHtml);
+      const response = await sendZepto(env, { to: pick.email, ...template, replyTo: env.CONTACT_TO ?? 'soporte@vendeto.com.ar' });
+      if (!response.ok) throw new Error(`ZeptoMail failed: ${response.status}`);
+      await env.DB.prepare('INSERT INTO email_log (email, kind) VALUES (?, ?)').bind(pick.email, pick.kind).run();
+    } catch (error) {
+      console.error('Follow-up failed', pick.email, pick.kind, error);
+    }
+  }
+}
+
+export { app };
+export default { fetch: app.fetch, scheduled };
