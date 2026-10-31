@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,10 @@ public class LicenciaService
     private readonly string? _workerUrl;
     private readonly string? _internalKey;
     private readonly int _offlineHours;
-    private readonly TimeSpan _pruebaGratuitaDuracion;
+    private readonly TimeSpan? _pruebaGratuitaDuracion;
+    private readonly TimeSpan? _pruebaGratuitaPromoDuracion;
+    private readonly DateTimeOffset? _pruebaGratuitaPromoHasta;
+    private readonly TimeProvider _timeProvider;
     private readonly IEncryptionService _encryption;
 
     // Retroceso del reloj del sistema: tolerancia en minutos antes de considerarlo manipulación
@@ -33,19 +37,29 @@ public class LicenciaService
         PosDbContextLocal context,
         IConfiguration configuration,
         IEncryptionService encryption,
-        HttpClient? httpClient = null)
+        HttpClient? httpClient = null,
+        TimeProvider? timeProvider = null)
     {
         _context = context;
         _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         _workerUrl = configuration["Licensing:WorkerUrl"];
         _internalKey = configuration["Licensing:InternalKey"];
         _offlineHours = int.Parse(configuration["Licensing:OfflineHours"] ?? "72");
-        // Duración de la prueba gratuita, en minutos. Config-driven para poder acortarla en dev
-        // (ej. "Licensing:PruebaGratuitaMinutos": "5") sin recompilar; 7 días si no está seteado.
+        // La duración se decide al iniciar: argumento explícito, override en minutos para dev,
+        // promo vigente por fecha y, en ausencia de los anteriores, siete días.
         var pruebaGratuitaMinutos = configuration["Licensing:PruebaGratuitaMinutos"];
         _pruebaGratuitaDuracion = pruebaGratuitaMinutos != null
             ? TimeSpan.FromMinutes(double.Parse(pruebaGratuitaMinutos))
-            : TimeSpan.FromDays(7);
+            : null;
+        if (int.TryParse(configuration["Licensing:PruebaGratuitaPromoDias"], out var promoDias)
+            && promoDias > 0 && promoDias <= TimeSpan.MaxValue.TotalDays
+            && DateTimeOffset.TryParse(configuration["Licensing:PruebaGratuitaPromoHasta"], CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var promoHasta))
+        {
+            _pruebaGratuitaPromoDuracion = TimeSpan.FromDays(promoDias);
+            _pruebaGratuitaPromoHasta = promoHasta;
+        }
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _encryption = encryption;
     }
 
@@ -204,7 +218,11 @@ public class LicenciaService
             return null;
 
         var licencia = new LicenciaConfig();
-        licencia.IniciarPruebaGratuita(machineId, duracion ?? _pruebaGratuitaDuracion);
+        var duracionElegida = duracion ?? _pruebaGratuitaDuracion
+            ?? (_pruebaGratuitaPromoHasta.HasValue && _timeProvider.GetUtcNow() < _pruebaGratuitaPromoHasta.Value
+                ? _pruebaGratuitaPromoDuracion : null)
+            ?? TimeSpan.FromDays(7);
+        licencia.IniciarPruebaGratuita(machineId, duracionElegida);
 
         _context.Set<LicenciaConfig>().Add(licencia);
         await SincronizarSuscripcionConLicencia(licencia);
